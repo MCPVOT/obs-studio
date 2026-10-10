@@ -31,6 +31,8 @@ target_sources(
     obs-convenience.c
     obs-convenience.h
     text-freetype2.c
+    text-file.c
+    text-file.h
     text-freetype2.h
     text-functionality.c
 )
