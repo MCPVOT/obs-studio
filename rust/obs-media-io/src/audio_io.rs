@@ -2,6 +2,8 @@
 
 use core::ffi::c_int;
 
+use obs_util::util_uint64::mul_div64;
+
 /// `MAX_AUDIO_MIXES`: the number of audio mixes (tracks).
 pub const MAX_AUDIO_MIXES: usize = 6;
 
@@ -117,41 +119,98 @@ pub fn speaker_layout_from_c(value: c_int) -> Option<SpeakerLayout> {
 /// `get_audio_channels`: the channels of `speakers`, 0 for
 /// [`SpeakerLayout::Unknown`].
 pub fn audio_channels(speakers: SpeakerLayout) -> u32 {
-    let _ = speakers;
-    todo!("port get_audio_channels")
+    match speakers {
+        SpeakerLayout::Mono => 1,
+        SpeakerLayout::Stereo => 2,
+        SpeakerLayout::TwoPointOne => 3,
+        SpeakerLayout::FourPointZero => 4,
+        SpeakerLayout::FourPointOne => 5,
+        SpeakerLayout::FivePointOne => 6,
+        SpeakerLayout::SevenPointOne => 8,
+        SpeakerLayout::Unknown => 0,
+    }
 }
 
 /// `get_audio_bytes_per_channel`: the bytes of one sample of `format`, 0
 /// for [`AudioFormat::Unknown`].
 pub fn audio_bytes_per_channel(format: AudioFormat) -> usize {
-    let _ = format;
-    todo!("port get_audio_bytes_per_channel")
+    match format {
+        AudioFormat::U8Bit | AudioFormat::U8BitPlanar => 1,
+
+        AudioFormat::Bit16 | AudioFormat::Bit16Planar => 2,
+
+        AudioFormat::Float
+        | AudioFormat::FloatPlanar
+        | AudioFormat::Bit32
+        | AudioFormat::Bit32Planar => 4,
+
+        AudioFormat::Unknown => 0,
+    }
 }
 
 /// `is_audio_planar`: whether `format` keeps each channel in its own
 /// plane.
 pub fn is_audio_planar(format: AudioFormat) -> bool {
-    let _ = format;
-    todo!("port is_audio_planar")
+    match format {
+        AudioFormat::U8Bit | AudioFormat::Bit16 | AudioFormat::Bit32 | AudioFormat::Float => false,
+
+        AudioFormat::U8BitPlanar
+        | AudioFormat::FloatPlanar
+        | AudioFormat::Bit16Planar
+        | AudioFormat::Bit32Planar => true,
+
+        AudioFormat::Unknown => false,
+    }
+}
+
+/// The channels of `speakers` as a `usize`, as the C's `uint32_t` converts
+/// to `size_t`.
+fn channels(speakers: SpeakerLayout) -> usize {
+    // At most 8, so this never fails.
+    usize::try_from(audio_channels(speakers)).unwrap()
+}
+
+/// `frames` as a `usize`, as the C's `uint32_t` converts to `size_t`.
+fn frames_usize(frames: u32) -> usize {
+    usize::try_from(frames).expect("size_t holds uint32_t")
 }
 
 /// `get_audio_planes`: one plane per channel for a planar `format`, else
 /// one.
 pub fn audio_planes(format: AudioFormat, speakers: SpeakerLayout) -> usize {
-    let _ = (format, speakers);
-    todo!("port get_audio_planes")
+    if is_audio_planar(format) {
+        channels(speakers)
+    } else {
+        1
+    }
 }
 
-/// `get_audio_size`: the bytes of `frames` frames in one plane.
+/// `get_audio_size`: the bytes of `frames` frames in one plane. Wraps like
+/// the C's `size_t` arithmetic.
 pub fn audio_size(format: AudioFormat, speakers: SpeakerLayout, frames: u32) -> usize {
-    let _ = (format, speakers, frames);
-    todo!("port get_audio_size")
+    let channels = if is_audio_planar(format) {
+        1
+    } else {
+        channels(speakers)
+    };
+    channels
+        .wrapping_mul(audio_bytes_per_channel(format))
+        .wrapping_mul(frames_usize(frames))
 }
 
 /// `get_total_audio_size`: the bytes of `frames` frames across all planes.
+/// Wraps like the C's `size_t` arithmetic.
 pub fn total_audio_size(format: AudioFormat, speakers: SpeakerLayout, frames: u32) -> usize {
-    let _ = (format, speakers, frames);
-    todo!("port get_total_audio_size")
+    channels(speakers)
+        .wrapping_mul(audio_bytes_per_channel(format))
+        .wrapping_mul(frames_usize(frames))
+}
+
+const NS_PER_SEC: u64 = 1_000_000_000;
+
+/// `sample_rate` as a `u64`, as the C's `size_t` converts to `uint64_t`.
+fn rate_u64(sample_rate: usize) -> u64 {
+    u64::try_from(sample_rate).expect("uint64_t holds size_t")
 }
 
 /// `audio_frames_to_ns`: the duration of `frames` frames at `sample_rate`,
@@ -162,8 +221,7 @@ pub fn total_audio_size(format: AudioFormat, speakers: SpeakerLayout, frames: u3
 /// Where [`obs_util::util_uint64::mul_div64`] does: if `sample_rate` is 0,
 /// and on MSVC x64 if the result does not fit in 64 bits.
 pub fn audio_frames_to_ns(sample_rate: usize, frames: u64) -> u64 {
-    let _ = (sample_rate, frames);
-    todo!("port audio_frames_to_ns")
+    mul_div64(frames, NS_PER_SEC, rate_u64(sample_rate))
 }
 
 /// `ns_to_audio_frames`: the frames in `ns` nanoseconds at `sample_rate`,
@@ -174,6 +232,5 @@ pub fn audio_frames_to_ns(sample_rate: usize, frames: u64) -> u64 {
 /// Where [`obs_util::util_uint64::mul_div64`] does: on MSVC x64 if the
 /// result does not fit in 64 bits.
 pub fn ns_to_audio_frames(sample_rate: usize, ns: u64) -> u64 {
-    let _ = (sample_rate, ns);
-    todo!("port ns_to_audio_frames")
+    mul_div64(ns, rate_u64(sample_rate), NS_PER_SEC)
 }
