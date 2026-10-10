@@ -365,6 +365,14 @@ target_link_libraries(test_video_io_inlines PRIVATE OBS::libobs ${CMOCKA_LIBRARI
 add_dependencies(cmocka-tests test_video_io_inlines)
 add_test(test_video_io_inlines ${CMAKE_CURRENT_BINARY_DIR}/test_video_io_inlines)
 
+# util_uint64.h header-inline helper
+add_executable(test_util_uint64 test_util_uint64.c)
+target_include_directories(test_util_uint64 PRIVATE ${CMOCKA_INCLUDE_DIR})
+target_link_libraries(test_util_uint64 PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
+
+add_dependencies(cmocka-tests test_util_uint64)
+add_test(test_util_uint64 ${CMAKE_CURRENT_BINARY_DIR}/test_util_uint64)
+
 # Exercise AV1 encoder configuration against real FFmpeg options without a
 # running OBS video session, then encode a small synthetic sequence with SVT.
 find_package(FFmpeg 8.0 REQUIRED avcodec avformat avutil)

@@ -29,6 +29,7 @@ fn main() {
         .file("oracle/array_serializer.c")
         .file("oracle/darray.c")
         .file("oracle/crc32.c")
+        .file("oracle/util_uint64.c")
         .file("oracle/vec2.c")
         .file("oracle/nal.c")
         .file("oracle/encoder_packet.c")
@@ -114,6 +115,7 @@ fn main() {
         "util/bmem.h",
         "util/utf8.c",
         "util/utf8.h",
+        "util/util_uint64.h",
         "util/lexer.c",
         "util/lexer.h",
         "util/text-lookup.c",
