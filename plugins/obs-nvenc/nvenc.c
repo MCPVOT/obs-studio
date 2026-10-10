@@ -303,9 +303,13 @@ static bool init_encoder_base(struct nvenc_data *enc, obs_data_t *settings)
 
 	/* lookahead */
 
+	/* An explicit lookahead value wins over the preset. The settings
+	 * checkbox and the Enhanced Broadcasting override both write the key.
+	 * When the key is absent, the preset may still enable lookahead. */
+	const bool lookahead_explicit = enc->props.data && obs_data_has_user_value(enc->props.data, "lookahead");
 	const bool use_profile_lookahead = config->rcParams.enableLookahead;
 	bool lookahead = nv_get_cap(enc, NV_ENC_CAPS_SUPPORT_LOOKAHEAD) &&
-			 (enc->props.lookahead || use_profile_lookahead);
+			 (lookahead_explicit ? enc->props.lookahead : (enc->props.lookahead || use_profile_lookahead));
 
 	if (lookahead) {
 		rc_lookahead = use_profile_lookahead ? config->rcParams.lookaheadDepth : 8;
@@ -336,6 +340,11 @@ static bool init_encoder_base(struct nvenc_data *enc, obs_data_t *settings)
 		} else {
 			lookahead = false;
 		}
+	}
+
+	if (lookahead_explicit && !enc->props.lookahead) {
+		config->rcParams.enableLookahead = 0;
+		config->rcParams.lookaheadDepth = 0;
 	}
 
 	enc->config.rcParams.disableIadapt = enc->props.disable_scenecut;

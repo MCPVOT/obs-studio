@@ -18,6 +18,7 @@
 
 #include <algorithm>
 #include <cinttypes>
+#include <string>
 #include <string_view>
 
 // Codec profile strings
@@ -223,9 +224,355 @@ static bool encoder_available(const char *type)
 	return false;
 }
 
+struct MultitrackEncoderOverrides {
+	bool disable_b_frames;
+	bool disable_lookahead;
+	const char *preset;
+	const char *tune;
+};
+
+static bool strip_opt(std::string &opts, const char *name)
+{
+	if (opts.empty()) {
+		return false;
+	}
+
+	const std::string prefix = std::string(name) + "=";
+	std::string kept;
+	bool removed = false;
+	size_t i = 0;
+	while (i < opts.size()) {
+		while (i < opts.size() && opts[i] == ' ') {
+			i++;
+		}
+		size_t start = i;
+		while (i < opts.size() && opts[i] != ' ') {
+			i++;
+		}
+		if (start == i) {
+			break;
+		}
+
+		std::string token = opts.substr(start, i - start);
+		if (token.compare(0, prefix.size(), prefix) == 0) {
+			removed = true;
+			continue;
+		}
+		if (!kept.empty()) {
+			kept.push_back(' ');
+		}
+		kept += token;
+	}
+
+	if (removed) {
+		opts.swap(kept);
+	}
+	return removed;
+}
+
+static bool set_int_setting(obs_data_t *settings, obs_properties_t *props, const char *name, long long value,
+			    long long *previous, bool *had_value)
+{
+	obs_property_t *property = props ? obs_properties_get(props, name) : nullptr;
+	bool property_is_int = property && obs_property_get_type(property) == OBS_PROPERTY_INT;
+	bool has_value = obs_data_has_user_value(settings, name);
+	if (!property_is_int && !has_value) {
+		return false;
+	}
+
+	*previous = obs_data_get_int(settings, name);
+	*had_value = has_value;
+	obs_data_set_int(settings, name, value);
+	return true;
+}
+
+static bool list_accepts_value(obs_properties_t *props, const char *name, const char *value)
+{
+	obs_property_t *property = props ? obs_properties_get(props, name) : nullptr;
+	if (!property || obs_property_get_type(property) != OBS_PROPERTY_LIST) {
+		return false;
+	}
+
+	const size_t count = obs_property_list_item_count(property);
+	for (size_t i = 0; i < count; i++) {
+		const char *item = obs_property_list_item_string(property, i);
+		if (item && strcmp(item, value) == 0) {
+			return true;
+		}
+	}
+	return false;
+}
+
+/* The service never sees this. It only changes the encoder session on this machine. */
+static bool set_list_override(obs_data_t *settings, obs_properties_t *props, const char *name, const char *value,
+			      size_t encoder_index, const char *label)
+{
+	if (!list_accepts_value(props, name, value)) {
+		return false;
+	}
+
+	const bool had_value = obs_data_has_user_value(settings, name);
+	std::string previous = had_value ? obs_data_get_string(settings, name) : "";
+	obs_data_set_string(settings, name, value);
+	if (had_value) {
+		blog(LOG_INFO, "MultitrackVideoOutput: %s overridden (encoder %zu: %s %s -> %s)", label, encoder_index,
+		     name, previous.c_str(), value);
+	} else {
+		blog(LOG_INFO, "MultitrackVideoOutput: %s overridden (encoder %zu: %s unset -> %s)", label,
+		     encoder_index, name, value);
+	}
+	return true;
+}
+
+static int preset_level(const char *choice)
+{
+	if (!choice || choice[0] != 'p' || choice[1] < '1' || choice[1] > '7' || choice[2] != '\0') {
+		return -1;
+	}
+	return choice[1] - '1';
+}
+
+static bool list_accepts_int(obs_properties_t *props, const char *name, long long value)
+{
+	obs_property_t *property = props ? obs_properties_get(props, name) : nullptr;
+	if (!property || obs_property_get_type(property) != OBS_PROPERTY_LIST ||
+	    obs_property_list_format(property) != OBS_COMBO_FORMAT_INT) {
+		return false;
+	}
+
+	const size_t count = obs_property_list_item_count(property);
+	for (size_t i = 0; i < count; i++) {
+		if (obs_property_list_item_int(property, i) == value) {
+			return true;
+		}
+	}
+	return false;
+}
+
+static bool set_int_list_override(obs_data_t *settings, obs_properties_t *props, const char *name, long long value,
+				  size_t encoder_index, const char *label)
+{
+	if (!list_accepts_int(props, name, value)) {
+		return false;
+	}
+
+	const bool had_value = obs_data_has_user_value(settings, name);
+	const long long previous = had_value ? obs_data_get_int(settings, name) : 0;
+	obs_data_set_int(settings, name, value);
+	if (had_value) {
+		blog(LOG_INFO, "MultitrackVideoOutput: %s overridden (encoder %zu: %s %" PRId64 " -> %" PRId64 ")",
+		     label, encoder_index, name, (int64_t)previous, (int64_t)value);
+	} else {
+		blog(LOG_INFO, "MultitrackVideoOutput: %s overridden (encoder %zu: %s unset -> %" PRId64 ")", label,
+		     encoder_index, name, (int64_t)value);
+	}
+	return true;
+}
+
+/* One UI choice, translated into the preset names each Enhanced Broadcasting encoder publishes. */
+static void apply_preset_override(obs_data_t *settings, obs_properties_t *props, const char *encoder_type,
+				  size_t encoder_index, const char *value)
+{
+	if (!value || !*value) {
+		return;
+	}
+
+	const int level = preset_level(value);
+	if (level < 0) {
+		blog(LOG_INFO, "MultitrackVideoOutput: preset override skipped for encoder %zu (%s): unknown preset %s",
+		     encoder_index, encoder_type, value);
+		return;
+	}
+
+	if (set_list_override(settings, props, "preset", value, encoder_index, "preset") ||
+	    set_list_override(settings, props, "preset2", value, encoder_index, "preset")) {
+		return;
+	}
+
+	static const char *const x264_presets[] = {"ultrafast", "superfast", "veryfast", "fast",
+						   "medium",    "slow",      "veryslow"};
+	static const char *const qsv_presets[] = {"TU7", "TU6", "TU5", "TU4", "TU3", "TU2", "TU1"};
+	static const char *const amf_presets[] = {"speed",   "speed",   "balanced", "balanced",
+						  "quality", "quality", "quality"};
+	static const int svt_presets[] = {12, 11, 10, 9, 8, 7, 6};
+	static const int aom_presets[] = {10, 10, 9, 9, 8, 8, 7};
+
+	if (set_list_override(settings, props, "preset", x264_presets[level], encoder_index, "preset") ||
+	    set_list_override(settings, props, "target_usage", qsv_presets[level], encoder_index, "preset") ||
+	    (level == 6 && set_list_override(settings, props, "preset", "highQuality", encoder_index, "preset")) ||
+	    set_list_override(settings, props, "preset", amf_presets[level], encoder_index, "preset") ||
+	    set_int_list_override(settings, props, "preset", svt_presets[level], encoder_index, "preset") ||
+	    set_int_list_override(settings, props, "preset", aom_presets[level], encoder_index, "preset")) {
+		return;
+	}
+
+	blog(LOG_INFO, "MultitrackVideoOutput: preset override skipped for encoder %zu (%s): no preset setting",
+	     encoder_index, encoder_type);
+}
+
+static void apply_tune_override(obs_data_t *settings, obs_properties_t *props, const char *encoder_type,
+				size_t encoder_index, const char *value)
+{
+	if (!value || !*value) {
+		return;
+	}
+
+	if (set_list_override(settings, props, "tune", value, encoder_index, "tune")) {
+		return;
+	}
+
+	/* Current NVENC offers uhq. Older NVENC and FFmpeg NVENC stop at hq. */
+	if (strcmp(value, "uhq") == 0 && set_list_override(settings, props, "tune", "hq", encoder_index, "tune")) {
+		blog(LOG_INFO, "MultitrackVideoOutput: encoder %zu (%s) has no uhq tune; using hq", encoder_index,
+		     encoder_type);
+		return;
+	}
+
+	const char *qsv_latency = nullptr;
+	if (strcmp(value, "ull") == 0) {
+		qsv_latency = "ultra-low";
+	} else if (strcmp(value, "ll") == 0) {
+		qsv_latency = "low";
+	} else if (strcmp(value, "hq") == 0 || strcmp(value, "uhq") == 0) {
+		qsv_latency = "normal";
+	}
+	if (qsv_latency && set_list_override(settings, props, "latency", qsv_latency, encoder_index, "tune")) {
+		return;
+	}
+
+	/* x264 has no quality tune. Low latency is its zerolatency tune. */
+	if ((strcmp(value, "ll") == 0 || strcmp(value, "ull") == 0) &&
+	    set_list_override(settings, props, "tune", "zerolatency", encoder_index, "tune")) {
+		return;
+	}
+
+	blog(LOG_INFO, "MultitrackVideoOutput: tune override skipped for encoder %zu (%s): %s has no equivalent",
+	     encoder_index, encoder_type, value);
+}
+
+static void apply_encoder_overrides(obs_data_t *settings, const char *encoder_type, size_t encoder_index,
+				    const MultitrackEncoderOverrides &overrides)
+{
+	OBSProperties properties = obs_get_encoder_properties(encoder_type);
+
+	apply_preset_override(settings, properties, encoder_type, encoder_index, overrides.preset);
+	apply_tune_override(settings, properties, encoder_type, encoder_index, overrides.tune);
+
+	if (overrides.disable_b_frames) {
+		bool applied = false;
+		long long previous = 0;
+		bool had_value = false;
+		if (set_int_setting(settings, properties, "bf", 0, &previous, &had_value)) {
+			applied = true;
+			if (had_value) {
+				blog(LOG_INFO,
+				     "MultitrackVideoOutput: B-frames disabled by user override (encoder %zu: bf %" PRId64
+				     " -> 0)",
+				     encoder_index, (int64_t)previous);
+			} else {
+				blog(LOG_INFO,
+				     "MultitrackVideoOutput: B-frames disabled by user override (encoder %zu: bf unset -> 0)",
+				     encoder_index);
+			}
+		}
+
+		if (set_int_setting(settings, properties, "bframes", 0, &previous, &had_value)) {
+			applied = true;
+			if (had_value) {
+				blog(LOG_INFO,
+				     "MultitrackVideoOutput: B-frames disabled by user override (encoder %zu: bframes %" PRId64
+				     " -> 0)",
+				     encoder_index, (int64_t)previous);
+			} else {
+				blog(LOG_INFO,
+				     "MultitrackVideoOutput: B-frames disabled by user override (encoder %zu: bframes unset -> 0)",
+				     encoder_index);
+			}
+		}
+
+		/* x264 reads "bf" when it is set and does not publish it as a property. */
+		if (!applied && strstr(encoder_type, "x264")) {
+			obs_data_set_int(settings, "bf", 0);
+			applied = true;
+			blog(LOG_INFO,
+			     "MultitrackVideoOutput: B-frames disabled by user override (encoder %zu: bf unset -> 0)",
+			     encoder_index);
+		}
+
+		if (!applied) {
+			blog(LOG_INFO,
+			     "MultitrackVideoOutput: B-frame override skipped for encoder %zu (%s): no bf setting",
+			     encoder_index, encoder_type);
+		}
+
+		const char *tune = obs_data_get_string(settings, "tune");
+		if (tune && strcmp(tune, "uhq") == 0) {
+			blog(LOG_INFO,
+			     "MultitrackVideoOutput: encoder %zu tune is uhq; obs-nvenc forces at least 4 B-frames for that tune",
+			     encoder_index);
+		}
+	}
+
+	if (overrides.disable_lookahead) {
+		bool applied = false;
+		obs_property_t *property = properties ? obs_properties_get(properties, "lookahead") : nullptr;
+		bool property_is_bool = property && obs_property_get_type(property) == OBS_PROPERTY_BOOL;
+		bool has_value = obs_data_has_user_value(settings, "lookahead");
+		if (property_is_bool || has_value || strstr(encoder_type, "nvenc")) {
+			bool previous = obs_data_get_bool(settings, "lookahead");
+			obs_data_set_bool(settings, "lookahead", false);
+			applied = true;
+			blog(LOG_INFO,
+			     "MultitrackVideoOutput: lookahead disabled by user override (encoder %zu: lookahead %s -> false)",
+			     encoder_index, (property_is_bool || has_value) && previous ? "true" : "false");
+		}
+
+		obs_property_t *pre_analysis = properties ? obs_properties_get(properties, "pre_analysis") : nullptr;
+		if ((pre_analysis && obs_property_get_type(pre_analysis) == OBS_PROPERTY_BOOL) ||
+		    obs_data_has_user_value(settings, "pre_analysis")) {
+			obs_data_set_bool(settings, "pre_analysis", false);
+			applied = true;
+			blog(LOG_INFO,
+			     "MultitrackVideoOutput: lookahead disabled by user override (encoder %zu: pre_analysis -> false)",
+			     encoder_index);
+		}
+
+		/* Quick Sync lookahead is its latency mode. Ultra-low is the mode with no lookahead. */
+		if (set_list_override(settings, properties, "latency", "ultra-low", encoder_index, "lookahead")) {
+			applied = true;
+		}
+
+		/* x264 turns rc-lookahead off with the zerolatency tune. */
+		if (strstr(encoder_type, "x264") &&
+		    set_list_override(settings, properties, "tune", "zerolatency", encoder_index, "lookahead")) {
+			applied = true;
+		}
+
+		if (obs_data_has_user_value(settings, "opts")) {
+			std::string opts = obs_data_get_string(settings, "opts");
+			bool removed_depth = strip_opt(opts, "lookaheadDepth");
+			bool removed_enable = strip_opt(opts, "enableLookahead");
+			if (removed_depth || removed_enable) {
+				obs_data_set_string(settings, "opts", opts.c_str());
+				applied = true;
+				blog(LOG_INFO,
+				     "MultitrackVideoOutput: lookahead disabled by user override (encoder %zu: removed lookahead options)",
+				     encoder_index);
+			}
+		}
+
+		if (!applied) {
+			blog(LOG_INFO,
+			     "MultitrackVideoOutput: lookahead override skipped for encoder %zu (%s): no lookahead setting",
+			     encoder_index, encoder_type);
+		}
+	}
+}
+
 static OBSEncoderAutoRelease create_video_encoder(DStr &name_buffer, size_t encoder_index,
 						  const GoLiveApi::VideoEncoderConfiguration &encoder_config,
-						  const OBSCanvasAutoRelease &canvas)
+						  const OBSCanvasAutoRelease &canvas,
+						  const MultitrackEncoderOverrides &overrides)
 {
 	auto encoder_type = encoder_config.type.c_str();
 	if (!encoder_available(encoder_type)) {
@@ -294,6 +641,7 @@ static OBSEncoderAutoRelease create_video_encoder(DStr &name_buffer, size_t enco
 		obs_data_set_int(encoder_settings, "profile", vaapi_profile);
 	}
 	obs_data_set_bool(encoder_settings, "disable_scenecut", true);
+	apply_encoder_overrides(encoder_settings, encoder_type, encoder_index, overrides);
 
 	OBSEncoderAutoRelease video_encoder =
 		obs_video_encoder_create(encoder_type, name_buffer, encoder_settings, nullptr);
@@ -334,13 +682,12 @@ struct OBSOutputs {
 	OBSOutputAutoRelease output, recording_output;
 };
 
-static OBSOutputs SetupOBSOutput(QWidget *parent, const QString &multitrack_video_name,
-				 obs_data_t *dump_stream_to_file_config, const GoLiveApi::Config &go_live_config,
-				 std::vector<OBSEncoderAutoRelease> &audio_encoders,
-				 std::shared_ptr<obs_encoder_group_t> &video_encoder_group,
-				 const char *audio_encoder_id, size_t main_audio_mixer,
-				 std::optional<size_t> vod_track_mixer,
-				 const std::vector<OBSCanvasAutoRelease> &canvases);
+static OBSOutputs
+SetupOBSOutput(QWidget *parent, const QString &multitrack_video_name, obs_data_t *dump_stream_to_file_config,
+	       const GoLiveApi::Config &go_live_config, std::vector<OBSEncoderAutoRelease> &audio_encoders,
+	       std::shared_ptr<obs_encoder_group_t> &video_encoder_group, const char *audio_encoder_id,
+	       size_t main_audio_mixer, std::optional<size_t> vod_track_mixer,
+	       const std::vector<OBSCanvasAutoRelease> &canvases, const MultitrackEncoderOverrides &overrides);
 static void SetupSignalHandlers(bool recording, MultitrackVideoOutput *self, obs_output_t *output, OBSSignal &start,
 				OBSSignal &stop);
 
@@ -349,7 +696,8 @@ void MultitrackVideoOutput::PrepareStreaming(
 	const QString &stream_key, const char *audio_encoder_id, std::optional<uint32_t> maximum_aggregate_bitrate,
 	std::optional<uint32_t> maximum_video_tracks, std::optional<std::string> custom_config,
 	obs_data_t *dump_stream_to_file_config, size_t main_audio_mixer, std::optional<size_t> vod_track_mixer,
-	std::optional<bool> use_rtmps, std::optional<QString> extra_canvas)
+	std::optional<bool> use_rtmps, std::optional<QString> extra_canvas, bool disable_b_frames,
+	bool disable_lookahead, const char *preset, const char *tune)
 {
 	{
 		const std::lock_guard<std::mutex> current_lock{current_mutex};
@@ -468,9 +816,10 @@ void MultitrackVideoOutput::PrepareStreaming(
 
 	std::vector<OBSEncoderAutoRelease> audio_encoders;
 	std::shared_ptr<obs_encoder_group_t> video_encoder_group;
+	MultitrackEncoderOverrides overrides{disable_b_frames, disable_lookahead, preset, tune};
 	auto outputs = SetupOBSOutput(parent, multitrack_video_name, dump_stream_to_file_config, output_config,
 				      audio_encoders, video_encoder_group, audio_encoder_id, main_audio_mixer,
-				      vod_track_mixer, canvases);
+				      vod_track_mixer, canvases, overrides);
 	auto output = std::move(outputs.output);
 	auto recording_output = std::move(outputs.recording_output);
 	if (!output) {
@@ -596,7 +945,8 @@ void MultitrackVideoOutput::StopStreaming()
 static bool create_video_encoders(const GoLiveApi::Config &go_live_config,
 				  std::shared_ptr<obs_encoder_group_t> &video_encoder_group, obs_output_t *output,
 				  obs_output_t *recording_output, json &bitrate_interpolation_array,
-				  const std::vector<OBSCanvasAutoRelease> &canvases)
+				  const std::vector<OBSCanvasAutoRelease> &canvases,
+				  const MultitrackEncoderOverrides &overrides)
 {
 	DStr video_encoder_name_buffer;
 	if (go_live_config.encoder_configurations.empty()) {
@@ -619,7 +969,7 @@ static bool create_video_encoders(const GoLiveApi::Config &go_live_config,
 		}
 
 		auto &canvas = canvases[config.canvas_index];
-		auto encoder = create_video_encoder(video_encoder_name_buffer, i, config, canvas);
+		auto encoder = create_video_encoder(video_encoder_name_buffer, i, config, canvas, overrides);
 		if (!encoder) {
 			return false;
 		}
@@ -800,13 +1150,12 @@ static void handle_speaker_layout_issues(QWidget *parent, const QString &multitr
 	throw MultitrackVideoError::cancel();
 }
 
-static OBSOutputs SetupOBSOutput(QWidget *parent, const QString &multitrack_video_name,
-				 obs_data_t *dump_stream_to_file_config, const GoLiveApi::Config &go_live_config,
-				 std::vector<OBSEncoderAutoRelease> &audio_encoders,
-				 std::shared_ptr<obs_encoder_group_t> &video_encoder_group,
-				 const char *audio_encoder_id, size_t main_audio_mixer,
-				 std::optional<size_t> vod_track_mixer,
-				 const std::vector<OBSCanvasAutoRelease> &canvases)
+static OBSOutputs
+SetupOBSOutput(QWidget *parent, const QString &multitrack_video_name, obs_data_t *dump_stream_to_file_config,
+	       const GoLiveApi::Config &go_live_config, std::vector<OBSEncoderAutoRelease> &audio_encoders,
+	       std::shared_ptr<obs_encoder_group_t> &video_encoder_group, const char *audio_encoder_id,
+	       size_t main_audio_mixer, std::optional<size_t> vod_track_mixer,
+	       const std::vector<OBSCanvasAutoRelease> &canvases, const MultitrackEncoderOverrides &overrides)
 {
 	auto output = create_output();
 	OBSOutputAutoRelease recording_output;
@@ -816,7 +1165,7 @@ static OBSOutputs SetupOBSOutput(QWidget *parent, const QString &multitrack_vide
 
 	json bitrate_interpolation_array = json::array();
 	if (!create_video_encoders(go_live_config, video_encoder_group, output, recording_output,
-				   bitrate_interpolation_array, canvases)) {
+				   bitrate_interpolation_array, canvases, overrides)) {
 		return {nullptr, nullptr};
 	}
 

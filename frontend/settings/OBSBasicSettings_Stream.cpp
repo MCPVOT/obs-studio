@@ -13,6 +13,41 @@
 
 #include <QUuid>
 
+static void add_override_choice(QComboBox *box, const char *text_key, const char *value)
+{
+	box->addItem(QTStr(text_key), QString::fromUtf8(value));
+}
+
+static void select_multitrack_override(QComboBox *box, const char *value)
+{
+	const QString data = QString::fromUtf8(value ? value : "");
+	const int index = box->findData(data);
+	box->setCurrentIndex(index >= 0 ? index : 0);
+}
+
+static void setup_multitrack_override_combos(Ui::OBSBasicSettings *ui)
+{
+	if (ui->multitrackVideoPreset->count() == 0) {
+		add_override_choice(ui->multitrackVideoPreset, "Basic.Settings.Stream.MultitrackVideoPreset.Service",
+				    "");
+		add_override_choice(ui->multitrackVideoPreset, "Basic.Settings.Stream.MultitrackVideoPreset.p1", "p1");
+		add_override_choice(ui->multitrackVideoPreset, "Basic.Settings.Stream.MultitrackVideoPreset.p2", "p2");
+		add_override_choice(ui->multitrackVideoPreset, "Basic.Settings.Stream.MultitrackVideoPreset.p3", "p3");
+		add_override_choice(ui->multitrackVideoPreset, "Basic.Settings.Stream.MultitrackVideoPreset.p4", "p4");
+		add_override_choice(ui->multitrackVideoPreset, "Basic.Settings.Stream.MultitrackVideoPreset.p5", "p5");
+		add_override_choice(ui->multitrackVideoPreset, "Basic.Settings.Stream.MultitrackVideoPreset.p6", "p6");
+		add_override_choice(ui->multitrackVideoPreset, "Basic.Settings.Stream.MultitrackVideoPreset.p7", "p7");
+	}
+
+	if (ui->multitrackVideoTune->count() == 0) {
+		add_override_choice(ui->multitrackVideoTune, "Basic.Settings.Stream.MultitrackVideoTune.Service", "");
+		add_override_choice(ui->multitrackVideoTune, "Basic.Settings.Stream.MultitrackVideoTune.uhq", "uhq");
+		add_override_choice(ui->multitrackVideoTune, "Basic.Settings.Stream.MultitrackVideoTune.hq", "hq");
+		add_override_choice(ui->multitrackVideoTune, "Basic.Settings.Stream.MultitrackVideoTune.ll", "ll");
+		add_override_choice(ui->multitrackVideoTune, "Basic.Settings.Stream.MultitrackVideoTune.ull", "ull");
+	}
+}
+
 static const QUuid &CustomServerUUID()
 {
 	static const QUuid uuid = QUuid::fromString(QT_UTF8("{241da255-70f2-4bbb-bef7-509695bf8e65}"));
@@ -165,6 +200,15 @@ void OBSBasicSettings::LoadStream1Settings()
 
 	ui->multitrackVideoStreamDumpEnable->setChecked(
 		config_get_bool(main->Config(), "Stream1", "MultitrackVideoStreamDumpEnabled"));
+	ui->multitrackVideoDisableBFrames->setChecked(
+		config_get_bool(main->Config(), "Stream1", "MultitrackVideoDisableBFrames"));
+	ui->multitrackVideoDisableLookahead->setChecked(
+		config_get_bool(main->Config(), "Stream1", "MultitrackVideoDisableLookahead"));
+	setup_multitrack_override_combos(ui.get());
+	select_multitrack_override(ui->multitrackVideoPreset,
+				   config_get_string(main->Config(), "Stream1", "MultitrackVideoPreset"));
+	select_multitrack_override(ui->multitrackVideoTune,
+				   config_get_string(main->Config(), "Stream1", "MultitrackVideoTune"));
 
 	ui->multitrackVideoConfigOverrideEnable->setChecked(
 		config_get_bool(main->Config(), "Stream1", "MultitrackVideoConfigOverrideEnabled"));
@@ -368,6 +412,10 @@ void OBSBasicSettings::SaveStream1Settings()
 	SaveCheckBox(ui->multitrackVideoMaximumVideoTracksAuto, "Stream1", "MultitrackVideoMaximumVideoTracksAuto");
 	SaveSpinBox(ui->multitrackVideoMaximumVideoTracks, "Stream1", "MultitrackVideoMaximumVideoTracks");
 	SaveCheckBox(ui->multitrackVideoStreamDumpEnable, "Stream1", "MultitrackVideoStreamDumpEnabled");
+	SaveCheckBox(ui->multitrackVideoDisableBFrames, "Stream1", "MultitrackVideoDisableBFrames");
+	SaveCheckBox(ui->multitrackVideoDisableLookahead, "Stream1", "MultitrackVideoDisableLookahead");
+	SaveComboData(ui->multitrackVideoPreset, "Stream1", "MultitrackVideoPreset");
+	SaveComboData(ui->multitrackVideoTune, "Stream1", "MultitrackVideoTune");
 	SaveCheckBox(ui->multitrackVideoConfigOverrideEnable, "Stream1", "MultitrackVideoConfigOverrideEnabled");
 	SaveText(ui->multitrackVideoConfigOverride, "Stream1", "MultitrackVideoConfigOverride");
 	SaveComboData(ui->multitrackVideoAdditionalCanvas, "Stream1", "MultitrackExtraCanvas");
