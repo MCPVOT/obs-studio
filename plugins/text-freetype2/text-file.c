@@ -17,6 +17,46 @@ static void remove_cr(wchar_t *source)
 	source[j] = '\0';
 }
 
+/* UTF-16LE text as a NUL-terminated wide string, in a new bmalloc buffer.
+ * A stray last byte is dropped. Where wchar_t is UTF-32, surrogate pairs are
+ * joined and unpaired surrogates become U+FFFD. */
+static wchar_t *utf16le_to_wcs(const uint8_t *data, size_t size)
+{
+	const size_t units = size / 2;
+	wchar_t *text = bmalloc((units + 1) * sizeof(wchar_t));
+	size_t len = 0;
+
+	for (size_t i = 0; i < units; i++) {
+		uint32_t c = data[i * 2] | (uint32_t)data[i * 2 + 1] << 8;
+#if WCHAR_MAX > 0xFFFF
+		if (c >= 0xD800 && c < 0xDC00 && i + 1 < units) {
+			const uint32_t low = data[i * 2 + 2] | (uint32_t)data[i * 2 + 3] << 8;
+			if (low >= 0xDC00 && low < 0xE000) {
+				c = 0x10000 + ((c - 0xD800) << 10) + (low - 0xDC00);
+				i++;
+			}
+		}
+		if (c >= 0xD800 && c < 0xE000)
+			c = 0xFFFD;
+#endif
+		text[len++] = (wchar_t)c;
+	}
+
+	text[len] = 0;
+	return text;
+}
+
+/* `size` bytes of UTF-16LE text from the current position of `file`. */
+static wchar_t *read_utf16(FILE *file, size_t size)
+{
+	uint8_t *data = bmalloc(size + 1);
+	size = fread(data, 1, size, file);
+	wchar_t *text = utf16le_to_wcs(data, size);
+	bfree(data);
+	remove_cr(text);
+	return text;
+}
+
 wchar_t *ft2_read_text_file(const char *filename)
 {
 	wchar_t *text = NULL;
@@ -36,8 +76,7 @@ wchar_t *ft2_read_text_file(const char *filename)
 
 	if (bytes_read == 2 && header == 0xFEFF) {
 		// File is already in UTF-16 format
-		text = bzalloc(filesize);
-		bytes_read = fread(text, filesize - 2, 1, tmp_file);
+		text = read_utf16(tmp_file, filesize - 2);
 
 		bfree(tmp_read);
 		fclose(tmp_file);
@@ -81,9 +120,14 @@ wchar_t *ft2_read_text_file_end(const char *filename, uint32_t log_lines)
 
 	fseek(tmp_file, 0, SEEK_END);
 	filesize = (uint32_t)ftell(tmp_file);
+
+	/* UTF-16 text is whole 2-byte units after the BOM */
+	const uint32_t start = utf16 ? 2 : 0;
+	if (utf16)
+		filesize = start + (filesize - start) / 2 * 2;
 	cur_pos = filesize;
 
-	while (line_breaks <= log_lines && cur_pos != 0) {
+	while (line_breaks <= log_lines && cur_pos > start) {
 		if (!utf16)
 			cur_pos--;
 		else
@@ -101,16 +145,14 @@ wchar_t *ft2_read_text_file_end(const char *filename, uint32_t log_lines)
 		}
 	}
 
-	if (cur_pos != 0)
+	if (cur_pos != start)
 		cur_pos += (utf16) ? 2 : 1;
 
 	fseek(tmp_file, cur_pos, SEEK_SET);
 
 	if (utf16) {
-		text = bzalloc(filesize - cur_pos);
-		bytes_read = fread(text, (filesize - cur_pos), 1, tmp_file);
+		text = read_utf16(tmp_file, filesize - cur_pos);
 
-		remove_cr(text);
 		bfree(tmp_read);
 		fclose(tmp_file);
 
