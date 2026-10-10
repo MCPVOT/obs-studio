@@ -16,6 +16,7 @@ pub mod frame_rate;
 pub mod lexer;
 pub mod text_lookup;
 pub mod utf8;
+pub mod util_uint64;
 pub mod video_io_inlines;
 
 pub mod path_extension {
