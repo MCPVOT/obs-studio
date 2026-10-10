@@ -37,6 +37,9 @@ class SoldrCacheTest(unittest.TestCase):
             mock.patch.object(local_gate, "gersemi"),
             mock.patch.object(local_gate, "self_test", create=True),
         ):
+            # The caller's own setting must not leak into the check.
+            if "SOLDR_RUSTC_WRAPPER" not in (env or {}):
+                os.environ.pop("SOLDR_RUSTC_WRAPPER", None)
             lane(False)
         return [(cmd, e) for cmd, e in calls if cmd[:2] == ["soldr", "cargo"]]
 
