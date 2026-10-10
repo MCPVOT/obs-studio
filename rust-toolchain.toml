@@ -1,3 +1,5 @@
 [toolchain]
-channel = "stable"
+# Pinned (obs-rust/obs-studio#136). Bump in one PR with the full CI matrix;
+# keep [workspace.package] rust-version in Cargo.toml in step.
+channel = "1.99.0"
 components = ["rustfmt", "clippy"]
