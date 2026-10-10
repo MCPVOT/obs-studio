@@ -70,9 +70,12 @@ fn main() {
         .file("oracle/buffered_file_serializer.c")
         .file("oracle/video_matrices.c")
         .file("oracle/pipe_args.c");
-    // Unix-only: pipe-posix.c needs <spawn.h>.
+    // Unix-only: pipe-posix.c needs <spawn.h>; the threading oracle is the
+    // POSIX half of util/threading.h.
     if std::env::var_os("CARGO_CFG_UNIX").is_some() {
-        oracle.file("oracle/pipe_posix.c");
+        oracle
+            .file("oracle/pipe_posix.c")
+            .file("oracle/threading_posix.c");
     }
     oracle
         .include(&libobs)

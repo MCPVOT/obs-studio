@@ -107,6 +107,13 @@ obs_parse_avc_packet
 obs_parse_avc_packet_priority
 obs_parse_hevc_packet
 obs_parse_hevc_packet_priority
+os_event_destroy unix
+os_event_init unix
+os_event_reset unix
+os_event_signal unix
+os_event_timedwait unix
+os_event_try unix
+os_event_wait unix
 os_get_path_extension
 os_process_args_add_arg
 os_process_args_create
@@ -119,6 +126,11 @@ os_process_pipe_destroy unix
 os_process_pipe_read unix
 os_process_pipe_read_err unix
 os_process_pipe_write unix
+os_sem_destroy unix
+os_sem_init unix
+os_sem_post unix
+os_sem_wait unix
+os_set_thread_name unix
 os_task_queue_create
 os_task_queue_destroy
 os_task_queue_inside

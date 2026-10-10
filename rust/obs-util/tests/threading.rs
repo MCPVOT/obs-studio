@@ -17,7 +17,7 @@
 use std::sync::Arc;
 
 use obs_c_oracle as _; // links the test bmalloc/bfree (oracle/test_bmem.c)
-use obs_util::threading::{gnu_thread_name, Event, EventType, Sem};
+use obs_util::threading::{Event, EventType, Sem, gnu_thread_name};
 
 const PING_PONG_COUNT: usize = 1000;
 const SEM_POST_COUNT: usize = 500;
@@ -25,8 +25,8 @@ const SEM_POST_COUNT: usize = 500;
 /// test_event_init_auto_manual
 #[test]
 fn event_init_auto_manual() {
-    drop(Event::new(EventType::Auto));
-    drop(Event::new(EventType::Manual));
+    let _auto = Event::new(EventType::Auto);
+    let _manual = Event::new(EventType::Manual);
 }
 
 /// test_event_try_unsignaled
@@ -177,8 +177,11 @@ fn gnu_thread_name_truncates_at_15() {
     assert_eq!(gnu_thread_name(b""), b"");
 }
 
-/// Edge case beyond the C test: many waiters on one manual event all wake
-/// on a single signal, while an auto event releases exactly one per signal.
+/// Edge case beyond the C test: a manual event stays signalled for every
+/// waiter that reaches it, but `signal` wakes only one sleeper at a time
+/// (pthread_cond_signal / notify_one), so already-sleeping waiters each
+/// need their own signal. An auto event releases exactly one waiter per
+/// signal.
 #[test]
 fn event_manual_wakes_all_auto_wakes_one() {
     const WAITERS: usize = 4;
@@ -201,7 +204,11 @@ fn event_manual_wakes_all_auto_wakes_one() {
         ready.wait();
     }
 
-    ev.signal();
+    // The flag stays set, so waiters that have not slept yet pass on
+    // entry; one signal per waiter covers any already sleeping.
+    for _ in 0..WAITERS {
+        ev.signal();
+    }
     for _ in 0..WAITERS {
         done.wait();
     }
