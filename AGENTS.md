@@ -15,6 +15,10 @@ It defines the four required test tiers (Rust unit tests, unchanged C tests
 against the Rust implementation, differential tests against the original C,
 and black-box protocol tests) and the per-unit workflow.
 
+Before picking up or filing an issue, or opening a PR, read
+[docs/rust-port/coordination.md](docs/rust-port/coordination.md): claim
+before coding, search open PRs first, target master, RED then GREEN commits.
+
 ## Local gate (run before every push)
 
 - `./lint` (8 s): clang-format 22.1.3 and gersemi 0.25.0 pinned via uvx, rustfmt, clippy. `./lint --fix` rewrites files.
