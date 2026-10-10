@@ -385,43 +385,46 @@ add_dependencies(cmocka-tests test_svt_av1)
 add_test(test_svt_av1 ${CMAKE_CURRENT_BINARY_DIR}/test_svt_av1)
 set_tests_properties(test_svt_av1 PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 60)
 
-# Decode RTMP server errors through the same authentication-enabled sources
-# as obs-outputs, without starting OBS or connecting to a server.
+# Handle RTMP server messages (errors, chunk sizes) through the same
+# authentication-enabled sources as obs-outputs, without starting OBS or
+# connecting to a server.
 if(TARGET OBS::outputs)
-  add_executable(
-    test_rtmp_error
-    test_rtmp_error.c
-    "${CMAKE_SOURCE_DIR}/plugins/obs-outputs/librtmp/rtmp.c"
-    "${CMAKE_SOURCE_DIR}/plugins/obs-outputs/librtmp/amf.c"
-    "${CMAKE_SOURCE_DIR}/plugins/obs-outputs/librtmp/log.c"
-    "${CMAKE_SOURCE_DIR}/plugins/obs-outputs/librtmp/parseurl.c"
-    "${CMAKE_SOURCE_DIR}/plugins/obs-outputs/librtmp/hashswf.c"
-  )
-  target_compile_definitions(test_rtmp_error PRIVATE USE_MBEDTLS CRYPTO)
-  target_compile_options(
-    test_rtmp_error
-    PRIVATE
-      $<$<COMPILE_LANG_AND_ID:C,AppleClang,Clang>:-Wno-comma>
-      $<$<AND:$<PLATFORM_ID:Linux,FreeBSD,OpenBSD>,$<COMPILE_LANG_AND_ID:C,Clang>>:-Wno-error=unreachable-code>
-  )
-  target_include_directories(test_rtmp_error PRIVATE ${CMOCKA_INCLUDE_DIR} "${CMAKE_SOURCE_DIR}/plugins/obs-outputs")
-  target_link_libraries(
-    test_rtmp_error
-    PRIVATE
-      OBS::libobs
-      OBS::happy-eyeballs
-      MbedTLS::mbedtls
-      ZLIB::ZLIB
-      ${CMOCKA_LIBRARIES}
-      $<$<PLATFORM_ID:Windows>:crypt32>
-      $<$<PLATFORM_ID:Windows>:iphlpapi>
-      $<$<PLATFORM_ID:Windows>:winmm>
-      $<$<PLATFORM_ID:Windows>:ws2_32>
-      "$<$<PLATFORM_ID:Darwin>:$<LINK_LIBRARY:FRAMEWORK,Foundation.framework>>"
-      "$<$<PLATFORM_ID:Darwin>:$<LINK_LIBRARY:FRAMEWORK,Security.framework>>"
-  )
-  add_dependencies(cmocka-tests test_rtmp_error)
-  add_test(test_rtmp_error ${CMAKE_CURRENT_BINARY_DIR}/test_rtmp_error)
+  foreach(test_name IN ITEMS test_rtmp_error test_rtmp_chunk_size)
+    add_executable(
+      ${test_name}
+      ${test_name}.c
+      "${CMAKE_SOURCE_DIR}/plugins/obs-outputs/librtmp/rtmp.c"
+      "${CMAKE_SOURCE_DIR}/plugins/obs-outputs/librtmp/amf.c"
+      "${CMAKE_SOURCE_DIR}/plugins/obs-outputs/librtmp/log.c"
+      "${CMAKE_SOURCE_DIR}/plugins/obs-outputs/librtmp/parseurl.c"
+      "${CMAKE_SOURCE_DIR}/plugins/obs-outputs/librtmp/hashswf.c"
+    )
+    target_compile_definitions(${test_name} PRIVATE USE_MBEDTLS CRYPTO)
+    target_compile_options(
+      ${test_name}
+      PRIVATE
+        $<$<COMPILE_LANG_AND_ID:C,AppleClang,Clang>:-Wno-comma>
+        $<$<AND:$<PLATFORM_ID:Linux,FreeBSD,OpenBSD>,$<COMPILE_LANG_AND_ID:C,Clang>>:-Wno-error=unreachable-code>
+    )
+    target_include_directories(${test_name} PRIVATE ${CMOCKA_INCLUDE_DIR} "${CMAKE_SOURCE_DIR}/plugins/obs-outputs")
+    target_link_libraries(
+      ${test_name}
+      PRIVATE
+        OBS::libobs
+        OBS::happy-eyeballs
+        MbedTLS::mbedtls
+        ZLIB::ZLIB
+        ${CMOCKA_LIBRARIES}
+        $<$<PLATFORM_ID:Windows>:crypt32>
+        $<$<PLATFORM_ID:Windows>:iphlpapi>
+        $<$<PLATFORM_ID:Windows>:winmm>
+        $<$<PLATFORM_ID:Windows>:ws2_32>
+        "$<$<PLATFORM_ID:Darwin>:$<LINK_LIBRARY:FRAMEWORK,Foundation.framework>>"
+        "$<$<PLATFORM_ID:Darwin>:$<LINK_LIBRARY:FRAMEWORK,Security.framework>>"
+    )
+    add_dependencies(cmocka-tests ${test_name})
+    add_test(${test_name} ${CMAKE_CURRENT_BINARY_DIR}/${test_name})
+  endforeach()
 endif()
 
 # Build obs-outputs' FLV tags from flv-mux.c, without librtmp's network code.
