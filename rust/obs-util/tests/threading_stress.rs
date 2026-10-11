@@ -6,6 +6,7 @@
 //! and thread joins — never on sleeps or timing.
 
 use std::sync::Arc;
+#[cfg(unix)]
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use obs_c_oracle as _; // links the test bmalloc/bfree (oracle/test_bmem.c)
