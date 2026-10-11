@@ -12,6 +12,7 @@
 
 pub mod array_serializer;
 pub mod audio_io_inlines;
+pub mod audio_math;
 pub mod av1;
 pub mod avc;
 pub mod base;
