@@ -17,8 +17,9 @@
 
 #include <media-io/media-io-defs.h>
 
-/* RED stub: today's copy loop uses mNumberBuffers as is. */
+/* obs_source_audio::data[] and OBSAVCaptureAudioFrame::data both carry a
+ * fixed table of MAX_AV_PLANES (media-io-defs.h) plane pointers. */
 size_t avcapture_audio_plane_count(size_t buffer_list_count)
 {
-	return buffer_list_count;
+	return buffer_list_count < MAX_AV_PLANES ? buffer_list_count : MAX_AV_PLANES;
 }
