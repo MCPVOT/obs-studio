@@ -373,8 +373,8 @@ fn sem_wait_eintr_matches() {
 
     unsafe {
         let mut sa: libc::sigaction = std::mem::zeroed();
-        unsafe { libc::sigemptyset(&mut sa.sa_mask) };
-        sa.sa_sigaction = noop_handler as usize;
+        libc::sigemptyset(&mut sa.sa_mask);
+        sa.sa_sigaction = noop_handler as *const () as usize;
         // No SA_RESTART: the wait must be interruptible.
         sa.sa_flags = 0;
         libc::sigaction(libc::SIGUSR1, &sa, ptr::null_mut());
