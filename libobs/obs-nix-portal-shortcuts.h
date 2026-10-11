@@ -35,6 +35,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
  * BindShortcuts per session). A session the desktop closes is not bound
  * again until a new combination is assigned; a restarted portal is.
  *
+ * While obs_hotkey_enable_background_press(false) is in effect (the
+ * "Disable hotkeys when main window is not in focus" setting, or a dialog
+ * that disables hotkeys), the hotkey thread drops every press, so the
+ * session is closed and the desktop stops holding the keys for OBS; the
+ * current set is bound again when presses are enabled.
+ *
  * Without the portal (or without its GlobalShortcuts interface) the client
  * logs once and stops; hotkeys keep working only while OBS is focused. */
 

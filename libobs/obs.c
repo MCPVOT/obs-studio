@@ -1109,6 +1109,7 @@ static const char *obs_signals[] = {
 	"void hotkey_register(ptr hotkey)",
 	"void hotkey_unregister(ptr hotkey)",
 	"void hotkey_bindings_changed(ptr hotkey)",
+	"void hotkey_background_press_changed(bool enabled)",
 
 	"void canvas_create(ptr canvas)",
 	"void canvas_remove(ptr canvas)",

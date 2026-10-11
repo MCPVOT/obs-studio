@@ -75,6 +75,9 @@ struct obs_nix_portal_shortcuts {
 	 * the desktop closed. They are not bound again (no repeated prompt)
 	 * until the bindings gain a combination or the portal restarts. */
 	combo_array_t declined;
+	/* Background presses are disabled (obs_hotkey_enable_background_press):
+	 * no session is held, so the desktop gives the keys back. */
+	bool paused;
 };
 
 /* ------------------------------------------------------------------------ */
@@ -522,15 +525,38 @@ static bool bind_shortcuts(struct obs_nix_portal_shortcuts *portal, const combo_
 	return true;
 }
 
+/* The hotkey thread drops every press while this is set (the hotkey focus
+ * setting, or a dialog that disables hotkeys). */
+static bool background_press_disabled(void)
+{
+	pthread_mutex_lock(&obs->hotkeys.mutex);
+	bool disabled = obs->hotkeys.thread_disable_press;
+	pthread_mutex_unlock(&obs->hotkeys.mutex);
+	return disabled;
+}
+
 /* Brings the portal session in line with the current bindings. The portal
  * accepts one BindShortcuts call per session, so a change closes the
  * session and binds the new set in a fresh one; the ids of combinations
- * that stay bound do not change, so the desktop keeps their triggers. */
+ * that stay bound do not change, so the desktop keeps their triggers.
+ *
+ * While background presses are disabled the wanted set is empty: OBS would
+ * drop every activation, so the desktop must not hold the keys for it.
+ * Nothing is marked declined by that, so enabling presses binds the same
+ * set again without a new prompt. */
 static void sync_shortcuts(struct obs_nix_portal_shortcuts *portal)
 {
 	combo_array_t current;
 	da_init(current);
-	obs_enum_hotkey_bindings(collect_binding, &current);
+
+	bool paused = background_press_disabled();
+	if (paused != portal->paused) {
+		blog(LOG_INFO, "[portal] Hotkeys %s; global hotkeys %s", paused ? "disabled" : "enabled",
+		     paused ? "released until they are enabled" : "bound again");
+		portal->paused = paused;
+	}
+	if (!paused)
+		obs_enum_hotkey_bindings(collect_binding, &current);
 
 	bool unchanged = portal->session_path
 				 ? covered_by(&current, &portal->bound) && covered_by(&portal->bound, &current)
@@ -752,18 +778,34 @@ static void bindings_changed(void *data, calldata_t *params)
 	g_source_set_ready_time(portal->sync_source, g_get_monotonic_time() + SYNC_DELAY_MS * G_TIME_SPAN_MILLISECOND);
 }
 
-static const char *binding_signals[] = {"hotkey_bindings_changed", "hotkey_unregister"};
+/* hotkey_background_press_changed: right away, so the desktop gives a key
+ * back (or holds it again) as soon as OBS stops (or starts) using it. */
+static void background_press_changed(void *data, calldata_t *params)
+{
+	UNUSED_PARAMETER(params);
+	struct obs_nix_portal_shortcuts *portal = data;
+	g_source_set_ready_time(portal->sync_source, 0);
+}
+
+static const struct {
+	const char *name;
+	signal_callback_t callback;
+} hotkey_signals[] = {
+	{"hotkey_bindings_changed", bindings_changed},
+	{"hotkey_unregister", bindings_changed},
+	{"hotkey_background_press_changed", background_press_changed},
+};
 
 static void connect_binding_signals(struct obs_nix_portal_shortcuts *portal, bool connect)
 {
 	signal_handler_t *signals = obs->hotkeys.signals;
 	if (!signals)
 		return;
-	for (size_t i = 0; i < sizeof(binding_signals) / sizeof(binding_signals[0]); i++) {
+	for (size_t i = 0; i < sizeof(hotkey_signals) / sizeof(hotkey_signals[0]); i++) {
 		if (connect)
-			signal_handler_connect(signals, binding_signals[i], bindings_changed, portal);
+			signal_handler_connect(signals, hotkey_signals[i].name, hotkey_signals[i].callback, portal);
 		else
-			signal_handler_disconnect(signals, binding_signals[i], bindings_changed, portal);
+			signal_handler_disconnect(signals, hotkey_signals[i].name, hotkey_signals[i].callback, portal);
 	}
 }
 
