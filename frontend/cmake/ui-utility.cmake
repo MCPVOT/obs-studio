@@ -30,6 +30,8 @@ target_sources(
     utility/multitrack-encoder-override.c
     utility/multitrack-encoder-override.h
     utility/NativeEventFilter.hpp
+    utility/multitrack-ladder.c
+    utility/multitrack-ladder.h
     utility/product-name.c
     utility/product-name.h
     utility/OBSCanvas.cpp
