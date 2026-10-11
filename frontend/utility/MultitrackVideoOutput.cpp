@@ -3,6 +3,7 @@
 #include "models/multitrack-video.hpp"
 #include "GoLiveAPI_Network.hpp"
 #include "GoLiveAPI_PostData.hpp"
+#include "multitrack-encoder-override.h"
 
 #include <OBSApp.hpp>
 
@@ -231,282 +232,123 @@ struct MultitrackEncoderOverrides {
 	const char *tune;
 };
 
-static bool strip_opt(std::string &opts, const char *name)
-{
-	if (opts.empty()) {
-		return false;
-	}
-
-	const std::string prefix = std::string(name) + "=";
-	std::string kept;
-	bool removed = false;
-	size_t i = 0;
-	while (i < opts.size()) {
-		while (i < opts.size() && opts[i] == ' ') {
-			i++;
-		}
-		size_t start = i;
-		while (i < opts.size() && opts[i] != ' ') {
-			i++;
-		}
-		if (start == i) {
-			break;
-		}
-
-		std::string token = opts.substr(start, i - start);
-		if (token.compare(0, prefix.size(), prefix) == 0) {
-			removed = true;
-			continue;
-		}
-		if (!kept.empty()) {
-			kept.push_back(' ');
-		}
-		kept += token;
-	}
-
-	if (removed) {
-		opts.swap(kept);
-	}
-	return removed;
-}
-
-static bool set_int_setting(obs_data_t *settings, obs_properties_t *props, const char *name, long long value,
-			    long long *previous, bool *had_value)
-{
-	obs_property_t *property = props ? obs_properties_get(props, name) : nullptr;
-	bool property_is_int = property && obs_property_get_type(property) == OBS_PROPERTY_INT;
-	bool has_value = obs_data_has_user_value(settings, name);
-	if (!property_is_int && !has_value) {
-		return false;
-	}
-
-	*previous = obs_data_get_int(settings, name);
-	*had_value = has_value;
-	obs_data_set_int(settings, name, value);
-	return true;
-}
-
-static bool list_accepts_value(obs_properties_t *props, const char *name, const char *value)
-{
-	obs_property_t *property = props ? obs_properties_get(props, name) : nullptr;
-	if (!property || obs_property_get_type(property) != OBS_PROPERTY_LIST) {
-		return false;
-	}
-
-	const size_t count = obs_property_list_item_count(property);
-	for (size_t i = 0; i < count; i++) {
-		const char *item = obs_property_list_item_string(property, i);
-		if (item && strcmp(item, value) == 0) {
-			return true;
-		}
-	}
-	return false;
-}
-
 /* The service never sees this. It only changes the encoder session on this machine. */
-static bool set_list_override(obs_data_t *settings, obs_properties_t *props, const char *name, const char *value,
-			      size_t encoder_index, const char *label)
+static void log_string_override(obs_data_t *settings, const char *key, const char *value, size_t encoder_index,
+				const char *label)
 {
-	if (!list_accepts_value(props, name, value)) {
-		return false;
-	}
-
-	const bool had_value = obs_data_has_user_value(settings, name);
-	std::string previous = had_value ? obs_data_get_string(settings, name) : "";
-	obs_data_set_string(settings, name, value);
+	const bool had_value = obs_data_has_user_value(settings, key);
+	std::string previous = had_value ? obs_data_get_string(settings, key) : "";
+	obs_data_set_string(settings, key, value);
 	if (had_value) {
 		blog(LOG_INFO, "MultitrackVideoOutput: %s overridden (encoder %zu: %s %s -> %s)", label, encoder_index,
-		     name, previous.c_str(), value);
+		     key, previous.c_str(), value);
 	} else {
 		blog(LOG_INFO, "MultitrackVideoOutput: %s overridden (encoder %zu: %s unset -> %s)", label,
-		     encoder_index, name, value);
+		     encoder_index, key, value);
 	}
-	return true;
 }
 
-static int preset_level(const char *choice)
+static void log_int_override(obs_data_t *settings, const char *key, long long value, size_t encoder_index,
+			     const char *label)
 {
-	if (!choice || choice[0] != 'p' || choice[1] < '1' || choice[1] > '7' || choice[2] != '\0') {
-		return -1;
-	}
-	return choice[1] - '1';
-}
-
-static bool list_accepts_int(obs_properties_t *props, const char *name, long long value)
-{
-	obs_property_t *property = props ? obs_properties_get(props, name) : nullptr;
-	if (!property || obs_property_get_type(property) != OBS_PROPERTY_LIST ||
-	    obs_property_list_format(property) != OBS_COMBO_FORMAT_INT) {
-		return false;
-	}
-
-	const size_t count = obs_property_list_item_count(property);
-	for (size_t i = 0; i < count; i++) {
-		if (obs_property_list_item_int(property, i) == value) {
-			return true;
-		}
-	}
-	return false;
-}
-
-static bool set_int_list_override(obs_data_t *settings, obs_properties_t *props, const char *name, long long value,
-				  size_t encoder_index, const char *label)
-{
-	if (!list_accepts_int(props, name, value)) {
-		return false;
-	}
-
-	const bool had_value = obs_data_has_user_value(settings, name);
-	const long long previous = had_value ? obs_data_get_int(settings, name) : 0;
-	obs_data_set_int(settings, name, value);
+	const bool had_value = obs_data_has_user_value(settings, key);
+	const long long previous = had_value ? obs_data_get_int(settings, key) : 0;
+	obs_data_set_int(settings, key, value);
 	if (had_value) {
 		blog(LOG_INFO, "MultitrackVideoOutput: %s overridden (encoder %zu: %s %" PRId64 " -> %" PRId64 ")",
-		     label, encoder_index, name, (int64_t)previous, (int64_t)value);
+		     label, encoder_index, key, (int64_t)previous, (int64_t)value);
 	} else {
 		blog(LOG_INFO, "MultitrackVideoOutput: %s overridden (encoder %zu: %s unset -> %" PRId64 ")", label,
-		     encoder_index, name, (int64_t)value);
+		     encoder_index, key, (int64_t)value);
 	}
-	return true;
 }
 
-/* One UI choice, translated into the preset names each Enhanced Broadcasting encoder publishes. */
-static void apply_preset_override(obs_data_t *settings, obs_properties_t *props, const char *encoder_type,
-				  size_t encoder_index, const char *value)
+static void apply_string_slot(obs_data_t *settings, const struct mtv_string_setting *slot, size_t encoder_index,
+			      const char *label)
 {
-	if (!value || !*value) {
+	if (!slot->key || !slot->value) {
 		return;
 	}
-
-	const int level = preset_level(value);
-	if (level < 0) {
-		blog(LOG_INFO, "MultitrackVideoOutput: preset override skipped for encoder %zu (%s): unknown preset %s",
-		     encoder_index, encoder_type, value);
-		return;
-	}
-
-	if (set_list_override(settings, props, "preset", value, encoder_index, "preset") ||
-	    set_list_override(settings, props, "preset2", value, encoder_index, "preset")) {
-		return;
-	}
-
-	static const char *const x264_presets[] = {"ultrafast", "superfast", "veryfast", "fast",
-						   "medium",    "slow",      "veryslow"};
-	static const char *const qsv_presets[] = {"TU7", "TU6", "TU5", "TU4", "TU3", "TU2", "TU1"};
-	static const char *const amf_presets[] = {"speed",   "speed",   "balanced", "balanced",
-						  "quality", "quality", "quality"};
-	static const int svt_presets[] = {12, 11, 10, 9, 8, 7, 6};
-	static const int aom_presets[] = {10, 10, 9, 9, 8, 8, 7};
-
-	if (set_list_override(settings, props, "preset", x264_presets[level], encoder_index, "preset") ||
-	    set_list_override(settings, props, "target_usage", qsv_presets[level], encoder_index, "preset") ||
-	    (level == 6 && set_list_override(settings, props, "preset", "highQuality", encoder_index, "preset")) ||
-	    set_list_override(settings, props, "preset", amf_presets[level], encoder_index, "preset") ||
-	    set_int_list_override(settings, props, "preset", svt_presets[level], encoder_index, "preset") ||
-	    set_int_list_override(settings, props, "preset", aom_presets[level], encoder_index, "preset")) {
-		return;
-	}
-
-	blog(LOG_INFO, "MultitrackVideoOutput: preset override skipped for encoder %zu (%s): no preset setting",
-	     encoder_index, encoder_type);
+	log_string_override(settings, slot->key, slot->value, encoder_index, label);
 }
 
-static void apply_tune_override(obs_data_t *settings, obs_properties_t *props, const char *encoder_type,
-				size_t encoder_index, const char *value)
+static void apply_bf_slot(obs_data_t *settings, const struct mtv_int_setting *slot, size_t encoder_index)
 {
-	if (!value || !*value) {
+	if (!slot->set || !slot->key) {
 		return;
 	}
 
-	if (set_list_override(settings, props, "tune", value, encoder_index, "tune")) {
-		return;
+	const bool had_value = obs_data_has_user_value(settings, slot->key);
+	const long long previous = had_value ? obs_data_get_int(settings, slot->key) : 0;
+	obs_data_set_int(settings, slot->key, slot->value);
+	if (had_value) {
+		blog(LOG_INFO,
+		     "MultitrackVideoOutput: B-frames disabled by user override (encoder %zu: %s %" PRId64
+		     " -> %" PRId64 ")",
+		     encoder_index, slot->key, (int64_t)previous, (int64_t)slot->value);
+	} else {
+		blog(LOG_INFO,
+		     "MultitrackVideoOutput: B-frames disabled by user override (encoder %zu: %s unset -> %" PRId64 ")",
+		     encoder_index, slot->key, (int64_t)slot->value);
 	}
-
-	/* Current NVENC offers uhq. Older NVENC and FFmpeg NVENC stop at hq. */
-	if (strcmp(value, "uhq") == 0 && set_list_override(settings, props, "tune", "hq", encoder_index, "tune")) {
-		blog(LOG_INFO, "MultitrackVideoOutput: encoder %zu (%s) has no uhq tune; using hq", encoder_index,
-		     encoder_type);
-		return;
-	}
-
-	const char *qsv_latency = nullptr;
-	if (strcmp(value, "ull") == 0) {
-		qsv_latency = "ultra-low";
-	} else if (strcmp(value, "ll") == 0) {
-		qsv_latency = "low";
-	} else if (strcmp(value, "hq") == 0 || strcmp(value, "uhq") == 0) {
-		qsv_latency = "normal";
-	}
-	if (qsv_latency && set_list_override(settings, props, "latency", qsv_latency, encoder_index, "tune")) {
-		return;
-	}
-
-	/* x264 has no quality tune. Low latency is its zerolatency tune. */
-	if ((strcmp(value, "ll") == 0 || strcmp(value, "ull") == 0) &&
-	    set_list_override(settings, props, "tune", "zerolatency", encoder_index, "tune")) {
-		return;
-	}
-
-	blog(LOG_INFO, "MultitrackVideoOutput: tune override skipped for encoder %zu (%s): %s has no equivalent",
-	     encoder_index, encoder_type, value);
 }
 
+/* One UI choice, translated by encoder id. The table lives in
+ * multitrack-encoder-override.c so it can be tested without Qt or a GPU. */
 static void apply_encoder_overrides(obs_data_t *settings, const char *encoder_type, size_t encoder_index,
 				    const MultitrackEncoderOverrides &overrides)
 {
-	OBSProperties properties = obs_get_encoder_properties(encoder_type);
+	struct mtv_override_in in = {0};
+	struct mtv_override_out out;
+	in.preset = overrides.preset;
+	in.tune = overrides.tune;
+	in.disable_b_frames = overrides.disable_b_frames;
+	in.disable_lookahead = overrides.disable_lookahead;
+	mtv_translate_encoder_override(encoder_type, &in, &out);
 
-	apply_preset_override(settings, properties, encoder_type, encoder_index, overrides.preset);
-	apply_tune_override(settings, properties, encoder_type, encoder_index, overrides.tune);
+	if (out.preset_unknown) {
+		blog(LOG_INFO, "MultitrackVideoOutput: preset override skipped for encoder %zu (%s): unknown preset %s",
+		     encoder_index, encoder_type, overrides.preset);
+	} else if (out.preset.key) {
+		apply_string_slot(settings, &out.preset, encoder_index, "preset");
+	} else if (out.preset_int.set) {
+		log_int_override(settings, out.preset_int.key, out.preset_int.value, encoder_index, "preset");
+	} else if (out.preset_skipped) {
+		blog(LOG_INFO, "MultitrackVideoOutput: preset override skipped for encoder %zu (%s): no preset setting",
+		     encoder_index, encoder_type);
+	}
+
+	if (out.tune_skipped && overrides.tune && overrides.tune[0]) {
+		blog(LOG_INFO,
+		     "MultitrackVideoOutput: tune override skipped for encoder %zu (%s): %s has no equivalent",
+		     encoder_index, encoder_type, overrides.tune);
+	}
+	if (out.tune.key) {
+		const char *label = (overrides.disable_lookahead && strcmp(out.tune.value, "zerolatency") == 0)
+					    ? "lookahead"
+					    : "tune";
+		apply_string_slot(settings, &out.tune, encoder_index, label);
+		if (overrides.tune && strcmp(overrides.tune, "uhq") == 0 && strcmp(out.tune.value, "hq") == 0) {
+			blog(LOG_INFO, "MultitrackVideoOutput: encoder %zu (%s) has no uhq tune; using hq",
+			     encoder_index, encoder_type);
+		}
+	}
+	if (out.latency.key) {
+		const char *label = overrides.disable_lookahead ? "lookahead" : "tune";
+		apply_string_slot(settings, &out.latency, encoder_index, label);
+	}
 
 	if (overrides.disable_b_frames) {
-		bool applied = false;
-		long long previous = 0;
-		bool had_value = false;
-		if (set_int_setting(settings, properties, "bf", 0, &previous, &had_value)) {
-			applied = true;
-			if (had_value) {
-				blog(LOG_INFO,
-				     "MultitrackVideoOutput: B-frames disabled by user override (encoder %zu: bf %" PRId64
-				     " -> 0)",
-				     encoder_index, (int64_t)previous);
-			} else {
-				blog(LOG_INFO,
-				     "MultitrackVideoOutput: B-frames disabled by user override (encoder %zu: bf unset -> 0)",
-				     encoder_index);
-			}
-		}
-
-		if (set_int_setting(settings, properties, "bframes", 0, &previous, &had_value)) {
-			applied = true;
-			if (had_value) {
-				blog(LOG_INFO,
-				     "MultitrackVideoOutput: B-frames disabled by user override (encoder %zu: bframes %" PRId64
-				     " -> 0)",
-				     encoder_index, (int64_t)previous);
-			} else {
-				blog(LOG_INFO,
-				     "MultitrackVideoOutput: B-frames disabled by user override (encoder %zu: bframes unset -> 0)",
-				     encoder_index);
-			}
-		}
-
-		/* x264 reads "bf" when it is set and does not publish it as a property. */
-		if (!applied && strstr(encoder_type, "x264")) {
-			obs_data_set_int(settings, "bf", 0);
-			applied = true;
-			blog(LOG_INFO,
-			     "MultitrackVideoOutput: B-frames disabled by user override (encoder %zu: bf unset -> 0)",
-			     encoder_index);
-		}
-
-		if (!applied) {
+		apply_bf_slot(settings, &out.bf, encoder_index);
+		apply_bf_slot(settings, &out.bframes, encoder_index);
+		if (out.bframes_skipped) {
 			blog(LOG_INFO,
 			     "MultitrackVideoOutput: B-frame override skipped for encoder %zu (%s): no bf setting",
 			     encoder_index, encoder_type);
 		}
 
 		const char *tune = obs_data_get_string(settings, "tune");
-		if (tune && strcmp(tune, "uhq") == 0) {
+		if (out.uhq_forces_min_bframes || (tune && strcmp(tune, "uhq") == 0)) {
 			blog(LOG_INFO,
 			     "MultitrackVideoOutput: encoder %zu tune is uhq; obs-nvenc forces at least 4 B-frames for that tune",
 			     encoder_index);
@@ -515,52 +357,36 @@ static void apply_encoder_overrides(obs_data_t *settings, const char *encoder_ty
 
 	if (overrides.disable_lookahead) {
 		bool applied = false;
-		obs_property_t *property = properties ? obs_properties_get(properties, "lookahead") : nullptr;
-		bool property_is_bool = property && obs_property_get_type(property) == OBS_PROPERTY_BOOL;
-		bool has_value = obs_data_has_user_value(settings, "lookahead");
-		if (property_is_bool || has_value || strstr(encoder_type, "nvenc")) {
-			bool previous = obs_data_get_bool(settings, "lookahead");
-			obs_data_set_bool(settings, "lookahead", false);
+		if (out.lookahead.set) {
+			const bool had_value = obs_data_has_user_value(settings, out.lookahead.key);
+			const bool previous = obs_data_get_bool(settings, out.lookahead.key);
+			obs_data_set_bool(settings, out.lookahead.key, out.lookahead.value);
 			applied = true;
 			blog(LOG_INFO,
 			     "MultitrackVideoOutput: lookahead disabled by user override (encoder %zu: lookahead %s -> false)",
-			     encoder_index, (property_is_bool || has_value) && previous ? "true" : "false");
+			     encoder_index, had_value && previous ? "true" : "false");
 		}
-
-		obs_property_t *pre_analysis = properties ? obs_properties_get(properties, "pre_analysis") : nullptr;
-		if ((pre_analysis && obs_property_get_type(pre_analysis) == OBS_PROPERTY_BOOL) ||
-		    obs_data_has_user_value(settings, "pre_analysis")) {
-			obs_data_set_bool(settings, "pre_analysis", false);
+		if (out.pre_analysis.set) {
+			obs_data_set_bool(settings, out.pre_analysis.key, out.pre_analysis.value);
 			applied = true;
 			blog(LOG_INFO,
 			     "MultitrackVideoOutput: lookahead disabled by user override (encoder %zu: pre_analysis -> false)",
 			     encoder_index);
 		}
-
-		/* Quick Sync lookahead is its latency mode. Ultra-low is the mode with no lookahead. */
-		if (set_list_override(settings, properties, "latency", "ultra-low", encoder_index, "lookahead")) {
+		if (out.latency.key || (out.tune.key && strcmp(out.tune.value, "zerolatency") == 0)) {
 			applied = true;
 		}
-
-		/* x264 turns rc-lookahead off with the zerolatency tune. */
-		if (strstr(encoder_type, "x264") &&
-		    set_list_override(settings, properties, "tune", "zerolatency", encoder_index, "lookahead")) {
-			applied = true;
-		}
-
-		if (obs_data_has_user_value(settings, "opts")) {
-			std::string opts = obs_data_get_string(settings, "opts");
-			bool removed_depth = strip_opt(opts, "lookaheadDepth");
-			bool removed_enable = strip_opt(opts, "enableLookahead");
-			if (removed_depth || removed_enable) {
-				obs_data_set_string(settings, "opts", opts.c_str());
+		if (out.strip_lookahead_opts && obs_data_has_user_value(settings, "opts")) {
+			const std::string opts = obs_data_get_string(settings, "opts");
+			std::string filtered(opts.size() + 1, '\0');
+			if (mtv_filter_lookahead_opts(opts.c_str(), true, &filtered[0], filtered.size())) {
+				obs_data_set_string(settings, "opts", filtered.c_str());
 				applied = true;
 				blog(LOG_INFO,
 				     "MultitrackVideoOutput: lookahead disabled by user override (encoder %zu: removed lookahead options)",
 				     encoder_index);
 			}
 		}
-
 		if (!applied) {
 			blog(LOG_INFO,
 			     "MultitrackVideoOutput: lookahead override skipped for encoder %zu (%s): no lookahead setting",

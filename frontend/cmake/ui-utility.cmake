@@ -27,6 +27,8 @@ target_sources(
     utility/MultitrackVideoError.hpp
     utility/MultitrackVideoOutput.cpp
     utility/MultitrackVideoOutput.hpp
+    utility/multitrack-encoder-override.c
+    utility/multitrack-encoder-override.h
     utility/NativeEventFilter.hpp
     utility/product-name.c
     utility/product-name.h

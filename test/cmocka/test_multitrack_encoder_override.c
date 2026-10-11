@@ -227,8 +227,8 @@ static void test_lookahead_opts_are_stripped_only_when_disabled(void **state)
 	expect_opts(opts, false, opts, false);
 	expect_opts("rc=cbr lookaheadDepth=4", true, "rc=cbr", true);
 	expect_opts("enableLookahead=0", true, "", true);
-	expect_opts("lookaheadDepthExtra=1 enableLookaheadExtra=1", true, "lookaheadDepthExtra=1 enableLookaheadExtra=1",
-		    false);
+	expect_opts("lookaheadDepthExtra=1 enableLookaheadExtra=1", true,
+		    "lookaheadDepthExtra=1 enableLookaheadExtra=1", false);
 	expect_opts("  bitrate=1   lookaheadDepth=2  ", true, "bitrate=1", true);
 	expect_opts(NULL, true, "", false);
 	expect_opts("", true, "", false);

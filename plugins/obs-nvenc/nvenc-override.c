@@ -2,22 +2,19 @@
 
 bool nvenc_lookahead_enabled(bool preset_enables, bool explicit_setting, bool setting_on)
 {
-	(void)preset_enables;
-	(void)explicit_setting;
-	(void)setting_on;
-	return false;
+	if (explicit_setting)
+		return setting_on;
+	return setting_on || preset_enables;
 }
 
 bool nvenc_lookahead_force_off(bool explicit_setting, bool setting_on)
 {
-	(void)explicit_setting;
-	(void)setting_on;
-	return false;
+	return explicit_setting && !setting_on;
 }
 
 int nvenc_bframes_for_uhq(bool uhq, int bframes)
 {
-	(void)uhq;
-	(void)bframes;
-	return 0;
+	if (uhq && bframes < 4)
+		return 4;
+	return bframes;
 }
