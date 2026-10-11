@@ -404,11 +404,11 @@ add_dependencies(cmocka-tests test_svt_av1)
 add_test(test_svt_av1 ${CMAKE_CURRENT_BINARY_DIR}/test_svt_av1)
 set_tests_properties(test_svt_av1 PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 60)
 
-# Handle RTMP server messages (errors, chunk sizes) through the same
+# Exercise AMF decoding and RTMP server messages through the same
 # authentication-enabled sources as obs-outputs, without starting OBS or
 # connecting to a server.
 if(TARGET OBS::outputs)
-  foreach(test_name IN ITEMS test_rtmp_error test_rtmp_chunk_size)
+  foreach(test_name IN ITEMS test_rtmp_error test_rtmp_chunk_size test_amf_decode)
     add_executable(
       ${test_name}
       ${test_name}.c
@@ -444,6 +444,13 @@ if(TARGET OBS::outputs)
     add_dependencies(cmocka-tests ${test_name})
     add_test(${test_name} ${CMAKE_CURRENT_BINARY_DIR}/${test_name})
   endforeach()
+
+  if(NOT MSVC)
+    target_compile_options(
+      test_amf_decode PRIVATE -fsigned-char -fsanitize=undefined -fno-sanitize-recover=undefined
+    )
+    target_link_options(test_amf_decode PRIVATE -fsanitize=undefined)
+  endif()
 endif()
 
 # Build obs-outputs' FLV tags from flv-mux.c, without librtmp's network code.
