@@ -305,7 +305,9 @@ static void test_matrix4_inv_scale_translation_and_singular(void **state)
 
 	translation(&m, 4.0f, -2.0f, 8.0f);
 	assert_true(matrix4_inv(&dst, &m));
-	assert_identity(&dst);
+	assert_row(&dst.x, 1.0f, 0.0f, 0.0f, 0.0f);
+	assert_row(&dst.y, 0.0f, 1.0f, 0.0f, 0.0f);
+	assert_row(&dst.z, 0.0f, 0.0f, 1.0f, 0.0f);
 	assert_row(&dst.t, -4.0f, 2.0f, -8.0f, 1.0f);
 
 	/* 0.125^3 is above the 0.0005 cutoff. */
