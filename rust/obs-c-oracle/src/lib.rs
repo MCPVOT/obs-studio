@@ -26,6 +26,7 @@ pub mod darray;
 pub mod dstr;
 pub mod encoder_packet;
 pub mod file_serializer;
+pub mod format_conversion;
 pub mod frame_rate;
 pub mod graphics_math;
 pub mod hevc;
