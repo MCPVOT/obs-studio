@@ -197,6 +197,14 @@ modules/namespaces).
    :return: An array of reference-incremented sources.  Release with
             :py:func:`source_list_release()`.
 
+.. py:function:: obs_source_enum_filters(source)
+
+   Enumerates the filters of a source.
+
+   :param source: obs_source_t object to enumerate filters from.
+   :return:       An array of reference-incremented filters.  Release with
+                  :py:func:`source_list_release()`.
+
 .. py:function:: obs_scene_enum_items(scene)
 
    Enumerates scene items within a scene.
