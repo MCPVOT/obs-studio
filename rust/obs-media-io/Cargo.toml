@@ -9,6 +9,7 @@ publish.workspace = true
 
 [dependencies]
 obs-graphics = { path = "../obs-graphics" }
+obs-util = { path = "../obs-util" }
 
 [dev-dependencies]
 obs-c-oracle = { path = "../obs-c-oracle" }
