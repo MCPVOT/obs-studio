@@ -1,6 +1,6 @@
 {
   "repo": "obs-rust/obs-studio",
-  "generated_at": "2026-10-11T00:12:07Z",
+  "generated_at": "2026-10-11T00:47:30Z",
   "weights": {
     "merged_pr": 10,
     "issue_filed": 2
@@ -9,11 +9,11 @@
     {
       "login": "zackees",
       "avatar_url": "https://github.com/zackees.png?size=200",
-      "merged_prs": 36,
-      "issues_filed": 54,
-      "score": 468,
+      "merged_prs": 38,
+      "issues_filed": 58,
+      "score": 496,
       "first_contribution": "2026-10-08T19:51:09Z",
-      "last_contribution": "2026-10-11T00:06:23Z",
+      "last_contribution": "2026-10-11T00:46:08Z",
       "pr_numbers": [
         2,
         3,
@@ -50,9 +50,15 @@
         165,
         166,
         167,
-        168
+        168,
+        169,
+        170
       ],
       "issue_numbers": [
+        176,
+        175,
+        174,
+        173,
         160,
         159,
         158,
@@ -178,16 +184,17 @@
     {
       "login": "swilk19",
       "avatar_url": "https://github.com/swilk19.png?size=200",
-      "merged_prs": 4,
+      "merged_prs": 5,
       "issues_filed": 0,
-      "score": 40,
+      "score": 50,
       "first_contribution": "2026-10-10T17:06:13Z",
-      "last_contribution": "2026-10-10T22:34:39Z",
+      "last_contribution": "2026-10-11T00:30:21Z",
       "pr_numbers": [
         97,
         106,
         114,
-        122
+        122,
+        129
       ],
       "issue_numbers": [],
       "rank": 4
