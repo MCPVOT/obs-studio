@@ -1220,6 +1220,8 @@ AMF3_DecodeDepth(AMFObject *obj, const char *pBuffer, int nSize, int bAMFData,
                          __FUNCTION__);
                 /* prop was never set; fail the object instead of adding it */
                 AMF_Reset(obj);
+                if (cd.cd_props)
+                    free(cd.cd_props);
                 return -1;
             }
             nSize -= nRes;
