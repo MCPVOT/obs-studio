@@ -1015,6 +1015,29 @@ static PyObject *enum_sources(PyObject *self, PyObject *args)
 	return list;
 }
 
+static void source_enum_filters_proc(obs_source_t *parent, obs_source_t *filter, void *param)
+{
+	UNUSED_PARAMETER(parent);
+	enum_sources_proc(param, filter);
+}
+
+static PyObject *source_enum_filters(PyObject *self, PyObject *args)
+{
+	PyObject *py_source;
+	obs_source_t *source;
+
+	UNUSED_PARAMETER(self);
+
+	if (!parse_args(args, "O", &py_source))
+		return python_none();
+	if (!py_to_libobs(obs_source_t, py_source, &source))
+		return python_none();
+
+	PyObject *list = PyList_New(0);
+	obs_source_enum_filters(source, source_enum_filters_proc, list);
+	return list;
+}
+
 /* -------------------------------------------- */
 
 static bool enum_items_proc(obs_scene_t *scene, obs_sceneitem_t *item, void *param)
@@ -1190,6 +1213,7 @@ static void add_hook_functions(PyObject *module)
 		DEF_FUNC("source_list_release", source_list_release),
 		DEF_FUNC("sceneitem_list_release", sceneitem_list_release),
 		DEF_FUNC("obs_enum_sources", enum_sources),
+		DEF_FUNC("obs_source_enum_filters", source_enum_filters),
 		DEF_FUNC("obs_scene_enum_items", scene_enum_items),
 		DEF_FUNC("obs_sceneitem_group_enum_items", sceneitem_group_enum_items),
 		DEF_FUNC("obs_remove_tick_callback", obs_python_remove_tick_callback),
