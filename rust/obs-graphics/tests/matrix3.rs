@@ -90,7 +90,7 @@ fn test_matrix3_mul_scale_and_alias() {
     m2.x.x = 2.0;
     m2.y.y = 3.0;
     m2.z.z = 4.0;
-    let dst = m1.mul(&m2);
+    let dst = m1 * &m2;
     assert_row(dst.x, 2.0, 0.0, 0.0, 0.0);
     assert_row(dst.y, 0.0, 3.0, 0.0, 0.0);
     assert_row(dst.z, 0.0, 0.0, 4.0, 0.0);
@@ -183,7 +183,12 @@ fn test_matrix3_inv_singular_keeps_dst() {
     m.x.x = 0.0625;
     m.y.y = 0.0625;
     m.z.z = 0.0625;
-    let poisoned = Matrix3::new(row(9.0, 9.0, 9.0, 9.0), row(9.0, 9.0, 9.0, 9.0), row(9.0, 9.0, 9.0, 9.0), row(9.0, 9.0, 9.0, 9.0));
+    let poisoned = Matrix3::new(
+        row(9.0, 9.0, 9.0, 9.0),
+        row(9.0, 9.0, 9.0, 9.0),
+        row(9.0, 9.0, 9.0, 9.0),
+        row(9.0, 9.0, 9.0, 9.0),
+    );
     let dst = poisoned.inv(m);
     assert_row(dst.x, 9.0, 9.0, 9.0, 9.0);
     assert_row(dst.y, 9.0, 9.0, 9.0, 9.0);
