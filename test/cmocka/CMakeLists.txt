@@ -446,9 +446,7 @@ if(TARGET OBS::outputs)
   endforeach()
 
   if(NOT MSVC)
-    target_compile_options(
-      test_amf_decode PRIVATE -fsigned-char -fsanitize=undefined -fno-sanitize-recover=undefined
-    )
+    target_compile_options(test_amf_decode PRIVATE -fsigned-char -fsanitize=undefined -fno-sanitize-recover=undefined)
     target_link_options(test_amf_decode PRIVATE -fsanitize=undefined)
   endif()
 endif()

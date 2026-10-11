@@ -121,6 +121,76 @@ static void decode_int32le_bytes(void **state)
 	}
 }
 
+static void client_packet_decodes_flv_timestamp(void **state)
+{
+	(void)state;
+	char body[] = {
+		0x09, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, (char)0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0b,
+	};
+	RTMP *rtmp = RTMP_Alloc();
+	assert_non_null(rtmp);
+	RTMP_Init(rtmp);
+
+	RTMPPacket packet = {0};
+	packet.m_packetType = RTMP_PACKET_TYPE_FLASH_VIDEO;
+	packet.m_nBodySize = sizeof(body);
+	packet.m_body = body;
+	assert_int_equal(RTMP_ClientPacket(rtmp, &packet), 1);
+	assert_int_equal(rtmp->m_mediaStamp, UINT32_C(0x80000000));
+
+	RTMP_Close(rtmp);
+	RTMP_Free(rtmp);
+}
+
+static void read_decodes_flv_timestamps(void **state)
+{
+	(void)state;
+	const char packet[] = {
+		0x03, 0x00, 0x00, 0x00, 0x00, 0x00,       0x0f, 0x16, 0x01, 0x00, 0x00, 0x00, 0x09, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, (char)0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0b,
+	};
+	char output[sizeof(packet)] = {0};
+	char initial_frame = 0;
+	RTMP *rtmp = RTMP_Alloc();
+	assert_non_null(rtmp);
+	RTMP_Init(rtmp);
+	rtmp->m_sb.sb_socket = 0;
+	memcpy(rtmp->m_sb.sb_buf, packet, sizeof(packet));
+	rtmp->m_sb.sb_start = rtmp->m_sb.sb_buf;
+	rtmp->m_sb.sb_size = sizeof(packet);
+	rtmp->m_read.flags = RTMP_READ_HEADER | RTMP_READ_RESUME | RTMP_READ_GOTFLVK;
+	rtmp->m_read.initialFrameType = RTMP_PACKET_TYPE_VIDEO;
+	rtmp->m_read.initialFrame = &initial_frame;
+	rtmp->m_read.nInitialFrameSize = 1;
+	rtmp->m_read.nResumeTS = UINT32_C(0x7fffffff);
+
+	assert_int_equal(RTMP_Read(rtmp, output, sizeof(output)), 15);
+	assert_int_equal(rtmp->m_mediaStamp, UINT32_C(0x80000000));
+	assert_int_equal(rtmp->m_read.timestamp, UINT32_C(0x7fffffff));
+	assert_memory_equal(output + 4, "\xff\xff\xff\x7f", 4);
+
+	rtmp->m_sb.sb_socket = -1;
+	RTMP_Close(rtmp);
+	RTMP_Free(rtmp);
+}
+
+static void write_decodes_flv_timestamp(void **state)
+{
+	(void)state;
+	const char tag[] = {
+		0x09, 0x00, 0x00, 0x02, 0x12, 0x34, 0x56, (char)0x80, 0x00, 0x00, 0x00, 0x00,
+	};
+	RTMP *rtmp = RTMP_Alloc();
+	assert_non_null(rtmp);
+	RTMP_Init(rtmp);
+
+	assert_int_equal(RTMP_Write(rtmp, tag, sizeof(tag), 0), sizeof(tag));
+	assert_int_equal(rtmp->m_write.m_nTimeStamp, UINT32_C(0x80123456));
+
+	RTMP_Close(rtmp);
+	RTMP_Free(rtmp);
+}
+
 int main(void)
 {
 	const struct CMUnitTest tests[] = {
@@ -128,6 +198,9 @@ int main(void)
 		cmocka_unit_test(decode_int24_bytes),
 		cmocka_unit_test(decode_int32le_bytes),
 		cmocka_unit_test(decode_int32_bytes),
+		cmocka_unit_test(client_packet_decodes_flv_timestamp),
+		cmocka_unit_test(read_decodes_flv_timestamps),
+		cmocka_unit_test(write_decodes_flv_timestamp),
 	};
 
 	return cmocka_run_group_tests(tests, NULL, NULL);
