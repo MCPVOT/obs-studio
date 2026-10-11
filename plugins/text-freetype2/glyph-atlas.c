@@ -21,6 +21,10 @@ struct glyph_atlas_result glyph_atlas_cache(struct glyph_atlas *atlas, const wch
 					    const struct glyph_atlas_ops *ops, void *ctx)
 {
 	struct glyph_atlas_result result = {0};
+	/* Glyphs of earlier texts are only evicted when the atlas is full,
+	 * and only once per text: an atlas that started empty cannot do
+	 * better by starting again. */
+	bool can_evict = atlas->x != 0 || atlas->y != 0;
 	uint32_t dx = atlas->x;
 	uint32_t dy = atlas->y;
 
@@ -42,6 +46,15 @@ struct glyph_atlas_result glyph_atlas_cache(struct glyph_atlas *atlas, const wch
 		}
 
 		if (dy + g_h >= atlas->height) {
+			if (can_evict) {
+				/* Start over with only this text's glyphs. */
+				can_evict = false;
+				ops->clear(ctx);
+				dx = 0;
+				dy = 0;
+				i = (size_t)-1;
+				continue;
+			}
 			result.out_of_space = true;
 			break;
 		}
