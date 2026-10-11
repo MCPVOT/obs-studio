@@ -466,7 +466,6 @@ if(TARGET OBS::outputs)
   target_link_libraries(test_flv_mux PRIVATE OBS::libobs ${CMOCKA_LIBRARIES} $<$<PLATFORM_ID:Windows>:ws2_32>)
   add_dependencies(cmocka-tests test_flv_mux)
   add_test(test_flv_mux ${CMAKE_CURRENT_BINARY_DIR}/test_flv_mux)
-
 endif()
 
 # Load .cube LUTs through the Color Grade filter's loader.
