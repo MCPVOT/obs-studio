@@ -37,6 +37,9 @@ class SoldrCacheTest(unittest.TestCase):
             mock.patch.object(local_gate, "gersemi"),
             mock.patch.object(local_gate, "self_test", create=True),
         ):
+            # The caller's own setting must not leak into the check.
+            if "SOLDR_RUSTC_WRAPPER" not in (env or {}):
+                os.environ.pop("SOLDR_RUSTC_WRAPPER", None)
             lane(False)
         return [(cmd, e) for cmd, e in calls if cmd[:2] == ["soldr", "cargo"]]
 
@@ -54,6 +57,19 @@ class SoldrCacheTest(unittest.TestCase):
         # the caller's SOLDR_RUSTC_WRAPPER is then left alone.
         for cmd, env in self.cargo_calls(local_gate.lane_rust_test, {"OBS_GATE_ZCCACHE": "1"}):
             self.assertNotEqual((env or {}).get("SOLDR_RUSTC_WRAPPER"), "none", " ".join(cmd))
+
+
+class SelfTestTest(unittest.TestCase):
+    def test_runs_every_ci_test_module(self):
+        # Every ci/test_*.py, not just this file, so new checks (tier 2
+        # volume, toolchain pin, registration fragments) run in the gate.
+        calls = []
+        with mock.patch.object(local_gate, "run", side_effect=lambda cmd, **kw: calls.append(cmd)):
+            local_gate.self_test()
+        self.assertEqual(len(calls), 1)
+        cmd = calls[0]
+        self.assertIn("discover", cmd)
+        self.assertIn("test_*.py", cmd)
 
 
 if __name__ == "__main__":

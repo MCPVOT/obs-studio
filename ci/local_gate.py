@@ -79,8 +79,8 @@ def soldr_cargo(args: list[str]) -> None:
 
 
 def self_test() -> None:
-    """The gate's own unit tests (ci/test_local_gate.py)."""
-    run([sys.executable, "-m", "unittest", "ci/test_local_gate.py"])
+    """The gate's and the repo layout's unit tests: every ci/test_*.py."""
+    run([sys.executable, "-m", "unittest", "discover", "-s", "ci", "-p", "test_*.py"])
 
 
 def tracked_files() -> list[str]:
