@@ -17,6 +17,7 @@
 ******************************************************************************/
 
 #include "obs-scripting-python.h"
+#include "obs-scripting-python-startup.h"
 #include <util/base.h>
 #include <util/platform.h>
 #include <util/darray.h>
@@ -27,24 +28,6 @@
 /* ========================================================================= */
 
 // #define DEBUG_PYTHON_STARTUP
-
-static const char *startup_script = "\n\
-import sys\n\
-import os\n\
-import obspython\n\
-class stdout_logger(object):\n\
-	def write(self, message):\n\
-		obspython.script_log_no_endl(obspython.LOG_INFO, message)\n\
-	def flush(self):\n\
-		pass\n\
-class stderr_logger(object):\n\
-	def write(self, message):\n\
-		obspython.script_log_no_endl(obspython.LOG_ERROR, message)\n\
-	def flush(self):\n\
-		pass\n\
-os.environ['PYTHONUNBUFFERED'] = '1'\n\
-sys.stdout = stdout_logger()\n\
-sys.stderr = stderr_logger()\n";
 
 #if RUNTIME_LINK
 static wchar_t home_path[1024] = {0};
@@ -1710,7 +1693,7 @@ bool obs_scripting_load_python(const char *python_path)
 		goto out;
 	}
 
-	python_loaded = PyRun_SimpleString(startup_script) == 0;
+	python_loaded = PyRun_SimpleString(python_startup_script) == 0;
 	py_error();
 
 	add_hook_functions(py_obspython);
