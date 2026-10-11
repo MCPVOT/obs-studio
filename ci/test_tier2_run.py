@@ -97,5 +97,57 @@ class Tier2VolumeTest(unittest.TestCase):
         self.assertIn("RUST_TOOLCHAIN=1.2.3", builds[0])
 
 
+class StaleBuildTest(unittest.TestCase):
+    """validate.sh starts a /build dir over when the Rust toolchain changed.
+
+    The /build volume outlives image rebuilds, and Corrosion caches the old
+    toolchain's rustc and cargo paths, so after a toolchain pin change the
+    old configure fails with "Could not find toolchain".
+    """
+
+    HELPER = TOOLS / "stale-build.sh"
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="stale-build-"))
+        self.build = self.tmp / "rust-ON"
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp)
+
+    def reset(self, rustc_version: str) -> None:
+        subprocess.run(
+            ["bash", "-c", 'source "$1"; reset_stale_build "$2" "$3"', "-", str(self.HELPER), str(self.build), rustc_version],
+            check=True,
+        )
+
+    def configured(self, stamp: str | None) -> None:
+        self.build.mkdir()
+        (self.build / "CMakeCache.txt").write_text("Rust_TOOLCHAIN:STRING=stable\n")
+        if stamp is not None:
+            (self.tmp / "rust-ON.rustc").write_text(stamp + "\n")
+
+    def test_same_toolchain_keeps_build(self):
+        self.configured("rustc 1.98.1")
+        self.reset("rustc 1.98.1")
+        self.assertTrue((self.build / "CMakeCache.txt").exists())
+
+    def test_changed_toolchain_starts_over(self):
+        self.configured("rustc 1.99.0")
+        self.reset("rustc 1.98.1")
+        self.assertFalse((self.build / "CMakeCache.txt").exists())
+        self.assertEqual((self.tmp / "rust-ON.rustc").read_text().strip(), "rustc 1.98.1")
+
+    def test_unstamped_build_starts_over(self):
+        # Volumes configured before the stamp existed.
+        self.configured(None)
+        self.reset("rustc 1.98.1")
+        self.assertFalse((self.build / "CMakeCache.txt").exists())
+        self.assertEqual((self.tmp / "rust-ON.rustc").read_text().strip(), "rustc 1.98.1")
+
+    def test_fresh_build_is_stamped(self):
+        self.reset("rustc 1.98.1")
+        self.assertEqual((self.tmp / "rust-ON.rustc").read_text().strip(), "rustc 1.98.1")
+
+
 if __name__ == "__main__":
     unittest.main()
