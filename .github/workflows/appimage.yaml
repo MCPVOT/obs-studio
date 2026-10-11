@@ -1,5 +1,10 @@
 name: AppImage
 run-name: AppImage build and portability test (${{ github.ref_name }}) 📦
+# Builds the AppImage, proves it runs in stock containers, and then:
+#   push to master  -> the rolling "continuous" pre-release carries it
+#   push of a tag   -> that tag's release carries it (created if missing)
+#   workflow_call   -> release-rust.yaml builds it for the daily beta
+#   PR / dispatch   -> artifact only
 on:
   push:
     branches:
@@ -8,6 +13,13 @@ on:
       - '*'
     paths-ignore:
       - '**.md'
+  workflow_call:
+    inputs:
+      ref:
+        description: The commit to build (defaults to the caller's)
+        type: string
+        required: false
+        default: ''
   pull_request:
     paths:
       - 'build-aux/appimage/**'
@@ -25,7 +37,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: appimage-${{ github.ref }}
+  group: appimage-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 jobs:
   build:
@@ -41,6 +53,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
+          ref: ${{ inputs.ref }} # empty outside workflow_call: the event's own commit
           submodules: recursive
           fetch-depth: 0 # `git describe` needs the release tags to derive the OBS version
           persist-credentials: false
@@ -181,13 +194,22 @@ jobs:
           chmod +x appimagetool
           # Runners have no /dev/fuse: extract appimagetool instead of running it.
           ./appimagetool --appimage-extract >/dev/null
-          ARCH=x86_64 squashfs-root/AppRun --no-appstream AppDir "OBS_Studio-${OBS_VERSION}-x86_64.AppImage"
-          ls -lh *.AppImage
+          # A master build is published as the "continuous" pre-release (release job),
+          # so it carries update information: AppImageUpdate and friends can then
+          # fetch the next continuous build as a delta against this one (.zsync).
+          update=()
+          if [ "$GITHUB_EVENT_NAME" = push ] && [ "$GITHUB_REF" = refs/heads/master ]; then
+            update=(-u "gh-releases-zsync|${GITHUB_REPOSITORY%/*}|${GITHUB_REPOSITORY#*/}|continuous|OBS_Studio-*-x86_64.AppImage.zsync")
+          fi
+          ARCH=x86_64 squashfs-root/AppRun --no-appstream "${update[@]}" AppDir "OBS_Studio-${OBS_VERSION}-x86_64.AppImage"
+          ls -lh OBS_Studio-*
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: obs-studio-appimage
-          path: OBS_Studio-*-x86_64.AppImage
+          path: |
+            OBS_Studio-*-x86_64.AppImage
+            OBS_Studio-*-x86_64.AppImage.zsync
           if-no-files-found: error
 
   test:
@@ -247,3 +269,66 @@ jobs:
           name: appimage-test-${{ strategy.job-index }}
           path: results
           if-no-files-found: ignore
+
+  release:
+    name: Publish to GitHub Releases 🚀
+    needs: [build, test]
+    # Only after the AppImage has run on every distribution in the matrix, and
+    # only for pushes: a master push feeds the rolling "continuous" pre-release,
+    # a tag push the release of that tag. (release-rust.yaml publishes the
+    # daily beta itself; its call of this workflow is not a push.)
+    if: github.event_name == 'push'
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: obs-studio-appimage
+
+      - name: Publish the continuous build 🔄
+        if: github.ref == 'refs/heads/master'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          ls -l OBS_Studio-*
+          cat >notes.md <<EOF
+          Rolling build of OBS-Studio-Rust from the latest \`master\`, currently [\`${GITHUB_SHA:0:9}\`](https://github.com/$GITHUB_REPOSITORY/commit/$GITHUB_SHA). Replaced on every push that builds and passes the AppImage test on Debian, Ubuntu and Fedora.
+
+          **Pre-release, unsigned.** \`chmod +x OBS_Studio-*-x86_64.AppImage && ./OBS_Studio-*-x86_64.AppImage\`. Everything down to glibc is inside; only the GPU driver comes from the host. The \`.zsync\` file lets AppImageUpdate fetch the next build as a delta. Limits and troubleshooting: \`build-aux/appimage/README.md\`.
+          EOF
+          # The release is recreated rather than edited so that its tag moves to this
+          # commit; the download URL .../releases/download/continuous/<file> stays.
+          gh release delete continuous --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes 2>/dev/null || true
+          gh api -X DELETE "repos/$GITHUB_REPOSITORY/git/refs/tags/continuous" 2>/dev/null || true
+          gh release create continuous --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease \
+            --title "OBS-Studio-Rust continuous build" --notes-file notes.md \
+            OBS_Studio-*-x86_64.AppImage OBS_Studio-*-x86_64.AppImage.zsync
+
+      - name: Attach to the tag's release 🏷️
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          # Only OBS version tags and OBS-Studio-Rust release tags; the repository
+          # carries tags of other components (obs-stream-rust-v...) with releases of
+          # their own, which an OBS AppImage has no business joining.
+          case "$TAG" in
+            [0-9]* | obs-studio-rust-v*) ;;
+            *) echo "::notice::$TAG is not an OBS-Studio-Rust tag; nothing to publish"; exit 0 ;;
+          esac
+          ls -l OBS_Studio-*
+          if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            # A tag pushed by hand has no release yet. Betas and release candidates
+            # stay marked as such; tags carrying a release are published as one.
+            case "$TAG" in
+              *beta* | *rc* | *alpha*) pre=--prerelease ;;
+              *) pre= ;;
+            esac
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag $pre \
+              --title "$TAG" --notes "AppImage of \`$TAG\`, built from [\`${GITHUB_SHA:0:9}\`](https://github.com/$GITHUB_REPOSITORY/commit/$GITHUB_SHA)."
+          fi
+          gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber OBS_Studio-*-x86_64.AppImage
