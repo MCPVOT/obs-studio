@@ -78,12 +78,13 @@ mod mach_sem {
 }
 
 /// `os_sem_t`. The native object is created in place and never moves;
-/// see the module docs for how that is enforced. A `Sem` cannot be
-/// moved out of its pinned box:
+/// see the module docs for how that is enforced. `Sem` is `!Unpin`, so
+/// `Pin::into_inner` — the only safe way back to a movable `Box<Sem>` —
+/// does not compile:
 ///
 /// ```compile_fail
 /// let sem = obs_util::threading::Sem::new(0);
-/// let _moved = *sem; // cannot move out of a pinned Sem
+/// let _movable = std::pin::Pin::into_inner(sem); // requires Sem: Unpin
 /// ```
 #[cfg(unix)]
 pub struct Sem {
