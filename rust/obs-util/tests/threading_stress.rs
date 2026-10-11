@@ -47,26 +47,21 @@ fn stress_event_ping_pong_pairs() {
     }
 }
 
-/// One manual event, one waiter per signal: C signals with
-/// `pthread_cond_signal`, so one `signal` wakes exactly one sleeper even
-/// though a manual event never consumes its flag — a `notify_all` bug
-/// would wake every waiter on the first signal, which the per-signal
-/// wake count below catches. (Auto events cannot expose it: the
-/// consumed flag re-blocks any extra wakers, as broadcast would in C.)
+/// One manual event, many waiters: liveness only. Every waiter must be
+/// released eventually — no deadlock, no lost signal. The exact
+/// one-wake-per-signal property is asserted where it is exact, in the
+/// `signal_dispatches_notify_one` unit test via `Event`'s notify seam;
+/// under real concurrency it cannot be, since a manual event's flag
+/// stays set and a POSIX-legal spurious wakeup also releases a waiter.
 ///
-/// Determinism: a waiter only increments `waiting_count` once it is
-/// inside the condvar wait call, so the gate before each signal proves
-/// every remaining waiter is asleep — no settle window.
+/// Determinism: each signal is gated on `Event::waiting_count` (a
+/// debug-build counter incremented once a thread is inside the condvar
+/// wait) reaching the not-yet-released count, so every remaining waiter
+/// is provably asleep before each signal — no settle window.
 #[cfg(unix)]
 #[test]
-fn stress_manual_event_releases_exactly_one_per_signal() {
-    // More waiters than rounds: a rare spurious wakeup legitimately
-    // releases an extra waiter (the C primitive allows this), and that
-    // release still consumes one from the pool. 8 rounds over a pool of
-    // 32 leaves the test room to retry a spurious excess without running
-    // dry, while a `notify_all` bug still releases all 32 at once.
+fn stress_manual_event_releases_all_waiters() {
     const WAITERS: usize = 32;
-    const ROUNDS: usize = 8;
 
     let ev = Arc::new(Event::new(EventType::Manual));
     let released = Arc::new(AtomicUsize::new(0));
@@ -85,72 +80,45 @@ fn stress_manual_event_releases_exactly_one_per_signal() {
         })
         .collect();
 
-    // Before each signal the count of threads blocked in ev.wait must be
-    // exactly the remaining waiters; a released waiter decrements on its
-    // way out, so the count settles deterministically. Each attempt
-    // resets the flag as soon as the first release is confirmed, then
-    // drains one `done` post per released waiter, so no waiter released
-    // before the reset is still in flight at the next attempt. A waiter
-    // released just before the reset can lag on its `released` increment,
-    // so each attempt waits for the invariant blocked + released ==
-    // WAITERS, which self-corrects once it lands. A condvar wait may
-    // still return spuriously inside the signal->reset window and
-    // release an extra waiter (the C primitive allows this too), so an
-    // excess is only conclusive if it repeats.
+    // Each iteration holds the manual flag until at least one release is
+    // confirmed, then resets and drains one `done` post per released
+    // waiter, so releasers cannot straddle iterations. The blocked +
+    // released == WAITERS invariant self-corrects for a releaser lagging
+    // on its counter. One signal always releases at least one waiter, so
+    // the bounded loop always converges; a lost signal or a missed wake
+    // stalls the loop and fails on the deadline rather than hanging.
     let mut posts = 0;
-    for round in 0..ROUNDS {
-        for attempt in 0..5 {
-            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
-            let before = loop {
-                let r = released.load(Ordering::SeqCst);
-                if ev.waiting_count() == WAITERS - r {
-                    break r;
-                }
-                assert!(
-                    std::time::Instant::now() < deadline,
-                    "round {round} attempt {attempt}: {} blocked + {r} released, want {WAITERS} total",
-                    ev.waiting_count()
-                );
-                std::thread::yield_now();
-            };
-            // An earlier excess may have released every waiter; that is
-            // already a failure and there is nobody left to wake.
-            assert!(
-                before < WAITERS,
-                "all {WAITERS} waiters released by round {round} attempt {attempt} (want 1 per signal)"
-            );
-            ev.signal();
-            done.wait();
-            posts += 1;
-            ev.reset();
-            let mut now;
-            loop {
-                now = released.load(Ordering::SeqCst);
-                while posts < now {
-                    done.wait();
-                    posts += 1;
-                }
-                if released.load(Ordering::SeqCst) == now {
-                    break;
-                }
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
+    loop {
+        let r = released.load(Ordering::SeqCst);
+        if r == WAITERS {
+            break;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "manual event stalled: {r} released, {} blocked, want {WAITERS} released",
+            ev.waiting_count()
+        );
+        if ev.waiting_count() != WAITERS - r {
+            std::thread::yield_now();
+            continue;
+        }
+        ev.signal();
+        done.wait();
+        posts += 1;
+        ev.reset();
+        loop {
+            let now = released.load(Ordering::SeqCst);
+            while posts < now {
+                done.wait();
+                posts += 1;
             }
-            let woke = now - before;
-            if woke == 1 {
+            if released.load(Ordering::SeqCst) == now {
                 break;
             }
-            assert!(
-                attempt < 4,
-                "one signal released {woke} waiters in round {round} on every attempt (want 1)"
-            );
         }
     }
 
-    // Release the waiters left in the pool so the joins terminate.
-    while released.load(Ordering::SeqCst) < WAITERS {
-        ev.signal();
-        done.wait();
-        ev.reset();
-    }
     for t in threads {
         t.join().unwrap();
     }

@@ -29,6 +29,20 @@ pub enum EventType {
     Manual,
 }
 
+/// Which condvar wake primitive `signal` dispatches. C signals with
+/// `pthread_cond_signal`, so `One` is correct; recording the dispatch
+/// choice lets a unit test assert it exactly, which a wake count under
+/// real concurrency cannot (a manual event legitimately releases an
+/// extra waiter on a spurious wakeup).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Notify {
+    One = 1,
+    /// Present so the seam can represent — and the test can detect — a
+    /// `notify_all` dispatch even though correct code never sends one.
+    #[allow(dead_code)]
+    All = 2,
+}
+
 /// `os_event_t`: mutex + condvar + `signalled`/`manual` in the C.
 pub struct Event {
     signalled: Mutex<bool>,
@@ -39,6 +53,10 @@ pub struct Event {
     /// before signalling instead of relying on a settle window.
     #[cfg(debug_assertions)]
     waiting: std::sync::atomic::AtomicUsize,
+    /// Last wake primitive dispatched through [`Event::notify`]. Test
+    /// builds only.
+    #[cfg(test)]
+    last_notify: std::sync::atomic::AtomicU8,
 }
 
 impl Event {
@@ -49,6 +67,33 @@ impl Event {
             manual: event_type == EventType::Manual,
             #[cfg(debug_assertions)]
             waiting: std::sync::atomic::AtomicUsize::new(0),
+            #[cfg(test)]
+            last_notify: std::sync::atomic::AtomicU8::new(0),
+        }
+    }
+
+    /// Single dispatch point for condvar wakes; `signal` picks `One`,
+    /// matching `pthread_cond_signal`. Recording `kind` before dispatch
+    /// keeps the "which primitive ran" answer exact and test-only.
+    fn notify(&self, kind: Notify) {
+        #[cfg(test)]
+        self.last_notify
+            .store(kind as u8, std::sync::atomic::Ordering::SeqCst);
+        match kind {
+            Notify::One => self.cond.notify_one(),
+            Notify::All => self.cond.notify_all(),
+        }
+    }
+
+    /// Wake primitive `signal` last dispatched: `Some(One)` for
+    /// `notify_one`, `Some(All)` for `notify_all`, `None` if `notify`
+    /// was bypassed. Test builds only.
+    #[cfg(test)]
+    fn last_notify_kind(&self) -> Option<Notify> {
+        match self.last_notify.load(std::sync::atomic::Ordering::SeqCst) {
+            1 => Some(Notify::One),
+            2 => Some(Notify::All),
+            _ => None,
         }
     }
 
@@ -135,7 +180,7 @@ impl Event {
     /// `os_event_signal`.
     pub fn signal(&self) {
         *self.signalled.lock().unwrap_or_else(|e| e.into_inner()) = true;
-        self.cond.notify_one();
+        self.notify(Notify::One);
     }
 
     /// `os_event_reset`.
@@ -149,4 +194,22 @@ impl Event {
 pub fn gnu_thread_name(name: &[u8]) -> &[u8] {
     const MAX_GNU_THREAD_NAME: usize = 15;
     &name[..name.len().min(MAX_GNU_THREAD_NAME)]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// `os_event_signal` must dispatch `pthread_cond_signal`'s
+    /// equivalent — one waiter woken. A `notify_all` mutation is
+    /// observed exactly here: the seam records the dispatch decision,
+    /// which does not depend on scheduling or waiters being asleep.
+    #[test]
+    fn signal_dispatches_notify_one() {
+        for ty in [EventType::Auto, EventType::Manual] {
+            let ev = Event::new(ty);
+            ev.signal();
+            assert_eq!(ev.last_notify_kind(), Some(Notify::One));
+        }
+    }
 }

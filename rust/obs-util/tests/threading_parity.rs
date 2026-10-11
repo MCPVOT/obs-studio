@@ -489,6 +489,24 @@ fn thread_name_matches() {
     }
 }
 
+/// Deterministic regression for the double-post mutation: after
+/// `Post` + `WaitIfPositive` the count is back to zero, so `SemTry`
+/// must fail. A `post` that adds a second credit leaves a phantom
+/// `SemTry` success — and unlike the proptest this does not depend on
+/// a generated seed, so it catches the mutation on every platform
+/// (the original codex report only saw it on Linux; on macOS a second
+/// `semaphore_signal` diverges the same way once this sequence runs).
+#[test]
+fn parity_post_credit_probe() {
+    let ops = [Op::Post, Op::WaitIfPositive, Op::SemTry];
+    let rust = run(false, 0, &ops, &rust_event_api(), &rust_sem_api());
+    let oracle = run(false, 0, &ops, &oracle_event_api(), &oracle_sem_api());
+    assert_eq!(rust, oracle);
+    // event_init, sem_init, Post, WaitIfPositive, SemTry: the SemTry
+    // must fail — a double-post mutation leaves a phantom credit here.
+    assert_eq!(rust, vec![0, 0, 0, 0, -1]);
+}
+
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(64))]
 
