@@ -31,9 +31,9 @@ use obs_util::profiler_snapshot::{FilterStep, enumerate, filter};
 
 const ITERATIONS: u64 = 5;
 
-static ROOT_NAME: &str = "test_root";
-static CHILD_NAME: &str = "test_child";
-static OTHER_NAME: &str = "test_other";
+static ROOT_NAME: &CStr = c"test_root";
+static CHILD_NAME: &CStr = c"test_child";
+static OTHER_NAME: &CStr = c"test_other";
 
 static TEST_LOCK: Mutex<()> = Mutex::new(());
 
@@ -183,7 +183,7 @@ fn test_profiler_lifecycle() {
         visited += 1;
         FilterStep {
             keep_going: true,
-            remove: name_of(entry) == OTHER_NAME,
+            remove: name_of(entry) == OTHER_NAME.to_str().unwrap(),
         }
     });
     assert_eq!(visited, 2);
@@ -216,14 +216,11 @@ fn test_profiler_cmocka() {
 }
 
 /// ProfileName stores a pointer that the profiler reads back as a C string,
-/// so a name must carry its own NUL. A `&str` does not: a slice of a longer
-/// literal reads on past its end (and a plain literal only works when the
-/// byte after it happens to be 0, which made test_profiler_cmocka fail on
-/// macOS).
+/// so a name must carry its own NUL. from_static takes a &CStr; a &str (no
+/// NUL) read on past its end, which made test_profiler_cmocka fail on macOS.
 #[test]
 fn static_name_reads_back_exactly() {
-    static LONGER: &str = "abcdef";
-    let name = ProfileName::from_static(&LONGER[..3]);
+    let name = ProfileName::from_static(c"abc");
     let read = unsafe { CStr::from_ptr(name.as_ptr()) };
     assert_eq!(read.to_bytes(), b"abc");
 }

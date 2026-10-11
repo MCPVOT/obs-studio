@@ -6,7 +6,7 @@
 //! closes), which is where `profiler.c` calls `os_gettime_ns`.
 
 use core::cell::{Cell, RefCell};
-use core::ffi::{c_char, c_void};
+use core::ffi::{CStr, c_char, c_void};
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use crate::ffi::bmem::bfree;
@@ -23,8 +23,9 @@ unsafe extern "C" {
 pub struct ProfileName(usize);
 
 impl ProfileName {
-    /// The address of a string that lives for the whole process.
-    pub fn from_static(name: &'static str) -> Self {
+    /// The address of a NUL-terminated string that lives for the whole
+    /// process. The profiler reads names back as C strings.
+    pub fn from_static(name: &'static CStr) -> Self {
         Self(name.as_ptr() as usize)
     }
 
