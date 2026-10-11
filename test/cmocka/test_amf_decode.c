@@ -200,9 +200,8 @@ static int discard_rtmp_output(RTMPSockBuf *sockbuf, const char *buffer, int len
 	return length;
 }
 
-static void secure_token_decode_uses_unsigned_shift(void **state)
+static void run_secure_token_case(const char *token)
 {
-	(void)state;
 	AVal result = AVC("_result");
 	AVal secure_token = AVC("secureToken");
 	char response_value[] = "00000080";
@@ -223,7 +222,8 @@ static void secure_token_decode_uses_unsigned_shift(void **state)
 	RTMP *rtmp = RTMP_Alloc();
 	assert_non_null(rtmp);
 	RTMP_Init(rtmp);
-	rtmp->Link.token = (AVal)AVC("0123456789abcdef");
+	rtmp->Link.token.av_val = (char *)token;
+	rtmp->Link.token.av_len = (int)strlen(token);
 	rtmp->Link.protocol |= RTMP_FEATURE_WRITE;
 	rtmp->m_methodCalls = calloc(1, sizeof(*rtmp->m_methodCalls));
 	assert_non_null(rtmp->m_methodCalls);
@@ -248,6 +248,21 @@ static void secure_token_decode_uses_unsigned_shift(void **state)
 	RTMP_Free(rtmp);
 }
 
+/* Server-sent secureToken text with a high top byte (rtmp.c DecodeTEA hex unpack). */
+static void secure_token_decode_uses_unsigned_shift(void **state)
+{
+	(void)state;
+	run_secure_token_case("0123456789abcdef");
+}
+
+/* Configured token (TEA key) with a high byte in the top position of a packed word. */
+static void secure_token_key_uses_unsigned_shift(void **state)
+{
+	(void)state;
+	run_secure_token_case("012\x80"
+			      "456789abcdef");
+}
+
 int main(void)
 {
 	const struct CMUnitTest tests[] = {
@@ -259,6 +274,7 @@ int main(void)
 		cmocka_unit_test(read_decodes_flv_timestamps),
 		cmocka_unit_test(write_decodes_flv_timestamp),
 		cmocka_unit_test(secure_token_decode_uses_unsigned_shift),
+		cmocka_unit_test(secure_token_key_uses_unsigned_shift),
 	};
 
 	return cmocka_run_group_tests(tests, NULL, NULL);
