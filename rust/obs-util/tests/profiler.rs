@@ -214,3 +214,16 @@ fn test_profiler_cmocka() {
     test_profiler_disabled();
     test_profiler_lifecycle();
 }
+
+/// ProfileName stores a pointer that the profiler reads back as a C string,
+/// so a name must carry its own NUL. A `&str` does not: a slice of a longer
+/// literal reads on past its end (and a plain literal only works when the
+/// byte after it happens to be 0, which made test_profiler_cmocka fail on
+/// macOS).
+#[test]
+fn static_name_reads_back_exactly() {
+    static LONGER: &str = "abcdef";
+    let name = ProfileName::from_static(&LONGER[..3]);
+    let read = unsafe { CStr::from_ptr(name.as_ptr()) };
+    assert_eq!(read.to_bytes(), b"abc");
+}
