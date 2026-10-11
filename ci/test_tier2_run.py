@@ -52,6 +52,7 @@ class Tier2VolumeTest(unittest.TestCase):
     def docker_run_mounts(self, repo: Path, extra_env=None) -> dict[str, str]:
         self.calls = getattr(self, "calls", 0) + 1
         log = self.tmp / f"{repo.name}-{self.calls}.log"
+        self.last_log = log
         env = {k: v for k, v in os.environ.items() if not k.startswith(("OBS_TIER2", "OBS_CCACHE"))}
         env.update(PATH=f"{self.bin}:{env['PATH']}", STUB_LOG=str(log), **(extra_env or {}))
         subprocess.run(["bash", str(repo / "rust/tools/linux-validate/run.sh")], env=env, check=True)
@@ -84,6 +85,16 @@ class Tier2VolumeTest(unittest.TestCase):
     def test_volume_override(self):
         mounts = self.docker_run_mounts(self.checkout("a"), {"OBS_TIER2_VOLUME": "custom-vol"})
         self.assertEqual(mounts["/build"], "custom-vol")
+
+    def test_image_installs_pinned_toolchain(self):
+        # rustup no longer installs a rust-toolchain.toml channel on demand, so
+        # the image must bake in exactly the pinned one.
+        repo = self.checkout("a")
+        (repo / "rust-toolchain.toml").write_text('[toolchain]\nchannel = "1.2.3"\n')
+        self.docker_run_mounts(repo)
+        builds = [line.split() for line in self.last_log.read_text().splitlines() if line.startswith("build ")]
+        self.assertEqual(len(builds), 1, self.last_log.read_text())
+        self.assertIn("RUST_TOOLCHAIN=1.2.3", builds[0])
 
 
 if __name__ == "__main__":
