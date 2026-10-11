@@ -402,6 +402,57 @@ mod process {
     /// process both sides die on SIGPIPE identically). Sync is via `stderr`
     /// EOF, which also proves the child is gone, so the EPIPE is
     /// deterministic with no sleeps.
+    /// obs-rust/obs-studio#192: libobs/util/pipe-posix.c creates its pipes
+    /// with pipe() and marks them FD_CLOEXEC only afterwards. A process
+    /// spawned on another thread in between inherits them and keeps a dead
+    /// child's stdin open, so a write to it succeeds instead of failing.
+    /// cargo runs the process tests on parallel threads, which made
+    /// dead_pipe_write_matches_oracle flaky. Spawners run here on purpose.
+    #[test]
+    fn dead_pipe_write_survives_concurrent_spawns() {
+        use std::sync::Arc;
+        use std::sync::atomic::{AtomicBool, Ordering};
+        let stop = Arc::new(AtomicBool::new(false));
+        let spawners: Vec<_> = (0..16)
+            .map(|_| {
+                let stop = Arc::clone(&stop);
+                std::thread::spawn(move || {
+                    let cmd = cstring(b"sleep 0.05");
+                    let r = cstring(b"r");
+                    while !stop.load(Ordering::Relaxed) {
+                        let p = spawn_oracle(&cmd, &r);
+                        if !p.is_null() {
+                            // SAFETY: live pipe from spawn_oracle.
+                            unsafe { oracle::oracle_os_process_pipe_destroy(p) };
+                        }
+                    }
+                })
+            })
+            .collect();
+        let cmd = cstring(b"echo closed 1>&2; exec 0<&-");
+        let w = cstring(b"w");
+        let big = vec![0xABu8; 1 << 20];
+        let mut leaked = 0;
+        for _ in 0..3000 {
+            let opp = spawn_oracle(&cmd, &w);
+            assert!(!opp.is_null());
+            let err = drain_oracle(opp, oracle::oracle_os_process_pipe_read_err);
+            assert_eq!(err, b"closed\n");
+            // SAFETY: live pipe; `big` covers its length.
+            let wrote = unsafe { oracle::oracle_os_process_pipe_write(opp, big.as_ptr(), big.len()) };
+            if wrote != 0 {
+                leaked += 1;
+            }
+            // SAFETY: live pipe.
+            unsafe { oracle::oracle_os_process_pipe_destroy(opp) };
+        }
+        stop.store(true, Ordering::Relaxed);
+        for t in spawners {
+            t.join().unwrap();
+        }
+        assert_eq!(leaked, 0, "{leaked} of 3000 writes reached a dead child through a leaked fd");
+    }
+
     #[test]
     fn dead_pipe_write_matches_oracle() {
         let cmd = b"echo closed 1>&2; exec 0<&-";
