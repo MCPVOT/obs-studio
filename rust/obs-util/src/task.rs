@@ -11,9 +11,14 @@
 
 use std::cell::Cell;
 use std::collections::VecDeque;
+use std::pin::Pin;
 use std::sync::atomic::{AtomicI64, Ordering};
-use std::sync::{Arc, Condvar, Mutex};
+use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
+
+#[cfg(unix)]
+use crate::threading::Sem;
+use crate::threading::{Event, EventType};
 
 /// Boxed task, the safe equivalent of `os_task_t` + `void *param`.
 pub type Task = Box<dyn FnOnce() + Send + 'static>;
@@ -28,62 +33,57 @@ thread_local! {
 
 static THREAD_ID_COUNTER: AtomicI64 = AtomicI64::new(1);
 
-/// Counting semaphore (`os_sem_t`): `post` increments, `wait` blocks for a
-/// count.
-struct Sem {
-    count: Mutex<usize>,
-    avail: Condvar,
+/// `os_sem_init(&tq->sem, 0)`. On Unix this is the same native semaphore
+/// behind the exported `os_sem_*` calls ([`crate::threading::Sem`], the
+/// `libc::sem_t`/Mach port); on Windows `os_sem_*` is not ported yet
+/// (`threading-windows.c` still owns it), so the condvar sem below fills
+/// in until then.
+#[cfg(unix)]
+fn sem_init_zero() -> Option<Pin<Box<Sem>>> {
+    let mut sem = Box::<Sem>::new_uninit();
+    // SAFETY: `sem` is `size_of::<Sem>()` writable uninit bytes; a failed
+    // init leaves it dead with nothing to drop — exactly the C's fail
+    // path, which frees the queue and returns NULL.
+    if unsafe { Sem::init_in(sem.as_mut_ptr(), 0) } != 0 {
+        return None;
+    }
+    // SAFETY: `*sem` is a live `Sem`, pinned in its box so it cannot move.
+    Some(unsafe { Box::into_pin(sem.assume_init()) })
 }
 
-impl Sem {
-    fn new() -> Self {
-        Self {
-            count: Mutex::new(0),
-            avail: Condvar::new(),
-        }
-    }
+/// Counting semaphore for non-Unix builds only: `os_sem_*` is not
+/// exported there yet, so there is nothing shared to reuse. When
+/// `threading-windows.c` lands, this is deleted in favour of the same
+/// `Sem` the export shim uses.
+#[cfg(not(unix))]
+struct Sem {
+    count: Mutex<usize>,
+    avail: std::sync::Condvar,
+}
 
+#[cfg(not(unix))]
+impl Sem {
     fn post(&self) {
         *self.count.lock().unwrap() += 1;
         self.avail.notify_one();
     }
 
-    fn wait(&self) {
+    fn wait(&self) -> i32 {
         let mut count = self.count.lock().unwrap();
         while *count == 0 {
             count = self.avail.wait(count).unwrap();
         }
         *count -= 1;
+        0
     }
 }
 
-/// Auto-reset event (`os_event_t` with `OS_EVENT_TYPE_AUTO`): `wait` blocks
-/// until signaled, then consumes the signal.
-struct AutoEvent {
-    set: Mutex<bool>,
-    cond: Condvar,
-}
-
-impl AutoEvent {
-    fn new() -> Self {
-        Self {
-            set: Mutex::new(false),
-            cond: Condvar::new(),
-        }
-    }
-
-    fn signal(&self) {
-        *self.set.lock().unwrap() = true;
-        self.cond.notify_one();
-    }
-
-    fn wait(&self) {
-        let mut set = self.set.lock().unwrap();
-        while !*set {
-            set = self.cond.wait(set).unwrap();
-        }
-        *set = false;
-    }
+#[cfg(not(unix))]
+fn sem_init_zero() -> Option<Pin<Box<Sem>>> {
+    Some(Box::pin(Sem {
+        count: Mutex::new(0),
+        avail: std::sync::Condvar::new(),
+    }))
 }
 
 /// A queued entry. `wait` and `stop` are distinct markers so the worker can
@@ -102,8 +102,8 @@ struct State {
 
 struct Inner {
     id: i64,
-    sem: Sem,
-    wait_event: AutoEvent,
+    sem: Pin<Box<Sem>>,
+    wait_event: Event,
     state: Mutex<State>,
 }
 
@@ -116,10 +116,15 @@ pub struct TaskQueue {
 impl TaskQueue {
     /// `os_task_queue_create`.
     pub fn new() -> Option<Self> {
+        // The C returns NULL when os_sem_init fails; os_event_init and
+        // pthread_create failures also unwind to NULL. Event::new cannot
+        // fail (std Mutex+Condvar), matching the C only in that an event
+        // init failure is a resource failure the process does not survive
+        // either way. `init_in` preserves the semaphore failure channel.
         let inner = Arc::new(Inner {
             id: THREAD_ID_COUNTER.fetch_add(1, Ordering::SeqCst),
-            sem: Sem::new(),
-            wait_event: AutoEvent::new(),
+            sem: sem_init_zero()?,
+            wait_event: Event::new(EventType::Auto),
             state: Mutex::new(State {
                 tasks: VecDeque::new(),
                 waiting: false,
@@ -175,9 +180,9 @@ impl TaskQueue {
 fn worker_loop(inner: &Inner) {
     THREAD_ID.with(|id| id.set(inner.id));
 
-    while !EXIT_THREAD.with(Cell::get) {
-        inner.sem.wait();
-
+    // `while (!exit_thread && os_sem_wait(tq->sem) == 0)`: an EINTR or a
+    // destroyed semaphore ends the worker, same as the C.
+    while !EXIT_THREAD.with(Cell::get) && inner.sem.wait() == 0 {
         let entry = {
             let mut state = inner.state.lock().unwrap();
             let mut entry = state.tasks.pop_front();
