@@ -88,6 +88,11 @@ if(ENABLE_WAYLAND)
 
   target_sources(libobs PRIVATE obs-nix-hotkey-state.c obs-nix-hotkey-state.h obs-nix-wayland.c)
   target_link_libraries(libobs PRIVATE Wayland::Client xkbcommon::xkbcommon)
+
+  if(TARGET gio::gio)
+    target_sources(libobs PRIVATE obs-nix-portal-shortcuts.c obs-nix-portal-shortcuts.h)
+    target_compile_definitions(libobs PRIVATE HAVE_GLOBAL_SHORTCUTS_PORTAL)
+  endif()
   target_enable_feature(libobs "Wayland compositor support (Linux)")
 else()
   target_disable_feature(libobs "Wayland compositor support (Linux)")
