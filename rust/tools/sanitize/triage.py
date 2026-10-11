@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Summarize one sanitize.sh result directory as Markdown.
 
-    triage.py <out>/<tool> [--fail-on-findings]
+    triage.py <out>/<tool> [--tool=asan|tsan|valgrind] [--fail-on-findings]
+
+The tool defaults to the directory name (sanitize.sh writes to <out>/<tool>).
 
 A report counts as an OBS finding when OBS's own sources (libobs/, frontend/,
 plugins/, shared/, deps/, test/) are where it happens, not merely somewhere up
@@ -16,6 +18,9 @@ the stack:
   leaks through OBS code only when the process exited without crashing (after a
   crash, live allocations show up as "definitely lost").
 
+Unit-test failures that are limitations of the tool itself (KNOWN) are listed
+but not counted.
+
 Exit status is 0, or 1 with --fail-on-findings when there is a finding.
 """
 
@@ -24,6 +29,13 @@ import sys
 from pathlib import Path
 
 OBS_FRAME = re.compile(r"(?<![\w/])(?:\.\./)*(?:[\w.-]+/)*?((?:libobs|frontend|plugins|shared|deps|test)/[\w./+-]+:\d+)")
+# (tool, test) -> why its failure under that tool is not an OBS bug.
+KNOWN = {
+    ("valgrind", "test_pipe"): "valgrind runs posix_spawn as a plain fork, so a missing binary's exec "
+    "failure is never reported and test_pipe_create2_missing_binary gets a pipe back",
+    ("valgrind", "test_svt_av1"): "SVT-AV1's encoder functions exhaust valgrind's VEX translation storage "
+    '("VEX temporary storage exhausted")',
+}
 EXTERNAL = re.compile(r"/nix/store/|/usr/(?:include|lib)/")
 
 
@@ -60,8 +72,8 @@ def sanitizer_reports(path):
     """ASan/UBSan/TSan reports in one log file, as lists of lines."""
     text = path.read_text(errors="replace")
     if "ThreadSanitizer" in text:
-        parts = re.split(r"^={18}\n", text, flags=re.M)
-        return [p.splitlines() for p in parts if "WARNING: ThreadSanitizer" in p]
+        parts = re.split(r"^={18}\n|^(?===\d+==ERROR: ThreadSanitizer)", text, flags=re.M)
+        return [p.splitlines() for p in parts if "WARNING: ThreadSanitizer" in p or "ERROR: ThreadSanitizer" in p]
     reports = []
     for chunk in re.split(r"^(?==+\d+==ERROR|.*runtime error:)", text, flags=re.M):
         if "ERROR: AddressSanitizer" in chunk or "ERROR: LeakSanitizer" in chunk or "runtime error:" in chunk:
@@ -82,6 +94,9 @@ def asan_finding(lines):
 
 def tsan_finding(lines):
     """(kind, signature, is_obs) for one TSan report."""
+    if any("ERROR: ThreadSanitizer" in line for line in lines):
+        kind, loc = asan_finding(lines)
+        return kind, (loc,), loc is not None
     kind = re.search(r"WARNING: ThreadSanitizer: ([^(\n]+)", "\n".join(lines)).group(1).strip()
     blocks, cur = [], []
     for line in lines:
@@ -161,7 +176,7 @@ def main():
     if len(args) != 1:
         sys.exit(__doc__)
     out = Path(args[0])
-    tool = out.name
+    tool = next((a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--tool=")), out.name)
     md = [f"### {tool}", ""]
     findings = 0
 
@@ -169,18 +184,27 @@ def main():
     if summary.exists():
         rows = summary.read_text().split("\n")
         ran = [r for r in rows if " exit=" in r]
-        failed = [r for r in ran if not r.endswith(" exit=0")]
+        failed = [r for r in ran if not r.endswith(" exit=0") and (tool, r.split()[0]) not in KNOWN]
+        known = [r.split()[0] for r in ran if not r.endswith(" exit=0") and (tool, r.split()[0]) in KNOWN]
         skipped = [r.split()[0] for r in rows if "skipped" in r]
-        md.append(f"**Unit tests:** {len(ran) - len(failed)}/{len(ran)} clean" + (f", skipped: {', '.join(skipped)}" if skipped else ""))
+        md.append(f"**Unit tests:** {len(ran) - len(failed) - len(known)}/{len(ran)} clean"
+                  + (f", {len(known)} known tool limitations" if known else "")
+                  + (f", skipped: {', '.join(skipped)}" if skipped else ""))
         md.append("")
         findings += len(failed)
         md += section("Unit tests with a non-zero exit", [(1, r.split()[0], r.split("=")[-1]) for r in failed])
+        if known:
+            md += ["#### Known tool limitations (not counted)", ""] + [f"- **{n}**: {KNOWN[(tool, n)]}" for n in known] + [""]
         test_reports = []
-        for f in sorted((out / "tests").glob("*.*san.*")):
+        test_logs = sorted((out / "tests").glob("*.*san.*"))
+        test_logs += [f for f in sorted((out / "tests").glob("*.log")) if not f.name.endswith(".vg.log")]
+        for f in test_logs:
             for rep in sanitizer_reports(f):
                 kind, loc = asan_finding(rep) if tool == "asan" else tsan_finding(rep)[:2]
                 test_reports.append((f"{f.name.split('.')[0]}: {kind}", str(loc)))
         for f in sorted((out / "tests").glob("*.vg.log")):
+            if (tool, f.name.split(".")[0]) in KNOWN:
+                continue
             errs, crash = valgrind_findings(f)
             test_reports += [(f"{f.name.split('.')[0]}: {k}", loc) for k, loc, _ in errs]
         findings += len(test_reports)
@@ -195,23 +219,31 @@ def main():
         log = out / "app.vg.log"
         if log.exists():
             errs, crash = valgrind_findings(log)
+            items = [(k, loc) for k, loc, _ in errs]
             if crash:
                 md += [f"Process crashed: {crash[0]} at `{crash[1]}`. Leak results skipped (live allocations look lost after a crash).", ""]
-                if obs_frame(crash[1]) or OBS_FRAME.search(crash[1]):
-                    findings += 1
-            findings += len(errs)
-            md += section("OBS memory errors and leaks", group([(k, loc) for k, loc, _ in errs]))
+                if OBS_FRAME.search(crash[1]):
+                    items.insert(0, ("crash (" + re.sub(r".*signal \d+ \((\w+)\).*", r"\1", crash[0]) + ")", crash[1]))
+            findings += len(items)
+            md += section("OBS memory errors and leaks", group(items))
     else:
         obs, ext = [], []
-        for f in sorted(out.glob(f"{'tsan' if tool == 'tsan' else '[au]bsan'}.*")):
+        # Sanitizer log files first, then the app's stderr: UBSan in particular
+        # can ignore log_path and print there. A report seen in both counts once.
+        logs = sorted(out.glob(f"{'tsan' if tool == 'tsan' else '[au]bsan'}.*")) + [out / "app.log"]
+        seen = set()
+        for f in [f for f in logs if f.exists()]:
             for rep in sanitizer_reports(f):
                 if tool == "tsan":
                     kind, sig, is_obs = tsan_finding(rep)
                     detail = " ↔ ".join(s or "external" for s in sig)
-                    (obs if is_obs else ext).append((kind, detail))
                 else:
                     kind, loc = asan_finding(rep)
-                    (obs if loc else ext).append((kind, loc or ""))
+                    detail, is_obs = loc or "", loc is not None
+                if f.name == "app.log" and (kind, detail) in seen:
+                    continue
+                seen.add((kind, detail))
+                (obs if is_obs else ext).append((kind, detail))
         findings += len(obs)
         md += section("OBS findings", group(obs))
         if ext:

@@ -112,12 +112,15 @@ sleep 2
 HOME=$(mktemp -d "$out/profile.XXXX")
 export HOME LD_LIBRARY_PATH=$libdir${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
 cmd=("$inst/bin/obs" --disable-shutdown-check --disable-updater --verbose)
+# Seconds between SIGINT and SIGKILL: shutdown under valgrind is slow.
+grace=60
 if [ $tool = valgrind ]; then
   cmd=("${vg[@]}" --log-file="$out/app.vg.log" "${cmd[@]}")
   secs=$((secs * 4))
+  grace=240
 fi
 cd "$inst/bin" || exit 1
-timeout -s INT -k 60 $secs dbus-run-session -- "${cmd[@]}" >"$out/app.log" 2>&1
+timeout -s INT -k $grace $secs dbus-run-session -- "${cmd[@]}" >"$out/app.log" 2>&1
 echo "app exit=$?" | tee "$out/app-exit.txt"
 cp -r "$HOME/.config/obs-studio/logs" "$out/obs-logs" 2>/dev/null || true
 kill $xpid 2>/dev/null
