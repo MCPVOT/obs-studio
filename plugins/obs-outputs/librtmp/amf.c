@@ -204,7 +204,10 @@ AMF_EncodeString(char *output, char *outend, const AVal *bv)
 
         output = AMF_EncodeInt32(output, outend, bv->av_len);
     }
-    memcpy(output, bv->av_val, bv->av_len);
+    /* a zero-length string may carry a null source pointer; the copy is
+     * a no-op then, and UBSan flags the memcpy's nonnull argument */
+    if (bv->av_len)
+        memcpy(output, bv->av_val, bv->av_len);
     output += bv->av_len;
 
     return output;
