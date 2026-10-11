@@ -127,7 +127,9 @@ target_sources(
     util/platform.h
     $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:util/profiler-snapshot.c>
     util/profiler-snapshot.h
-    util/profiler.c
+    $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:util/profiler.c>
+    $<$<BOOL:${ENABLE_RUST_LIBOBS}>:util/profiler-variadic.c>
+    util/profiler-io.c
     util/profiler.h
     util/profiler.hpp
     util/serializer.h
@@ -139,7 +141,7 @@ target_sources(
     $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:util/text-lookup.c>
     util/text-lookup.h
     util/threading.h
-    $<$<NOT:$<AND:$<BOOL:${ENABLE_RUST_LIBOBS}>,$<NOT:$<PLATFORM_ID:Windows>>>>:util/utf8.c>
+    $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:util/utf8.c>
     util/utf8.h
     util/uthash.h
     util/util.hpp

@@ -3,6 +3,8 @@
 #include <setjmp.h>
 #include <string.h>
 #include <stdlib.h>
+#include <locale.h>
+#include <wchar.h>
 #include <cmocka.h>
 
 #include <util/platform.h>
@@ -558,6 +560,119 @@ static void test_mbs_to_utf8_ptr_ascii(void **state)
 	assert_null(s);
 }
 
+/* Switches LC_CTYPE to a UTF-8 locale; false where none is installed. */
+static bool set_utf8_ctype(void)
+{
+	static const char *const names[] = {"C.UTF-8", "en_US.UTF-8", ".UTF8", "UTF-8"};
+	for (size_t i = 0; i < sizeof(names) / sizeof(names[0]); i++) {
+		if (setlocale(LC_CTYPE, names[i]))
+			return true;
+	}
+	return false;
+}
+
+/*
+ * mbstowcs and wcstombs return (size_t)-1 for text the current locale
+ * cannot convert. That is a failed conversion: 0 and an empty string. It
+ * used to be taken as a length, so the _ptr functions asked for
+ * bmalloc((SIZE_MAX + 1) * size), which is bmalloc(0) and crashes, and the
+ * plain ones wrote a NUL at dst[SIZE_MAX].
+ */
+static void test_mbs_unconvertible_is_empty(void **state)
+{
+	UNUSED_PARAMETER(state);
+
+	char *saved = bstrdup(setlocale(LC_CTYPE, NULL));
+	char *s = NULL;
+	wchar_t *w = NULL;
+	char buf[8];
+	wchar_t wbuf[8];
+
+	/* U+4E2D has no byte in the C locale, on every platform */
+	const wchar_t wide[] = {L'a', 0x4e2d, 0};
+	assert_non_null(setlocale(LC_CTYPE, "C"));
+
+	assert_int_equal(os_wcs_to_mbs(wide, 0, NULL, 0), 0);
+	assert_int_equal(os_wcs_to_mbs_ptr(wide, 0, &s), 0);
+	assert_non_null(s);
+	assert_string_equal(s, "");
+	bfree(s);
+
+	memset(buf, 'x', sizeof(buf));
+	assert_int_equal(os_wcs_to_mbs(wide, 0, buf, sizeof(buf)), 0);
+	assert_string_equal(buf, "");
+
+	assert_int_equal(os_utf8_to_mbs_ptr("a\xe4\xb8\xad", 0, &s), 0);
+	assert_non_null(s);
+	assert_string_equal(s, "");
+	bfree(s);
+
+	/* invalid UTF-8 in a UTF-8 locale */
+	if (set_utf8_ctype()) {
+		const char *bad = "bad \xff byte";
+
+		assert_int_equal(os_mbs_to_wcs(bad, 0, NULL, 0), 0);
+		assert_int_equal(os_mbs_to_wcs_ptr(bad, 0, &w), 0);
+		assert_non_null(w);
+		assert_int_equal(w[0], 0);
+		bfree(w);
+
+		wmemset(wbuf, L'x', 8);
+		assert_int_equal(os_mbs_to_wcs(bad, 0, wbuf, 8), 0);
+		assert_int_equal(wbuf[0], 0);
+
+		assert_int_equal(os_mbs_to_utf8_ptr(bad, 0, &s), 0);
+		assert_non_null(s);
+		assert_string_equal(s, "");
+		bfree(s);
+	} else {
+		print_message("no UTF-8 locale: invalid-UTF-8 cases skipped\n");
+	}
+
+	setlocale(LC_CTYPE, saved);
+	bfree(saved);
+}
+
+/*
+ * With a buffer too small for the text, mbstowcs and wcstombs fill it
+ * completely; the result is cut to dst_size - 1 elements and terminated,
+ * instead of the NUL landing one past the end.
+ */
+static void test_mbs_buffer_too_small_is_cut(void **state)
+{
+	UNUSED_PARAMETER(state);
+
+	char *saved = bstrdup(setlocale(LC_CTYPE, NULL));
+	assert_non_null(setlocale(LC_CTYPE, "C"));
+
+	struct {
+		wchar_t w[4];
+		wchar_t guard;
+	} wide;
+	wide.guard = L'G';
+	assert_int_equal(os_mbs_to_wcs("abcdef", 0, wide.w, 4), 3);
+	assert_true(wcscmp(wide.w, L"abc") == 0);
+	assert_int_equal(wide.guard, L'G');
+
+	struct {
+		char s[4];
+		char guard;
+	} narrow;
+	narrow.guard = 'G';
+	assert_int_equal(os_wcs_to_mbs(L"abcdef", 0, narrow.s, 4), 3);
+	assert_string_equal(narrow.s, "abc");
+	assert_int_equal(narrow.guard, 'G');
+
+	/* text that fits exactly is unchanged */
+	assert_int_equal(os_mbs_to_wcs("abc", 0, wide.w, 4), 3);
+	assert_true(wcscmp(wide.w, L"abc") == 0);
+	assert_int_equal(os_wcs_to_mbs(L"abc", 0, narrow.s, 4), 3);
+	assert_string_equal(narrow.s, "abc");
+
+	setlocale(LC_CTYPE, saved);
+	bfree(saved);
+}
+
 static void test_strtod(void **state)
 {
 	UNUSED_PARAMETER(state);
@@ -621,6 +736,8 @@ int main(void)
 		cmocka_unit_test(test_utf8_wcs_roundtrip_multibyte),
 		cmocka_unit_test(test_utf8_wcs_null_input),
 		cmocka_unit_test(test_mbs_to_utf8_ptr_ascii),
+		cmocka_unit_test(test_mbs_unconvertible_is_empty),
+		cmocka_unit_test(test_mbs_buffer_too_small_is_cut),
 		cmocka_unit_test(test_strtod),
 		cmocka_unit_test(test_dtostr),
 	};

@@ -808,6 +808,41 @@ void obs_encoder_shutdown(obs_encoder_t *encoder)
 	pthread_mutex_unlock(&encoder->init_mutex);
 }
 
+/* Shuts down an encoder that was initialized for an output that stopped
+ * without starting it, for example a stream that failed to connect. The
+ * encoder is left alone while it is running, or while an output that uses it
+ * is starting, running, reconnecting or delaying (another output, or the same
+ * one started again), since that output still needs it.
+ *
+ * Called from the output's end-capture thread. Lock order is outputs_mutex,
+ * then init_mutex, as in full_stop(). Both are only tried: full_stop() holds
+ * outputs_mutex while it force-stops outputs, and a forced stop can join this
+ * thread. If either is busy the encoder stays initialized, as it did before
+ * this function existed, until the next normal stop. */
+void obs_encoder_shutdown_unstarted(obs_encoder_t *encoder)
+{
+	if (pthread_mutex_trylock(&encoder->outputs_mutex) != 0)
+		return;
+	if (pthread_mutex_trylock(&encoder->init_mutex) != 0) {
+		pthread_mutex_unlock(&encoder->outputs_mutex);
+		return;
+	}
+
+	bool needed = encoder_active(encoder);
+	for (size_t i = 0; !needed && i < encoder->outputs.num; i++) {
+		const struct obs_output *output = encoder->outputs.array[i];
+		needed = obs_output_needs_encoders(output);
+	}
+
+	if (encoder->initialized && !needed) {
+		obs_encoder_shutdown(encoder);
+		encoder->initialized = false;
+	}
+
+	pthread_mutex_unlock(&encoder->init_mutex);
+	pthread_mutex_unlock(&encoder->outputs_mutex);
+}
+
 static inline size_t get_callback_idx(const struct obs_encoder *encoder, encoded_callback_t new_packet, void *param)
 {
 	for (size_t i = 0; i < encoder->callbacks.num; i++) {

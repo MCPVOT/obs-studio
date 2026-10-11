@@ -46,7 +46,7 @@ target_sources(
     libobs.rc
     obs-win-crash-handler.c
     obs-windows.c
-    util/pipe-windows.c
+    $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:util/pipe-windows.c>
     util/platform-windows.c
     util/threading-windows.c
     util/threading-windows.h

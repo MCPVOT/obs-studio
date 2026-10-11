@@ -21,6 +21,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include FT_FREETYPE_H
 #include <sys/stat.h>
 #include "text-freetype2.h"
+#include "text-file.h"
 #include "obs-convenience.h"
 #include "glyph-atlas.h"
 
@@ -386,150 +387,28 @@ time_t get_modified_timestamp(char *filename)
 	return stats.st_mtime;
 }
 
-static void remove_cr(wchar_t *source)
+static void set_text_from_file(struct ft2_source *srcdata, const char *filename, wchar_t *text)
 {
-	int j = 0;
-	for (int i = 0; source[i] != '\0'; ++i) {
-		if (source[i] != L'\r') {
-			source[j++] = source[i];
+	if (text == NULL) {
+		if (!srcdata->file_load_failed) {
+			blog(LOG_WARNING, "Failed to open file %s", filename);
+			srcdata->file_load_failed = true;
 		}
+		return;
 	}
-	source[j] = '\0';
+
+	bfree(srcdata->text);
+	srcdata->text = text;
 }
 
 void load_text_from_file(struct ft2_source *srcdata, const char *filename)
 {
-	FILE *tmp_file = NULL;
-	uint32_t filesize = 0;
-	char *tmp_read = NULL;
-	uint16_t header = 0;
-	size_t bytes_read;
-
-	tmp_file = os_fopen(filename, "rb");
-	if (tmp_file == NULL) {
-		if (!srcdata->file_load_failed) {
-			blog(LOG_WARNING, "Failed to open file %s", filename);
-			srcdata->file_load_failed = true;
-		}
-		return;
-	}
-	fseek(tmp_file, 0, SEEK_END);
-	filesize = (uint32_t)ftell(tmp_file);
-	fseek(tmp_file, 0, SEEK_SET);
-	bytes_read = fread(&header, 1, 2, tmp_file);
-
-	if (bytes_read == 2 && header == 0xFEFF) {
-		// File is already in UTF-16 format
-		if (srcdata->text != NULL) {
-			bfree(srcdata->text);
-			srcdata->text = NULL;
-		}
-		srcdata->text = bzalloc(filesize);
-		bytes_read = fread(srcdata->text, filesize - 2, 1, tmp_file);
-
-		bfree(tmp_read);
-		fclose(tmp_file);
-
-		return;
-	}
-
-	fseek(tmp_file, 0, SEEK_SET);
-
-	tmp_read = bzalloc(filesize + 1);
-	bytes_read = fread(tmp_read, filesize, 1, tmp_file);
-	fclose(tmp_file);
-
-	if (srcdata->text != NULL) {
-		bfree(srcdata->text);
-		srcdata->text = NULL;
-	}
-	srcdata->text = bzalloc((strlen(tmp_read) + 1) * sizeof(wchar_t));
-	os_utf8_to_wcs(tmp_read, strlen(tmp_read), srcdata->text, (strlen(tmp_read) + 1));
-
-	remove_cr(srcdata->text);
-	bfree(tmp_read);
+	set_text_from_file(srcdata, filename, ft2_read_text_file(filename));
 }
 
 void read_from_end(struct ft2_source *srcdata, const char *filename)
 {
-	FILE *tmp_file = NULL;
-	uint32_t filesize = 0, cur_pos = 0, log_lines = 0;
-	char *tmp_read = NULL;
-	uint16_t value = 0, line_breaks = 0;
-	size_t bytes_read;
-	char bvalue;
-
-	bool utf16 = false;
-
-	tmp_file = fopen(filename, "rb");
-	if (tmp_file == NULL) {
-		if (!srcdata->file_load_failed) {
-			blog(LOG_WARNING, "Failed to open file %s", filename);
-			srcdata->file_load_failed = true;
-		}
-		return;
-	}
-	bytes_read = fread(&value, 1, 2, tmp_file);
-
-	if (bytes_read == 2 && value == 0xFEFF)
-		utf16 = true;
-
-	fseek(tmp_file, 0, SEEK_END);
-	filesize = (uint32_t)ftell(tmp_file);
-	cur_pos = filesize;
-	log_lines = srcdata->log_lines;
-
-	while (line_breaks <= log_lines && cur_pos != 0) {
-		if (!utf16)
-			cur_pos--;
-		else
-			cur_pos -= 2;
-		fseek(tmp_file, cur_pos, SEEK_SET);
-
-		if (!utf16) {
-			bytes_read = fread(&bvalue, 1, 1, tmp_file);
-			if (bytes_read == 1 && bvalue == '\n')
-				line_breaks++;
-		} else {
-			bytes_read = fread(&value, 1, 2, tmp_file);
-			if (bytes_read == 2 && value == L'\n')
-				line_breaks++;
-		}
-	}
-
-	if (cur_pos != 0)
-		cur_pos += (utf16) ? 2 : 1;
-
-	fseek(tmp_file, cur_pos, SEEK_SET);
-
-	if (utf16) {
-		if (srcdata->text != NULL) {
-			bfree(srcdata->text);
-			srcdata->text = NULL;
-		}
-		srcdata->text = bzalloc(filesize - cur_pos);
-		bytes_read = fread(srcdata->text, (filesize - cur_pos), 1, tmp_file);
-
-		remove_cr(srcdata->text);
-		bfree(tmp_read);
-		fclose(tmp_file);
-
-		return;
-	}
-
-	tmp_read = bzalloc((filesize - cur_pos) + 1);
-	bytes_read = fread(tmp_read, filesize - cur_pos, 1, tmp_file);
-	fclose(tmp_file);
-
-	if (srcdata->text != NULL) {
-		bfree(srcdata->text);
-		srcdata->text = NULL;
-	}
-	srcdata->text = bzalloc((strlen(tmp_read) + 1) * sizeof(wchar_t));
-	os_utf8_to_wcs(tmp_read, strlen(tmp_read), srcdata->text, (strlen(tmp_read) + 1));
-
-	remove_cr(srcdata->text);
-	bfree(tmp_read);
+	set_text_from_file(srcdata, filename, ft2_read_text_file_end(filename, srcdata->log_lines));
 }
 
 uint32_t get_ft2_text_width(wchar_t *text, struct ft2_source *srcdata)

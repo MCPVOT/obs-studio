@@ -1,7 +1,7 @@
 //! Safe core of `libobs/util/profiler-snapshot.c`: walking and filtering
 //! the entries of a profiler snapshot.
 //!
-//! Snapshots are built by `profiler.c`, which stays C. The C ABI shim in
+//! Snapshots are built by `profiler.c`'s Rust port (`crate::profiler`). The C ABI shim in
 //! [`crate::ffi::profiler_snapshot`] reads them in place; this module holds
 //! the loop logic, written against [`EntryList`] so it runs the same over
 //! the C darray and over a `Vec` in tests.

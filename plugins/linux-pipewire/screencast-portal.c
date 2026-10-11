@@ -83,11 +83,53 @@ struct screencast_portal_capture {
 		obs_pipewire *held_obs_pw;
 		obs_pipewire_stream *held_obs_pw_stream;
 	} reconnect;
+
+	/* Main loop source that frees the capture after destroy(). */
+	GSource *finish_destroy_source;
 };
 
 static void on_pipewire_disconnected(void *user_data);
 static void reconnect_attempt_failed(struct screencast_portal_capture *capture, bool cancelled_by_user);
 static void clear_reconnect_timer(guint *id);
+
+/* Portal replies are handled on the main loop, but libobs destroys sources on
+ * its destruction thread, so a reply could be handled while the capture is
+ * being torn down. Each reply holds a strong reference to the source while it
+ * runs: destruction cannot begin while it is held, and once it has begun the
+ * reply is dropped. The capture is freed on the main loop, after its portal
+ * requests are cancelled there (see finish_destroy()), so a reply that comes
+ * in later never sees freed memory. */
+static obs_source_t *capture_hold(struct screencast_portal_capture *capture)
+{
+	return obs_weak_source_get_source(capture->weak_source);
+}
+
+static void handle_reply(GVariant *parameters, struct screencast_portal_capture *capture,
+			 void (*handle)(GVariant *parameters, struct screencast_portal_capture *capture))
+{
+	obs_source_t *held_source = capture_hold(capture);
+
+	if (!held_source) {
+		blog(LOG_DEBUG, "[pipewire] Ignoring a portal response for a capture being destroyed");
+		return;
+	}
+
+	handle(parameters, capture);
+	obs_source_release(held_source);
+}
+
+/* A portal method call failed. It was not cancelled, so the capture still
+ * exists, but it may be being destroyed. */
+static void portal_call_failed(struct screencast_portal_capture *capture)
+{
+	obs_source_t *held_source = capture_hold(capture);
+
+	if (!held_source)
+		return;
+
+	reconnect_attempt_failed(capture, false);
+	obs_source_release(held_source);
+}
 
 /* ------------------------------------------------- */
 
@@ -188,37 +230,43 @@ static void on_pipewire_remote_opened_cb(GObject *source, GAsyncResult *res, voi
 	g_autoptr(GUnixFDList) fd_list = NULL;
 	g_autoptr(GVariant) result = NULL;
 	g_autoptr(GError) error = NULL;
+	obs_source_t *held_source;
 	int pipewire_fd;
 	int fd_index;
 
 	capture = user_data;
 	result = g_dbus_proxy_call_with_unix_fd_list_finish(G_DBUS_PROXY(source), &fd_list, res, &error);
-	if (error) {
-		if (!g_error_matches(error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
-			blog(LOG_ERROR, "[pipewire] Error retrieving pipewire fd: %s", error->message);
-			reconnect_attempt_failed(capture, false);
-		}
+	/* Cancelled means the capture may be gone: don't touch it. */
+	if (g_error_matches(error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
 		return;
+
+	held_source = capture_hold(capture);
+	if (!held_source)
+		return;
+
+	if (error) {
+		blog(LOG_ERROR, "[pipewire] Error retrieving pipewire fd: %s", error->message);
+		reconnect_attempt_failed(capture, false);
+		goto out;
 	}
 
 	g_variant_get(result, "(h)", &fd_index, &error);
 
 	pipewire_fd = g_unix_fd_list_get(fd_list, fd_index, &error);
 	if (error) {
-		if (!g_error_matches(error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
-			blog(LOG_ERROR, "[pipewire] Error retrieving pipewire fd: %s", error->message);
-		return;
+		blog(LOG_ERROR, "[pipewire] Error retrieving pipewire fd: %s", error->message);
+		goto out;
 	}
 
 	capture->obs_pw = obs_pipewire_connect_fd(pipewire_fd, NULL, NULL);
 
 	if (!capture->obs_pw)
-		return;
+		goto out;
 
 	obs_pipewire_set_disconnected_callback(capture->obs_pw, on_pipewire_disconnected, capture->weak_source);
 	if (obs_pipewire_is_disconnected(capture->obs_pw)) {
 		on_pipewire_disconnected(capture->weak_source);
-		return;
+		goto out;
 	}
 
 	connect_info = (struct obs_pipewire_connect_stream_info){
@@ -237,6 +285,9 @@ static void on_pipewire_remote_opened_cb(GObject *source, GAsyncResult *res, voi
 	/* show/hide calls made while reconnecting had no stream to act on. */
 	if (capture->reconnect.active && capture->obs_pw_stream && !obs_source_showing(capture->source))
 		obs_pipewire_stream_hide(capture->obs_pw_stream);
+
+out:
+	obs_source_release(held_source);
 }
 
 static void open_pipewire_remote(struct screencast_portal_capture *capture)
@@ -253,9 +304,8 @@ static void open_pipewire_remote(struct screencast_portal_capture *capture)
 
 /* ------------------------------------------------- */
 
-static void on_start_response_received_cb(GVariant *parameters, void *user_data)
+static void start_response_received(GVariant *parameters, struct screencast_portal_capture *capture)
 {
-	struct screencast_portal_capture *capture = user_data;
 	g_autoptr(GVariant) stream_properties = NULL;
 	g_autoptr(GVariant) streams = NULL;
 	g_autoptr(GVariant) result = NULL;
@@ -312,6 +362,11 @@ static void on_start_response_received_cb(GVariant *parameters, void *user_data)
 	open_pipewire_remote(capture);
 }
 
+static void on_start_response_received_cb(GVariant *parameters, void *user_data)
+{
+	handle_reply(parameters, user_data, start_response_received);
+}
+
 static void on_started_cb(GObject *source, GAsyncResult *res, void *user_data)
 {
 	g_autoptr(GVariant) result = NULL;
@@ -322,7 +377,7 @@ static void on_started_cb(GObject *source, GAsyncResult *res, void *user_data)
 		/* Cancelled means the capture may be gone: don't touch it. */
 		if (!g_error_matches(error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
 			blog(LOG_ERROR, "[pipewire] Error selecting screencast source: %s", error->message);
-			reconnect_attempt_failed(user_data, false);
+			portal_call_failed(user_data);
 		}
 		return;
 	}
@@ -353,9 +408,8 @@ static void start(struct screencast_portal_capture *capture)
 
 /* ------------------------------------------------- */
 
-static void on_select_source_response_received_cb(GVariant *parameters, void *user_data)
+static void select_source_response_received(GVariant *parameters, struct screencast_portal_capture *capture)
 {
-	struct screencast_portal_capture *capture = user_data;
 	g_autoptr(GVariant) ret = NULL;
 	uint32_t response;
 
@@ -372,6 +426,11 @@ static void on_select_source_response_received_cb(GVariant *parameters, void *us
 	start(capture);
 }
 
+static void on_select_source_response_received_cb(GVariant *parameters, void *user_data)
+{
+	handle_reply(parameters, user_data, select_source_response_received);
+}
+
 static void on_source_selected_cb(GObject *source, GAsyncResult *res, void *user_data)
 {
 	g_autoptr(GVariant) result = NULL;
@@ -382,7 +441,7 @@ static void on_source_selected_cb(GObject *source, GAsyncResult *res, void *user
 		/* Cancelled means the capture may be gone: don't touch it. */
 		if (!g_error_matches(error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
 			blog(LOG_ERROR, "[pipewire] Error selecting screencast source: %s", error->message);
-			reconnect_attempt_failed(user_data, false);
+			portal_call_failed(user_data);
 		}
 		return;
 	}
@@ -437,9 +496,8 @@ static void select_source(struct screencast_portal_capture *capture)
 
 /* ------------------------------------------------- */
 
-static void on_create_session_response_received_cb(GVariant *parameters, void *user_data)
+static void create_session_response_received(GVariant *parameters, struct screencast_portal_capture *capture)
 {
-	struct screencast_portal_capture *capture = user_data;
 	g_autoptr(GVariant) session_handle_variant = NULL;
 	g_autoptr(GVariant) result = NULL;
 	uint32_t response;
@@ -460,6 +518,11 @@ static void on_create_session_response_received_cb(GVariant *parameters, void *u
 	select_source(capture);
 }
 
+static void on_create_session_response_received_cb(GVariant *parameters, void *user_data)
+{
+	handle_reply(parameters, user_data, create_session_response_received);
+}
+
 static void on_session_created_cb(GObject *source, GAsyncResult *res, void *user_data)
 {
 	g_autoptr(GVariant) result = NULL;
@@ -470,7 +533,7 @@ static void on_session_created_cb(GObject *source, GAsyncResult *res, void *user
 		/* Cancelled means the capture may be gone: don't touch it. */
 		if (!g_error_matches(error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
 			blog(LOG_ERROR, "[pipewire] Error creating screencast session: %s", error->message);
-			reconnect_attempt_failed(user_data, false);
+			portal_call_failed(user_data);
 		}
 		return;
 	}
@@ -887,6 +950,36 @@ static void *screencast_portal_capture_create(obs_data_t *settings, obs_source_t
 	return capture;
 }
 
+/* Captures destroyed but not yet freed, so unloading can free them. */
+static GPtrArray *pending_frees = NULL;
+static pthread_mutex_t pending_frees_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+static void free_capture(struct screencast_portal_capture *capture)
+{
+	/* Drops the replies still pending, on the thread that handles them. */
+	g_cancellable_cancel(capture->cancellable);
+	g_clear_object(&capture->cancellable);
+	g_clear_pointer(&capture->finish_destroy_source, g_source_unref);
+	obs_weak_source_release(capture->weak_source);
+	pthread_mutex_destroy(&capture->streams_mutex);
+	bfree(capture);
+}
+
+static gboolean finish_destroy(void *user_data)
+{
+	struct screencast_portal_capture *capture = user_data;
+	bool pending;
+
+	pthread_mutex_lock(&pending_frees_mutex);
+	pending = pending_frees && g_ptr_array_remove_fast(pending_frees, capture);
+	pthread_mutex_unlock(&pending_frees_mutex);
+
+	if (pending)
+		free_capture(capture);
+
+	return G_SOURCE_REMOVE;
+}
+
 static void screencast_portal_capture_destroy(void *data)
 {
 	struct screencast_portal_capture *capture = data;
@@ -894,18 +987,26 @@ static void screencast_portal_capture_destroy(void *data)
 	if (!capture)
 		return;
 
+	/* Destruction thread. Portal replies handled from here on are dropped
+	 * (see capture_hold()), so the capture is ours. */
 	stop_reconnect(capture);
 	close_session(capture);
 
 	g_clear_pointer(&capture->restore_token, bfree);
 
 	g_clear_pointer(&capture->obs_pw_stream, obs_pipewire_stream_destroy);
-	obs_pipewire_destroy(capture->obs_pw);
-	g_cancellable_cancel(capture->cancellable);
-	g_clear_object(&capture->cancellable);
-	obs_weak_source_release(capture->weak_source);
-	pthread_mutex_destroy(&capture->streams_mutex);
-	bfree(capture);
+	g_clear_pointer(&capture->obs_pw, obs_pipewire_destroy);
+
+	/* Cancelling here could not stop a reply the main loop is already
+	 * handling, so cancel and free on the main loop. */
+	pthread_mutex_lock(&pending_frees_mutex);
+	if (!pending_frees)
+		pending_frees = g_ptr_array_new();
+	g_ptr_array_add(pending_frees, capture);
+	capture->finish_destroy_source = g_idle_source_new();
+	g_source_set_callback(capture->finish_destroy_source, finish_destroy, capture, NULL);
+	g_source_attach(capture->finish_destroy_source, NULL);
+	pthread_mutex_unlock(&pending_frees_mutex);
 }
 
 static void screencast_portal_capture_save(void *data, obs_data_t *settings)
@@ -1112,5 +1213,19 @@ void screencast_portal_load(void)
 
 void screencast_portal_unload(void)
 {
+	g_autoptr(GPtrArray) captures = NULL;
+
+	/* The main loop may not run again: free what is still pending. */
+	pthread_mutex_lock(&pending_frees_mutex);
+	captures = g_steal_pointer(&pending_frees);
+	pthread_mutex_unlock(&pending_frees_mutex);
+
+	for (guint i = 0; captures && i < captures->len; i++) {
+		struct screencast_portal_capture *capture = captures->pdata[i];
+
+		g_source_destroy(capture->finish_destroy_source);
+		free_capture(capture);
+	}
+
 	g_clear_object(&screencast_proxy);
 }

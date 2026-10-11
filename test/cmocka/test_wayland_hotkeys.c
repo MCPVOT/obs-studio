@@ -1,11 +1,11 @@
-/* Wayland hotkeys held while OBS is focused (upstream
- * obsproject/obs-studio#10701).
+/* Wayland hotkey key state (upstream obsproject/obs-studio#10701, #13169,
+ * #10538).
  *
  * The real libobs hotkey thread (obs-hotkey.c, compiled in with an isolated
  * core) polls obs_hotkeys_platform_is_pressed(), which this test answers from
- * obs_nix_hotkey_state as the Wayland platform does. No Wayland display is
- * needed: the test plays the part of the wl_keyboard listener and of the Qt
- * key filter that injects presses. */
+ * obs_nix_hotkey_state as the Wayland platform does. No Wayland display or
+ * portal is needed: the test plays the part of the wl_keyboard listener and
+ * of the GlobalShortcuts Activated/Deactivated signals. */
 
 #include <stdarg.h>
 #include <stddef.h>
@@ -79,6 +79,7 @@ static int teardown(void **state)
 	pthread_join(hotkey_thread, NULL);
 	os_event_destroy(hotkey_test_obs->hotkeys.stop_event);
 	obs_hotkeys_free();
+	obs_nix_hotkey_state_free(&key_state);
 	signal_handler_destroy(hotkey_test_obs->hotkeys.signals);
 	pthread_mutex_destroy(&hotkey_test_obs->hotkeys.mutex);
 	bfree(hotkey_test_obs);
@@ -124,6 +125,92 @@ static void expect_pressed(struct hotkey_log *log, bool pressed, const char *wha
 
 static const obs_key_combination_t f13 = {0, OBS_KEY_F13};
 static const obs_key_combination_t ctrl_shift_f13 = {INTERACT_CONTROL_KEY | INTERACT_SHIFT_KEY, OBS_KEY_F13};
+
+/* Push-to-talk on an unfocused OBS: the portal's Activated presses the
+ * hotkey, it stays pressed while held, Deactivated releases it. */
+static void portal_shortcut_holds_push_to_talk(void **state)
+{
+	UNUSED_PARAMETER(state);
+	struct hotkey_log ptt = {0};
+	register_bound("ptt", &ptt, f13);
+
+	obs_nix_hotkey_state_set_shortcut(&key_state, f13, true);
+	expect_pressed(&ptt, true, "Activated");
+	wait_cycles();
+	if (!os_atomic_load_long(&ptt.pressed) || os_atomic_load_long(&ptt.releases) != 0) {
+		fprintf(stderr, "held shortcut was released by the hotkey thread (releases %ld)\n",
+			os_atomic_load_long(&ptt.releases));
+		fail();
+	}
+
+	obs_nix_hotkey_state_set_shortcut(&key_state, f13, false);
+	expect_pressed(&ptt, false, "Deactivated");
+	assert_int_equal(os_atomic_load_long(&ptt.presses), 1);
+	assert_int_equal(os_atomic_load_long(&ptt.releases), 1);
+}
+
+/* A combination with modifiers: the strict modifier match in the hotkey
+ * thread must see the shortcut's modifiers as held too. */
+static void portal_shortcut_with_modifiers(void **state)
+{
+	UNUSED_PARAMETER(state);
+	struct hotkey_log combo = {0}, plain = {0};
+	register_bound("combo", &combo, ctrl_shift_f13);
+	register_bound("plain", &plain, f13);
+
+	obs_nix_hotkey_state_set_shortcut(&key_state, ctrl_shift_f13, true);
+	expect_pressed(&combo, true, "Activated ctrl+shift+F13");
+	wait_cycles();
+	/* Strict modifiers: plain F13 is a different combination. */
+	assert_int_equal(os_atomic_load_long(&plain.presses), 0);
+
+	obs_nix_hotkey_state_set_shortcut(&key_state, ctrl_shift_f13, false);
+	expect_pressed(&combo, false, "Deactivated ctrl+shift+F13");
+}
+
+/* One shortcut per key combination: every action bound to it fires (OBS
+ * allows the same key for several actions, the desktop may not). */
+static void one_shortcut_drives_every_bound_action(void **state)
+{
+	UNUSED_PARAMETER(state);
+	struct hotkey_log talk = {0}, mute = {0};
+	register_bound("push-to-talk", &talk, f13);
+	register_bound("push-to-mute", &mute, f13);
+
+	obs_nix_hotkey_state_set_shortcut(&key_state, f13, true);
+	expect_pressed(&talk, true, "push-to-talk");
+	expect_pressed(&mute, true, "push-to-mute");
+
+	obs_nix_hotkey_state_set_shortcut(&key_state, f13, false);
+	expect_pressed(&talk, false, "push-to-talk");
+	expect_pressed(&mute, false, "push-to-mute");
+}
+
+/* Activated and Deactivated before the hotkey thread polls: the tap must
+ * still press (and then release) the hotkey. */
+static void short_tap_is_not_lost(void **state)
+{
+	UNUSED_PARAMETER(state);
+	struct hotkey_log tap = {0};
+	register_bound("tap", &tap, f13);
+	wait_cycles();
+
+	pthread_mutex_lock(&hotkey_test_obs->hotkeys.mutex);
+	obs_nix_hotkey_state_set_shortcut(&key_state, f13, true);
+	obs_nix_hotkey_state_set_shortcut(&key_state, f13, false);
+	pthread_mutex_unlock(&hotkey_test_obs->hotkeys.mutex);
+
+	for (int i = 0; i < 20 && obs_nix_hotkey_state_flush(&key_state); i++)
+		os_sleep_ms(25);
+	wait_cycles();
+
+	if (os_atomic_load_long(&tap.presses) != 1 || os_atomic_load_long(&tap.releases) != 1) {
+		fprintf(stderr, "tap: presses %ld releases %ld, expected 1 and 1\n", os_atomic_load_long(&tap.presses),
+			os_atomic_load_long(&tap.releases));
+		fail();
+	}
+	assert_false(obs_nix_hotkey_state_flush(&key_state));
+}
 
 /* Upstream #10701: with OBS focused, Qt injects the press, but the hotkey
  * thread released push-to-talk within 25 ms because nothing reported the key
@@ -200,6 +287,10 @@ static void nothing_reported_releases(void **state)
 int main(void)
 {
 	const struct CMUnitTest tests[] = {
+		cmocka_unit_test_setup_teardown(portal_shortcut_holds_push_to_talk, setup, teardown),
+		cmocka_unit_test_setup_teardown(portal_shortcut_with_modifiers, setup, teardown),
+		cmocka_unit_test_setup_teardown(one_shortcut_drives_every_bound_action, setup, teardown),
+		cmocka_unit_test_setup_teardown(short_tap_is_not_lost, setup, teardown),
 		cmocka_unit_test_setup_teardown(focused_key_holds_push_to_talk, setup, teardown),
 		cmocka_unit_test_setup_teardown(focused_modifiers_hold_combination, setup, teardown),
 		cmocka_unit_test_setup_teardown(focus_loss_releases_keys, setup, teardown),

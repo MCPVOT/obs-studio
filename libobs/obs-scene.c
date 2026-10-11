@@ -3358,6 +3358,22 @@ static void get_ungrouped_transform(obs_sceneitem_t *group, obs_sceneitem_t *ite
 	*rot += group->rot;
 }
 
+/* A visible item's source is an active child of the scene that holds it.
+ * When an item moves to another scene (into or out of a group), move that
+ * relationship along, or activation and deactivation walk different trees and
+ * the source's activate/show counts drift (obsproject/obs-studio#9961).
+ * Add before removing so a source that stays on screen never drops to zero. */
+static void move_active_child(obs_scene_t *from, obs_scene_t *to, obs_sceneitem_t *item)
+{
+	if (from == to || os_atomic_load_long(&item->active_refs) <= 0)
+		return;
+
+	if (to)
+		obs_source_add_active_child(to->source, item->source);
+	if (from)
+		obs_source_remove_active_child(from->source, item->source);
+}
+
 static void remove_group_transform(obs_sceneitem_t *group, obs_sceneitem_t *item)
 {
 	obs_scene_t *parent = item->parent;
@@ -3495,27 +3511,29 @@ static void resize_group(obs_sceneitem_t *group, bool scene_resize)
 		return;
 
 	if (group->bounds_type == OBS_BOUNDS_NONE && !scene_resize) {
-		struct vec2 new_pos;
+		/* The children were shifted so the content starts at the group's
+		 * origin; move the group so the content stays where it was on
+		 * screen. The new position is measured with the new transform
+		 * rather than derived from the content size, because the group
+		 * draws with its size rounded (ceil, scale, integer halves for
+		 * centred alignment) and any difference would add up with every
+		 * resize (obsproject/obs-studio#9298). */
+		struct vec2 target;
+		struct vec2 now;
+		struct vec2 delta;
 
-		if ((group->align & OBS_ALIGN_LEFT) != 0)
-			new_pos.x = minv.x;
-		else if ((group->align & OBS_ALIGN_RIGHT) != 0)
-			new_pos.x = maxv.x;
-		else
-			new_pos.x = (maxv.x - minv.x) * 0.5f + minv.x;
+		vec2_copy(&target, &minv);
+		transform_val(&target, &group->draw_transform);
 
-		if ((group->align & OBS_ALIGN_TOP) != 0)
-			new_pos.y = minv.y;
-		else if ((group->align & OBS_ALIGN_BOTTOM) != 0)
-			new_pos.y = maxv.y;
-		else
-			new_pos.y = (maxv.y - minv.y) * 0.5f + minv.y;
+		update_item_transform(group, false);
 
-		transform_val(&new_pos, &group->draw_transform);
+		vec2_zero(&now);
+		transform_val(&now, &group->draw_transform);
+
+		vec2_sub(&delta, &target, &now);
 		if (!group->absolute_coordinates)
-			pos_from_absolute(&new_pos, &new_pos, group);
-
-		vec2_copy(&group->pos, &new_pos);
+			size_from_absolute(&delta, &delta, group);
+		vec2_add(&group->pos, &group->pos, &delta);
 	}
 
 	os_atomic_set_bool(&group->update_group_resize, false);
@@ -3578,6 +3596,7 @@ obs_sceneitem_t *obs_scene_insert_group(obs_scene_t *scene, const char *name, ob
 			items[idx]->next = NULL;
 		}
 		items[idx]->parent = sub_scene;
+		move_active_child(scene, sub_scene, items[idx]);
 		apply_group_transform(items[idx], item);
 	}
 	items[0]->prev = NULL;
@@ -3721,6 +3740,7 @@ void obs_sceneitem_group_add_item(obs_sceneitem_t *group, obs_sceneitem_t *item)
 
 	detach_sceneitem(item);
 	attach_sceneitem(groupscene, item, NULL);
+	move_active_child(scene, groupscene, item);
 
 	apply_group_transform(item, group);
 
@@ -3751,6 +3771,7 @@ void obs_sceneitem_group_remove_item(obs_sceneitem_t *group, obs_sceneitem_t *it
 
 	detach_sceneitem(item);
 	attach_sceneitem(scene, item, NULL);
+	move_active_child(groupscene, scene, item);
 
 	resize_group(group, false);
 
@@ -3911,6 +3932,7 @@ bool obs_scene_reorder_items2(obs_scene_t *scene, struct obs_sceneitem_order_inf
 
 				sub_item->prev = sub_prev;
 				sub_item->next = NULL;
+				move_active_child(sub_item->parent, sub_scene, sub_item);
 				sub_item->parent = sub_scene;
 
 				if (sub_prev)
@@ -3932,6 +3954,7 @@ bool obs_scene_reorder_items2(obs_scene_t *scene, struct obs_sceneitem_order_inf
 
 		item->prev = prev;
 		item->next = NULL;
+		move_active_child(item->parent, scene, item);
 		item->parent = scene;
 
 		if (prev)

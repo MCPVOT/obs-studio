@@ -370,6 +370,7 @@ bool obs_output_actual_start(obs_output_t *output)
 		output->last_error_message = NULL;
 	}
 
+	os_atomic_set_bool(&output->starting, true);
 	if (output->context.data)
 		success = output->info.start(output->context.data);
 
@@ -377,6 +378,9 @@ bool obs_output_actual_start(obs_output_t *output)
 		output->starting_drawn_count = obs->video.total_frames;
 		output->starting_lagged_count = obs->video.lagged_frames;
 	}
+
+	if (!success)
+		os_atomic_set_bool(&output->starting, false);
 
 	if (os_atomic_load_long(&output->delay_restart_refs))
 		os_atomic_dec_long(&output->delay_restart_refs);
@@ -514,6 +518,8 @@ void obs_output_actual_stop(obs_output_t *output, bool force, uint64_t ts)
 		signal_stop(output);
 		os_event_signal(output->stopping_event);
 	}
+
+	os_atomic_set_bool(&output->starting, false);
 
 	for (size_t i = 0; i < MAX_OUTPUT_VIDEO_ENCODERS; i++) {
 		struct caption_track_data *ctrack = output->caption_tracks[i];
@@ -2758,13 +2764,8 @@ static void calculate_batch_size(struct obs_output *output)
 	da_free(intervals);
 }
 
-bool obs_output_begin_data_capture(obs_output_t *output, uint32_t flags)
+static bool obs_output_begin_data_capture_internal(obs_output_t *output)
 {
-	UNUSED_PARAMETER(flags);
-
-	if (!obs_output_valid(output, "obs_output_begin_data_capture"))
-		return false;
-
 	if (delay_active(output))
 		return begin_delayed_capture(output);
 	if (active(output))
@@ -2804,6 +2805,22 @@ bool obs_output_begin_data_capture(obs_output_t *output, uint32_t flags)
 	}
 
 	return true;
+}
+
+bool obs_output_begin_data_capture(obs_output_t *output, uint32_t flags)
+{
+	UNUSED_PARAMETER(flags);
+
+	if (!obs_output_valid(output, "obs_output_begin_data_capture"))
+		return false;
+
+	bool success = obs_output_begin_data_capture_internal(output);
+
+	/* Cleared only after active is set, so that another output always
+	 * sees this one as starting or active while it needs its encoders.
+	 * Also cleared on failure, so that the flag cannot stay set. */
+	os_atomic_set_bool(&output->starting, false);
+	return success;
 }
 
 static inline void stop_audio_encoders(obs_output_t *output, encoded_callback_t encoded_callback)
@@ -2875,6 +2892,36 @@ static void *end_data_capture_thread(void *data)
 	return NULL;
 }
 
+/* Whether the output is using its encoders or about to: it is starting,
+ * running, reconnecting or delaying. */
+bool obs_output_needs_encoders(const struct obs_output *output)
+{
+	return active(output) || os_atomic_load_bool(&output->starting) || reconnecting(output) || delay_active(output);
+}
+
+static void shutdown_unstarted_encoders(obs_output_t *output)
+{
+	for (size_t i = 0; i < MAX_OUTPUT_VIDEO_ENCODERS; i++) {
+		if (output->video_encoders[i])
+			obs_encoder_shutdown_unstarted(output->video_encoders[i]);
+	}
+	for (size_t i = 0; i < MAX_OUTPUT_AUDIO_ENCODERS; i++) {
+		if (output->audio_encoders[i])
+			obs_encoder_shutdown_unstarted(output->audio_encoders[i]);
+	}
+}
+
+/* Runs on the end-capture thread, so it waits on locks (the video mixes, the
+ * graphics context in an encoder's destroy) in the same context as a normal
+ * stop, with no lock held and nothing but the output's own joins waiting. */
+static void *shutdown_unstarted_encoders_thread(void *data)
+{
+	obs_output_t *output = data;
+	shutdown_unstarted_encoders(output);
+	os_atomic_set_bool(&output->end_data_capture_thread_active, false);
+	return NULL;
+}
+
 static void obs_output_end_data_capture_internal(obs_output_t *output, bool signal)
 {
 	int ret;
@@ -2882,8 +2929,23 @@ static void obs_output_end_data_capture_internal(obs_output_t *output, bool sign
 	if (!obs_output_valid(output, "obs_output_end_data_capture"))
 		return;
 
+	os_atomic_set_bool(&output->starting, false);
+
 	if (!active(output) || !data_active(output)) {
 		if (signal) {
+			/* The output stopped before its data capture began (for
+			 * example a stream that failed to connect). Shut down the
+			 * encoders it initialized in start(), or they keep their
+			 * resources (such as an NVENC session) until the next start.
+			 * The next start, and destroy, join the thread first. This
+			 * never waits: if an end-capture thread is still running,
+			 * leave the encoders to it or to the next stop. */
+			if (!active(output) && flag_encoded(output) && !data_capture_ending(output)) {
+				os_atomic_set_bool(&output->end_data_capture_thread_active, true);
+				if (pthread_create(&output->end_data_capture_thread, NULL,
+						   shutdown_unstarted_encoders_thread, output) != 0)
+					os_atomic_set_bool(&output->end_data_capture_thread_active, false);
+			}
 			signal_stop(output);
 			output->stop_code = OBS_OUTPUT_SUCCESS;
 			os_event_signal(output->stopping_event);

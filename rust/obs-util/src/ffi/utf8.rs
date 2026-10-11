@@ -3,7 +3,7 @@
 //!
 //! The functions only convert pointers to slices (including the `insize == 0`
 //! NUL-terminated scan) and delegate to the safe core in [`crate::utf8`]. The
-//! symbols are not exported from libobs. On Windows `utf8.c` stays C.
+//! symbols are not exported from libobs. Windows uses `ffi/utf8_windows.rs`.
 
 use core::ffi::{CStr, c_char, c_int};
 

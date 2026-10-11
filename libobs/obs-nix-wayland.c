@@ -19,6 +19,9 @@
 #include "obs-nix-platform.h"
 #include "obs-nix-wayland.h"
 #include "obs-nix-hotkey-state.h"
+#ifdef HAVE_GLOBAL_SHORTCUTS_PORTAL
+#include "obs-nix-portal-shortcuts.h"
+#endif
 
 #include <unistd.h>
 #include <sys/mman.h>
@@ -32,10 +35,20 @@
 // X11 keymaps only have 4 shift levels, im not sure xkbcommon supports a way to shift the state into a higher level anyway.
 #define MAX_SHIFT_LEVELS 4
 
+struct platform_seat {
+	struct wl_seat *seat;
+	uint32_t name;
+	uint32_t capabilities;
+};
+
 struct obs_hotkeys_platform {
 	struct wl_display *display;
 	struct wl_registry *registry;
-	struct wl_seat *seat;
+	/* Every seat the compositor announced, with its registry name and
+	 * last reported capabilities; all of them are released on shutdown. */
+	DARRAY(struct platform_seat) seats;
+	/* The seat the keyboard below was taken from. */
+	struct wl_seat *keyboard_seat;
 	struct wl_keyboard *keyboard;
 	struct xkb_context *xkb_context;
 	struct xkb_keymap *xkb_keymap;
@@ -45,11 +58,15 @@ struct obs_hotkeys_platform {
 	uint32_t current_layout;
 
 	/* What the hotkey thread may treat as held: keys pressed while OBS
-	 * has keyboard focus. */
+	 * has keyboard focus, and active GlobalShortcuts portal shortcuts. */
 	struct obs_nix_hotkey_state key_state;
+#ifdef HAVE_GLOBAL_SHORTCUTS_PORTAL
+	struct obs_nix_portal_shortcuts *portal;
+#endif
 };
 
 static obs_key_t obs_nix_wayland_key_from_virtual_key(int sym);
+static int obs_nix_wayland_key_to_virtual_key(obs_key_t key);
 
 static void load_keymap_data(struct xkb_keymap *keymap, xkb_keycode_t key, void *data)
 {
@@ -205,20 +222,55 @@ const struct wl_keyboard_listener keyboard_listener = {
 	.repeat_info = platform_keyboard_repeat_info,
 };
 
+static struct platform_seat *find_seat(obs_hotkeys_platform_t *plat, struct wl_seat *seat)
+{
+	for (size_t i = 0; i < plat->seats.num; i++) {
+		if (plat->seats.array[i].seat == seat)
+			return &plat->seats.array[i];
+	}
+	return NULL;
+}
+
+static void release_keyboard(obs_hotkeys_platform_t *plat)
+{
+	wl_keyboard_release(plat->keyboard);
+	plat->keyboard = NULL;
+	plat->keyboard_seat = NULL;
+	/* No leave event follows, so nothing would release held keys. */
+	obs_nix_hotkey_state_clear_keys(&plat->key_state);
+}
+
+/* A compositor may announce several seats. Take the keyboard from a seat
+ * that reports one: asking any other seat for it is a fatal
+ * missing_capability protocol error. */
+static void take_keyboard(obs_hotkeys_platform_t *plat)
+{
+	if (plat->keyboard)
+		return;
+	for (size_t i = 0; i < plat->seats.num; i++) {
+		struct platform_seat *seat = &plat->seats.array[i];
+		if (seat->capabilities & WL_SEAT_CAPABILITY_KEYBOARD) {
+			plat->keyboard = wl_seat_get_keyboard(seat->seat);
+			plat->keyboard_seat = seat->seat;
+			wl_keyboard_add_listener(plat->keyboard, &keyboard_listener, plat);
+			return;
+		}
+	}
+}
+
 static void platform_seat_capabilities(void *data, struct wl_seat *seat, uint32_t capabilities)
 {
-	UNUSED_PARAMETER(seat);
 	obs_hotkeys_platform_t *plat = (obs_hotkeys_platform_t *)data;
+	struct platform_seat *entry = find_seat(plat, seat);
+	if (!entry)
+		return;
 
-	bool kb_present = capabilities & WL_SEAT_CAPABILITY_KEYBOARD;
-
-	if (kb_present && plat->keyboard == NULL) {
-		plat->keyboard = wl_seat_get_keyboard(plat->seat);
-		wl_keyboard_add_listener(plat->keyboard, &keyboard_listener, plat);
-	} else if (!kb_present && plat->keyboard != NULL) {
-		wl_keyboard_release(plat->keyboard);
-		plat->keyboard = NULL;
-	}
+	entry->capabilities = capabilities;
+	/* Only the seat the keyboard came from losing its keyboard releases
+	 * it; another seat with a keyboard then takes over. */
+	if (!(capabilities & WL_SEAT_CAPABILITY_KEYBOARD) && seat == plat->keyboard_seat)
+		release_keyboard(plat);
+	take_keyboard(plat);
 }
 static void platform_seat_name(void *data, struct wl_seat *seat, const char *name)
 {
@@ -244,17 +296,42 @@ static void platform_registry_handler(void *data, struct wl_registry *registry, 
 			return;
 		}
 		// Only negotiate up to version 7, the current wl_seat at time of writing.
-		plat->seat = wl_registry_bind(registry, id, &wl_seat_interface, version <= 7 ? version : 7);
-		wl_seat_add_listener(plat->seat, &seat_listener, plat);
+		struct platform_seat seat = {
+			.seat = wl_registry_bind(registry, id, &wl_seat_interface, version <= 7 ? version : 7),
+			.name = id,
+		};
+		da_push_back(plat->seats, &seat);
+		wl_seat_add_listener(seat.seat, &seat_listener, plat);
 	}
+}
+
+static void release_seat(struct wl_seat *seat)
+{
+	if (wl_seat_get_version(seat) >= WL_SEAT_RELEASE_SINCE_VERSION)
+		wl_seat_release(seat);
+	else
+		wl_seat_destroy(seat);
 }
 
 static void platform_registry_remover(void *data, struct wl_registry *registry, uint32_t id)
 {
-	UNUSED_PARAMETER(data);
 	UNUSED_PARAMETER(registry);
-	UNUSED_PARAMETER(id);
-	// Nothing to do.
+	obs_hotkeys_platform_t *plat = (obs_hotkeys_platform_t *)data;
+
+	for (size_t i = 0; i < plat->seats.num; i++) {
+		struct wl_seat *seat = plat->seats.array[i].seat;
+		if (plat->seats.array[i].name != id)
+			continue;
+
+		/* The seat is gone (a seat removed at runtime): drop it, and
+		 * its keyboard in favour of another seat's if it had ours. */
+		if (seat == plat->keyboard_seat)
+			release_keyboard(plat);
+		release_seat(seat);
+		da_erase(plat->seats, i);
+		take_keyboard(plat);
+		return;
+	}
 }
 
 const struct wl_registry_listener registry_listener = {
@@ -273,6 +350,23 @@ void obs_nix_wayland_log_info(void)
 	blog(LOG_INFO, "Connected to Wayland server");
 }
 
+#ifdef HAVE_GLOBAL_SHORTCUTS_PORTAL
+/* XKB keysym name for a portal preferred trigger ("F13", "a"). */
+static bool wayland_key_name(obs_key_t key, struct dstr *name)
+{
+	xkb_keysym_t sym = (xkb_keysym_t)obs_nix_wayland_key_to_virtual_key(key);
+	char buf[64];
+
+	if (!sym)
+		return false;
+	sym = xkb_keysym_to_lower(sym);
+	if (xkb_keysym_get_name(sym, buf, sizeof(buf)) <= 0)
+		return false;
+	dstr_copy(name, buf);
+	return true;
+}
+#endif
+
 static bool obs_nix_wayland_hotkeys_platform_init(struct obs_core_hotkeys *hotkeys)
 {
 	struct wl_display *display = obs_get_nix_platform_display();
@@ -285,23 +379,28 @@ static bool obs_nix_wayland_hotkeys_platform_init(struct obs_core_hotkeys *hotke
 	wl_registry_add_listener(registry, &registry_listener, hotkeys->platform_context);
 	wl_display_roundtrip(display);
 
+#ifdef HAVE_GLOBAL_SHORTCUTS_PORTAL
+	hotkeys->platform_context->portal =
+		obs_nix_portal_shortcuts_start(&hotkeys->platform_context->key_state, wayland_key_name);
+#endif
 	return true;
 }
 
 static void obs_nix_wayland_hotkeys_platform_free(struct obs_core_hotkeys *hotkeys)
 {
 	obs_hotkeys_platform_t *plat = hotkeys->platform_context;
+#ifdef HAVE_GLOBAL_SHORTCUTS_PORTAL
+	obs_nix_portal_shortcuts_stop(plat->portal);
+#endif
 	/* The listeners point at plat; no events may arrive after this. */
 	if (plat->keyboard)
 		wl_keyboard_release(plat->keyboard);
-	if (plat->seat) {
-		if (wl_seat_get_version(plat->seat) >= WL_SEAT_RELEASE_SINCE_VERSION)
-			wl_seat_release(plat->seat);
-		else
-			wl_seat_destroy(plat->seat);
-	}
+	for (size_t i = 0; i < plat->seats.num; i++)
+		release_seat(plat->seats.array[i].seat);
+	da_free(plat->seats);
 	if (plat->registry)
 		wl_registry_destroy(plat->registry);
+	obs_nix_hotkey_state_free(&plat->key_state);
 	xkb_context_unref(plat->xkb_context);
 	xkb_keymap_unref(plat->xkb_keymap);
 	xkb_state_unref(plat->xkb_state);
@@ -310,8 +409,8 @@ static void obs_nix_wayland_hotkeys_platform_free(struct obs_core_hotkeys *hotke
 
 static bool obs_nix_wayland_hotkeys_platform_is_pressed(obs_hotkeys_platform_t *context, obs_key_t key)
 {
-	// Wayland only delivers key events while OBS has keyboard focus, so
-	// out of focus nothing is ever reported as held.
+	// Wayland never delivers key events while OBS is out of focus; out of
+	// focus presses come from the GlobalShortcuts portal, if there is one.
 	return obs_nix_hotkey_state_is_pressed(&context->key_state, key);
 }
 

@@ -911,9 +911,14 @@ struct obs_source {
 	bool async_flip;
 	bool async_linear_alpha;
 	bool async_active;
+	/* async_textures still hold a frame from before the last
+	 * obs_source_output_video(source, NULL) */
+	bool async_textures_stale;
 	bool async_update_texture;
 	bool async_unbuffered;
 	bool async_decoupled;
+	volatile bool async_compensation;
+	bool last_async_compensation;
 	struct obs_source_frame *async_preload_frame;
 	DARRAY(struct async_frame) async_cache;
 	DARRAY(struct obs_source_frame *) async_frames;
@@ -1255,6 +1260,9 @@ struct obs_output {
 	int total_frames;
 
 	volatile bool active;
+	/* start() was called and data capture has not begun yet (a network
+	 * output that is still connecting, for example) */
+	volatile bool starting;
 	volatile bool paused;
 	video_t *video;
 	audio_t *audio;
@@ -1467,6 +1475,7 @@ extern struct obs_encoder_info *find_encoder(const char *id);
 
 extern bool obs_encoder_initialize(obs_encoder_t *encoder);
 extern void obs_encoder_shutdown(obs_encoder_t *encoder);
+extern void obs_encoder_shutdown_unstarted(obs_encoder_t *encoder);
 
 extern void obs_encoder_start(obs_encoder_t *encoder, encoded_callback_t new_packet, void *param);
 extern void obs_encoder_stop(obs_encoder_t *encoder, encoded_callback_t new_packet, void *param);
@@ -1511,6 +1520,7 @@ extern bool obs_service_initialize(struct obs_service *service, struct obs_outpu
 void obs_service_destroy(obs_service_t *service);
 
 void obs_output_remove_encoder_internal(struct obs_output *output, struct obs_encoder *encoder);
+bool obs_output_needs_encoders(const struct obs_output *output);
 
 /** Internal Source Profiler functions **/
 

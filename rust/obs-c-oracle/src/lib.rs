@@ -34,6 +34,7 @@ pub mod lexer;
 pub mod nal;
 pub mod path_extension;
 pub mod pipe;
+pub mod profiler;
 pub mod profiler_snapshot;
 pub mod task;
 pub mod text_lookup;

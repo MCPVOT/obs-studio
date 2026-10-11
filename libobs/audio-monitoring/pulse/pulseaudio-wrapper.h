@@ -20,6 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <pulse/stream.h>
 #include <pulse/context.h>
 #include <pulse/introspect.h>
+#include <pulse/subscribe.h>
 
 #pragma once
 
@@ -210,3 +211,11 @@ void pulseaudio_write_callback(pa_stream *p, pa_stream_request_cb_t cb, void *us
  * @param userdata pointer to userdata the callback will be called with
  */
 void pulseaudio_set_underflow_callback(pa_stream *p, pa_stream_notify_cb_t cb, void *userdata);
+
+/**
+ * Subscribe to sink events (added, changed, removed) on the shared context
+ *
+ * @param cb called on the mainloop thread; it must not block
+ * @param userdata pointer to userdata the callback will be called with
+ */
+int_fast32_t pulseaudio_subscribe_sinks(pa_context_subscribe_cb_t cb, void *userdata);

@@ -1615,6 +1615,7 @@ static void source_output_audio_data(obs_source_t *source, const struct audio_da
 	int64_t sync_offset;
 	bool using_direct_ts = false;
 	bool push_back = false;
+	int64_t drift_error = 0;
 
 	/* detects 'directly' set timestamps as long as they're within
 	 * a certain threshold */
@@ -1636,6 +1637,8 @@ static void source_output_audio_data(obs_source_t *source, const struct audio_da
 		else if (diff < TS_SMOOTHING_THRESHOLD) {
 			if (source->async_unbuffered && source->async_decoupled)
 				source->timing_adjust = os_time - in.timestamp;
+			/* how far the samples run ahead of the timestamps */
+			drift_error = (int64_t)(source->next_audio_ts_min - in.timestamp);
 			in.timestamp = source->next_audio_ts_min;
 		} else {
 			blog(LOG_DEBUG,
@@ -1644,6 +1647,12 @@ static void source_output_audio_data(obs_source_t *source, const struct audio_da
 			     source->context.name, diff, source->next_audio_ts_min, in.timestamp);
 		}
 	}
+
+	/* Feed the error to the resampler so that the samples keep pace with
+	 * the timestamps instead of drifting until the threshold above is
+	 * exceeded. After a resync the error is unknown, so hold. */
+	if (source->resampler && source->last_async_compensation)
+		audio_resampler_set_compensation_error(source->resampler, drift_error);
 
 	source->next_audio_ts_min = in.timestamp + conv_frames_to_time(sample_rate, in.frames);
 
@@ -2565,6 +2574,7 @@ static void obs_source_update_async_video(obs_source_t *source)
 			if (source->async_update_texture) {
 				update_async_textures(source, frame, source->async_textures, source->async_texrender);
 				source->async_update_texture = false;
+				source->async_textures_stale = false;
 			}
 
 			source->async_last_rendered_ts = frame->timestamp;
@@ -2597,7 +2607,7 @@ static void rotate_async_video(obs_source_t *source, long rotation)
 
 static inline void obs_source_render_async_video(obs_source_t *source)
 {
-	if (source->async_textures[0] && source->async_active) {
+	if (source->async_textures[0] && source->async_active && !source->async_textures_stale) {
 		gs_timer_t *timer = NULL;
 		const uint64_t start = source_profiler_source_render_begin(&timer);
 
@@ -3605,6 +3615,10 @@ static void obs_source_output_video_internal(obs_source_t *source, const struct 
 	if (!frame) {
 		pthread_mutex_lock(&source->async_mutex);
 		source->async_active = false;
+		/* A new frame makes the source active again as soon as it is
+		 * queued, but it only reaches the textures when it is rendered.
+		 * Until then, do not draw what was there before. */
+		source->async_textures_stale = true;
 		source->last_frame_ts = 0;
 		free_async_cache(source);
 		pthread_mutex_unlock(&source->async_mutex);
@@ -3818,6 +3832,7 @@ void obs_source_show_preloaded_video(obs_source_t *source)
 
 	set_async_texture_size(source, source->async_preload_frame);
 	update_async_textures(source, source->async_preload_frame, source->async_textures, source->async_texrender);
+	source->async_textures_stale = false;
 	source->async_active = true;
 
 	obs_leave_graphics();
@@ -3846,6 +3861,7 @@ static void obs_source_set_video_frame_internal(obs_source_t *source, const stru
 	copy_frame_data(source->async_preload_frame, frame);
 	set_async_texture_size(source, source->async_preload_frame);
 	update_async_textures(source, source->async_preload_frame, source->async_textures, source->async_texrender);
+	source->async_textures_stale = false;
 
 	source->last_frame_ts = frame->timestamp;
 
@@ -3934,13 +3950,17 @@ static inline void reset_resampler(obs_source_t *source, const struct obs_source
 	source->sample_info.format = audio->format;
 	source->sample_info.samples_per_sec = audio->samples_per_sec;
 	source->sample_info.speakers = audio->speakers;
+	source->last_async_compensation = os_atomic_load_bool(&source->async_compensation);
 
 	audio_resampler_destroy(source->resampler);
 	source->resampler = NULL;
 	source->resample_offset = 0;
 
+	/* Clock drift compensation needs a resampler even when the formats
+	 * match; it passes the audio through untouched until it is needed. */
 	if (source->sample_info.samples_per_sec == obs_info->samples_per_sec &&
-	    source->sample_info.format == obs_info->format && source->sample_info.speakers == obs_info->speakers) {
+	    source->sample_info.format == obs_info->format && source->sample_info.speakers == obs_info->speakers &&
+	    !source->last_async_compensation) {
 		source->audio_failed = false;
 		return;
 	}
@@ -4033,7 +4053,8 @@ static void process_audio(obs_source_t *source, const struct obs_source_audio *a
 	bool mono_output;
 
 	if (source->sample_info.samples_per_sec != audio->samples_per_sec ||
-	    source->sample_info.format != audio->format || source->sample_info.speakers != audio->speakers)
+	    source->sample_info.format != audio->format || source->sample_info.speakers != audio->speakers ||
+	    source->last_async_compensation != os_atomic_load_bool(&source->async_compensation))
 		reset_resampler(source, audio);
 
 	if (source->audio_failed)
@@ -5671,6 +5692,21 @@ void obs_source_set_async_unbuffered(obs_source_t *source, bool unbuffered)
 bool obs_source_async_unbuffered(const obs_source_t *source)
 {
 	return obs_source_valid(source, "obs_source_async_unbuffered") ? source->async_unbuffered : false;
+}
+
+void obs_source_set_async_compensation(obs_source_t *source, bool compensate)
+{
+	if (!obs_source_valid(source, "obs_source_set_async_compensation"))
+		return;
+
+	os_atomic_store_bool(&source->async_compensation, compensate);
+}
+
+bool obs_source_async_compensation(const obs_source_t *source)
+{
+	return obs_source_valid(source, "obs_source_async_compensation")
+		       ? os_atomic_load_bool(&source->async_compensation)
+		       : false;
 }
 
 obs_data_t *obs_source_get_private_settings(obs_source_t *source)

@@ -61,6 +61,8 @@ if(ENABLE_PULSEAUDIO)
       audio-monitoring/pulse/pulseaudio-enum-devices.c
       audio-monitoring/pulse/pulseaudio-monitoring-available.c
       audio-monitoring/pulse/pulseaudio-output.c
+      audio-monitoring/pulse/pulseaudio-stream-flags.c
+      audio-monitoring/pulse/pulseaudio-stream-flags.h
       audio-monitoring/pulse/pulseaudio-wrapper.c
       audio-monitoring/pulse/pulseaudio-wrapper.h
   )
@@ -83,6 +85,11 @@ if(ENABLE_WAYLAND)
 
   target_sources(libobs PRIVATE obs-nix-hotkey-state.c obs-nix-hotkey-state.h obs-nix-wayland.c)
   target_link_libraries(libobs PRIVATE Wayland::Client xkbcommon::xkbcommon)
+
+  if(TARGET gio::gio)
+    target_sources(libobs PRIVATE obs-nix-portal-shortcuts.c obs-nix-portal-shortcuts.h)
+    target_compile_definitions(libobs PRIVATE HAVE_GLOBAL_SHORTCUTS_PORTAL)
+  endif()
   target_enable_feature(libobs "Wayland compositor support (FreeBSD)")
 else()
   target_disable_feature(libobs "Wayland compositor support (FreebSD)")

@@ -113,6 +113,8 @@ void *alsa_create(obs_data_t *settings, obs_source_t *source)
 	struct alsa_data *data = bzalloc(sizeof(struct alsa_data));
 
 	data->source = source;
+	/* The device runs on its own clock: keep its audio in pace with OBS. */
+	obs_source_set_async_compensation(source, true);
 #if SHUTDOWN_ON_DEACTIVATE
 	data->active = false;
 #endif
