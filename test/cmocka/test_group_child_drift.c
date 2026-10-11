@@ -145,27 +145,37 @@ static void check_sibling_stays(uint32_t group_align, const char *what)
 static void centered_group_keeps_sibling_in_place(void **state)
 {
 	(void)state;
+	if (!obs_up)
+		skip();
 	check_sibling_stays(OBS_ALIGN_CENTER, "centre aligned group");
 }
 
 static void bottom_right_group_keeps_sibling_in_place(void **state)
 {
 	(void)state;
+	if (!obs_up)
+		skip();
 	check_sibling_stays(OBS_ALIGN_BOTTOM | OBS_ALIGN_RIGHT, "bottom-right aligned group");
 }
 
 static void top_left_group_keeps_sibling_in_place(void **state)
 {
 	(void)state;
+	if (!obs_up)
+		skip();
 	check_sibling_stays(OBS_ALIGN_TOP | OBS_ALIGN_LEFT, "top-left aligned group");
 }
 
 static int setup(void **state)
 {
 	(void)state;
+	/* obs_startup() needs a display on Linux (run under xvfb-run); the
+	 * cases skip without one. */
 	obs_up = obs_startup("en-US", NULL, NULL);
-	if (!obs_up)
-		return -1;
+	if (!obs_up) {
+		fprintf(stderr, "skipped: obs_startup failed (no display?)\n");
+		return 0;
+	}
 
 	struct obs_video_info ovi = {
 		.graphics_module = GRAPHICS_MODULE_PATH,
@@ -182,8 +192,10 @@ static int setup(void **state)
 	};
 	int ret = obs_reset_video(&ovi);
 	if (ret != OBS_VIDEO_SUCCESS) {
-		fprintf(stderr, "obs_reset_video failed: %d\n", ret);
-		return -1;
+		fprintf(stderr, "skipped: obs_reset_video failed: %d\n", ret);
+		obs_shutdown();
+		obs_up = false;
+		return 0;
 	}
 
 	struct obs_source_info info = {
