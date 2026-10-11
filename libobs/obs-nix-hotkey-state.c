@@ -81,3 +81,23 @@ bool obs_nix_hotkey_state_is_pressed(struct obs_nix_hotkey_state *state, obs_key
 	unlock();
 	return pressed;
 }
+
+/* RED stubs: no global shortcut source yet. */
+
+void obs_nix_hotkey_state_free(struct obs_nix_hotkey_state *state)
+{
+	UNUSED_PARAMETER(state);
+}
+
+void obs_nix_hotkey_state_set_shortcut(struct obs_nix_hotkey_state *state, obs_key_combination_t combo, bool active)
+{
+	UNUSED_PARAMETER(state);
+	UNUSED_PARAMETER(combo);
+	UNUSED_PARAMETER(active);
+}
+
+bool obs_nix_hotkey_state_flush(struct obs_nix_hotkey_state *state)
+{
+	UNUSED_PARAMETER(state);
+	return false;
+}
