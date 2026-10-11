@@ -7,6 +7,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
+# The host's git config must not change what the test repo does: tag or
+# commit signing, or a missing identity, would make git tag/commit fail.
+GIT_ISOLATION = ("-c", "tag.gpgSign=false", "-c", "commit.gpgSign=false", "-c", "user.name=t", "-c", "user.email=t@t")
+
+
 VERSIONCONFIG = Path(__file__).resolve().parents[1] / "cmake/common/versionconfig.cmake"
 
 
@@ -33,7 +38,7 @@ class VersionConfigTests(unittest.TestCase):
         )
 
     def git(self, *arguments: str) -> None:
-        subprocess.run(["git", *arguments], cwd=self.root, check=True, capture_output=True)
+        subprocess.run(["git", *GIT_ISOLATION, *arguments], cwd=self.root, check=True, capture_output=True)
 
     def probe(self, override: str | None = None) -> subprocess.CompletedProcess[str]:
         command = ["cmake", f"-DVERSIONCONFIG={VERSIONCONFIG}"]

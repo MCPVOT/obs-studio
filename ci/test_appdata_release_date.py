@@ -11,6 +11,11 @@ import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from pathlib import Path
 
+# The host's git config must not change what the test repo does: tag or
+# commit signing, or a missing identity, would make git tag/commit fail.
+GIT_ISOLATION = ("-c", "tag.gpgSign=false", "-c", "commit.gpgSign=false", "-c", "user.name=t", "-c", "user.email=t@t")
+
+
 ROOT = Path(__file__).resolve().parents[1]
 RELEASE_DATE = ROOT / "frontend/cmake/linux/appdata-release-date.cmake"
 METADATA = ROOT / "frontend/cmake/linux/com.obsproject.Studio.metainfo.xml.in"
@@ -37,7 +42,7 @@ class AppdataReleaseDateTests(unittest.TestCase):
         env = dict(os.environ)
         if when:
             env.update(GIT_AUTHOR_DATE=when, GIT_COMMITTER_DATE=when)
-        subprocess.run(["git", *arguments], cwd=self.repo, env=env, check=True, capture_output=True)
+        subprocess.run(["git", *GIT_ISOLATION, *arguments], cwd=self.repo, env=env, check=True, capture_output=True)
 
     def commit(self, message: str, when: str) -> None:
         self.git("add", "CMakeLists.txt")
