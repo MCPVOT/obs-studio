@@ -107,6 +107,8 @@ static void *jack_create(obs_data_t *settings, obs_source_t *source)
 	pthread_mutex_init(&data->jack_mutex, NULL);
 	data->source = source;
 	data->channels = -1;
+	/* The device runs on its own clock: keep its audio in pace with OBS. */
+	obs_source_set_async_compensation(source, true);
 
 	jack_update(data, settings);
 
