@@ -1,12 +1,14 @@
 //! Safe core for `libobs/util/pipe.c` and the POSIX half,
-//! `libobs/util/pipe-posix.c` (`libobs/util/pipe-windows.c` stays in C).
+//! `libobs/util/pipe-posix.c`. The Windows half,
+//! `libobs/util/pipe-windows.c`, is in [`windows`] and exports the same
+//! `Pipe` API.
 //!
 //! The C ABI shim lives in [`crate::ffi::pipe`]. `Args` is platform-neutral
-//! (a null-terminated argv like the C darray); process spawning in `Pipe`
-//! is Unix-only, matching the `#ifndef _WIN32` process tests in
-//! `test/cmocka/test_pipe.c`.
+//! (a null-terminated argv like the C darray), and so is
+//! [`windows_command_line`], the quoting of `os_process_pipe_create2` on
+//! Windows.
 //!
-//! Spawning goes through [`std::process::Command`] rather than raw
+//! On Unix, spawning goes through [`std::process::Command`] rather than raw
 //! `posix_spawn`, so `unsafe` stays in the shim. The observable contract
 //! matches the C: pipes are created `CLOEXEC`, the environment is
 //! inherited, `stderr` is always captured, streams are closed before the
@@ -98,6 +100,22 @@ impl Args {
         self.ptrs.as_ptr().cast_mut()
     }
 }
+
+/// The command line `os_process_pipe_create2` builds from `args` on
+/// Windows, which has no argv API (`pipe-windows.c`, after Python's
+/// `subprocess.list2cmdline`). Arguments are joined with spaces. An empty
+/// argument, or one with a space or tab, is quoted. A quote is escaped with
+/// a backslash and the backslashes before it are doubled, as are the
+/// backslashes before a closing quote; other backslashes are kept.
+pub fn windows_command_line(args: &Args) -> Vec<u8> {
+    let _ = args;
+    todo!("port the create2 quoting of pipe-windows.c")
+}
+
+#[cfg(windows)]
+pub mod windows;
+#[cfg(windows)]
+pub use windows::Pipe;
 
 /// A spawned child with its stdio pipes. Mirrors `struct os_process_pipe`
 /// on POSIX: `read_mode` selects `stdout` vs `stdin`, and `stderr` is always

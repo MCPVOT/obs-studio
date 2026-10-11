@@ -1,10 +1,9 @@
 //! C ABI shim for `libobs/util/pipe.c` and the POSIX half,
 //! `libobs/util/pipe-posix.c`.
 //!
-//! The process surface is Unix-only (`#[cfg(unix)]`): on Windows the same
-//! symbols come from `util/pipe-windows.c`, which stays in C. The args
-//! surface is platform-neutral, so the unchanged `test_pipe` args cases
-//! run against Rust on every OS.
+//! The process surface covers both halves: `crate::pipe::Pipe` is the
+//! POSIX port on Unix and the `util/pipe-windows.c` port on Windows, with
+//! the same API. The args surface is platform-neutral.
 
 use core::ffi::{CStr, c_char};
 use core::ptr;
@@ -87,14 +86,33 @@ pub unsafe extern "C" fn os_process_args_destroy(args: *mut Args) {
     }
 }
 
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 pub use process::*;
 
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 mod process {
     use super::*;
     use crate::pipe::Pipe;
     use core::ffi::c_int;
+
+    #[cfg(windows)]
+    unsafe extern "C" {
+        fn blog(log_level: c_int, format: *const c_char, ...);
+    }
+
+    /// pipe-windows.c logs a failed `CreateProcessW` with its error code
+    /// (and, on purpose, not the command line).
+    #[cfg(windows)]
+    fn log_create_process_error(code: u32) {
+        // SAFETY: the format takes one `unsigned long`, which `c_ulong` is.
+        unsafe {
+            blog(
+                crate::base::LOG_ERROR,
+                c"CreateProcessW failed: %lu".as_ptr(),
+                core::ffi::c_ulong::from(code),
+            );
+        }
+    }
 
     /// # Safety
     ///
@@ -108,7 +126,11 @@ mod process {
         let (Some(cmd_line), Some(type_)) = (bytes(cmd_line), bytes(type_)) else {
             return ptr::null_mut();
         };
-        match Pipe::create(Some(cmd_line), type_) {
+        #[cfg(unix)]
+        let pipe = Pipe::create(Some(cmd_line), type_);
+        #[cfg(windows)]
+        let pipe = Pipe::create_logged(Some(cmd_line), type_, log_create_process_error);
+        match pipe {
             Some(pipe) => Box::into_raw(Box::new(pipe)),
             None => ptr::null_mut(),
         }
@@ -132,7 +154,11 @@ mod process {
         } else {
             Some(unsafe { &*args })
         };
-        match Pipe::create2(args, type_) {
+        #[cfg(unix)]
+        let pipe = Pipe::create2(args, type_);
+        #[cfg(windows)]
+        let pipe = Pipe::create2_logged(args, type_, log_create_process_error);
+        match pipe {
             Some(pipe) => Box::into_raw(Box::new(pipe)),
             None => ptr::null_mut(),
         }
