@@ -22,3 +22,16 @@
 #define os_set_thread_name oracle_os_set_thread_name
 
 #include "util/threading-posix.c"
+
+/* Parity-test probe only, not part of util/threading.h: a non-blocking
+ * take that exposes a wrong credit count through return codes alone
+ * (e.g. a post that adds two credits). */
+int oracle_os_sem_trywait(os_sem_t *sem)
+{
+#ifdef __APPLE__
+	mach_timespec_t ts = {0, 0};
+	return semaphore_timedwait(sem->sem, ts) == KERN_SUCCESS ? 0 : -1;
+#else
+	return sem_trywait(&sem->sem);
+#endif
+}

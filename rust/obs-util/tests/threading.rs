@@ -17,7 +17,9 @@
 use std::sync::Arc;
 
 use obs_c_oracle as _; // links the test bmalloc/bfree (oracle/test_bmem.c)
-use obs_util::threading::{Event, EventType, Sem, gnu_thread_name};
+use obs_util::threading::{Event, EventType, gnu_thread_name};
+#[cfg(unix)]
+use obs_util::threading::Sem;
 
 const PING_PONG_COUNT: usize = 1000;
 const SEM_POST_COUNT: usize = 500;
@@ -25,8 +27,15 @@ const SEM_POST_COUNT: usize = 500;
 /// test_event_init_auto_manual
 #[test]
 fn event_init_auto_manual() {
-    let _auto = Event::new(EventType::Auto);
-    let _manual = Event::new(EventType::Manual);
+    let auto = Event::new(EventType::Auto);
+    auto.signal();
+    assert!(auto.try_wait());
+    assert!(!auto.try_wait());
+
+    let manual = Event::new(EventType::Manual);
+    manual.signal();
+    assert!(manual.try_wait());
+    assert!(manual.try_wait());
 }
 
 /// test_event_try_unsignaled
@@ -128,6 +137,7 @@ fn event_ping_pong() {
 }
 
 /// test_sem_initial_value
+#[cfg(unix)]
 #[test]
 fn sem_initial_value() {
     let sem = Sem::new(2);
@@ -135,13 +145,17 @@ fn sem_initial_value() {
     // two waits do not block with an initial value of 2
     sem.wait();
     sem.wait();
+    // and no third credit: initializing as 3 would leave one behind
+    assert!(!sem.try_wait());
 
-    // post then wait round-trips
+    // post then wait round-trips, and is again fully consumed
     sem.post();
     sem.wait();
+    assert!(!sem.try_wait());
 }
 
 /// test_sem_producer_consumer
+#[cfg(unix)]
 #[test]
 fn sem_producer_consumer() {
     let sem = Arc::new(Sem::new(0));
@@ -182,6 +196,7 @@ fn gnu_thread_name_truncates_at_15() {
 /// (pthread_cond_signal / notify_one), so already-sleeping waiters each
 /// need their own signal. An auto event releases exactly one waiter per
 /// signal.
+#[cfg(unix)]
 #[test]
 fn event_manual_wakes_all_auto_wakes_one() {
     const WAITERS: usize = 4;

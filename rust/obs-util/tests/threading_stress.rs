@@ -9,7 +9,9 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use obs_c_oracle as _; // links the test bmalloc/bfree (oracle/test_bmem.c)
-use obs_util::threading::{Event, EventType, Sem};
+use obs_util::threading::{Event, EventType};
+#[cfg(unix)]
+use obs_util::threading::Sem;
 
 /// Ping-pong pairs of auto events across many thread pairs: every volley
 /// must complete exactly once per direction.
@@ -48,6 +50,7 @@ fn stress_event_ping_pong_pairs() {
 /// One auto event, one waiter per signal: each signal must release
 /// exactly one pending wait, whether or not the waiter was already asleep
 /// when it fired.
+#[cfg(unix)]
 #[test]
 fn stress_auto_event_releases_exactly_one_per_signal() {
     const WAITERS: usize = 64;
@@ -71,10 +74,13 @@ fn stress_auto_event_releases_exactly_one_per_signal() {
 
     // `signalled` is a bool in the C too: two signals before anyone
     // consumes collapse into one release. Gate each signal on the last
-    // release so all WAITERS waiters are released exactly once.
+    // release so all WAITERS waiters are released exactly once, and check
+    // that each signal is fully consumed rather than stacking up a
+    // permit another waiter could take later.
     for _ in 0..WAITERS {
         ev.signal();
         done.wait();
+        assert!(!ev.try_wait());
     }
 
     for t in threads {
@@ -85,6 +91,7 @@ fn stress_auto_event_releases_exactly_one_per_signal() {
 
 /// Many producers on one counting semaphore; every posted count is taken
 /// exactly once.
+#[cfg(unix)]
 #[test]
 fn stress_sem_multi_producer() {
     const PRODUCERS: usize = 8;
@@ -158,7 +165,13 @@ fn stress_event_signal_reset_contention() {
     waiter.join().unwrap();
     // `observed` is intentionally unbounded: while the manual flag stays
     // set, every timed_wait returns true, so sightings are not limited by
-    // ROUNDS. The assertion is that signal/reset contention never
-    // deadlocked, panicked, or left the waiter stuck.
-    let _ = observed.load(Ordering::SeqCst);
+    // ROUNDS. What is deterministic is the terminal state: the toggler's
+    // last op was a reset, both threads joined, so the flag must read
+    // cleared and the waiter must have left the loop rather than
+    // deadlocking on a stale signal.
+    assert!(
+        !ev.try_wait(),
+        "flag must be reset after the toggler joined (observed={})",
+        observed.load(Ordering::SeqCst)
+    );
 }

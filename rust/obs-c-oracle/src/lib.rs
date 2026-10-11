@@ -433,6 +433,9 @@ pub mod threading {
         pub fn oracle_os_sem_destroy(sem: *mut OracleSem);
         pub fn oracle_os_sem_post(sem: *mut OracleSem) -> c_int;
         pub fn oracle_os_sem_wait(sem: *mut OracleSem) -> c_int;
+        /// Oracle-side non-blocking take (`sem_trywait`, or a zero-timeout
+        /// `semaphore_timedwait` on macOS). Test probe only.
+        pub fn oracle_os_sem_trywait(sem: *mut OracleSem) -> c_int;
         pub fn oracle_os_set_thread_name(name: *const c_char);
     }
 }

@@ -126,6 +126,16 @@ impl Sem {
         }
         *count -= 1;
     }
+
+    /// Non-blocking take (`sem_trywait`; a zero-timeout
+    /// `semaphore_timedwait` on macOS). Not part of `util/threading.h`;
+    /// exists for the tests, which use it to observe the credit count.
+    /// Returns true when a credit was consumed.
+    #[cfg(unix)]
+    pub fn try_wait(&self) -> bool {
+        let _ = self;
+        todo!("native semaphore port")
+    }
 }
 
 /// glibc's 15-byte thread-name limit: `os_set_thread_name` truncates the
