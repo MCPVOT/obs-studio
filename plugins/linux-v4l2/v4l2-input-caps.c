@@ -23,8 +23,10 @@ int v4l2_open_input_caps(const struct v4l2_input_caps_ops *ops, const char *devi
 	if (dev == -1)
 		return -1;
 
-	if (ops->get_input_caps(dev, input, caps) < 0)
+	if (ops->get_input_caps(dev, input, caps) < 0) {
+		ops->close(dev);
 		return -1;
+	}
 
 	*caps &= V4L2_IN_CAP_STD | V4L2_IN_CAP_DV_TIMINGS;
 	return dev;
