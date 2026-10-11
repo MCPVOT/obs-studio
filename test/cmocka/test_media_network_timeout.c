@@ -55,8 +55,12 @@ static void rtsp_timeout_options_are_known_to_ffmpeg(void **state)
 	assert_true(av_dict_count(opts) > 0);
 
 	while ((entry = av_dict_iterate(opts, entry))) {
-		if (!rtsp_demuxer_knows_option(entry->key))
-			fail_msg("FFmpeg's RTSP demuxer has no option '%s'", entry->key);
+		if (!rtsp_demuxer_knows_option(entry->key)) {
+			/* fail_msg() expands to cm_print_error(), which the
+			 * Windows cmocka library does not export. */
+			fprintf(stderr, "FFmpeg's RTSP demuxer has no option '%s'\n", entry->key);
+			fail();
+		}
 	}
 
 	av_dict_free(&opts);
@@ -71,8 +75,10 @@ static void rtsp_socket_timeout_is_set(void **state)
 	mp_media_set_network_timeouts(&opts, TEST_RTSP_URL);
 
 	const AVDictionaryEntry *timeout = av_dict_get(opts, "timeout", NULL, 0);
-	if (!timeout)
-		fail_msg("no 'timeout' option is set for an RTSP input");
+	if (!timeout) {
+		fprintf(stderr, "no 'timeout' option is set for an RTSP input\n");
+		fail();
+	}
 	assert_true(strtoll(timeout->value, NULL, 10) > 0);
 
 	av_dict_free(&opts);
@@ -297,8 +303,11 @@ static void silent_rtsp_camera_stops_media(void **state)
 	silent_camera_stop(&camera);
 	os_event_destroy(stopped);
 
-	if (waited != 0)
-		fail_msg("media did not stop within %d ms of the camera going silent", SILENT_CAMERA_STOP_DEADLINE_MS);
+	if (waited != 0) {
+		fprintf(stderr, "media did not stop within %d ms of the camera going silent\n",
+			SILENT_CAMERA_STOP_DEADLINE_MS);
+		fail();
+	}
 }
 #endif
 
