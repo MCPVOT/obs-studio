@@ -246,8 +246,10 @@ mod posix {
         unsafe {
             libc::pthread_setname_np(name);
         }
-        #[cfg(any(target_os = "freebsd", target_os = "dragonfly", target_os = "openbsd"))]
+        #[cfg(target_os = "freebsd")]
         // SAFETY: `name` is a valid C string; names the calling thread.
+        // The C names threads only on Apple, FreeBSD, and glibc — not
+        // OpenBSD or DragonFly (threading-posix.c:258–274).
         unsafe {
             libc::pthread_set_name_np(libc::pthread_self(), name);
         }

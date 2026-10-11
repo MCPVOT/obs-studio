@@ -43,54 +43,91 @@ enum Notify {
     All = 2,
 }
 
+/// Condvar that records which wake primitive each call dispatches. The
+/// record lives inside the forwarding method, so a mutant that changes
+/// `One`'s action to `notify_all` is observed as `All` — a store beside
+/// the call would not see the mutation.
+struct NotifyCondvar(Condvar, #[cfg(test)] std::sync::atomic::AtomicU8);
+
+impl NotifyCondvar {
+    #[inline]
+    fn new() -> Self {
+        Self(
+            Condvar::new(),
+            #[cfg(test)]
+            std::sync::atomic::AtomicU8::new(0),
+        )
+    }
+
+    #[inline]
+    fn notify_one(&self) {
+        #[cfg(test)]
+        self.1.store(1, std::sync::atomic::Ordering::SeqCst);
+        self.0.notify_one();
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    fn notify_all(&self) {
+        #[cfg(test)]
+        self.1.store(2, std::sync::atomic::Ordering::SeqCst);
+        self.0.notify_all();
+    }
+
+    #[inline]
+    fn wait<'a>(&self, guard: MutexGuard<'a, bool>) -> std::sync::LockResult<MutexGuard<'a, bool>> {
+        self.0.wait(guard)
+    }
+
+    #[inline]
+    fn wait_timeout<'a>(
+        &self,
+        guard: MutexGuard<'a, bool>,
+        dur: Duration,
+    ) -> std::sync::LockResult<(MutexGuard<'a, bool>, std::sync::WaitTimeoutResult)> {
+        self.0.wait_timeout(guard, dur)
+    }
+}
+
 /// `os_event_t`: mutex + condvar + `signalled`/`manual` in the C.
 pub struct Event {
     signalled: Mutex<bool>,
-    cond: Condvar,
+    cond: NotifyCondvar,
     manual: bool,
     /// Threads currently blocked inside a condvar wait call. Debug
     /// builds only; lets stress tests prove every waiter is asleep
     /// before signalling instead of relying on a settle window.
     #[cfg(debug_assertions)]
     waiting: std::sync::atomic::AtomicUsize,
-    /// Last wake primitive dispatched through [`Event::notify`]. Test
-    /// builds only.
-    #[cfg(test)]
-    last_notify: std::sync::atomic::AtomicU8,
 }
 
 impl Event {
     pub fn new(event_type: EventType) -> Self {
         Self {
             signalled: Mutex::new(false),
-            cond: Condvar::new(),
+            cond: NotifyCondvar::new(),
             manual: event_type == EventType::Manual,
             #[cfg(debug_assertions)]
             waiting: std::sync::atomic::AtomicUsize::new(0),
-            #[cfg(test)]
-            last_notify: std::sync::atomic::AtomicU8::new(0),
         }
     }
 
     /// Single dispatch point for condvar wakes; `signal` picks `One`,
-    /// matching `pthread_cond_signal`. Recording `kind` before dispatch
-    /// keeps the "which primitive ran" answer exact and test-only.
+    /// matching `pthread_cond_signal`. The [`NotifyCondvar`] records
+    /// the primitive actually invoked, inside the forwarding method.
     fn notify(&self, kind: Notify) {
-        #[cfg(test)]
-        self.last_notify
-            .store(kind as u8, std::sync::atomic::Ordering::SeqCst);
         match kind {
             Notify::One => self.cond.notify_one(),
             Notify::All => self.cond.notify_all(),
         }
     }
 
-    /// Wake primitive `signal` last dispatched: `Some(One)` for
-    /// `notify_one`, `Some(All)` for `notify_all`, `None` if `notify`
-    /// was bypassed. Test builds only.
+    /// Wake primitive last dispatched through the condvar: `Some(One)`
+    /// for `notify_one`, `Some(All)` for `notify_all`, `None` if none
+    /// has run yet. Test builds only.
     #[cfg(test)]
     fn last_notify_kind(&self) -> Option<Notify> {
-        match self.last_notify.load(std::sync::atomic::Ordering::SeqCst) {
+        match self.cond.1.load(std::sync::atomic::Ordering::SeqCst) {
             1 => Some(Notify::One),
             2 => Some(Notify::All),
             _ => None,
