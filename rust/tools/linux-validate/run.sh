@@ -46,7 +46,9 @@ if [ -n "${OBS_CCACHE_DIR:-}" ]; then
 else
   env+=(-v obs-rust-linux-validate-ccache:/ccache -e CCACHE_DIR=/ccache)
 fi
-docker build -q -t obs-rust-linux-validate "$here" >/dev/null
+# Bake the toolchain pinned in rust-toolchain.toml into the image.
+rust_toolchain=$(sed -n 's/^channel *= *"\(.*\)"/\1/p' "$repo/rust-toolchain.toml")
+docker build -q --build-arg "RUST_TOOLCHAIN=$rust_toolchain" -t obs-rust-linux-validate "$here" >/dev/null
 # bash 3.2 (macOS /bin/bash) errors on "${env[@]}" when the array is empty
 # and set -u is on. Ubuntu bash does not. A normal checkout leaves it empty.
 run=(docker run --rm -v "$repo:/ro:ro")
