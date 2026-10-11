@@ -217,4 +217,66 @@ unsafe extern "C" {
     pub fn oracle_matrix4_offset_y() -> usize;
     pub fn oracle_matrix4_offset_z() -> usize;
     pub fn oracle_matrix4_offset_t() -> usize;
+
+    pub fn oracle_matrix4_from_matrix3(dst: *mut OracleMatrix4, m: *const OracleMatrix3);
+    pub fn oracle_matrix4_from_quat(dst: *mut OracleMatrix4, q: *const OracleQuat);
+    pub fn oracle_matrix4_from_axisang(dst: *mut OracleMatrix4, aa: *const OracleAxisAng);
+    pub fn oracle_matrix4_mul(
+        dst: *mut OracleMatrix4,
+        m1: *const OracleMatrix4,
+        m2: *const OracleMatrix4,
+    );
+    pub fn oracle_matrix4_determinant(m: *const OracleMatrix4) -> f32;
+    pub fn oracle_matrix4_translate3v(
+        dst: *mut OracleMatrix4,
+        m: *const OracleMatrix4,
+        v: *const OracleVec3,
+    );
+    pub fn oracle_matrix4_translate4v(
+        dst: *mut OracleMatrix4,
+        m: *const OracleMatrix4,
+        v: *const OracleVec4,
+    );
+    pub fn oracle_matrix4_rotate(
+        dst: *mut OracleMatrix4,
+        m: *const OracleMatrix4,
+        q: *const OracleQuat,
+    );
+    pub fn oracle_matrix4_rotate_aa(
+        dst: *mut OracleMatrix4,
+        m: *const OracleMatrix4,
+        aa: *const OracleAxisAng,
+    );
+    pub fn oracle_matrix4_scale(
+        dst: *mut OracleMatrix4,
+        m: *const OracleMatrix4,
+        v: *const OracleVec3,
+    );
+    pub fn oracle_matrix4_translate3v_i(
+        dst: *mut OracleMatrix4,
+        v: *const OracleVec3,
+        m: *const OracleMatrix4,
+    );
+    pub fn oracle_matrix4_translate4v_i(
+        dst: *mut OracleMatrix4,
+        v: *const OracleVec4,
+        m: *const OracleMatrix4,
+    );
+    pub fn oracle_matrix4_rotate_i(
+        dst: *mut OracleMatrix4,
+        q: *const OracleQuat,
+        m: *const OracleMatrix4,
+    );
+    pub fn oracle_matrix4_rotate_aa_i(
+        dst: *mut OracleMatrix4,
+        aa: *const OracleAxisAng,
+        m: *const OracleMatrix4,
+    );
+    pub fn oracle_matrix4_scale_i(
+        dst: *mut OracleMatrix4,
+        v: *const OracleVec3,
+        m: *const OracleMatrix4,
+    );
+    pub fn oracle_matrix4_inv(dst: *mut OracleMatrix4, m: *const OracleMatrix4) -> bool;
+    pub fn oracle_matrix4_transpose(dst: *mut OracleMatrix4, m: *const OracleMatrix4);
 }

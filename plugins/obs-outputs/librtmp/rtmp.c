@@ -4568,6 +4568,10 @@ RTMPSockBuf_Close(RTMPSockBuf *sb)
 
 #define HEX2BIN(a)	(((a)&0x40)?((a)&0xf)+9:((a)&0xf))
 
+/* DecodeTEA unpacks the token 8 hex characters per 32-bit word, so a
+ * well-formed token is a non-empty multiple of this block size. */
+#define TEA_TEXT_BLOCK 8
+
 static void
 DecodeTEA(AVal *key, AVal *text)
 {
@@ -4601,7 +4605,16 @@ DecodeTEA(AVal *key, AVal *text)
     if (u)
         *v = u;
 
-    /* prep text: hex2bin, multiples of 4 */
+    /* prep text: hex2bin, multiples of 4.
+     * The token is server-controlled. A zero length would make n = 0,
+     * which reads v[n - 1] before the buffer and divides by zero, and a
+     * length that is not a whole block would round n up and read past
+     * the token. Refuse both instead of decoding them. */
+    if (text->av_len == 0 || text->av_len % TEA_TEXT_BLOCK != 0) {
+        RTMP_Log(RTMP_LOGWARNING, "%s, invalid secureToken length %d",
+                 __FUNCTION__, (int)text->av_len);
+        return;
+    }
     n = (text->av_len + 7) / 8;
     out = malloc(n * 8);
     ptr = (unsigned char *)text->av_val;

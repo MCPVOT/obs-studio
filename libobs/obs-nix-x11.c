@@ -20,6 +20,7 @@
 #include "obs-internal.h"
 #include "obs-nix-platform.h"
 #include "obs-nix-x11.h"
+#include "obs-nix-x11-keymap.h"
 
 #include <xcb/xcb.h>
 #if defined(XCB_XINPUT_FOUND)
@@ -1045,7 +1046,7 @@ static bool mouse_button_pressed(xcb_connection_t *connection, obs_hotkeys_platf
 
 static inline bool keycode_pressed(xcb_query_keymap_reply_t *reply, xcb_keycode_t code)
 {
-	return (reply->keys[code / 8] & (1 << (code % 8))) != 0;
+	return obs_nix_x11_keycode_pressed(reply, code);
 }
 
 static bool key_pressed(xcb_connection_t *connection, obs_hotkeys_platform_t *context, obs_key_t key)
