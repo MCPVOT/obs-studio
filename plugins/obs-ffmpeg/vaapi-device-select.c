@@ -17,13 +17,29 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "vaapi-device-select.h"
 
+#include <string.h>
+
+static inline bool is_set(const char *path)
+{
+	return path && *path;
+}
+
 const char *vaapi_select_device(const char *configured, const char *const *candidates, size_t num_candidates,
 				vaapi_device_usable_cb usable, void *param)
 {
-	(void)candidates;
-	(void)num_candidates;
-	(void)usable;
-	(void)param;
+	if (is_set(configured) && usable(configured, param))
+		return configured;
+
+	for (size_t i = 0; i < num_candidates; i++) {
+		const char *candidate = candidates[i];
+
+		if (!is_set(candidate))
+			continue;
+		if (is_set(configured) && strcmp(candidate, configured) == 0)
+			continue;
+		if (usable(candidate, param))
+			return candidate;
+	}
 
 	return configured;
 }

@@ -252,7 +252,7 @@ static const char *vaapi_choose_device(struct vaapi_encoder *enc, const char *co
 						 vaapi_device_usable, &enc->codec);
 
 	if (device != configured)
-		warn("Device %s is not usable, falling back to %s", configured, device);
+		warn("Device '%s' is not usable, falling back to '%s'", configured, device);
 
 	return device;
 }
