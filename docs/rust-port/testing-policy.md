@@ -306,6 +306,16 @@ directory (`obs-util`, `obs-graphics`, `obs-media-io`, ...).
 ## Rules that apply everywhere
 
 - Use `soldr cargo ...`, never bare `cargo`.
+- The Rust toolchain is pinned in `rust-toolchain.toml` to the latest version
+  natively supported by the soldr version CI uses (`version:` of the
+  `setup-soldr` step in `.github/workflows/build-project.yaml`). Check what a
+  soldr release supports in its own `rust-toolchain.toml` (zackees/soldr, at
+  that tag). Never pin beyond it; bump the toolchain only together with, and
+  after, a soldr bump that supports it. The Tier 2 Docker image installs the
+  same pinned version (`rust/tools/linux-validate/run.sh`). `./lint` enforces
+  this: `ci/test_toolchain.py` holds the expected version
+  (`SOLDR_SUPPORTED_RUST`) and fails if `rust-toolchain.toml`, the MSRV, or
+  any Dockerfile, workflow or doc pin differs.
 - `soldr cargo clippy --all-targets -- -D warnings` and `soldr cargo fmt --check`
   must be clean.
 - `unsafe` is allowed only in `src/ffi/` shims, in `obs-c-oracle`, and in the

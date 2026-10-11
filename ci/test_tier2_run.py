@@ -43,6 +43,7 @@ class Tier2VolumeTest(unittest.TestCase):
         repo = self.tmp / name
         dest = repo / "rust" / "tools" / "linux-validate"
         shutil.copytree(TOOLS, dest)
+        shutil.copy(ROOT / "rust-toolchain.toml", repo / "rust-toolchain.toml")
         for sub in ("plugins/obs-browser", "plugins/obs-websocket"):
             (repo / sub).mkdir(parents=True)
             (repo / sub / "placeholder").write_text("")

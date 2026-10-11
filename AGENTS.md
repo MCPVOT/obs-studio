@@ -31,6 +31,7 @@ before coding, search open PRs first, target master, RED then GREEN commits.
 ## Quick rules
 
 - Use `soldr cargo ...`, never bare `cargo`.
+- Pin `rust-toolchain.toml` to the latest Rust the CI soldr version supports natively, never beyond; bump it only after a soldr bump (see the testing policy).
 - Never edit existing C tests or public C headers to make a port pass.
 - Every port starts RED (failing test against stubs) and ends GREEN.
 - Do not add new GitHub Actions workflow files without explicit sign-off.
