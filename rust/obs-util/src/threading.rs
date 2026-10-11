@@ -34,6 +34,11 @@ pub struct Event {
     signalled: Mutex<bool>,
     cond: Condvar,
     manual: bool,
+    /// Threads currently blocked inside a condvar wait call. Debug
+    /// builds only; lets stress tests prove every waiter is asleep
+    /// before signalling instead of relying on a settle window.
+    #[cfg(debug_assertions)]
+    waiting: std::sync::atomic::AtomicUsize,
 }
 
 impl Event {
@@ -42,7 +47,33 @@ impl Event {
             signalled: Mutex::new(false),
             cond: Condvar::new(),
             manual: event_type == EventType::Manual,
+            #[cfg(debug_assertions)]
+            waiting: std::sync::atomic::AtomicUsize::new(0),
         }
+    }
+
+    /// Number of threads blocked inside a wait call right now. Debug
+    /// builds only (the lib is built in dev profile for `cargo test`);
+    /// lets a test gate a signal on every waiter being asleep rather
+    /// than on a timing window.
+    #[cfg(debug_assertions)]
+    #[doc(hidden)]
+    pub fn waiting_count(&self) -> usize {
+        self.waiting.load(std::sync::atomic::Ordering::Acquire)
+    }
+
+    #[inline]
+    fn begin_wait(&self) {
+        #[cfg(debug_assertions)]
+        self.waiting
+            .fetch_add(1, std::sync::atomic::Ordering::AcqRel);
+    }
+
+    #[inline]
+    fn end_wait(&self) {
+        #[cfg(debug_assertions)]
+        self.waiting
+            .fetch_sub(1, std::sync::atomic::Ordering::AcqRel);
     }
 
     /// Consume the signal, as the C does on a successful wait/try of an
@@ -59,7 +90,9 @@ impl Event {
     pub fn wait(&self) {
         let mut signalled = self.signalled.lock().unwrap_or_else(|e| e.into_inner());
         while !*signalled {
+            self.begin_wait();
             signalled = self.cond.wait(signalled).unwrap_or_else(|e| e.into_inner());
+            self.end_wait();
         }
         self.consume(&mut signalled);
     }
@@ -74,10 +107,12 @@ impl Event {
         let timeout = Duration::from_millis(milliseconds);
         let mut signalled = self.signalled.lock().unwrap_or_else(|e| e.into_inner());
         while !*signalled {
+            self.begin_wait();
             let (guard, result) = self
                 .cond
                 .wait_timeout(signalled, timeout)
                 .unwrap_or_else(|e| e.into_inner());
+            self.end_wait();
             signalled = guard;
             if result.timed_out() && !*signalled {
                 return false;

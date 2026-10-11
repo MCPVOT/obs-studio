@@ -47,34 +47,48 @@ fn stress_event_ping_pong_pairs() {
     }
 }
 
+/// Spin until `ev` has exactly `expected` threads blocked inside a wait
+/// call (`Event::waiting_count`, debug builds). Bounded so a broken
+/// notify fails rather than hangs.
+fn wait_until_blocked(ev: &Event, expected: usize) -> Result<(), usize> {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
+    loop {
+        let n = ev.waiting_count();
+        if n == expected {
+            return Ok(());
+        }
+        if std::time::Instant::now() > deadline {
+            return Err(n);
+        }
+        std::thread::yield_now();
+    }
+}
+
 /// One manual event, one waiter per signal: C signals with
 /// `pthread_cond_signal`, so one `signal` wakes exactly one sleeper even
 /// though a manual event never consumes its flag — a `notify_all` bug
 /// would wake every waiter on the first signal, which the per-signal
 /// wake count below catches. (Auto events cannot expose it: the
 /// consumed flag re-blocks any extra wakers, as broadcast would in C.)
+///
+/// Determinism: a waiter only increments `waiting_count` once it is
+/// inside the condvar wait call, so the gate before each signal proves
+/// every remaining waiter is asleep — no settle window.
 #[cfg(unix)]
 #[test]
 fn stress_manual_event_releases_exactly_one_per_signal() {
     const WAITERS: usize = 32;
-    /// Window for wrongly-woken waiters to report in, measured in event
-    /// timeouts rather than a sleep.
-    const SETTLE_MS: u64 = 20;
 
     let ev = Arc::new(Event::new(EventType::Manual));
-    let settle = Arc::new(Event::new(EventType::Auto)); // never signalled
-    let ready = Arc::new(Sem::new(0));
     let released = Arc::new(AtomicUsize::new(0));
     let done = Arc::new(Sem::new(0));
 
     let threads: Vec<_> = (0..WAITERS)
         .map(|_| {
             let ev = Arc::clone(&ev);
-            let ready = Arc::clone(&ready);
             let released = Arc::clone(&released);
             let done = Arc::clone(&done);
             std::thread::spawn(move || {
-                ready.post();
                 ev.wait();
                 released.fetch_add(1, Ordering::SeqCst);
                 done.post();
@@ -82,29 +96,17 @@ fn stress_manual_event_releases_exactly_one_per_signal() {
         })
         .collect();
 
-    // Every waiter must be blocked in ev.wait before the first signal —
-    // with the manual flag still false, any waiter that reaches wait
-    // blocks; the pre-settle covers the gap between a waiter's
-    // ready.post and its actual arrival inside wait.
-    for _ in 0..WAITERS {
-        ready.wait();
-    }
-    assert!(
-        !settle.timed_wait(SETTLE_MS),
-        "settle event was signalled (pre-rounds)"
-    );
-
-    // Gate each signal on the last release (`done`), give every other
-    // sleeper a settle window to report a wrongful wake, then reset so
-    // the next round's sleepers need their own signal.
+    // Before each signal the count of threads blocked in ev.wait must be
+    // exactly the remaining waiters; a released waiter decrements on its
+    // way out, so the count settles deterministically.
     for round in 0..WAITERS {
+        let remaining = WAITERS - round;
+        wait_until_blocked(&ev, remaining).unwrap_or_else(|n| {
+            panic!("before round {round}: {n} waiters blocked, want {remaining}")
+        });
         let before = released.load(Ordering::SeqCst);
         ev.signal();
         done.wait();
-        assert!(
-            !settle.timed_wait(SETTLE_MS),
-            "settle event was signalled (round {round})"
-        );
         let woke = released.load(Ordering::SeqCst) - before;
         assert_eq!(
             woke, 1,
