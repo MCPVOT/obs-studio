@@ -509,3 +509,13 @@ target_link_libraries(test_video_frame PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
 
 add_dependencies(cmocka-tests test_video_frame)
 add_test(test_video_frame ${CMAKE_CURRENT_BINARY_DIR}/test_video_frame)
+
+# One file per test from here on (obs-rust/obs-studio#137): add
+# tests.d/<test>.cmake instead of appending to this file, so concurrent PRs
+# that add tests do not conflict. Included in this directory's scope, so
+# relative source paths and CMAKE_CURRENT_SOURCE_DIR are test/cmocka.
+file(GLOB _cmocka_test_fragments CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/tests.d/*.cmake")
+list(SORT _cmocka_test_fragments)
+foreach(_fragment IN LISTS _cmocka_test_fragments)
+  include("${_fragment}")
+endforeach()
