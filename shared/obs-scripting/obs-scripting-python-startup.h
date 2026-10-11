@@ -16,22 +16,31 @@
 #pragma once
 
 /* Run once obspython is importable: sends sys.stdout and sys.stderr to the
- * script log. Kept in its own header so test/cmocka can run it against a
- * stub obspython module. */
+ * script log. The loggers are write-only text streams without a file
+ * descriptor, so code that probes the stream (isatty(), encoding, fileno())
+ * works. Kept in its own header so test/cmocka can run it against a stub
+ * obspython module. */
 static const char python_startup_script[] = "\n\
 import sys\n\
 import os\n\
+import io\n\
 import obspython\n\
-class stdout_logger(object):\n\
+class script_log_stream(io.TextIOBase):\n\
+	level = obspython.LOG_INFO\n\
+	encoding = 'utf-8'\n\
+	errors = 'strict'\n\
+	def writable(self):\n\
+		return True\n\
 	def write(self, message):\n\
-		obspython.script_log_no_endl(obspython.LOG_INFO, message)\n\
+		obspython.script_log_no_endl(self.level, message)\n\
+		return len(message)\n\
 	def flush(self):\n\
 		pass\n\
-class stderr_logger(object):\n\
-	def write(self, message):\n\
-		obspython.script_log_no_endl(obspython.LOG_ERROR, message)\n\
-	def flush(self):\n\
-		pass\n\
+class stdout_logger(script_log_stream):\n\
+	pass\n\
+class stderr_logger(script_log_stream):\n\
+	level = obspython.LOG_ERROR\n\
+	errors = 'backslashreplace'\n\
 os.environ['PYTHONUNBUFFERED'] = '1'\n\
 sys.stdout = stdout_logger()\n\
 sys.stderr = stderr_logger()\n";
