@@ -38,6 +38,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "v4l2-controls.h"
 #include "v4l2-framerate.h"
 #include "v4l2-helpers.h"
+#include "v4l2-input-caps.h"
 #include "v4l2-decoder.h"
 
 #define FALLBACK_FRAMERATE 30
@@ -657,21 +658,38 @@ static bool input_selected(obs_properties_t *props, obs_property_t *p, obs_data_
 	return true;
 }
 
+static int input_caps_open(const char *device)
+{
+	return v4l2_open(device, O_RDWR | O_NONBLOCK);
+}
+
+static int input_caps_close(int dev)
+{
+	return v4l2_close(dev);
+}
+
+static int input_caps_get(int dev, int input, uint32_t *caps)
+{
+	return (int)v4l2_get_input_caps(dev, input, caps);
+}
+
+static const struct v4l2_input_caps_ops input_caps_ops = {
+	.open = input_caps_open,
+	.close = input_caps_close,
+	.get_input_caps = input_caps_get,
+};
+
 /*
  * Format selected callback
  */
 static bool format_selected(obs_properties_t *props, obs_property_t *p, obs_data_t *settings)
 {
 	UNUSED_PARAMETER(p);
-	int dev = v4l2_open(obs_data_get_string(settings, "device_id"), O_RDWR | O_NONBLOCK);
+	uint32_t caps = 0;
+	int dev = v4l2_open_input_caps(&input_caps_ops, obs_data_get_string(settings, "device_id"),
+				       (int)obs_data_get_int(settings, "input"), &caps);
 	if (dev == -1)
 		return false;
-
-	int input = (int)obs_data_get_int(settings, "input");
-	uint32_t caps = 0;
-	if (v4l2_get_input_caps(dev, input, &caps) < 0)
-		return false;
-	caps &= V4L2_IN_CAP_STD | V4L2_IN_CAP_DV_TIMINGS;
 
 	obs_property_t *resolution = obs_properties_get(props, "resolution");
 	obs_property_t *framerate = obs_properties_get(props, "framerate");
