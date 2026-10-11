@@ -154,6 +154,38 @@ fn sem_initial_value() {
     assert!(!sem.try_wait());
 }
 
+/// The native semaphore object must stay at the address where it was
+/// initialized: `sem_t` cannot be relocated. `Sem::new` returns a pinned
+/// box so safe code cannot move it, and `native_addr` reports the native
+/// storage's address — it must lie inside the pinned allocation and not
+/// change across posts, waits, or use from another thread.
+#[cfg(unix)]
+#[test]
+fn sem_native_object_never_moves() {
+    let sem = Sem::new(1);
+    let base = (&*sem as *const Sem) as usize;
+    let native = sem.native_addr();
+    assert!(
+        (base..base + std::mem::size_of::<Sem>()).contains(&native),
+        "native storage {native:#x} outside the Sem at {base:#x}"
+    );
+
+    assert_eq!(sem.post(), 0);
+    assert_eq!(sem.wait(), 0);
+
+    let sem = Arc::new(sem);
+    let worker = {
+        let sem = Arc::clone(&sem);
+        std::thread::spawn(move || {
+            sem.post();
+            sem.wait();
+        })
+    };
+    worker.join().unwrap();
+
+    assert_eq!(sem.native_addr(), native);
+}
+
 /// test_sem_producer_consumer
 #[cfg(unix)]
 #[test]
