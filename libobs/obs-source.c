@@ -1506,6 +1506,17 @@ static void reset_audio_data(obs_source_t *source, uint64_t os_time)
 	source->next_audio_sys_ts_min = os_time;
 }
 
+/* Empties the buffer for packets that continue at system time os_time.
+ * source_output_audio_data() appends such packets to the buffer, which must
+ * then start where they belong: at that time shifted by the sync offset, as
+ * a packet placed on its own would be. */
+static void reset_audio_data_at_sys_time(obs_source_t *source, uint64_t os_time)
+{
+	reset_audio_data(source, os_time);
+	if (os_time)
+		source->audio_ts = os_time + source->sync_offset - source->resample_offset;
+}
+
 static void handle_ts_jump(obs_source_t *source, uint64_t expected, uint64_t ts, uint64_t diff, uint64_t os_time)
 {
 	blog(LOG_DEBUG,
@@ -1515,7 +1526,7 @@ static void handle_ts_jump(obs_source_t *source, uint64_t expected, uint64_t ts,
 
 	pthread_mutex_lock(&source->audio_buf_mutex);
 	reset_audio_timing(source, ts, os_time);
-	reset_audio_data(source, os_time);
+	reset_audio_data_at_sys_time(source, os_time);
 	pthread_mutex_unlock(&source->audio_buf_mutex);
 }
 
@@ -3840,7 +3851,7 @@ void obs_source_show_preloaded_video(obs_source_t *source)
 	pthread_mutex_lock(&source->audio_buf_mutex);
 	sys_ts = (source->monitoring_type != OBS_MONITORING_TYPE_MONITOR_ONLY) ? os_gettime_ns() : 0;
 	reset_audio_timing(source, source->last_frame_ts, sys_ts);
-	reset_audio_data(source, sys_ts);
+	reset_audio_data_at_sys_time(source, sys_ts);
 	pthread_mutex_unlock(&source->audio_buf_mutex);
 }
 
