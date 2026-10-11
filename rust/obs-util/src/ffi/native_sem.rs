@@ -102,9 +102,12 @@ pub struct Sem {
     _pin: PhantomPinned,
 }
 
-// SAFETY: `sem_post`/`sem_wait`/`sem_trywait`/`sem_destroy` and the Mach
+// SAFETY: `sem_post`/`sem_wait`/`sem_trywait` and the Mach
 // `semaphore_*` calls are documented thread-safe on a shared semaphore;
 // the `UnsafeCell` inside is only ever handed to them by pointer.
+// `Drop` (`sem_destroy`/`semaphore_destroy`) is NOT covered by this:
+// like the C, destroying while another thread waits or posts is the
+// caller's bug, so `Sync` only licenses concurrent post/wait/try_wait.
 #[cfg(unix)]
 unsafe impl Sync for Sem {}
 
@@ -117,9 +120,12 @@ impl Sem {
     /// does.
     ///
     /// # Safety
-    /// `out` must point to `size_of::<Sem>()` writable bytes, treated as
-    /// uninitialized. On success `*out` is a live `Sem` owning the native
-    /// semaphore; release it with `ptr::drop_in_place`. A failed init
+    /// `out` must point to `size_of::<Sem>()` writable bytes aligned to
+    /// `align_of::<Sem>()`, treated as uninitialized. On success `*out`
+    /// is a live `Sem` owning the native semaphore; its address must
+    /// stay stable until it is released with `ptr::drop_in_place`, and
+    /// no other thread may be inside `post`/`wait`/`try_wait` when it is
+    /// dropped (the same contract C's `sem_destroy` has). A failed init
     /// leaves `*out` dead — nothing to drop.
     pub(crate) unsafe fn init_in(out: *mut Sem, value: c_int) -> c_int {
         // SAFETY: `out` is writable for `*out`; `_pin` is a ZST written
