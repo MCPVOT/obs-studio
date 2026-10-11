@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>obs-rust Contributor Leaderboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Unbounded:wght@800;900&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#07060d;--fg:#f4f2ff;--mut:#8b87a8;--card:#12101f;--line:#251f3d;--gold:#ffd24a;--silver:#cfd6e6;--bronze:#ff9a5c;--a:#8b5cf6;--b:#22d3ee;--c:#ff4fa3}
+*{box-sizing:border-box;margin:0}
+body{background:radial-gradient(900px 500px at 15% -10%,#3b1d7a55,transparent),radial-gradient(800px 500px at 100% 0,#0e749044,transparent),var(--bg);color:var(--fg);font:500 16px/1.4 "Space Grotesk",system-ui,sans-serif;min-height:100vh;padding:48px 16px 40px}
+main{max-width:980px;margin:auto}
+h1{font:900 clamp(34px,7vw,72px)/.95 Unbounded,sans-serif;letter-spacing:-.03em;background:linear-gradient(100deg,var(--b),var(--a) 45%,var(--c));-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 28px #8b5cf666)}
+.sub{color:var(--mut);margin:14px 0 44px;max-width:60ch}
+.sub b{color:var(--fg)}
+.podium{display:grid;grid-template-columns:1fr 1.15fr 1fr;gap:16px;align-items:end;margin-bottom:28px}
+.pod{position:relative;text-align:center;padding:26px 12px 18px;border-radius:20px;background:linear-gradient(180deg,var(--card),#0b0916);border:1px solid var(--line);animation:rise .8s cubic-bezier(.2,.9,.2,1) both;--g:var(--silver)}
+.pod.r1{--g:var(--gold);order:2;padding-top:40px}
+.pod.r2{order:1;--g:var(--silver);animation-delay:.15s}
+.pod.r3{order:3;--g:var(--bronze);animation-delay:.3s}
+.pod{border-color:color-mix(in srgb,var(--g) 55%,transparent);box-shadow:0 0 40px -14px var(--g)}
+.pod img{width:92px;height:92px;border-radius:50%;border:3px solid var(--g);box-shadow:0 0 28px var(--g);background:#222}
+.r1 img{width:116px;height:116px}
+.medal{font:900 44px Unbounded;color:var(--g);text-shadow:0 0 24px var(--g);line-height:1;margin-bottom:10px}
+.name{font:700 18px "Space Grotesk";margin-top:12px;word-break:break-all}
+.name a{color:inherit;text-decoration:none}
+.score{font:900 34px Unbounded;color:var(--g);margin-top:4px}
+.meta{color:var(--mut);font-size:13px}
+.list{display:grid;gap:10px}
+.row{display:grid;grid-template-columns:52px 48px 1fr auto auto auto;gap:16px;align-items:center;padding:12px 18px;border-radius:14px;background:var(--card);border:1px solid var(--line);animation:slide .6s ease both;transition:.2s}
+.row:hover{transform:translateX(6px);border-color:var(--a);box-shadow:0 0 24px -6px var(--a)}
+.rank{font:800 22px Unbounded;color:var(--mut)}
+.row img{width:44px;height:44px;border-radius:50%;background:#222}
+.row .who{font-weight:700;word-break:break-all}.row .who a{color:inherit;text-decoration:none}
+.row .when{color:var(--mut);font-size:12px}
+.num{text-align:right;min-width:56px}.num b{display:block;font:800 20px Unbounded}.num span{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.08em}
+.num.s b{background:linear-gradient(90deg,var(--b),var(--c));-webkit-background-clip:text;background-clip:text;color:transparent}
+footer{margin-top:34px;color:var(--mut);font-size:13px}
+footer a{color:var(--b)}
+@keyframes rise{from{opacity:0;transform:translateY(40px) scale(.94)}}
+@keyframes slide{from{opacity:0;transform:translateX(-24px)}}
+@media(max-width:640px){.podium{grid-template-columns:1fr}.pod.r1{order:1}.pod.r2{order:2}.pod.r3{order:3}
+.row{grid-template-columns:34px 40px 1fr auto;gap:10px;padding:10px 12px}.row .num:not(.s){display:none}.rank{font-size:16px}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+</head>
+<body>
+<main>
+<h1>obs-rust<br>Leaderboard</h1>
+<p class="sub">The people who filed or merged fixes. Credit goes to the <b>original author</b>, even when a maintainer rebased or re-landed the work. Score = <span id="w"></span>.</p>
+<section class="podium" id="podium"></section>
+<section class="list" id="list"></section>
+<footer id="foot"></footer>
+</main>
+<script>
+(async()=>{
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+let d;try{d=await (await fetch("leaderboard.json",{cache:"no-store"})).json()}catch(e){document.getElementById("foot").textContent="Could not load leaderboard.json";return}
+const C=d.contributors,w=d.weights;
+document.getElementById("w").textContent=w.merged_pr+" per merged PR + "+w.issue_filed+" per issue filed";
+const fmt=s=>new Date(s).toLocaleDateString("en",{month:"short",year:"numeric"});
+const gh=l=>"https://github.com/"+encodeURIComponent(l);
+document.getElementById("podium").innerHTML=C.slice(0,3).map(c=>`<div class="pod r${c.rank}"><div class="medal">${c.rank}</div><img src="${esc(c.avatar_url)}" alt=""><div class="name"><a href="${gh(c.login)}">${esc(c.login)}</a></div><div class="score">${c.score}</div><div class="meta">${c.merged_prs} PRs · ${c.issues_filed} issues</div></div>`).join("");
+document.getElementById("list").innerHTML=C.slice(3).map((c,i)=>`<div class="row" style="animation-delay:${.4+i*.07}s"><div class="rank">${c.rank}</div><img src="${esc(c.avatar_url)}" alt=""><div><div class="who"><a href="${gh(c.login)}">${esc(c.login)}</a></div><div class="when">${fmt(c.first_contribution)} - ${fmt(c.last_contribution)}</div></div><div class="num"><b>${c.merged_prs}</b><span>PRs</span></div><div class="num"><b>${c.issues_filed}</b><span>Issues</span></div><div class="num s"><b>${c.score}</b><span>Score</span></div></div>`).join("");
+document.getElementById("foot").innerHTML=`Updated ${new Date(d.generated_at).toUTCString()} · <a href="https://github.com/${esc(d.repo)}">${esc(d.repo)}</a> · <a href="leaderboard.json">JSON</a>`;
+document.body.dataset.ready="1";
+})();
+</script>
+</body>
+</html>
