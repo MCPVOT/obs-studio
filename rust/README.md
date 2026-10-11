@@ -98,6 +98,8 @@ Server Settings must be enabled):
 obs-stream-rust status                           # stream: live 00:01:02.345, ...
 obs-stream-rust --password secret start          # or OBS_WEBSOCKET_PASSWORD=secret
 obs-stream-rust --host 192.168.1.5 --port 4455 stop
+obs-stream-rust --host ::1 status
+obs-stream-rust --host '[::1]' status             # IPv6 brackets are optional
 obs-stream-rust toggle
 obs-stream-rust version
 ```
