@@ -1,4 +1,5 @@
 #include "vlc-video-plugin.h"
+#include "vlc-audio-order.h"
 #include <media-io/video-frame.h>
 #include <util/threading.h>
 #include <util/platform.h>
@@ -472,6 +473,8 @@ static void vlcs_audio_play(void *data, const void *samples, unsigned count, int
 	}
 
 	memcpy((void *)c->audio.data[0], samples, size);
+	vlc_audio_reorder((void *)c->audio.data[0], count, get_audio_channels(c->audio.speakers),
+			  get_audio_bytes_per_channel(c->audio.format));
 	c->audio.timestamp = (uint64_t)pts * 1000ULL - time_start;
 	c->audio.frames = count;
 
