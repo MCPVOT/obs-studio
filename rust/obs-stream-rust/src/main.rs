@@ -20,6 +20,7 @@ Options:
   --host <HOST>          obs-websocket host [default: localhost]
   --port <PORT>          obs-websocket port [default: 4455]
   --password <PASSWORD>  obs-websocket password [env: OBS_WEBSOCKET_PASSWORD]
+  --json                Print response data as JSON
   -h, --help             Print help
   -V, --version          Print version
 ";
@@ -28,6 +29,7 @@ struct Args {
     host: String,
     port: u16,
     password: Option<String>,
+    json: bool,
     command: String,
 }
 
@@ -38,6 +40,7 @@ fn parse_args() -> Result<Option<Args>, String> {
         .ok()
         .filter(|p| !p.is_empty());
     let mut command = None;
+    let mut json = false;
     let mut args = std::env::args().skip(1);
     while let Some(arg) = args.next() {
         let mut value = |name: &str| args.next().ok_or(format!("{name} needs a value"));
@@ -56,6 +59,7 @@ fn parse_args() -> Result<Option<Args>, String> {
                 port = raw.parse().map_err(|_| format!("invalid port: {raw}"))?;
             }
             "--password" => password = Some(value("--password")?),
+            "--json" => json = true,
             _ if arg.starts_with('-') => return Err(format!("unknown option: {arg}")),
             _ if command.is_none() => command = Some(arg),
             _ => return Err(format!("unexpected argument: {arg}")),
@@ -66,6 +70,7 @@ fn parse_args() -> Result<Option<Args>, String> {
         host,
         port,
         password,
+        json,
         command,
     }))
 }
@@ -81,20 +86,24 @@ fn run(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
     };
     let mut client = Client::connect(&args.host, args.port, args.password.as_deref())?;
     let response = client.request(request, None)?;
-    match args.command.as_str() {
-        "status" => println!("{}", describe_stream_status(&response)),
-        "start" => println!("stream: starting"),
-        "stop" => println!("stream: stopping"),
-        "toggle" => match response.get("outputActive").and_then(|v| v.as_bool()) {
-            Some(true) => println!("stream: starting"),
-            _ => println!("stream: stopping"),
-        },
-        _ => println!(
-            "OBS {} (obs-websocket {}, {})",
-            response["obsVersion"].as_str().unwrap_or("?"),
-            response["obsWebSocketVersion"].as_str().unwrap_or("?"),
-            response["platformDescription"].as_str().unwrap_or("?"),
-        ),
+    if args.json {
+        println!("{response}");
+    } else {
+        match args.command.as_str() {
+            "status" => println!("{}", describe_stream_status(&response)),
+            "start" => println!("stream: starting"),
+            "stop" => println!("stream: stopping"),
+            "toggle" => match response.get("outputActive").and_then(|v| v.as_bool()) {
+                Some(true) => println!("stream: starting"),
+                _ => println!("stream: stopping"),
+            },
+            _ => println!(
+                "OBS {} (obs-websocket {}, {})",
+                response["obsVersion"].as_str().unwrap_or("?"),
+                response["obsWebSocketVersion"].as_str().unwrap_or("?"),
+                response["platformDescription"].as_str().unwrap_or("?"),
+            ),
+        }
     }
     client.close()?;
     Ok(())
