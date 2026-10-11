@@ -161,7 +161,7 @@ void WHIPOutput::ConfigureAudioTrack(std::string media_stream_id, std::string cn
 
 	// Audio RTP timestamps start from the random value libdatachannel picked
 	audio_rtp_clock = {};
-	audio_rtp_clock.timestamp = rtp_config->timestamp;
+	audio_rtp_clock.start = rtp_config->timestamp;
 }
 
 void WHIPOutput::ConfigureVideoTrack(std::string media_stream_id, std::string cname)
