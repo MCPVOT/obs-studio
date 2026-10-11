@@ -17,6 +17,8 @@
 
 #[cfg(unix)]
 use core::ffi::c_int;
+#[cfg(all(unix, not(target_os = "macos")))]
+use core::ffi::c_uint;
 use std::sync::{Condvar, Mutex, MutexGuard};
 use std::time::Duration;
 
