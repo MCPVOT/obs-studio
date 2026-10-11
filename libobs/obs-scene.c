@@ -3511,27 +3511,29 @@ static void resize_group(obs_sceneitem_t *group, bool scene_resize)
 		return;
 
 	if (group->bounds_type == OBS_BOUNDS_NONE && !scene_resize) {
-		struct vec2 new_pos;
+		/* The children were shifted so the content starts at the group's
+		 * origin; move the group so the content stays where it was on
+		 * screen. The new position is measured with the new transform
+		 * rather than derived from the content size, because the group
+		 * draws with its size rounded (ceil, scale, integer halves for
+		 * centred alignment) and any difference would add up with every
+		 * resize (obsproject/obs-studio#9298). */
+		struct vec2 target;
+		struct vec2 now;
+		struct vec2 delta;
 
-		if ((group->align & OBS_ALIGN_LEFT) != 0)
-			new_pos.x = minv.x;
-		else if ((group->align & OBS_ALIGN_RIGHT) != 0)
-			new_pos.x = maxv.x;
-		else
-			new_pos.x = (maxv.x - minv.x) * 0.5f + minv.x;
+		vec2_copy(&target, &minv);
+		transform_val(&target, &group->draw_transform);
 
-		if ((group->align & OBS_ALIGN_TOP) != 0)
-			new_pos.y = minv.y;
-		else if ((group->align & OBS_ALIGN_BOTTOM) != 0)
-			new_pos.y = maxv.y;
-		else
-			new_pos.y = (maxv.y - minv.y) * 0.5f + minv.y;
+		update_item_transform(group, false);
 
-		transform_val(&new_pos, &group->draw_transform);
+		vec2_zero(&now);
+		transform_val(&now, &group->draw_transform);
+
+		vec2_sub(&delta, &target, &now);
 		if (!group->absolute_coordinates)
-			pos_from_absolute(&new_pos, &new_pos, group);
-
-		vec2_copy(&group->pos, &new_pos);
+			size_from_absolute(&delta, &delta, group);
+		vec2_add(&group->pos, &group->pos, &delta);
 	}
 
 	os_atomic_set_bool(&group->update_group_resize, false);
