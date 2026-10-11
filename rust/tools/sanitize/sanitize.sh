@@ -47,6 +47,11 @@ mkdir -p "$out"
 export CCACHE_BASEDIR=$src
 
 echo "== [$tool] configure + build (ENABLE_RUST_LIBOBS=${RUST_LIBOBS:-OFF})"
+if [ "${RUST_LIBOBS:-OFF}" = ON ]; then
+  # Install the toolchain rust-toolchain.toml pins instead of relying on
+  # rustup's deprecated auto-install (rust-lang/rustup#4836).
+  (cd "$src" && rustup toolchain install) >"$out/rustup.log" 2>&1 || { tail -20 "$out/rustup.log"; exit 1; }
+fi
 cmake -S "$src" -B "$b" -G Ninja -DCMAKE_BUILD_TYPE=$type -DENABLE_UNIT_TESTS=ON \
   -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
   -DCMAKE_C_FLAGS="$flags" -DCMAKE_CXX_FLAGS="$flags" \
