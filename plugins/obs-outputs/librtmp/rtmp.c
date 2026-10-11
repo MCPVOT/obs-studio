@@ -3794,10 +3794,11 @@ HandleClientBW(RTMP *r, const RTMPPacket *packet)
 static int
 DecodeInt32LE(const char *data)
 {
-    unsigned char *c = (unsigned char *)data;
+    const unsigned char *c = (const unsigned char *)data;
     unsigned int val;
 
-    val = (c[3] << 24) | (c[2] << 16) | (c[1] << 8) | c[0];
+    val = ((unsigned int)c[3] << 24) | ((unsigned int)c[2] << 16) |
+          ((unsigned int)c[1] << 8) | (unsigned int)c[0];
     return val;
 }
 
