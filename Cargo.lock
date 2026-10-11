@@ -296,7 +296,6 @@ dependencies = [
  "libc",
  "obs-c-oracle",
  "proptest",
- "windows-sys",
 ]
 
 [[package]]
