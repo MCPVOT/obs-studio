@@ -1443,7 +1443,7 @@ RTMP_ClientPacket(RTMP *r, RTMPPacket *packet)
             else if (packet->m_body[pos] == 8 || packet->m_body[pos] == 9)
             {
                 nTimeStamp = AMF_DecodeInt24(packet->m_body + pos + 4);
-                nTimeStamp |= (packet->m_body[pos + 7] << 24);
+                nTimeStamp |= (uint32_t)(uint8_t)packet->m_body[pos + 7] << 24;
             }
             pos += (11 + dataSize + 4);
         }
@@ -4877,7 +4877,7 @@ Read_1_Packet(RTMP *r, char *buf, unsigned int buflen)
                             uint32_t dataSize =
                                 AMF_DecodeInt24(packetBody + pos + 1);
                             ts = AMF_DecodeInt24(packetBody + pos + 4);
-                            ts |= (packetBody[pos + 7] << 24);
+                            ts |= (uint32_t)(uint8_t)packetBody[pos + 7] << 24;
 
 #ifdef _DEBUG
                             RTMP_Log(RTMP_LOGDEBUG,
@@ -5107,7 +5107,7 @@ stopKeyframeSearch:
 
             /* grab first timestamp and see if it needs fixing */
             nTimeStamp = AMF_DecodeInt24(packetBody + 4);
-            nTimeStamp |= (packetBody[7] << 24);
+            nTimeStamp |= (uint32_t)(uint8_t)packetBody[7] << 24;
             delta = packet.m_nTimeStamp - nTimeStamp + r->m_read.nResumeTS;
 
             while (pos + 11 < nPacketLen)
@@ -5115,7 +5115,7 @@ stopKeyframeSearch:
                 /* size without header (11) and without prevTagSize (4) */
                 uint32_t dataSize = AMF_DecodeInt24(packetBody + pos + 1);
                 nTimeStamp = AMF_DecodeInt24(packetBody + pos + 4);
-                nTimeStamp |= (packetBody[pos + 7] << 24);
+                nTimeStamp |= (uint32_t)(uint8_t)packetBody[pos + 7] << 24;
 
                 if (delta)
                 {
@@ -5362,7 +5362,7 @@ RTMP_Write(RTMP *r, const char *buf, int size, int streamIdx)
             buf += 3;
             pkt->m_nTimeStamp = AMF_DecodeInt24(buf);
             buf += 3;
-            pkt->m_nTimeStamp |= *buf++ << 24;
+            pkt->m_nTimeStamp |= (uint32_t)(uint8_t)*buf++ << 24;
             buf += 3;
             s2 -= 11;
 
