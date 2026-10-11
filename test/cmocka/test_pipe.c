@@ -230,8 +230,7 @@ static void test_pipe_write_stops_after_partial_error(void **state)
 	 * transfer a prefix and encounter EPIPE. The EOF handshake ensures stderr
 	 * cannot keep the parent waiting while dd waits for that first byte.
 	 */
-	os_process_pipe_t *pp =
-		os_process_pipe_create("exec 2>&-; dd bs=1 count=1 of=/dev/null 2>/dev/null", "w");
+	os_process_pipe_t *pp = os_process_pipe_create("exec 2>&-; dd bs=1 count=1 of=/dev/null 2>/dev/null", "w");
 	bool created = pp != NULL;
 	size_t err_bytes = 0;
 	size_t written = 0;
