@@ -60,7 +60,13 @@ fn stress_event_ping_pong_pairs() {
 #[cfg(unix)]
 #[test]
 fn stress_manual_event_releases_exactly_one_per_signal() {
+    // More waiters than rounds: a rare spurious wakeup legitimately
+    // releases an extra waiter (the C primitive allows this), and that
+    // release still consumes one from the pool. 8 rounds over a pool of
+    // 32 leaves the test room to retry a spurious excess without running
+    // dry, while a `notify_all` bug still releases all 32 at once.
     const WAITERS: usize = 32;
+    const ROUNDS: usize = 8;
 
     let ev = Arc::new(Event::new(EventType::Manual));
     let released = Arc::new(AtomicUsize::new(0));
@@ -81,13 +87,6 @@ fn stress_manual_event_releases_exactly_one_per_signal() {
 
     // Before each signal the count of threads blocked in ev.wait must be
     // exactly the remaining waiters; a released waiter decrements on its
-    // way out, so the count settles deterministically.
-    // A condvar wait may return spuriously, and a manual event's flag
-    // stays set for the whole round, so a rare spuriously-woken waiter
-    // also counts as released (the C primitive allows this too). An
-    // excess is therefore only conclusive if it repeats.
-    // Before each signal the count of threads blocked in ev.wait must be
-    // exactly the remaining waiters; a released waiter decrements on its
     // way out, so the count settles deterministically. Each attempt
     // resets the flag as soon as the first release is confirmed, then
     // drains one `done` post per released waiter, so no waiter released
@@ -99,7 +98,7 @@ fn stress_manual_event_releases_exactly_one_per_signal() {
     // release an extra waiter (the C primitive allows this too), so an
     // excess is only conclusive if it repeats.
     let mut posts = 0;
-    for round in 0..WAITERS {
+    for round in 0..ROUNDS {
         for attempt in 0..5 {
             let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
             let before = loop {
@@ -146,6 +145,12 @@ fn stress_manual_event_releases_exactly_one_per_signal() {
         }
     }
 
+    // Release the waiters left in the pool so the joins terminate.
+    while released.load(Ordering::SeqCst) < WAITERS {
+        ev.signal();
+        done.wait();
+        ev.reset();
+    }
     for t in threads {
         t.join().unwrap();
     }
