@@ -214,7 +214,7 @@ target_sources(
     graphics/math-extra.h
     $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:graphics/matrix3.c>
     graphics/matrix3.h
-    graphics/matrix4.c
+    $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:graphics/matrix4.c>
     graphics/matrix4.h
     graphics/plane.c
     graphics/plane.h

@@ -44,7 +44,12 @@ fn translation(x: f32, y: f32, z: f32) -> Matrix4 {
 }
 
 fn fill(v: f32) -> Matrix4 {
-    Matrix4::new(row(v, v, v, v), row(v, v, v, v), row(v, v, v, v), row(v, v, v, v))
+    Matrix4::new(
+        row(v, v, v, v),
+        row(v, v, v, v),
+        row(v, v, v, v),
+        row(v, v, v, v),
+    )
 }
 
 /// A zero quaternion has norm 0, so the scale is 0. Axes are identity with
@@ -101,7 +106,7 @@ fn test_matrix4_mul_translation_scale_and_alias() {
         row(0.0, 0.0, 4.0, 0.0),
         row(0.0, 0.0, 0.0, 1.0),
     );
-    let dst = m1.mul(&m2);
+    let dst = m1 * &m2;
     assert_row(dst.x, 2.0, 0.0, 0.0, 0.0);
     assert_row(dst.y, 0.0, 3.0, 0.0, 0.0);
     assert_row(dst.z, 0.0, 0.0, 4.0, 0.0);
@@ -128,7 +133,7 @@ fn test_matrix4_determinant() {
     small.x.x = 0.0625;
     small.y.y = 0.0625;
     small.z.z = 0.0625;
-    assert_eq!(small.determinant(), 0.000244140625);
+    assert_eq!(small.determinant(), 0.0625 * 0.0625 * 0.0625);
 }
 
 #[test]
@@ -221,8 +226,12 @@ fn test_matrix4_inv_scale_translation_and_singular() {
     assert_row(dst.z, 0.0, 0.0, 0.125, 0.0);
     assert_row(dst.t, 0.0, 0.0, 0.0, 1.0);
 
-    let dst = translation(4.0, -2.0, 8.0).try_inv().expect("invertible translation");
-    assert_identity(&dst);
+    let dst = translation(4.0, -2.0, 8.0)
+        .try_inv()
+        .expect("invertible translation");
+    assert_row(dst.x, 1.0, 0.0, 0.0, 0.0);
+    assert_row(dst.y, 0.0, 1.0, 0.0, 0.0);
+    assert_row(dst.z, 0.0, 0.0, 1.0, 0.0);
     assert_row(dst.t, -4.0, 2.0, -8.0, 1.0);
 
     let mut m = identity();

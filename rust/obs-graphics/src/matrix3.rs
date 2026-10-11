@@ -5,7 +5,8 @@
 //! `matrix3_inv` builds a `matrix4` (`t.w = 1`) and inverts it with the
 //! cofactor routine from `matrix4.c`. When `|det| < 0.0005` that routine
 //! writes nothing, and `matrix3_inv` only clears `t.w`. Both are matched
-//! exactly. `matrix4.c` itself stays in C.
+//! exactly. The routine is copied here so a rejected inverse still clears
+//! only `t.w`.
 
 use crate::axisang::AxisAng;
 use crate::matrix4::Matrix4;
