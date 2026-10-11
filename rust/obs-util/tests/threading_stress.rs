@@ -165,22 +165,27 @@ fn stress_sem_multi_producer() {
 #[test]
 fn stress_event_signal_reset_contention() {
     const ROUNDS: usize = 2000;
-    /// Long enough to be unmissable; only taken when the handshake never
-    /// arrives (i.e. when the bug this test hunts exists).
-    const ACK_MS: u64 = 10_000;
+    /// Only bounds a genuinely broken timed_wait; on a correct build the
+    /// ack arrives as soon as the waiter is scheduled, which on a loaded
+    /// shared runner can already take seconds.
+    const ACK_MS: u64 = 60_000;
 
     let ev = Arc::new(Event::new(EventType::Manual));
     let ack = Arc::new(Event::new(EventType::Auto));
+    let started = Arc::new(Sem::new(0));
     let observed = Arc::new(AtomicUsize::new(0));
 
     // A manual event's first signal stays set until the first reset, so
     // the waiter's first timed_wait is guaranteed to observe it and ack
-    // back — the toggler blocks on that ack before entering the loop,
-    // making observed >= 1 deterministic rather than scheduler luck.
+    // back — the toggler waits for the waiter to be running and then
+    // blocks on that ack before entering the loop, making observed >= 1
+    // deterministic rather than scheduler luck.
     let toggler = {
         let ev = Arc::clone(&ev);
         let ack = Arc::clone(&ack);
+        let started = Arc::clone(&started);
         std::thread::spawn(move || {
+            started.wait();
             ev.signal();
             assert!(ack.timed_wait(ACK_MS), "waiter never observed a signal");
             for _ in 0..ROUNDS {
@@ -193,8 +198,10 @@ fn stress_event_signal_reset_contention() {
     let waiter = {
         let ev = Arc::clone(&ev);
         let ack = Arc::clone(&ack);
+        let started = Arc::clone(&started);
         let observed = Arc::clone(&observed);
         std::thread::spawn(move || {
+            started.post();
             while ev.timed_wait(1) {
                 if observed.fetch_add(1, Ordering::SeqCst) == 0 {
                     ack.signal();
