@@ -1,0 +1,214 @@
+//! Tier 1 for `libobs/util/profiler.c`.
+//!
+//! Mirrors `test/cmocka/test_profiler.c`: names are pointer identity, and
+//! measured `time_delta` values are not asserted, only structure and counts.
+//! The CSV dump stays in `util/profiler-io.c` and is covered by that C test.
+//!
+//! Global profiler state is shared, and `profiler_free` clears it, so the
+//! three C tests run in one function in the cmocka order.
+
+use core::ffi::c_char;
+use std::ffi::CStr;
+use std::ptr;
+use std::sync::Mutex;
+
+use obs_c_oracle as _;
+use obs_util::ffi::profiler_snapshot::{
+    profile_snapshot_free, profiler_snapshot_entry_expected_time_between_calls,
+    profiler_snapshot_entry_max_time, profiler_snapshot_entry_max_time_between_calls,
+    profiler_snapshot_entry_min_time, profiler_snapshot_entry_min_time_between_calls,
+    profiler_snapshot_entry_name, profiler_snapshot_entry_overall_between_calls_count,
+    profiler_snapshot_entry_overall_count, profiler_snapshot_entry_times,
+    profiler_snapshot_entry_times_between_calls, profiler_snapshot_enumerate_children,
+    profiler_snapshot_enumerate_roots, profiler_snapshot_num_children, profiler_snapshot_num_roots,
+};
+use obs_util::profiler::{
+    NameStore, ProfileName, SnapshotEntry, name_store_free, profile_end, profile_reenable_thread,
+    profile_register_root, profile_snapshot_create, profile_start, profiler_free, profiler_start,
+    profiler_stop,
+};
+use obs_util::profiler_snapshot::{FilterStep, enumerate, filter};
+
+const ITERATIONS: u64 = 5;
+
+static ROOT_NAME: &str = "test_root";
+static CHILD_NAME: &str = "test_child";
+static OTHER_NAME: &str = "test_other";
+
+static TEST_LOCK: Mutex<()> = Mutex::new(());
+
+fn name_of(entry: &SnapshotEntry) -> &str {
+    assert!(!entry.name.is_null());
+    unsafe { CStr::from_ptr(entry.name.as_ptr()) }
+        .to_str()
+        .unwrap()
+}
+
+fn stored(ptr: *const c_char) -> String {
+    assert!(!ptr.is_null());
+    unsafe { CStr::from_ptr(ptr) }.to_str().unwrap().to_owned()
+}
+
+fn test_profiler_name_store() {
+    let store = NameStore::new();
+    let a = store.store("alpha-1");
+    let b = store.store("beta-22");
+    let c = store.store("plain");
+    assert!(!a.is_null());
+    assert!(!b.is_null());
+    assert!(!c.is_null());
+
+    let a2 = store.store("alpha-1");
+    assert_ne!(a, a2);
+    assert_ne!(a, b);
+    assert_eq!(stored(a), "alpha-1");
+    assert_eq!(stored(b), "beta-22");
+    assert_eq!(stored(c), "plain");
+    assert_eq!(stored(a2), "alpha-1");
+    drop(store);
+
+    unsafe { name_store_free(ptr::null_mut()) };
+}
+
+fn test_profiler_disabled() {
+    let root = ProfileName::from_static(ROOT_NAME);
+    let child = ProfileName::from_static(CHILD_NAME);
+    profile_register_root(root, 1_000_000);
+    profile_start(root, 1);
+    profile_start(child, 2);
+    profile_end(child, 3);
+    profile_end(root, 4);
+
+    let snap = profile_snapshot_create();
+    assert_eq!(snap.roots.len(), 0);
+
+    profiler_stop();
+    profile_reenable_thread();
+
+    unsafe {
+        assert_eq!(profiler_snapshot_num_roots(ptr::null_mut()), 0);
+        assert_eq!(profiler_snapshot_num_children(ptr::null_mut()), 0);
+        assert!(profiler_snapshot_entry_name(ptr::null_mut()).is_null());
+        assert!(profiler_snapshot_entry_times(ptr::null_mut()).is_null());
+        assert!(profiler_snapshot_entry_times_between_calls(ptr::null_mut()).is_null());
+        assert_eq!(profiler_snapshot_entry_overall_count(ptr::null_mut()), 0);
+        assert_eq!(profiler_snapshot_entry_min_time(ptr::null_mut()), 0);
+        assert_eq!(profiler_snapshot_entry_max_time(ptr::null_mut()), 0);
+        assert_eq!(
+            profiler_snapshot_entry_expected_time_between_calls(ptr::null_mut()),
+            0
+        );
+        assert_eq!(
+            profiler_snapshot_entry_min_time_between_calls(ptr::null_mut()),
+            0
+        );
+        assert_eq!(
+            profiler_snapshot_entry_max_time_between_calls(ptr::null_mut()),
+            0
+        );
+        assert_eq!(
+            profiler_snapshot_entry_overall_between_calls_count(ptr::null_mut()),
+            0
+        );
+        profiler_snapshot_enumerate_roots(ptr::null_mut(), None, ptr::null_mut());
+        profiler_snapshot_enumerate_children(ptr::null_mut(), None, ptr::null_mut());
+        profile_snapshot_free(ptr::null_mut());
+    }
+}
+
+fn clock(n: &mut u64) -> u64 {
+    *n += 1_000_000;
+    *n
+}
+
+fn test_profiler_lifecycle() {
+    let root = ProfileName::from_static(ROOT_NAME);
+    let child = ProfileName::from_static(CHILD_NAME);
+    let other = ProfileName::from_static(OTHER_NAME);
+    let mut now = 0u64;
+
+    profiler_start();
+    profile_reenable_thread();
+    profile_register_root(root, 16_000_000);
+    profile_register_root(other, 0);
+
+    for _ in 0..ITERATIONS {
+        profile_start(root, clock(&mut now));
+        profile_start(child, clock(&mut now));
+        profile_end(child, clock(&mut now));
+        profile_end(root, clock(&mut now));
+    }
+    profile_start(other, clock(&mut now));
+    profile_end(other, clock(&mut now));
+
+    let mut snap = profile_snapshot_create();
+    assert_eq!(snap.roots.len(), 2);
+    assert_eq!(snap.roots[0].name, root);
+    assert_eq!(snap.roots[1].name, other);
+
+    let mut first = 0;
+    enumerate(&mut snap.roots, |_| {
+        first += 1;
+        false
+    });
+    assert_eq!(first, 1);
+
+    let root_entry = &snap.roots[0];
+    assert_eq!(root_entry.overall_count, ITERATIONS);
+    assert!(root_entry.min_time <= root_entry.max_time);
+    assert_eq!(root_entry.expected_time_between_calls, 16_000);
+    assert_eq!(root_entry.overall_between_calls_count, ITERATIONS - 1);
+    assert!(root_entry.min_time_between_calls <= root_entry.max_time_between_calls);
+    assert!(!root_entry.times.is_empty());
+    assert!(!root_entry.times_between_calls.is_empty());
+    assert_eq!(root_entry.children.len(), 1);
+    assert_eq!(root_entry.children[0].name, child);
+    assert_eq!(root_entry.children[0].overall_count, ITERATIONS);
+    assert!(root_entry.children[0].min_time <= root_entry.children[0].max_time);
+    assert!(root_entry.children[0].children.is_empty());
+    assert_eq!(root_entry.children[0].expected_time_between_calls, 0);
+    assert_eq!(root_entry.children[0].overall_between_calls_count, 0);
+
+    let other_entry = &snap.roots[1];
+    assert_eq!(other_entry.overall_count, 1);
+    assert_eq!(other_entry.expected_time_between_calls, 0);
+    assert_eq!(other_entry.overall_between_calls_count, 0);
+    assert!(other_entry.children.is_empty());
+
+    let total: u64 = root_entry.times.iter().map(|t| t.count).sum();
+    assert_eq!(total, ITERATIONS);
+
+    let mut visited = 0usize;
+    filter(&mut snap.roots, |entry| {
+        visited += 1;
+        FilterStep {
+            keep_going: true,
+            remove: name_of(entry) == OTHER_NAME,
+        }
+    });
+    assert_eq!(visited, 2);
+    assert_eq!(snap.roots.len(), 1);
+    assert_eq!(snap.roots[0].name, root);
+
+    profiler_stop();
+    profile_start(root, clock(&mut now));
+    profile_start(child, clock(&mut now));
+    profile_end(child, clock(&mut now));
+    profile_end(root, clock(&mut now));
+
+    let after = profile_snapshot_create();
+    assert_eq!(after.roots.len(), 2);
+    assert_eq!(after.roots[0].overall_count, ITERATIONS);
+    assert_eq!(after.roots[1].overall_count, 1);
+
+    profiler_free();
+}
+
+/// `test_profiler_name_store`, `test_profiler_disabled`, `test_profiler_lifecycle`.
+#[test]
+fn test_profiler_cmocka() {
+    let _guard = TEST_LOCK.lock().unwrap();
+    test_profiler_name_store();
+    test_profiler_disabled();
+    test_profiler_lifecycle();
+}
