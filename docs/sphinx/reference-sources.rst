@@ -1196,6 +1196,19 @@ General Source Functions
 
 ---------------------
 
+.. function:: void obs_source_set_async_compensation(obs_source_t *source, bool compensate)
+              bool obs_source_async_compensation(const obs_source_t *source)
+
+   Sets/gets whether libobs compensates for the clock drift of an
+   asynchronous audio source. An audio device runs on its own clock,
+   slightly off its nominal sample rate; when enabled, libobs resamples
+   the source's audio by up to 1000 ppm so that it keeps pace with its
+   timestamps, instead of resyncing with an audible dropout every few
+   minutes. Audio from a device on the system clock passes through
+   untouched. Off by default.
+
+---------------------
+
 .. function:: void obs_source_set_audio_mixers(obs_source_t *source, uint32_t mixers)
               uint32_t obs_source_get_audio_mixers(const obs_source_t *source)
 

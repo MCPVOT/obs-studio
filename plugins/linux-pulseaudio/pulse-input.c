@@ -616,6 +616,8 @@ static void *pulse_create(obs_data_t *settings, obs_source_t *source, bool input
 
 	data->input = input;
 	data->source = source;
+	/* The device runs on its own clock: keep its audio in pace with OBS. */
+	obs_source_set_async_compensation(source, true);
 	data->weak_source = obs_source_get_weak_source(source);
 
 	pulse_init();
