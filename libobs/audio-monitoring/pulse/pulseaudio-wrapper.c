@@ -387,3 +387,18 @@ void pulseaudio_set_underflow_callback(pa_stream *p, pa_stream_notify_cb_t cb, v
 	pa_stream_set_underflow_callback(p, cb, userdata);
 	pulseaudio_unlock();
 }
+
+int_fast32_t pulseaudio_subscribe_sinks(pa_context_subscribe_cb_t cb, void *userdata)
+{
+	if (pulseaudio_context_ready() < 0)
+		return -1;
+
+	pulseaudio_lock();
+	pa_context_set_subscribe_callback(pulseaudio_context, cb, userdata);
+	pa_operation *op = pa_context_subscribe(pulseaudio_context, PA_SUBSCRIPTION_MASK_SINK, NULL, NULL);
+	if (op)
+		pa_operation_unref(op);
+	pulseaudio_unlock();
+
+	return op ? 0 : -1;
+}

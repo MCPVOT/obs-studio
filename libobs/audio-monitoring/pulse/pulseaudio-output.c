@@ -24,7 +24,24 @@ struct audio_monitor {
 
 	bool ignore;
 	pthread_mutex_t playback_mutex;
+
+	/* Index of the sink the stream plays on, and whether it plays on the
+	 * default sink only because the chosen one is missing. */
+	uint32_t sink_idx;
+	bool fallback;
 };
+
+/* Sink events arrive on the pulse mainloop thread, which must not block;
+ * monitors are reset from this queue instead. */
+static pthread_mutex_t sink_event_mutex = PTHREAD_MUTEX_INITIALIZER;
+static os_task_queue_t *sink_event_queue = NULL;
+
+struct sink_event {
+	pa_subscription_event_type_t event;
+	uint32_t idx;
+};
+
+static void sink_events_start(void);
 
 static enum speaker_layout pulseaudio_channels_to_obs_speakers(uint_fast32_t channels)
 {
@@ -315,6 +332,7 @@ static void pulseaudio_sink_info(pa_context *c, const pa_sink_info *i, int eol, 
 	}
 
 	data->format = format;
+	data->sink_idx = i->index;
 	data->samples_per_sec = i->sample_spec.rate;
 	data->channels = channels;
 skip:
@@ -389,6 +407,20 @@ static bool audio_monitor_init(struct audio_monitor *monitor, obs_source_t *sour
 		blog(LOG_ERROR, "Unable to get sink info !");
 		return false;
 	}
+	if (monitor->format == PA_SAMPLE_INVALID && strcmp(id, "default") != 0) {
+		/* The chosen sink is gone (unplugged); play on the default sink
+		 * until it returns, as the server would have moved us there. */
+		blog(LOG_WARNING, "'%s' is not available, monitoring on the default device until it returns",
+		     monitor->device);
+		bfree(monitor->device);
+		get_default_id(&monitor->device);
+		monitor->fallback = true;
+		if (!monitor->device || !*monitor->device ||
+		    pulseaudio_get_sink_info(pulseaudio_sink_info, monitor->device, (void *)monitor) < 0) {
+			blog(LOG_ERROR, "Unable to get sink info !");
+			return false;
+		}
+	}
 	if (monitor->format == PA_SAMPLE_INVALID) {
 		blog(LOG_ERROR, "An error occurred while getting the source info!");
 		return false;
@@ -436,7 +468,7 @@ static bool audio_monitor_init(struct audio_monitor *monitor, obs_source_t *sour
 	monitor->attr.prebuf = (uint32_t)-1;
 	monitor->attr.tlength = pa_usec_to_bytes(25000, &spec);
 
-	pa_stream_flags_t flags = pulseaudio_monitor_stream_flags(id);
+	pa_stream_flags_t flags = pulseaudio_monitor_stream_flags(monitor->fallback ? "default" : id);
 
 	int_fast32_t ret = pulseaudio_connect_playback(monitor->stream, monitor->device, &monitor->attr, flags);
 	if (ret < 0) {
@@ -445,8 +477,70 @@ static bool audio_monitor_init(struct audio_monitor *monitor, obs_source_t *sour
 		return false;
 	}
 
-	blog(LOG_INFO, "Started Monitoring in '%s'", monitor->device);
+	sink_events_start();
+	blog(LOG_INFO, "Started Monitoring in '%s'%s", monitor->device, monitor->fallback ? " (fallback)" : "");
 	return true;
+}
+
+static void handle_sink_event(void *param)
+{
+	struct sink_event *ev = param;
+
+	pthread_mutex_lock(&obs->audio.monitoring_mutex);
+	for (size_t i = 0; i < obs->audio.monitors.num; i++) {
+		struct audio_monitor *monitor = obs->audio.monitors.array[i];
+		if (monitor->ignore)
+			continue;
+
+		/* The chosen sink went away: the stream cannot move, so reopen
+		 * it on the default sink. A sink appeared while on the fallback:
+		 * it may be the chosen one, so try it again. */
+		uint32_t sink_idx = monitor->stream ? monitor->sink_idx : PA_INVALID_INDEX;
+		if (pulseaudio_monitor_reset_on_sink_event(ev->event, ev->idx, sink_idx, monitor->fallback))
+			audio_monitor_reset(monitor);
+	}
+	pthread_mutex_unlock(&obs->audio.monitoring_mutex);
+
+	bfree(ev);
+}
+
+static void on_sink_event(pa_context *c, pa_subscription_event_type_t t, uint32_t idx, void *userdata)
+{
+	UNUSED_PARAMETER(c);
+	UNUSED_PARAMETER(userdata);
+
+	pa_subscription_event_type_t type = t & PA_SUBSCRIPTION_EVENT_TYPE_MASK;
+	if (type != PA_SUBSCRIPTION_EVENT_NEW && type != PA_SUBSCRIPTION_EVENT_REMOVE)
+		return;
+
+	pthread_mutex_lock(&sink_event_mutex);
+	if (sink_event_queue) {
+		struct sink_event *ev = bmalloc(sizeof(*ev));
+		ev->event = t;
+		ev->idx = idx;
+		os_task_queue_queue_task(sink_event_queue, handle_sink_event, ev);
+	}
+	pthread_mutex_unlock(&sink_event_mutex);
+}
+
+static void sink_events_start(void)
+{
+	pthread_mutex_lock(&sink_event_mutex);
+	if (!sink_event_queue)
+		sink_event_queue = os_task_queue_create();
+	pthread_mutex_unlock(&sink_event_mutex);
+
+	pulseaudio_subscribe_sinks(on_sink_event, NULL);
+}
+
+static void sink_events_stop(void)
+{
+	pthread_mutex_lock(&sink_event_mutex);
+	os_task_queue_t *queue = sink_event_queue;
+	sink_event_queue = NULL;
+	pthread_mutex_unlock(&sink_event_mutex);
+
+	os_task_queue_destroy(queue);
 }
 
 static void audio_monitor_init_final(struct audio_monitor *monitor)
@@ -522,7 +616,11 @@ void audio_monitor_destroy(struct audio_monitor *monitor)
 
 		pthread_mutex_lock(&obs->audio.monitoring_mutex);
 		da_erase_item(obs->audio.monitors, &monitor);
+		bool last = obs->audio.monitors.num == 0;
 		pthread_mutex_unlock(&obs->audio.monitoring_mutex);
+
+		if (last)
+			sink_events_stop();
 
 		bfree(monitor);
 	}

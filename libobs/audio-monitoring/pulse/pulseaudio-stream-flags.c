@@ -19,16 +19,30 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 pa_stream_flags_t pulseaudio_monitor_stream_flags(const char *device_id)
 {
-	(void)device_id;
-	return PA_STREAM_INTERPOLATE_TIMING | PA_STREAM_AUTO_TIMING_UPDATE | PA_STREAM_START_CORKED;
+	pa_stream_flags_t flags = PA_STREAM_INTERPOLATE_TIMING | PA_STREAM_AUTO_TIMING_UPDATE | PA_STREAM_START_CORKED;
+
+	/* "default" is connected to the default sink's name, and must follow
+	 * it when the default changes. A sink the user chose must not be
+	 * swapped for the new default behind their back. */
+	if (!device_id || strcmp(device_id, "default") != 0)
+		flags |= PA_STREAM_DONT_MOVE;
+
+	return flags;
 }
 
 bool pulseaudio_monitor_reset_on_sink_event(pa_subscription_event_type_t event, uint32_t event_idx, uint32_t sink_idx,
 					    bool fallback)
 {
-	(void)event;
-	(void)event_idx;
-	(void)sink_idx;
-	(void)fallback;
-	return false;
+	if ((event & PA_SUBSCRIPTION_EVENT_FACILITY_MASK) != PA_SUBSCRIPTION_EVENT_SINK)
+		return false;
+
+	switch (event & PA_SUBSCRIPTION_EVENT_TYPE_MASK) {
+	case PA_SUBSCRIPTION_EVENT_REMOVE:
+		/* The fallback stream is movable; the server moves it. */
+		return !fallback && sink_idx != PA_INVALID_INDEX && event_idx == sink_idx;
+	case PA_SUBSCRIPTION_EVENT_NEW:
+		return fallback;
+	default:
+		return false;
+	}
 }
