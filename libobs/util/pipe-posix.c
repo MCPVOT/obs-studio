@@ -194,14 +194,10 @@ size_t os_process_pipe_write(os_process_pipe_t *pp, const uint8_t *data, size_t 
 	if (pp->read_pipe) {
 		return 0;
 	}
-
-	size_t written = 0;
-	while (written < len) {
-		size_t ret = fwrite(data + written, 1, len - written, pp->file);
-		if (!ret)
-			return written;
-
-		written += ret;
+	if (ferror(pp->file)) {
+		return 0;
 	}
-	return written;
+
+	/* A short fwrite reports an error; retrying can count undelivered data. */
+	return fwrite(data, 1, len, pp->file);
 }

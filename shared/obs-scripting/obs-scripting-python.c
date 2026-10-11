@@ -17,6 +17,7 @@
 ******************************************************************************/
 
 #include "obs-scripting-python.h"
+#include "obs-scripting-python-startup.h"
 #include <util/base.h>
 #include <util/platform.h>
 #include <util/darray.h>
@@ -27,24 +28,6 @@
 /* ========================================================================= */
 
 // #define DEBUG_PYTHON_STARTUP
-
-static const char *startup_script = "\n\
-import sys\n\
-import os\n\
-import obspython\n\
-class stdout_logger(object):\n\
-	def write(self, message):\n\
-		obspython.script_log_no_endl(obspython.LOG_INFO, message)\n\
-	def flush(self):\n\
-		pass\n\
-class stderr_logger(object):\n\
-	def write(self, message):\n\
-		obspython.script_log_no_endl(obspython.LOG_ERROR, message)\n\
-	def flush(self):\n\
-		pass\n\
-os.environ['PYTHONUNBUFFERED'] = '1'\n\
-sys.stdout = stdout_logger()\n\
-sys.stderr = stderr_logger()\n";
 
 #if RUNTIME_LINK
 static wchar_t home_path[1024] = {0};
@@ -1032,6 +1015,29 @@ static PyObject *enum_sources(PyObject *self, PyObject *args)
 	return list;
 }
 
+static void source_enum_filters_proc(obs_source_t *parent, obs_source_t *filter, void *param)
+{
+	UNUSED_PARAMETER(parent);
+	enum_sources_proc(param, filter);
+}
+
+static PyObject *source_enum_filters(PyObject *self, PyObject *args)
+{
+	PyObject *py_source;
+	obs_source_t *source;
+
+	UNUSED_PARAMETER(self);
+
+	if (!parse_args(args, "O", &py_source))
+		return python_none();
+	if (!py_to_libobs(obs_source_t, py_source, &source))
+		return python_none();
+
+	PyObject *list = PyList_New(0);
+	obs_source_enum_filters(source, source_enum_filters_proc, list);
+	return list;
+}
+
 /* -------------------------------------------- */
 
 static bool enum_items_proc(obs_scene_t *scene, obs_sceneitem_t *item, void *param)
@@ -1207,6 +1213,7 @@ static void add_hook_functions(PyObject *module)
 		DEF_FUNC("source_list_release", source_list_release),
 		DEF_FUNC("sceneitem_list_release", sceneitem_list_release),
 		DEF_FUNC("obs_enum_sources", enum_sources),
+		DEF_FUNC("obs_source_enum_filters", source_enum_filters),
 		DEF_FUNC("obs_scene_enum_items", scene_enum_items),
 		DEF_FUNC("obs_sceneitem_group_enum_items", sceneitem_group_enum_items),
 		DEF_FUNC("obs_remove_tick_callback", obs_python_remove_tick_callback),
@@ -1590,7 +1597,9 @@ void obs_python_load(void)
 	mutexes_loaded = true;
 }
 
+#ifdef ENABLE_FRONTEND
 extern void add_python_frontend_funcs(PyObject *module);
+#endif
 
 static bool python_loaded_at_all = false;
 
@@ -1710,14 +1719,16 @@ bool obs_scripting_load_python(const char *python_path)
 		goto out;
 	}
 
-	python_loaded = PyRun_SimpleString(startup_script) == 0;
+	python_loaded = PyRun_SimpleString(python_startup_script) == 0;
 	py_error();
 
 	add_hook_functions(py_obspython);
 	py_error();
 
+#ifdef ENABLE_FRONTEND
 	add_python_frontend_funcs(py_obspython);
 	py_error();
+#endif
 
 out:
 	/* ---------------------------------------------- */

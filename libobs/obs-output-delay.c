@@ -149,8 +149,11 @@ bool obs_output_delay_start(obs_output_t *output)
 		bool can_begin = obs_output_can_begin_data_capture(output, 0);
 		if (!can_begin)
 			return false;
-		if (!obs_output_initialize_encoders(output, 0))
+		os_atomic_set_bool(&output->starting, true);
+		if (!obs_output_initialize_encoders(output, 0)) {
+			os_atomic_set_bool(&output->starting, false);
 			return false;
+		}
 	}
 
 	pthread_mutex_lock(&output->delay_mutex);

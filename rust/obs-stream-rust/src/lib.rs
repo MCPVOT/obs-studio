@@ -102,10 +102,20 @@ pub struct Client<S: Read + Write> {
 
 impl Client<TcpStream> {
     /// Connects to `ws://host:port` and identifies, authenticating if the
-    /// server asks for it.
+    /// server asks for it. IPv6 literals may include or omit their brackets.
     pub fn connect(host: &str, port: u16, password: Option<&str>) -> Result<Self, Error> {
+        let host = host
+            .strip_prefix('[')
+            .and_then(|host| host.strip_suffix(']'))
+            .filter(|host| host.contains(':'))
+            .unwrap_or(host);
+        let url = if host.contains(':') {
+            format!("ws://[{host}]:{port}")
+        } else {
+            format!("ws://{host}:{port}")
+        };
         let stream = TcpStream::connect((host, port)).map_err(tungstenite::Error::from)?;
-        Self::handshake(stream, &format!("ws://{host}:{port}"), password)
+        Self::handshake(stream, &url, password)
     }
 }
 

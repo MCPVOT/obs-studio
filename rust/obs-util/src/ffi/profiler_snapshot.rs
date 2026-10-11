@@ -1,8 +1,8 @@
 //! C ABI shims for `libobs/util/profiler-snapshot.c`: the snapshot
 //! accessors and `profile_snapshot_free`.
 //!
-//! `profiler.c` (still C) builds the snapshot with `bmalloc` and the
-//! `DARRAY` macros. These shims read it in place through `#[repr(C)]`
+//! `ffi::profiler` builds the snapshot with `bmalloc` and the `DARRAY`
+//! layout. These shims read it in place through `#[repr(C)]`
 //! mirrors of the private structs in `profiler-snapshot.h`, and free it with
 //! the same `bfree` / `da_free` / `da_erase` steps as the C file.
 
@@ -24,7 +24,7 @@ pub struct Darray<T> {
 }
 
 impl<T> Darray<T> {
-    fn as_raw(&mut self) -> *mut darray {
+    pub(crate) fn as_raw(&mut self) -> *mut darray {
         (self as *mut Self).cast()
     }
 }

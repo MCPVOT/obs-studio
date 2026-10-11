@@ -969,6 +969,9 @@ static bool replay_buffer_start(void *data)
 	if (!obs_output_initialize_encoders(stream->output, 0))
 		return false;
 
+	/* drop what a stop while paused left behind (see replay_buffer_stop) */
+	replay_buffer_clear(stream);
+
 	obs_data_t *s = obs_output_get_settings(stream->output);
 	stream->max_time = obs_data_get_int(s, "max_time_sec") * 1000000LL;
 	stream->max_size = obs_data_get_int(s, "max_size_mb") * (1024 * 1024);
@@ -1181,7 +1184,7 @@ static void deactivate_replay_buffer(struct ffmpeg_muxer *stream, int code)
 {
 	if (code) {
 		obs_output_signal_stop(stream->output, code);
-	} else if (stopping(stream)) {
+	} else if (os_atomic_exchange_bool(&stream->stopping, false)) {
 		obs_output_end_data_capture(stream->output);
 	}
 
@@ -1189,6 +1192,30 @@ static void deactivate_replay_buffer(struct ffmpeg_muxer *stream, int code)
 	os_atomic_set_bool(&stream->sent_headers, false);
 	os_atomic_set_bool(&stream->stopping, false);
 	replay_buffer_clear(stream);
+}
+
+/* Pausing an output pauses its encoders, and so every other output on them.
+ * While a recording that shares the replay buffer's encoders is paused, no
+ * packet reaches the replay buffer, and replay_buffer_data() never sees one
+ * past the stop timestamp to finish stopping with. Nothing is written on
+ * stop, so finish right away instead of waiting for the encoders to resume.
+ * Only the stop flag decides who finishes, the packet path or this one; the
+ * buffered packets are freed on the next start or on destroy, once no packet
+ * callback can still be running. */
+static void replay_buffer_stop(void *data, uint64_t ts)
+{
+	struct ffmpeg_muxer *stream = data;
+	obs_encoder_t *vencoder = obs_output_get_video_encoder(stream->output);
+
+	ffmpeg_mux_stop(data, ts);
+
+	if (!vencoder || !obs_encoder_paused(vencoder))
+		return;
+	if (!os_atomic_exchange_bool(&stream->stopping, false))
+		return;
+
+	os_atomic_set_bool(&stream->active, false);
+	obs_output_end_data_capture(stream->output);
 }
 
 static void replay_buffer_data(void *data, struct encoder_packet *packet)
@@ -1254,7 +1281,7 @@ struct obs_output_info replay_buffer = {
 	.create = replay_buffer_create,
 	.destroy = replay_buffer_destroy,
 	.start = replay_buffer_start,
-	.stop = ffmpeg_mux_stop,
+	.stop = replay_buffer_stop,
 	.encoded_packet = replay_buffer_data,
 	.get_total_bytes = ffmpeg_mux_total_bytes,
 	.get_defaults = replay_buffer_defaults,

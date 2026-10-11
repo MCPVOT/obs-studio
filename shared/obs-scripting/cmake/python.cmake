@@ -30,6 +30,7 @@ if(ENABLE_SCRIPTING_PYTHON)
       $<$<BOOL:${ENABLE_FRONTEND}>:obs-scripting-python-frontend.c>
       $<$<PLATFORM_ID:Windows,Darwin>:obs-scripting-python-import.c>
       obs-scripting-python-import.h
+      obs-scripting-python-startup.h
       obs-scripting-python.c
       obs-scripting-python.h
       swig/swigpyrun.h

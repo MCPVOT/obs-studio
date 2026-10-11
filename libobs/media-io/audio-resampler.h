@@ -36,6 +36,14 @@ struct resample_info {
 EXPORT audio_resampler_t *audio_resampler_create(const struct resample_info *dst, const struct resample_info *src);
 EXPORT void audio_resampler_destroy(audio_resampler_t *resampler);
 
+/**
+ * Resamples slightly to compensate for an input whose clock drifts against
+ * the system clock. @error_ns is how far the samples delivered so far run
+ * ahead of (positive) or behind (negative) their timestamps; call it for
+ * every packet. The correction is bounded to 1000 ppm.
+ */
+EXPORT void audio_resampler_set_compensation_error(audio_resampler_t *resampler, int64_t error_ns);
+
 EXPORT bool audio_resampler_resample(audio_resampler_t *resampler, uint8_t *output[], uint32_t *out_frames,
 				     uint64_t *ts_offset, const uint8_t *const input[], uint32_t in_frames);
 

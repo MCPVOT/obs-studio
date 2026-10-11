@@ -57,10 +57,10 @@ tests and run them with `ctest`.
 | `libobs/util/buffered-file-serializer.c` | `obs-util::buffered_file_serializer` | `SERIALIZE_SEEK_END` subtracts from the virtual write position. Chunks under 64 KiB stay off disk until free, a discontinuous seek, or `chunk_size`. A flushed chunk goes out through `File::write`, so those bytes can show up before close. C's `fwrite` can keep them in the stdio buffer until `fclose`. Debug and error `blog` lines are not emitted. A null serializer pointer to `buffered_file_serializer_free` returns. A null data pointer with a non-zero size returns 0. |
 | `libobs/util/crc32.c` | `obs-util::crc32` | no intentional differences |
 | `libobs/util/config-file.c` | `obs-util::config_file` | Null `config`, `section` or `name` arguments are null-safe in the shim (C dereferences or stores them). Rust never re-locks the config mutex where C relies on `PTHREAD_MUTEX_RECURSIVE`. Follows the #70 save fixes (failed flush is `CONFIG_ERROR`, empty config saves). Windows non-UTF-8 paths substitute U+FFFD like libobs, via a different maximal-invalid-subpart rule. |
-| `libobs/util/pipe.c`, `pipe-posix.c` | `obs-util::pipe` | Swapped on Linux, macOS and FreeBSD; Windows keeps `pipe-windows.c`. Null command, args or arg are null-safe in the shim (C would crash). A signaled child returns its pid from `os_process_pipe_destroy`, as in C. |
+| `libobs/util/pipe.c`, `pipe-posix.c`, `pipe-windows.c` | `obs-util::pipe` | Swapped on every OS. Null command, args or arg are null-safe in the shim (C would crash). A signaled child returns its pid from `os_process_pipe_destroy`, as in C. On Windows, Win32 is called as in C (not `std::process`), and handles C leaks when creating a pipe fails half-way are closed. |
 | `libobs/util/cf-tokenizer.c` (extracted from `cf-lexer.c`) | `obs-util::cf_tokenizer` | Reads NUL where C reads past the terminator (text ending in a line splice inside a comment or string; `\x`/octal escapes skipping past a literal's NUL). A NULL `cf_literal_to_str` literal returns NULL (C dereferences it). The preprocessor in `cf-lexer.c` stays in C. |
 | `libobs/util/darray.h` (header-inline, not swapped) | `obs-util::darray` | Layout and parity only; the `struct darray` layout is the contract. |
-| `libobs/util/utf8.c` | `obs-util::utf8` | Swapped on non-Windows only; Windows keeps the C `MultiByteToWideChar` path. Shims are hidden like the C original (not exported by libobs). |
+| `libobs/util/utf8.c` | `obs-util::utf8` | Swapped on every OS. The Windows branch (`utf8::windows`) calls `MultiByteToWideChar`/`WideCharToMultiByte` with the C's arguments; sizes above `i32::MAX` give 0 instead of a negative `int`. Shims are hidden like the C original (not exported by libobs). |
 | `libobs/util/lexer.c` | `obs-util::lexer` | Header-inline helpers stay C; `cf-lexer.c` and `cf-parser.c` are not ported. Follows the C fix for #48 (an empty strref sorts before a non-empty one in both argument orders). |
 | `libobs/util/text-lookup.c` | `obs-util::text_lookup` | Rust does not crash on a value whose opening quote ends the line; C wraps the length to `SIZE_MAX`. |
 | `libobs/util/dstr.c` | `obs-util::dstr` | printf, wide-char and conversion functions are extracted to `util/dstr-libc.c` and stay C. Follows the C fixes for #46 (`dstr_insert_ch` overrun) and #47 (an empty `find` in `dstr_replace` is a no-op). |
@@ -69,10 +69,12 @@ tests and run them with `ctest`.
 | `libobs/util/base.c` | `obs-util::base` | `blog`, `blogva`, and `bcrash` stay in `util/base-variadic.c` (stable Rust cannot define C variadics). The Rust core owns the handler slots. Updates are mutex-ordered and the lock is dropped before the handler runs; C used plain stores. |
 | `libobs/graphics/axisang.c` | `obs-graphics::axisang` | No intentional differences. `acos` is the C library's `acosf`. Header-inline helpers stay C. |
 | `libobs/graphics/quat.c` | `obs-graphics::quat` | No intentional differences. `quat_dot` sums in the SSE order. `quat_get_dir` computes the Z axis of `matrix3_from_quat` (that file stays C). `quat_from_matrix3` reads the `matrix3` as a `matrix4`, including each axis `w` lane, as the C cast does. Header-inline helpers stay C. |
-| `libobs/graphics/matrix3.c` | `obs-graphics::matrix3` | No intentional differences. `matrix3_inv` reimplements the `matrix4_inv` cofactor path (including the `0.0005` determinant cutoff and the "write nothing, then clear `t.w`" failure) because `matrix4.c` is still C. The transpose copies `z.w` into every axis `w` lane, as the SSE shuffles do. Header-inline helpers stay C. |
+| `libobs/graphics/matrix3.c` | `obs-graphics::matrix3` | No intentional differences. `matrix3_inv` reimplements the `matrix4_inv` cofactor path (including the `0.0005` determinant cutoff and the "write nothing, then clear `t.w`" failure). The transpose copies `z.w` into every axis `w` lane, as the SSE shuffles do. Header-inline helpers stay C. |
+| `libobs/graphics/matrix4.c` | `obs-graphics::matrix4` | No intentional differences. `matrix4_mul` dots in the SSE `vec4_dot` order. `matrix4_transpose` moves lanes, matching the SSE unpacks bit for bit, so parity is exact (0 ULP) even though the C transpose is SIMD. `|det| < 0.0005` leaves `dst` unchanged. `matrix4_mul_4x3_only` is not exported. Header-inline helpers stay C. |
 | `libobs/graphics/vec3.c` | `obs-graphics::vec3` | No intentional differences. `Vec3` keeps the SSE `w` lane because `vec3_dot` multiplies it. `vec3_rand` calls libobs `rand_float`, which stays C. Header-inline helpers stay C. |
 | `libobs/util/task.c` | `obs-util::task` | A NULL `os_task_t` aborts when it runs (C calls the NULL pointer). A NULL queue to `os_task_queue_queue_task` or `os_task_queue_inside` returns false (C dereferences it). The worker is a Rust thread; `os_event`/`os_sem` are reimplemented with `Mutex`/`Condvar`. |
-| `libobs/util/profiler-snapshot.c` (extracted from `profiler.c`) | `obs-util::profiler_snapshot` | Snapshot accessors and `profile_snapshot_free`; `profiler.c` still builds snapshots in C, so the `profiler-snapshot.h` struct layout is the contract. A NULL `snap` to `profiler_snapshot_filter_roots`, or a NULL callback with entries to visit, does nothing (C dereferences it). |
+| `libobs/util/profiler.c` | `obs-util::profiler` | Names are pointer identity. Print and the CSV/gzip dump stay in `util/profiler-io.c` (zlib and dstr printf). `profile_store_name` stays in `util/profiler-variadic.c` and pushes through hidden `profiler_name_store_push`. The root mutex is process-lifetime, so `profiler_free` does not make a later `profiler_start` undefined. Tier 3 feeds both sides one scripted `os_gettime_ns`, so the time buckets match that clock. |
+| `libobs/util/profiler-snapshot.c` (extracted from `profiler.c`) | `obs-util::profiler_snapshot` | Snapshot accessors and `profile_snapshot_free`. The `profiler-snapshot.h` struct layout is the contract. A NULL `snap` to `profiler_snapshot_filter_roots`, or a NULL callback with entries to visit, does nothing (C dereferences it). |
 | `libobs/graphics/vec4.c` | `obs-graphics::vec4` | No intentional differences. `Vec4::dot` sums in the SSE `vec4_dot` order. Header-inline helpers stay C. |
 | `libobs/obs-nal.c` | `obs-codec::nal` | The C word-at-a-time search is replaced by a byte scan with the same result at any alignment; a start code in the last three bytes is not reported, as in C. A range starting within 3 bytes of address 0, such as `(NULL, NULL)`, returns `end`; C computes `end - 3`, wraps, and reads address 0. |
 | `libobs/media-io/video-fourcc.c` | `obs-media-io::video_fourcc` | No intentional differences. `enum video_format` crosses the C ABI as a `c_int`, like `serialize_seek_type` in obs-util. |
@@ -96,9 +98,24 @@ Server Settings must be enabled):
 obs-stream-rust status                           # stream: live 00:01:02.345, ...
 obs-stream-rust --password secret start          # or OBS_WEBSOCKET_PASSWORD=secret
 obs-stream-rust --host 192.168.1.5 --port 4455 stop
+obs-stream-rust --host ::1 status
+obs-stream-rust --host '[::1]' status             # IPv6 brackets are optional
 obs-stream-rust toggle
 obs-stream-rust version
 ```
+
+For scripts and agents, add `--json` before or after the command:
+
+```sh
+obs-stream-rust --json status
+obs-stream-rust version --json
+```
+
+This prints one compact JSON value containing the server's full `responseData`,
+including fields omitted from the default text output. A response without data
+prints `null`; an empty object remains `{}`. Errors still go to stderr with a
+nonzero exit status, so scripts should check the exit status as well as parse
+stdout. Local `--help` and `--version` keep their text output.
 
 Release binaries are cross-compiled from Linux with
 [cargo-zigbuild](https://github.com/rust-cross/cargo-zigbuild):

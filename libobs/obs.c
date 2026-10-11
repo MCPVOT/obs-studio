@@ -1109,6 +1109,7 @@ static const char *obs_signals[] = {
 	"void hotkey_register(ptr hotkey)",
 	"void hotkey_unregister(ptr hotkey)",
 	"void hotkey_bindings_changed(ptr hotkey)",
+	"void hotkey_background_press_changed(bool enabled)",
 
 	"void canvas_create(ptr canvas)",
 	"void canvas_remove(ptr canvas)",
@@ -1154,7 +1155,8 @@ static inline bool obs_init_hotkeys(void)
 	hotkeys->sceneitem_hide = bstrdup("Hide '%1'");
 
 	/* The mutex must exist before the platform layer initializes: on
-	 * Wayland its keyboard listeners take it as soon as events arrive. */
+	 * Wayland it starts a portal thread and keyboard listeners that take
+	 * it right away. */
 	if (pthread_mutex_init_recursive(&hotkeys->mutex) != 0)
 		return false;
 
