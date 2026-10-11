@@ -19,6 +19,9 @@
 #include "obs-nix-platform.h"
 #include "obs-nix-wayland.h"
 #include "obs-nix-hotkey-state.h"
+#ifdef HAVE_GLOBAL_SHORTCUTS_PORTAL
+#include "obs-nix-portal-shortcuts.h"
+#endif
 
 #include <unistd.h>
 #include <sys/mman.h>
@@ -55,11 +58,15 @@ struct obs_hotkeys_platform {
 	uint32_t current_layout;
 
 	/* What the hotkey thread may treat as held: keys pressed while OBS
-	 * has keyboard focus. */
+	 * has keyboard focus, and active GlobalShortcuts portal shortcuts. */
 	struct obs_nix_hotkey_state key_state;
+#ifdef HAVE_GLOBAL_SHORTCUTS_PORTAL
+	struct obs_nix_portal_shortcuts *portal;
+#endif
 };
 
 static obs_key_t obs_nix_wayland_key_from_virtual_key(int sym);
+static int obs_nix_wayland_key_to_virtual_key(obs_key_t key);
 
 static void load_keymap_data(struct xkb_keymap *keymap, xkb_keycode_t key, void *data)
 {
@@ -343,6 +350,23 @@ void obs_nix_wayland_log_info(void)
 	blog(LOG_INFO, "Connected to Wayland server");
 }
 
+#ifdef HAVE_GLOBAL_SHORTCUTS_PORTAL
+/* XKB keysym name for a portal preferred trigger ("F13", "a"). */
+static bool wayland_key_name(obs_key_t key, struct dstr *name)
+{
+	xkb_keysym_t sym = (xkb_keysym_t)obs_nix_wayland_key_to_virtual_key(key);
+	char buf[64];
+
+	if (!sym)
+		return false;
+	sym = xkb_keysym_to_lower(sym);
+	if (xkb_keysym_get_name(sym, buf, sizeof(buf)) <= 0)
+		return false;
+	dstr_copy(name, buf);
+	return true;
+}
+#endif
+
 static bool obs_nix_wayland_hotkeys_platform_init(struct obs_core_hotkeys *hotkeys)
 {
 	struct wl_display *display = obs_get_nix_platform_display();
@@ -355,12 +379,19 @@ static bool obs_nix_wayland_hotkeys_platform_init(struct obs_core_hotkeys *hotke
 	wl_registry_add_listener(registry, &registry_listener, hotkeys->platform_context);
 	wl_display_roundtrip(display);
 
+#ifdef HAVE_GLOBAL_SHORTCUTS_PORTAL
+	hotkeys->platform_context->portal =
+		obs_nix_portal_shortcuts_start(&hotkeys->platform_context->key_state, wayland_key_name);
+#endif
 	return true;
 }
 
 static void obs_nix_wayland_hotkeys_platform_free(struct obs_core_hotkeys *hotkeys)
 {
 	obs_hotkeys_platform_t *plat = hotkeys->platform_context;
+#ifdef HAVE_GLOBAL_SHORTCUTS_PORTAL
+	obs_nix_portal_shortcuts_stop(plat->portal);
+#endif
 	/* The listeners point at plat; no events may arrive after this. */
 	if (plat->keyboard)
 		wl_keyboard_release(plat->keyboard);
@@ -369,6 +400,7 @@ static void obs_nix_wayland_hotkeys_platform_free(struct obs_core_hotkeys *hotke
 	da_free(plat->seats);
 	if (plat->registry)
 		wl_registry_destroy(plat->registry);
+	obs_nix_hotkey_state_free(&plat->key_state);
 	xkb_context_unref(plat->xkb_context);
 	xkb_keymap_unref(plat->xkb_keymap);
 	xkb_state_unref(plat->xkb_state);
@@ -377,8 +409,8 @@ static void obs_nix_wayland_hotkeys_platform_free(struct obs_core_hotkeys *hotke
 
 static bool obs_nix_wayland_hotkeys_platform_is_pressed(obs_hotkeys_platform_t *context, obs_key_t key)
 {
-	// Wayland only delivers key events while OBS has keyboard focus, so
-	// out of focus nothing is ever reported as held.
+	// Wayland never delivers key events while OBS is out of focus; out of
+	// focus presses come from the GlobalShortcuts portal, if there is one.
 	return obs_nix_hotkey_state_is_pressed(&context->key_state, key);
 }
 
