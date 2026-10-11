@@ -168,7 +168,7 @@ target_sources(
     media-io/audio-math.h
     media-io/audio-resampler-ffmpeg.c
     media-io/audio-resampler.h
-    media-io/format-conversion.c
+    $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:media-io/format-conversion.c>
     media-io/format-conversion.h
     media-io/frame-rate.h
     media-io/media-io-defs.h
