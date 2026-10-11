@@ -127,7 +127,8 @@ target_sources(
     util/platform.h
     $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:util/profiler-snapshot.c>
     util/profiler-snapshot.h
-    util/profiler.c
+    $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:util/profiler.c>
+    $<$<BOOL:${ENABLE_RUST_LIBOBS}>:util/profiler-variadic.c>
     util/profiler-io.c
     util/profiler.h
     util/profiler.hpp

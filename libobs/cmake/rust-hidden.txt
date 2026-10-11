@@ -2,5 +2,6 @@
 # local: in rust-exports.map and _name in rust-unexports-macos.txt.
 # One symbol per line; lines starting with '#' are comments.
 base_begin_crash
+profiler_name_store_push
 utf8_to_wchar
 wchar_to_utf8

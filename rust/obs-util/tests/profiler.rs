@@ -76,8 +76,8 @@ fn test_profiler_disabled() {
     profile_register_root(root, 1_000_000);
     profile_start(root, 1);
     profile_start(child, 2);
-    profile_end(child, 3);
-    profile_end(root, 4);
+    profile_end(child, &mut || 3);
+    profile_end(root, &mut || 4);
 
     let snap = profile_snapshot_create();
     assert_eq!(snap.roots.len(), 0);
@@ -135,11 +135,11 @@ fn test_profiler_lifecycle() {
     for _ in 0..ITERATIONS {
         profile_start(root, clock(&mut now));
         profile_start(child, clock(&mut now));
-        profile_end(child, clock(&mut now));
-        profile_end(root, clock(&mut now));
+        profile_end(child, &mut || clock(&mut now));
+        profile_end(root, &mut || clock(&mut now));
     }
     profile_start(other, clock(&mut now));
-    profile_end(other, clock(&mut now));
+    profile_end(other, &mut || clock(&mut now));
 
     let mut snap = profile_snapshot_create();
     assert_eq!(snap.roots.len(), 2);
@@ -193,8 +193,8 @@ fn test_profiler_lifecycle() {
     profiler_stop();
     profile_start(root, clock(&mut now));
     profile_start(child, clock(&mut now));
-    profile_end(child, clock(&mut now));
-    profile_end(root, clock(&mut now));
+    profile_end(child, &mut || clock(&mut now));
+    profile_end(root, &mut || clock(&mut now));
 
     let after = profile_snapshot_create();
     assert_eq!(after.roots.len(), 2);
@@ -208,6 +208,8 @@ fn test_profiler_lifecycle() {
 #[test]
 fn test_profiler_cmocka() {
     let _guard = TEST_LOCK.lock().unwrap();
+    // Later tests in this binary share the process-lifetime profiler.
+    profiler_free();
     test_profiler_name_store();
     test_profiler_disabled();
     test_profiler_lifecycle();

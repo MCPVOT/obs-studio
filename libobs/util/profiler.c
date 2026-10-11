@@ -6,7 +6,6 @@
 #include "platform.h"
 #include "threading.h"
 
-
 //#define TRACK_OVERHEAD
 
 typedef struct profiler_time_entry profiler_time_entry;
@@ -447,7 +446,6 @@ static uint64_t copy_map_to_array(profile_times_table *map, profiler_time_entrie
 	return calls;
 }
 
-
 static void free_call_children(profile_call *call)
 {
 	if (!call)
@@ -625,4 +623,3 @@ profiler_snapshot_t *profile_snapshot_create(void)
 
 	return snap;
 }
-
