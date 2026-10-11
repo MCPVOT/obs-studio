@@ -755,6 +755,11 @@ Core OBS Signals
 
    Called when a hotkey's bindings has changed.
 
+**hotkey_background_press_changed** (bool enabled)
+
+   Called when :c:func:`obs_hotkey_enable_background_press()` changes
+   whether the hotkey thread presses hotkeys.
+
 **canvas_create** (ptr canvas)
 
    Called when a new public canvas has been created.

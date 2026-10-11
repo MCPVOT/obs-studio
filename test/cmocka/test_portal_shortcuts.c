@@ -109,6 +109,9 @@ static struct fake_portal {
 	struct fake_session sessions[16];
 	size_t num_sessions;
 	size_t num_binds;
+	/* Response code of the next BindShortcuts: 0 success, 1 the user
+	 * cancelled the desktop's dialog. */
+	uint32_t bind_response;
 	/* org.freedesktop.host.portal.Registry.Register calls */
 	size_t num_registers;
 	char *registered_app_id;
@@ -128,10 +131,10 @@ static char *request_path(const char *sender, const char *token)
 	return path;
 }
 
-static void respond(const char *sender, const char *path, GVariant *results)
+static void respond(const char *sender, const char *path, uint32_t response, GVariant *results)
 {
 	g_dbus_connection_emit_signal(fake.conn, sender, path, "org.freedesktop.portal.Request", "Response",
-				      g_variant_new("(u@a{sv})", 0, results), NULL);
+				      g_variant_new("(u@a{sv})", response, results), NULL);
 }
 
 static struct fake_session *find_session(const char *path)
@@ -197,7 +200,7 @@ static void portal_method(GDBusConnection *conn, const char *sender, const char 
 		g_variant_builder_init(&results, G_VARIANT_TYPE_VARDICT);
 		/* xdg-desktop-portal sends the handle as a string. */
 		g_variant_builder_add(&results, "{sv}", "session_handle", g_variant_new_string(session_path));
-		respond(sender, req, g_variant_builder_end(&results));
+		respond(sender, req, 0, g_variant_builder_end(&results));
 		g_free(req);
 		return;
 	}
@@ -249,7 +252,7 @@ static void portal_method(GDBusConnection *conn, const char *sender, const char 
 		GVariantBuilder results;
 		g_variant_builder_init(&results, G_VARIANT_TYPE_VARDICT);
 		g_variant_builder_add(&results, "{sv}", "shortcuts", g_variant_builder_end(&list));
-		respond(sender, req, g_variant_builder_end(&results));
+		respond(sender, req, fake.bind_response, g_variant_builder_end(&results));
 		g_free(req);
 		return;
 	}
@@ -474,7 +477,8 @@ static int setup(void **state)
 	hotkey_test_obs->hotkeys.strict_modifiers = true;
 	hotkey_test_obs->hotkeys.signals = signal_handler_create();
 	static const char *signals[] = {"void hotkey_register(ptr key)", "void hotkey_unregister(ptr key)",
-					"void hotkey_bindings_changed(ptr key)", NULL};
+					"void hotkey_bindings_changed(ptr key)",
+					"void hotkey_background_press_changed(bool enabled)", NULL};
 	assert_true(signal_handler_add_array(hotkey_test_obs->hotkeys.signals, signals));
 	assert_int_equal(pthread_create(&hotkey_thread, NULL, obs_hotkey_thread, NULL), 0);
 	return 0;
@@ -902,6 +906,125 @@ static void no_portal_falls_back(void **state)
 	fake_portal_stop();
 }
 
+/* Settings -> Advanced -> "Disable hotkeys when main window is not in
+ * focus" (and the settings dialog itself, which disables presses while it
+ * is open) call obs_hotkey_enable_background_press(false). The hotkey
+ * thread then drops every press, so the desktop must not keep holding the
+ * keys for OBS: the session is closed while presses are disabled, a held
+ * shortcut is released, and nothing is bound until presses are enabled
+ * again, when the bindings of that moment are bound. */
+static void disabled_background_press_closes_session(void **state)
+{
+	UNUSED_PARAMETER(state);
+	REQUIRE_DBUS_DAEMON();
+	fake_portal_start(true);
+
+	struct hotkey_log talk = {0}, record = {0};
+	register_bound("push-to-talk", &talk, f13);
+
+	struct obs_nix_portal_shortcuts *portal = obs_nix_portal_shortcuts_start(&key_state, test_key_name);
+	expect_bind(1);
+	struct fake_session *first = find_session(fake.last_bind_session);
+	assert_non_null(first);
+
+	emit_shortcut(fake.last_bind_session, "OBS_KEY_F13", true);
+	assert_true(wait_until(log_pressed, &talk));
+
+	obs_hotkey_enable_background_press(false);
+	if (!wait_until(session_is_closed, first)) {
+		fprintf(stderr, "session still open while background presses are disabled\n");
+		fail();
+	}
+	if (!wait_until(log_released, &talk)) {
+		fprintf(stderr, "push-to-talk still held after background presses were disabled\n");
+		fail();
+	}
+
+	/* A change while disabled is not bound yet, so no desktop prompt. */
+	register_bound("record", &record, ctrl_shift_a);
+	expect_no_bind_after(1, 1000, "background presses disabled");
+
+	obs_hotkey_enable_background_press(true);
+	expect_bind(2);
+	assert_string_not_equal(first->path, fake.last_bind_session);
+	assert_int_equal(g_variant_n_children(fake.last_shortcuts), 2);
+	assert_true(bound_has("OBS_KEY_F13"));
+	assert_true(bound_has("ctrl+shift+OBS_KEY_A"));
+
+	emit_shortcut(fake.last_bind_session, "OBS_KEY_F13", true);
+	assert_true(wait_until(log_pressed, &talk));
+	emit_shortcut(fake.last_bind_session, "OBS_KEY_F13", false);
+	assert_true(wait_until(log_released, &talk));
+
+	/* Enabling what is already enabled changes nothing. */
+	obs_hotkey_enable_background_press(true);
+	expect_no_bind_after(2, 300, "already enabled");
+
+	obs_nix_portal_shortcuts_stop(portal);
+	fake_portal_stop();
+}
+
+/* OBS started unfocused with the setting on: presses are disabled before
+ * the client starts, so nothing is bound until they are enabled. */
+static void disabled_at_start_binds_once_enabled(void **state)
+{
+	UNUSED_PARAMETER(state);
+	REQUIRE_DBUS_DAEMON();
+	fake_portal_start(true);
+
+	struct hotkey_log talk = {0};
+	register_bound("push-to-talk", &talk, f13);
+	obs_hotkey_enable_background_press(false);
+
+	struct obs_nix_portal_shortcuts *portal = obs_nix_portal_shortcuts_start(&key_state, test_key_name);
+	expect_no_bind_after(0, 1000, "disabled before start");
+	assert_int_equal(fake.num_sessions, 0);
+
+	obs_hotkey_enable_background_press(true);
+	expect_bind(1);
+	assert_true(bound_has("OBS_KEY_F13"));
+
+	emit_shortcut(fake.last_bind_session, "OBS_KEY_F13", true);
+	assert_true(wait_until(log_pressed, &talk));
+	emit_shortcut(fake.last_bind_session, "OBS_KEY_F13", false);
+	assert_true(wait_until(log_released, &talk));
+
+	obs_nix_portal_shortcuts_stop(portal);
+	fake_portal_stop();
+}
+
+/* A set the user declined in the desktop's dialog is not asked for again
+ * because presses were disabled and enabled (every focus change, with the
+ * setting on); a new combination still binds. */
+static void declined_set_stays_declined_across_disable(void **state)
+{
+	UNUSED_PARAMETER(state);
+	REQUIRE_DBUS_DAEMON();
+	fake_portal_start(true);
+	fake.bind_response = 1;
+
+	struct hotkey_log talk = {0}, record = {0};
+	register_bound("push-to-talk", &talk, f13);
+
+	struct obs_nix_portal_shortcuts *portal = obs_nix_portal_shortcuts_start(&key_state, test_key_name);
+	expect_bind(1);
+	serve_for(300);
+
+	obs_hotkey_enable_background_press(false);
+	serve_for(300);
+	obs_hotkey_enable_background_press(true);
+	expect_no_bind_after(1, 1000, "declined set after a focus change");
+
+	fake.bind_response = 0;
+	register_bound("record", &record, ctrl_shift_a);
+	expect_bind(2);
+	assert_true(bound_has("OBS_KEY_F13"));
+	assert_true(bound_has("ctrl+shift+OBS_KEY_A"));
+
+	obs_nix_portal_shortcuts_stop(portal);
+	fake_portal_stop();
+}
+
 int main(void)
 {
 	const struct CMUnitTest tests[] = {
@@ -912,6 +1035,9 @@ int main(void)
 		cmocka_unit_test_setup_teardown(closed_session_is_not_rebound, setup, teardown),
 		cmocka_unit_test_setup_teardown(rebinds_after_portal_restart, setup, teardown),
 		cmocka_unit_test_setup_teardown(no_portal_falls_back, setup, teardown),
+		cmocka_unit_test_setup_teardown(disabled_background_press_closes_session, setup, teardown),
+		cmocka_unit_test_setup_teardown(disabled_at_start_binds_once_enabled, setup, teardown),
+		cmocka_unit_test_setup_teardown(declined_set_stays_declined_across_disable, setup, teardown),
 	};
 	return cmocka_run_group_tests(tests, NULL, NULL);
 }
