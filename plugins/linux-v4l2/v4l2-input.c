@@ -36,6 +36,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <obs-module.h>
 
 #include "v4l2-controls.h"
+#include "v4l2-framerate.h"
 #include "v4l2-helpers.h"
 #include "v4l2-decoder.h"
 
@@ -586,10 +587,8 @@ static void v4l2_framerate_list(int dev, uint_fast32_t pixelformat, uint_fast32_
 	switch (frmival.type) {
 	case V4L2_FRMIVAL_TYPE_DISCRETE:
 		while (v4l2_ioctl(dev, VIDIOC_ENUM_FRAMEINTERVALS, &frmival) == 0) {
-			float fps = (float)frmival.discrete.denominator / frmival.discrete.numerator;
-			int pack = v4l2_pack_tuple(frmival.discrete.numerator, frmival.discrete.denominator);
-			dstr_printf(&buffer, "%.2f", fps);
-			obs_property_list_add_int(prop, buffer.array, pack);
+			v4l2_framerate_list_add_discrete(prop, &buffer, frmival.discrete.numerator,
+							 frmival.discrete.denominator);
 			frmival.index++;
 		}
 		break;
@@ -1008,16 +1007,8 @@ static bool v4l2_settings_changed(struct v4l2_data *data, obs_data_t *settings)
 			       (obs_data_get_int(settings, "resolution") != -1);
 		}
 
-		if (obs_data_get_int(settings, "framerate") == -1 && !data->framerate_unchanged) {
-			data->framerate_unchanged = true;
-			res |= true;
-		} else if (obs_data_get_int(settings, "framerate") == -1 && data->framerate_unchanged) {
-			res |= false;
-		} else {
-			data->framerate_unchanged = false;
-			res |= (data->framerate != obs_data_get_int(settings, "framerate")) &&
-			       (obs_data_get_int(settings, "framerate") != -1);
-		}
+		res |= v4l2_framerate_changed(data->framerate, obs_data_get_int(settings, "framerate"),
+					      &data->framerate_unchanged);
 
 		res |= data->color_range != obs_data_get_int(settings, "color_range");
 	} else {
