@@ -50,6 +50,8 @@
 !lint
 !local-gate.toml
 !unittest
+__pycache__/
+*.py[cod]
 
 # Exclude lock files
 *.lock.json

@@ -38,6 +38,10 @@ fi
 git config --global --add safe.directory /src
 mkdir -p /src
 rsync -a --delete --exclude /target /ro/ /src/
+# shellcheck source=stale-build.sh
+source /src/rust/tools/linux-validate/stale-build.sh
+# rustc as rust-toolchain.toml selects it, which is what Corrosion configures.
+rustc_version=$(cd /src && rustc -V)
 cd /src
 for sub in plugins/obs-browser plugins/obs-websocket; do
   if [ -z "$(ls -A "$sub" 2>/dev/null)" ]; then
@@ -70,6 +74,7 @@ echo "== ported objects checked with ENABLE_RUST_LIBOBS=ON: $(wc -w <<<"$ported_
 
 for mode in OFF ON; do
   build="/build/rust-$mode"
+  reset_stale_build "$build" "$rustc_version"
   echo "== [$mode] configure + build"
   cmake -S /src -B "$build" -G Ninja \
     -DCMAKE_BUILD_TYPE=RelWithDebInfo \
@@ -122,6 +127,7 @@ done
 # Configure-only check: inspect which archive the Debug link line uses.
 echo "== [ON/Debug] Rust staticlib profile"
 dbg=/build/rust-ON-debug
+reset_stale_build "$dbg" "$rustc_version"
 cmake -S /src -B "$dbg" -G Ninja -DCMAKE_BUILD_TYPE=Debug \
   -DENABLE_UNIT_TESTS=OFF -DENABLE_RUST_LIBOBS=ON \
   -DENABLE_FRONTEND=OFF -DENABLE_SCRIPTING=OFF -DENABLE_BROWSER=OFF \
