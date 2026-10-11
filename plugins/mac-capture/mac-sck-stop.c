@@ -13,19 +13,27 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <errno.h>
+
 #include "mac-sck-stop.h"
 
-/* RED stub: the destroy paths do not wait for the stop completion yet and
- * always free the stop event. */
 enum sck_stop_wait_result sck_wait_for_stop(os_event_t *stop_completed, unsigned int timeout_ms)
 {
-	(void)stop_completed;
-	(void)timeout_ms;
-	return SCK_STOP_WAIT_COMPLETED;
+	if (!stop_completed)
+		return SCK_STOP_WAIT_ERROR;
+
+	int ret = os_event_timedwait(stop_completed, timeout_ms);
+	if (ret == 0)
+		return SCK_STOP_WAIT_COMPLETED;
+	if (ret == ETIMEDOUT)
+		return SCK_STOP_WAIT_TIMEOUT;
+	return SCK_STOP_WAIT_ERROR;
 }
 
 bool sck_stop_may_destroy_event(enum sck_stop_wait_result result)
 {
-	(void)result;
-	return true;
+	/* On timeout the completion block can still fire and touch the
+	 * event, so the event must be leaked rather than destroyed. The
+	 * rest of the teardown proceeds either way. */
+	return result != SCK_STOP_WAIT_TIMEOUT;
 }
