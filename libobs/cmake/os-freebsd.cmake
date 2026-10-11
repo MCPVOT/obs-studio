@@ -61,6 +61,8 @@ if(ENABLE_PULSEAUDIO)
       audio-monitoring/pulse/pulseaudio-enum-devices.c
       audio-monitoring/pulse/pulseaudio-monitoring-available.c
       audio-monitoring/pulse/pulseaudio-output.c
+      audio-monitoring/pulse/pulseaudio-stream-flags.c
+      audio-monitoring/pulse/pulseaudio-stream-flags.h
       audio-monitoring/pulse/pulseaudio-wrapper.c
       audio-monitoring/pulse/pulseaudio-wrapper.h
   )
