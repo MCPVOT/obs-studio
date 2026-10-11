@@ -23,8 +23,7 @@ static void decode_int16_bytes(void **state)
 		for (size_t position = 0; position < 2; position++) {
 			char data[2] = {0};
 			data[position] = (char)byte_values[byte];
-			assert_int_equal(AMF_DecodeInt16(data),
-					 (uint16_t)byte_values[byte] << ((1 - position) * 8));
+			assert_int_equal(AMF_DecodeInt16(data), (uint16_t)byte_values[byte] << ((1 - position) * 8));
 		}
 	}
 }
@@ -44,8 +43,7 @@ static void decode_int24_bytes(void **state)
 		for (size_t position = 0; position < 3; position++) {
 			char data[3] = {0};
 			data[position] = (char)byte_values[byte];
-			assert_int_equal(AMF_DecodeInt24(data),
-					 (uint32_t)byte_values[byte] << ((2 - position) * 8));
+			assert_int_equal(AMF_DecodeInt24(data), (uint32_t)byte_values[byte] << ((2 - position) * 8));
 		}
 	}
 }
@@ -72,8 +70,7 @@ static void decode_int32_bytes(void **state)
 		for (size_t position = 0; position < 4; position++) {
 			char data[4] = {0};
 			data[position] = (char)byte_values[byte];
-			assert_int_equal(AMF_DecodeInt32(data),
-					 (uint32_t)byte_values[byte] << ((3 - position) * 8));
+			assert_int_equal(AMF_DecodeInt32(data), (uint32_t)byte_values[byte] << ((3 - position) * 8));
 		}
 	}
 }
@@ -84,8 +81,7 @@ static void assert_decode_int32le(const char data[4], uint32_t expected)
 	assert_non_null(rtmp);
 	RTMP_Init(rtmp);
 
-	char header[] = {0x03, 0x00, 0x00, 0x00, 0x00, 0x00,
-			 0x00, 0x14, data[0], data[1], data[2], data[3]};
+	char header[] = {0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x14, data[0], data[1], data[2], data[3]};
 	memcpy(rtmp->m_sb.sb_buf, header, sizeof(header));
 	rtmp->m_sb.sb_start = rtmp->m_sb.sb_buf;
 	rtmp->m_sb.sb_size = sizeof(header);
