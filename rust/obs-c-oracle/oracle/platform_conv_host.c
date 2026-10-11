@@ -31,12 +31,19 @@ size_t os_mbs_to_wcs(const char *str, size_t len, wchar_t *dst, size_t dst_size)
 
 	out_len = dst ? (dst_size - 1) : mbstowcs(NULL, str, 0);
 
+	/* (size_t)-1: text the current locale cannot convert */
+	if (out_len == (size_t)-1 && !dst)
+		return 0;
+
 	if (dst) {
 		if (!dst_size)
 			return 0;
 
+		/* at most dst_size - 1, so the NUL below stays in the buffer */
 		if (out_len)
-			out_len = mbstowcs(dst, str, out_len + 1);
+			out_len = mbstowcs(dst, str, out_len);
+		if (out_len == (size_t)-1)
+			out_len = 0;
 
 		dst[out_len] = 0;
 	}
