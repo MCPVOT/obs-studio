@@ -72,9 +72,10 @@ AMF_DecodeInt24(const char *data)
 unsigned int
 AMF_DecodeInt32(const char *data)
 {
-    unsigned char *c = (unsigned char *)data;
+    const unsigned char *c = (const unsigned char *)data;
     unsigned int val;
-    val = (c[0] << 24) | (c[1] << 16) | (c[2] << 8) | c[3];
+    val = ((unsigned int)c[0] << 24) | ((unsigned int)c[1] << 16) |
+          ((unsigned int)c[2] << 8) | (unsigned int)c[3];
     return val;
 }
 
