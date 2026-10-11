@@ -104,6 +104,19 @@ obs-stream-rust toggle
 obs-stream-rust version
 ```
 
+For scripts and agents, add `--json` before or after the command:
+
+```sh
+obs-stream-rust --json status
+obs-stream-rust version --json
+```
+
+This prints one compact JSON value containing the server's full `responseData`,
+including fields omitted from the default text output. A response without data
+prints `null`; an empty object remains `{}`. Errors still go to stderr with a
+nonzero exit status, so scripts should check the exit status as well as parse
+stdout. Local `--help` and `--version` keep their text output.
+
 Release binaries are cross-compiled from Linux with
 [cargo-zigbuild](https://github.com/rust-cross/cargo-zigbuild):
 
