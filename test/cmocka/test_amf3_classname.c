@@ -47,10 +47,35 @@ static void membername_at_buffer_end(void **state)
 	free(buf);
 }
 
+/* An externalizable class with one member: `AMF3CD_AddProp` allocates the
+ * member-name array, and the externalizable branch's decode-failure path
+ * used to return without freeing it. */
+static void externalizable_class_member_error(void **state)
+{
+	(void)state;
+	/* AMF_AVMPLUS, AMF3_OBJECT, object instance carrying a new class
+	 * definition that is externalizable with one member (U29 0x17), an
+	 * empty inline class-name string (0x01), then the member name
+	 * "m" (0x03 'm'). The externalizable payload that follows is
+	 * truncated, so the decode fails and takes the error path. */
+	const char tmpl[] = {AMF_AVMPLUS, AMF3_OBJECT, 0x17, 0x01, 0x03, 'm'};
+	size_t n = sizeof(tmpl);
+	char *buf = malloc(n);
+	assert_non_null(buf);
+	memcpy(buf, tmpl, n);
+
+	AMFObject obj;
+	int res = AMF_Decode(&obj, buf, (int)n, FALSE);
+	(void)res;
+	AMF_Reset(&obj);
+	free(buf);
+}
+
 int main(void)
 {
 	RTMP_LogSetLevel(RTMP_LOGDEBUG);
 	const struct CMUnitTest tests[] = {cmocka_unit_test(classname_at_buffer_end),
-					   cmocka_unit_test(membername_at_buffer_end)};
+					   cmocka_unit_test(membername_at_buffer_end),
+					   cmocka_unit_test(externalizable_class_member_error)};
 	return cmocka_run_group_tests(tests, NULL, NULL);
 }
