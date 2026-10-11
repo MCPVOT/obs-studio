@@ -911,6 +911,9 @@ struct obs_source {
 	bool async_flip;
 	bool async_linear_alpha;
 	bool async_active;
+	/* async_textures still hold a frame from before the last
+	 * obs_source_output_video(source, NULL) */
+	bool async_textures_stale;
 	bool async_update_texture;
 	bool async_unbuffered;
 	bool async_decoupled;

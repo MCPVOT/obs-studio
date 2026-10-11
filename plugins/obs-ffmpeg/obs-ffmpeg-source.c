@@ -655,8 +655,13 @@ static void ffmpeg_source_activate(void *data)
 {
 	struct ffmpeg_source *s = data;
 
-	if (s->restart_on_activate)
+	if (s->restart_on_activate) {
+		/* The restart is queued and only runs on the next video tick,
+		 * after this one has been drawn. Drop the previous playback's
+		 * frame now so it does not flash before playback starts over. */
+		obs_source_output_video(s->source, NULL);
 		obs_source_media_restart(s->source);
+	}
 }
 
 static void ffmpeg_source_deactivate(void *data)
