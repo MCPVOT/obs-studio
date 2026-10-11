@@ -13,34 +13,138 @@
 //! the second `CreatePipe` fails); this closes them. Only the process's
 //! handle count can tell.
 
-use core::ffi::c_int;
+use core::ffi::{c_int, c_void};
 use core::ptr;
 
-use windows_sys::Win32::Foundation::{
-    CloseHandle, GetLastError, HANDLE, HANDLE_FLAG_INHERIT, SetHandleInformation,
-};
-use windows_sys::Win32::Globalization::{CP_UTF8, MultiByteToWideChar};
-use windows_sys::Win32::Security::SECURITY_ATTRIBUTES;
-use windows_sys::Win32::Storage::FileSystem::{ReadFile, WriteFile};
-use windows_sys::Win32::System::Pipes::CreatePipe;
-use windows_sys::Win32::System::Threading::{
-    CREATE_NO_WINDOW, CreateProcessW, GetExitCodeProcess, INFINITE, PROCESS_INFORMATION,
-    STARTF_FORCEOFFFEEDBACK, STARTF_USESTDHANDLES, STARTUPINFOW, WaitForSingleObject,
-};
-
 use super::{Args, windows_command_line};
+
+// The Win32 calls, declared here against kernel32.lib like `ffi::bmem`
+// declares `malloc`. windows-sys would bring its own import records for
+// DLLs std also imports, and linking all of libobs_rust.lib into obs.dll
+// then fails with duplicate `__IMPORT_DESCRIPTOR`s (LNK2005).
+
+type Handle = *mut c_void;
+type Bool = i32;
+
+const HANDLE_FLAG_INHERIT: u32 = 0x0000_0001;
+const STARTF_FORCEOFFFEEDBACK: u32 = 0x0000_0080;
+const STARTF_USESTDHANDLES: u32 = 0x0000_0100;
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+const INFINITE: u32 = 0xffff_ffff;
+const CP_UTF8: u32 = 65001;
+
+#[repr(C)]
+struct SecurityAttributes {
+    length: u32,
+    security_descriptor: *mut c_void,
+    inherit_handle: Bool,
+}
+
+#[repr(C)]
+struct StartupInfoW {
+    cb: u32,
+    reserved: *mut u16,
+    desktop: *mut u16,
+    title: *mut u16,
+    x: u32,
+    y: u32,
+    x_size: u32,
+    y_size: u32,
+    x_count_chars: u32,
+    y_count_chars: u32,
+    fill_attribute: u32,
+    flags: u32,
+    show_window: u16,
+    reserved2_size: u16,
+    reserved2: *mut u8,
+    std_input: Handle,
+    std_output: Handle,
+    std_error: Handle,
+}
+
+#[repr(C)]
+struct ProcessInformation {
+    process: Handle,
+    thread: Handle,
+    process_id: u32,
+    thread_id: u32,
+}
+
+// The sizes the Windows SDK gives these structs.
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(
+    size_of::<SecurityAttributes>() == 24
+        && size_of::<StartupInfoW>() == 104
+        && size_of::<ProcessInformation>() == 24
+);
+#[cfg(target_pointer_width = "32")]
+const _: () = assert!(
+    size_of::<SecurityAttributes>() == 12
+        && size_of::<StartupInfoW>() == 68
+        && size_of::<ProcessInformation>() == 16
+);
+
+#[link(name = "kernel32")]
+#[allow(non_snake_case)]
+unsafe extern "system" {
+    fn CloseHandle(object: Handle) -> Bool;
+    fn GetLastError() -> u32;
+    fn SetHandleInformation(object: Handle, mask: u32, flags: u32) -> Bool;
+    fn MultiByteToWideChar(
+        code_page: u32,
+        flags: u32,
+        multi_byte: *const u8,
+        multi_byte_len: i32,
+        wide: *mut u16,
+        wide_len: i32,
+    ) -> i32;
+    fn CreatePipe(
+        read: *mut Handle,
+        write: *mut Handle,
+        attributes: *const SecurityAttributes,
+        size: u32,
+    ) -> Bool;
+    fn CreateProcessW(
+        application_name: *const u16,
+        command_line: *mut u16,
+        process_attributes: *const SecurityAttributes,
+        thread_attributes: *const SecurityAttributes,
+        inherit_handles: Bool,
+        creation_flags: u32,
+        environment: *const c_void,
+        current_directory: *const u16,
+        startup_info: *const StartupInfoW,
+        process_information: *mut ProcessInformation,
+    ) -> Bool;
+    fn WaitForSingleObject(object: Handle, milliseconds: u32) -> u32;
+    fn GetExitCodeProcess(process: Handle, exit_code: *mut u32) -> Bool;
+    fn ReadFile(
+        file: Handle,
+        buffer: *mut u8,
+        to_read: u32,
+        read: *mut u32,
+        overlapped: *mut c_void,
+    ) -> Bool;
+    fn WriteFile(
+        file: Handle,
+        buffer: *const u8,
+        to_write: u32,
+        written: *mut u32,
+        overlapped: *mut c_void,
+    ) -> Bool;
+}
 
 /// A spawned child with its stdio pipes. Mirrors `struct os_process_pipe` in
 /// `pipe-windows.c`: `handle` is the child's stdout in read mode and its
 /// stdin in write mode, and stderr is always captured.
 pub struct Pipe {
     read_pipe: bool,
-    handle: HANDLE,
-    handle_err: HANDLE,
-    process: HANDLE,
+    handle: Handle,
+    handle_err: Handle,
+    process: Handle,
 }
 
-fn close(handle: HANDLE) {
+fn close(handle: Handle) {
     // SAFETY: every handle passed here was returned by CreatePipe or
     // CreateProcessW and is closed once.
     unsafe {
@@ -49,11 +153,11 @@ fn close(handle: HANDLE) {
 }
 
 /// `create_pipe`: an anonymous pipe whose ends are inheritable.
-fn create_pipe() -> Option<(HANDLE, HANDLE)> {
-    let sa = SECURITY_ATTRIBUTES {
-        nLength: size_of::<SECURITY_ATTRIBUTES>() as u32,
-        lpSecurityDescriptor: ptr::null_mut(),
-        bInheritHandle: 1,
+fn create_pipe() -> Option<(Handle, Handle)> {
+    let sa = SecurityAttributes {
+        length: size_of::<SecurityAttributes>() as u32,
+        security_descriptor: ptr::null_mut(),
+        inherit_handle: 1,
     };
     let (mut input, mut output) = (ptr::null_mut(), ptr::null_mut());
     // SAFETY: both out pointers are valid locals and `sa` outlives the call.
@@ -64,7 +168,7 @@ fn create_pipe() -> Option<(HANDLE, HANDLE)> {
 }
 
 /// Clears `HANDLE_FLAG_INHERIT`, so the child does not get our end.
-fn keep_private(handle: HANDLE) -> bool {
+fn keep_private(handle: Handle) -> bool {
     // SAFETY: `handle` is an open pipe end.
     unsafe { SetHandleInformation(handle, HANDLE_FLAG_INHERIT, 0) != 0 }
 }
@@ -99,21 +203,21 @@ fn utf8_to_wide(text: &[u8]) -> Vec<u16> {
 /// `GetLastError()`.
 fn create_process(
     cmd_line: &[u8],
-    stdin: HANDLE,
-    stdout: HANDLE,
-    stderr: HANDLE,
+    stdin: Handle,
+    stdout: Handle,
+    stderr: Handle,
     log: impl FnOnce(u32),
-) -> Option<HANDLE> {
+) -> Option<Handle> {
     let mut cmd_line = utf8_to_wide(cmd_line);
-    // SAFETY: STARTUPINFOW and PROCESS_INFORMATION are plain C structs for
+    // SAFETY: StartupInfoW and ProcessInformation are plain C structs for
     // which all-zero is the documented initial state.
-    let mut si: STARTUPINFOW = unsafe { core::mem::zeroed() };
-    let mut pi: PROCESS_INFORMATION = unsafe { core::mem::zeroed() };
-    si.cb = size_of::<STARTUPINFOW>() as u32;
-    si.dwFlags = STARTF_USESTDHANDLES | STARTF_FORCEOFFFEEDBACK;
-    si.hStdInput = stdin;
-    si.hStdOutput = stdout;
-    si.hStdError = stderr;
+    let mut si: StartupInfoW = unsafe { core::mem::zeroed() };
+    let mut pi: ProcessInformation = unsafe { core::mem::zeroed() };
+    si.cb = size_of::<StartupInfoW>() as u32;
+    si.flags = STARTF_USESTDHANDLES | STARTF_FORCEOFFFEEDBACK;
+    si.std_input = stdin;
+    si.std_output = stdout;
+    si.std_error = stderr;
 
     // SAFETY: `cmd_line` is a writable NUL-terminated buffer, as
     // CreateProcessW requires, and `si`/`pi` are valid for the call.
@@ -138,8 +242,8 @@ fn create_process(
         log(unsafe { GetLastError() });
         return None;
     }
-    close(pi.hThread);
-    Some(pi.hProcess)
+    close(pi.thread);
+    Some(pi.process)
 }
 
 impl Pipe {
@@ -248,7 +352,7 @@ impl Pipe {
 
     /// One `ReadFile` on `handle`; 0 on error or end of file. The length is
     /// cast to `DWORD` as in C.
-    fn read_from(handle: HANDLE, buf: &mut [u8]) -> usize {
+    fn read_from(handle: Handle, buf: &mut [u8]) -> usize {
         let mut read = 0u32;
         // SAFETY: `buf` covers the length passed (truncated like C's cast)
         // and `read` is a valid local.
