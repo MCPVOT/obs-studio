@@ -108,8 +108,43 @@ impl Args {
 /// a backslash and the backslashes before it are doubled, as are the
 /// backslashes before a closing quote; other backslashes are kept.
 pub fn windows_command_line(args: &Args) -> Vec<u8> {
-    let _ = args;
-    todo!("port the create2 quoting of pipe-windows.c")
+    let mut out = Vec::new();
+    for arg in &args.args {
+        let arg = arg.as_bytes();
+        let needs_quotes = arg.is_empty() || arg.contains(&b' ') || arg.contains(&b'\t');
+        let backslashes = |out: &mut Vec<u8>, count: usize| {
+            out.extend(core::iter::repeat_n(b'\\', count));
+        };
+
+        if !out.is_empty() {
+            out.push(b' ');
+        }
+        if needs_quotes {
+            out.push(b'"');
+        }
+        let mut pending = 0;
+        for &c in arg {
+            match c {
+                b'\\' => pending += 1,
+                b'"' => {
+                    backslashes(&mut out, pending * 2);
+                    out.extend_from_slice(b"\\\"");
+                    pending = 0;
+                }
+                _ => {
+                    backslashes(&mut out, pending);
+                    pending = 0;
+                    out.push(c);
+                }
+            }
+        }
+        backslashes(&mut out, pending);
+        if needs_quotes {
+            backslashes(&mut out, pending);
+            out.push(b'"');
+        }
+    }
+    out
 }
 
 #[cfg(windows)]
