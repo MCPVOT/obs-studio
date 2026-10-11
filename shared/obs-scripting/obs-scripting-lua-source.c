@@ -19,6 +19,7 @@
 #include "cstrcache.h"
 
 #include <obs-module.h>
+#include <util/platform.h>
 
 /* ========================================================================= */
 
@@ -153,6 +154,10 @@ struct obs_lua_data {
 	struct obs_lua_source *ls;
 	int lua_data_ref;
 
+	/* last size the script returned, see lock_in_graphics() */
+	uint32_t width;
+	uint32_t height;
+
 	struct obs_lua_data *next;
 	struct obs_lua_data **p_prev_next;
 };
@@ -169,6 +174,54 @@ struct obs_lua_data {
 #define unlock_script()                       \
 	pthread_mutex_unlock(&__data->mutex); \
 	current_lua_script = __prev_script;
+
+/* Number of threads in obs_enter_graphics() called from Lua, waiting for the
+ * graphics context. */
+static volatile long lua_graphics_waiters = 0;
+
+/* The graphics thread calls get_width, get_height and video_render with the
+ * graphics context held, and then needs the definition and script locks.
+ * Lua code running on another thread holds those locks, so if it calls
+ * obs_enter_graphics() at the same time, both threads wait for each other
+ * forever (obsproject/obs-studio#6674). With the graphics context held, wait
+ * for a busy lock only while no Lua code waits for graphics; otherwise give
+ * up, so that the caller skips the script for this call and the graphics
+ * thread can finish the frame and release the context. */
+static bool lock_in_graphics(pthread_mutex_t *mutex)
+{
+	if (!gs_get_context()) {
+		pthread_mutex_lock(mutex);
+		return true;
+	}
+
+	while (pthread_mutex_trylock(mutex) != 0) {
+		if (os_atomic_load_long(&lua_graphics_waiters) > 0)
+			return false;
+		os_sleep_ms(1);
+	}
+	return true;
+}
+
+#define lock_script_in_graphics(skip)                              \
+	struct obs_lua_script *__data = ls->data;                  \
+	if (!lock_in_graphics(&__data->mutex))                     \
+		goto skip;                                         \
+	struct obs_lua_script *__prev_script = current_lua_script; \
+	current_lua_script = __data;
+
+static int obs_lua_enter_graphics(lua_State *script)
+{
+	bool waits = !gs_get_context();
+
+	if (waits)
+		os_atomic_inc_long(&lua_graphics_waiters);
+	obs_enter_graphics();
+	if (waits)
+		os_atomic_dec_long(&lua_graphics_waiters);
+
+	UNUSED_PARAMETER(script);
+	return 0;
+}
 
 static const char *obs_lua_source_get_name(void *type_data)
 {
@@ -199,6 +252,8 @@ static void *obs_lua_source_create(obs_data_t *settings, obs_source_t *source)
 		data->source = source;
 		data->ls = ls;
 		data->lua_data_ref = lua_data_ref;
+		data->width = 0;
+		data->height = 0;
 	}
 
 	unlock_script();
@@ -259,25 +314,31 @@ static uint32_t obs_lua_source_get_width(void *data)
 	struct obs_lua_source *ls = ld->ls;
 	uint32_t width = 0;
 
-	pthread_mutex_lock(&ls->definition_mutex);
+	if (!lock_in_graphics(&ls->definition_mutex))
+		return ld->width;
 	if (!ls->script)
 		goto fail;
 	if (!have_func(get_width))
 		goto fail;
 
-	lock_script();
+	lock_script_in_graphics(skip);
 
 	ls_push_data();
 	if (call_func(get_width, 1, 1)) {
 		width = (uint32_t)lua_tointeger(ls->script, -1);
 		ls_pop(1);
 	}
+	ld->width = width;
 
 	unlock_script();
 
 fail:
 	pthread_mutex_unlock(&ls->definition_mutex);
 	return width;
+
+skip:
+	pthread_mutex_unlock(&ls->definition_mutex);
+	return ld->width;
 }
 
 static uint32_t obs_lua_source_get_height(void *data)
@@ -286,25 +347,31 @@ static uint32_t obs_lua_source_get_height(void *data)
 	struct obs_lua_source *ls = ld->ls;
 	uint32_t height = 0;
 
-	pthread_mutex_lock(&ls->definition_mutex);
+	if (!lock_in_graphics(&ls->definition_mutex))
+		return ld->height;
 	if (!ls->script)
 		goto fail;
 	if (!have_func(get_height))
 		goto fail;
 
-	lock_script();
+	lock_script_in_graphics(skip);
 
 	ls_push_data();
 	if (call_func(get_height, 1, 1)) {
 		height = (uint32_t)lua_tointeger(ls->script, -1);
 		ls_pop(1);
 	}
+	ld->height = height;
 
 	unlock_script();
 
 fail:
 	pthread_mutex_unlock(&ls->definition_mutex);
 	return height;
+
+skip:
+	pthread_mutex_unlock(&ls->definition_mutex);
+	return ld->height;
 }
 
 static void obs_lua_source_get_defaults(void *type_data, obs_data_t *settings)
@@ -424,13 +491,14 @@ static void obs_lua_source_video_render(void *data, gs_effect_t *effect)
 	struct obs_lua_data *ld = data;
 	struct obs_lua_source *ls = ld->ls;
 
-	pthread_mutex_lock(&ls->definition_mutex);
+	if (!lock_in_graphics(&ls->definition_mutex))
+		return;
 	if (!ls->script)
 		goto fail;
 	if (!have_func(video_render))
 		goto fail;
 
-	lock_script();
+	lock_script_in_graphics(fail);
 
 	ls_push_data();
 	ls_push_libobs_obj(gs_effect_t, effect, false);
@@ -685,6 +753,10 @@ void add_lua_source_functions(lua_State *script)
 
 	lua_pushstring(script, "obs_register_source");
 	lua_pushcfunction(script, obs_lua_register_source);
+	lua_rawset(script, -3);
+
+	lua_pushstring(script, "obs_enter_graphics");
+	lua_pushcfunction(script, obs_lua_enter_graphics);
 	lua_rawset(script, -3);
 
 	lua_pop(script, 1);
