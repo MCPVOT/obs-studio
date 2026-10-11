@@ -1578,6 +1578,13 @@ EXPORT void obs_source_get_audio_mix(const obs_source_t *source, struct obs_sour
 EXPORT void obs_source_set_async_unbuffered(obs_source_t *source, bool unbuffered);
 EXPORT bool obs_source_async_unbuffered(const obs_source_t *source);
 
+/** Asks libobs to resample the source's audio slightly so that it keeps pace
+ * with the system clock, for audio devices running on their own clock.
+ * Without it, a device clock a little off its nominal rate drifts against
+ * the timestamps until libobs resyncs with an audible dropout. */
+EXPORT void obs_source_set_async_compensation(obs_source_t *source, bool compensate);
+EXPORT bool obs_source_async_compensation(const obs_source_t *source);
+
 /** Used to decouple audio from video so that audio doesn't attempt to sync up
  * with video.  I.E. Audio acts independently.  Only works when in unbuffered
  * mode. */
