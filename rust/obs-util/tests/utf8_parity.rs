@@ -4,8 +4,8 @@
 //! the whole output buffer (including partial output left behind by failed
 //! conversions) are compared.
 //!
-//! Skipped on Windows because there the oracle compiles the
-//! `MultiByteToWideChar` branch, which is not ported.
+//! Skipped on Windows, where the oracle compiles the `MultiByteToWideChar`
+//! branch: that one is compared in `utf8_windows_parity.rs`.
 //!
 //! No intentional differences from C.
 //!
