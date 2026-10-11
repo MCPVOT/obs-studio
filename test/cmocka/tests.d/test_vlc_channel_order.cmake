@@ -2,7 +2,12 @@
 # The end-to-end cases load the built vlc-video module, need core video (run
 # under xvfb-run) and skip without a display or when libVLC is not installed;
 # the test then exits with 77 and ctest reports it as skipped.
-if(OS_LINUX AND TARGET vlc-video AND TARGET OBS::libobs-opengl)
+# A disabled module (ENABLE_VLC=OFF) still leaves a dummy custom target named
+# vlc-video behind, which has no file, so check the target type too.
+if(TARGET vlc-video)
+  get_target_property(_vlc_video_type vlc-video TYPE)
+endif()
+if(OS_LINUX AND _vlc_video_type STREQUAL "MODULE_LIBRARY" AND TARGET OBS::libobs-opengl)
   add_executable(test_vlc_channel_order test_vlc_channel_order.c)
   target_compile_definitions(
     test_vlc_channel_order
