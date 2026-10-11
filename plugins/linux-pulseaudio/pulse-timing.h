@@ -32,6 +32,10 @@ struct pulse_timing {
 	/* Where the next packet starts if the stream stays contiguous; 0 until
 	 * the first packet. */
 	uint64_t next_ts;
+	/* Least time any packet of the current window waited after its end
+	 * on the timeline, and when the window began. */
+	uint64_t min_wait_ns;
+	uint64_t window_start_ns;
 };
 
 /**
