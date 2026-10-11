@@ -199,6 +199,10 @@ static bool try_connect(void *data, const char *device)
 		goto fail_close_device;
 	vcam->frame_size = vf.frame_size;
 
+	if (vf.width != width || vf.height != height)
+		blog(LOG_INFO, "Virtual camera device %s has a fixed size of %ux%u, scaling the %ux%u output to it",
+		     device, vf.width, vf.height, width, height);
+
 	if (!use_caps_workaround && ioctl(vcam->device, VIDIOC_STREAMON, &format.type) == 0) {
 		/* STREAMON should error on all devices except v4l2loopback 0.12.x-0.13.x */
 		use_caps_workaround = true;

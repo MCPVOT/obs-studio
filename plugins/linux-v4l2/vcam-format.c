@@ -18,10 +18,16 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 bool vcam_format_negotiate(uint32_t requested_width, uint32_t requested_height,
 			   const struct v4l2_pix_format *negotiated, struct vcam_format *out)
 {
-	(void)negotiated;
+	(void)requested_width;
+	(void)requested_height;
 
-	out->width = requested_width;
-	out->height = requested_height;
-	out->frame_size = requested_width * requested_height * 2;
+	if (negotiated->pixelformat != V4L2_PIX_FMT_YUYV)
+		return false;
+
+	/* OBS scales its output to the size the device kept and writes packed
+	 * YUY2 frames of that size. */
+	out->width = negotiated->width;
+	out->height = negotiated->height;
+	out->frame_size = negotiated->width * negotiated->height * 2;
 	return true;
 }
