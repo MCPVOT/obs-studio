@@ -20,8 +20,12 @@
 #include <stdbool.h>
 #include <xcb/xcb.h>
 
-/* Whether keycode `code` is down in a QueryKeymap reply. */
+/* Whether keycode `code` is down in a QueryKeymap reply. xcb returns a NULL
+ * reply without an error when the connection is closing or broken: nothing
+ * is pressed then. */
 static inline bool obs_nix_x11_keycode_pressed(const xcb_query_keymap_reply_t *reply, xcb_keycode_t code)
 {
+	if (!reply)
+		return false;
 	return (reply->keys[code / 8] & (1 << (code % 8))) != 0;
 }
