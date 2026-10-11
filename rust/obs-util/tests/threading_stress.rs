@@ -54,11 +54,15 @@ fn stress_event_ping_pong_pairs() {
 /// under real concurrency it cannot be, since a manual event's flag
 /// stays set and a POSIX-legal spurious wakeup also releases a waiter.
 ///
+/// Debug-builds only: `Event::waiting_count` is `#[cfg(debug_assertions)]`
+/// in the library, so this test cannot link against a release build.
+///
 /// Determinism: each signal is gated on `Event::waiting_count` (a
 /// debug-build counter incremented once a thread is inside the condvar
 /// wait) reaching the not-yet-released count, so every remaining waiter
 /// is provably asleep before each signal — no settle window.
 #[cfg(unix)]
+#[cfg(debug_assertions)]
 #[test]
 fn stress_manual_event_releases_all_waiters() {
     const WAITERS: usize = 32;
