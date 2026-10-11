@@ -1190,6 +1190,8 @@ AMF3_DecodeDepth(AMFObject *obj, const char *pBuffer, int nSize, int bAMFData,
                 invalid:
                     RTMP_Log(RTMP_LOGDEBUG, "%s, invalid class encoding!",
                         __FUNCTION__);
+                    if (cd.cd_props)
+                        free(cd.cd_props);
                     return nOriginalSize;
                 }
                 len = AMF3ReadString(pBuffer, &memberName);
@@ -1241,6 +1243,8 @@ AMF3_DecodeDepth(AMFObject *obj, const char *pBuffer, int nSize, int bAMFData,
                              __FUNCTION__);
                     /* adding -1 to pBuffer would step back into data already read */
                     AMF_Reset(obj);
+                    if (cd.cd_props)
+                        free(cd.cd_props);
                     return -1;
                 }
 
@@ -1265,6 +1269,8 @@ AMF3_DecodeDepth(AMFObject *obj, const char *pBuffer, int nSize, int bAMFData,
                         RTMP_Log(RTMP_LOGDEBUG, "%s, failed to decode AMF3 property!",
                                  __FUNCTION__);
                         AMF_Reset(obj);
+                        if (cd.cd_props)
+                            free(cd.cd_props);
                         return -1;
                     }
 
@@ -1279,6 +1285,11 @@ AMF3_DecodeDepth(AMFObject *obj, const char *pBuffer, int nSize, int bAMFData,
             }
         }
         RTMP_Log(RTMP_LOGDEBUG, "class object!");
+        /* the class definition's member-name array is heap storage owned
+         * only by this stack frame; without this it leaks on every decode
+         * of a class that declares a member */
+        if (cd.cd_props)
+            free(cd.cd_props);
     }
     return nOriginalSize - nSize;
 }
