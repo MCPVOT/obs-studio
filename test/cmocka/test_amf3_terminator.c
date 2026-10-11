@@ -40,19 +40,15 @@ static void inner_property_lookup(void **state)
 	AMF_Reset(&obj);
 }
 
-/* A spec-valid flat dynamic object: the trait says one sealed member "a"
- * followed by a single dynamic member, and the empty name that closes the
- * member list must not be stored as a property of its own. */
+/* A spec-valid flat dynamic object: the trait 0x0b is zero sealed members
+ * plus dynamic, so the object has only dynamic members, and the empty name
+ * that closes the member list must not be stored as a property of its own.
+ * This is the document the AMF3 spec describes; the use-after-free itself is
+ * reproduced by the decoder-compatible nested document below. */
 static void flat_dynamic_object_terminator(void **state)
 {
 	(void)state;
 
-	/* A spec-valid flat dynamic object: a trait with no sealed members and
-	 * dynamic set, one dynamic member "a", then the empty name that closes
-	 * the member list. This is the document the AMF3 spec actually describes,
-	 * pinned so a future change that starts storing the terminator as a
-	 * property is caught. The use-after-free itself is reproduced by the
-	 * decoder-compatible nested document below. */
 	const char doc[] = {
 		AMF_AVMPLUS,  AMF3_OBJECT, 0x0b, /* no sealed members, dynamic */
 		0x05,         'k',         0,    /* inline class name "k", NUL-terminated */
@@ -89,7 +85,6 @@ static void nested_dynamic_object(void **state)
 	AMFObject obj;
 	AMFObjectProperty *prop;
 	AMFObject inner;
-	AVal a = AVC("a");
 	int outer_count;
 
 	assert_int_equal(AMF_Decode(&obj, doc, (int)sizeof(doc), FALSE), (int)sizeof(doc));
@@ -100,11 +95,19 @@ static void nested_dynamic_object(void **state)
 	assert_int_equal(AMFProp_GetType(prop), AMF_OBJECT);
 	AMFProp_GetObject(prop, &inner);
 
-	AMF_Reset(&obj);
-
-	/* the empty-name terminator is a list delimiter, not a property */
+	/* the empty-name terminator is a list delimiter, not a property: the
+	 * outer object holds exactly the one member wrapper, and the inner
+	 * object holds exactly the one sealed member rather than the
+	 * terminator as well. On master the inner object carries a second,
+	 * empty-named property. Read before the reset frees them. */
 	assert_int_equal(outer_count, 1);
 	assert_int_equal(AMF_CountProp(&inner), 1);
+	prop = AMF_GetProp(&inner, NULL, 0);
+	assert_true(AMFProp_IsValid(prop));
+	assert_int_equal(prop->p_name.av_len, 1);
+	assert_int_equal(prop->p_name.av_val[0], 'a');
+
+	AMF_Reset(&obj);
 }
 
 int main(void)
