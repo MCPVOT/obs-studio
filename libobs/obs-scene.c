@@ -3358,6 +3358,22 @@ static void get_ungrouped_transform(obs_sceneitem_t *group, obs_sceneitem_t *ite
 	*rot += group->rot;
 }
 
+/* A visible item's source is an active child of the scene that holds it.
+ * When an item moves to another scene (into or out of a group), move that
+ * relationship along, or activation and deactivation walk different trees and
+ * the source's activate/show counts drift (obsproject/obs-studio#9961).
+ * Add before removing so a source that stays on screen never drops to zero. */
+static void move_active_child(obs_scene_t *from, obs_scene_t *to, obs_sceneitem_t *item)
+{
+	if (from == to || os_atomic_load_long(&item->active_refs) <= 0)
+		return;
+
+	if (to)
+		obs_source_add_active_child(to->source, item->source);
+	if (from)
+		obs_source_remove_active_child(from->source, item->source);
+}
+
 static void remove_group_transform(obs_sceneitem_t *group, obs_sceneitem_t *item)
 {
 	obs_scene_t *parent = item->parent;
@@ -3578,6 +3594,7 @@ obs_sceneitem_t *obs_scene_insert_group(obs_scene_t *scene, const char *name, ob
 			items[idx]->next = NULL;
 		}
 		items[idx]->parent = sub_scene;
+		move_active_child(scene, sub_scene, items[idx]);
 		apply_group_transform(items[idx], item);
 	}
 	items[0]->prev = NULL;
@@ -3721,6 +3738,7 @@ void obs_sceneitem_group_add_item(obs_sceneitem_t *group, obs_sceneitem_t *item)
 
 	detach_sceneitem(item);
 	attach_sceneitem(groupscene, item, NULL);
+	move_active_child(scene, groupscene, item);
 
 	apply_group_transform(item, group);
 
@@ -3751,6 +3769,7 @@ void obs_sceneitem_group_remove_item(obs_sceneitem_t *group, obs_sceneitem_t *it
 
 	detach_sceneitem(item);
 	attach_sceneitem(scene, item, NULL);
+	move_active_child(groupscene, scene, item);
 
 	resize_group(group, false);
 
@@ -3911,6 +3930,7 @@ bool obs_scene_reorder_items2(obs_scene_t *scene, struct obs_sceneitem_order_inf
 
 				sub_item->prev = sub_prev;
 				sub_item->next = NULL;
+				move_active_child(sub_item->parent, sub_scene, sub_item);
 				sub_item->parent = sub_scene;
 
 				if (sub_prev)
@@ -3932,6 +3952,7 @@ bool obs_scene_reorder_items2(obs_scene_t *scene, struct obs_sceneitem_order_inf
 
 		item->prev = prev;
 		item->next = NULL;
+		move_active_child(item->parent, scene, item);
 		item->parent = scene;
 
 		if (prev)
