@@ -200,15 +200,37 @@ static int discard_rtmp_output(RTMPSockBuf *sockbuf, const char *buffer, int len
 	return length;
 }
 
-static void run_secure_token_case(const char *token)
+static char g_last_sent[512];
+static int g_last_sent_len;
+
+static int capture_rtmp_output(RTMPSockBuf *sockbuf, const char *buffer, int length, void *context)
+{
+	(void)sockbuf;
+	(*((int *)context))++;
+	/* the decoded token is echoed back in the secureToken response, so the
+	 * sent bytes pin the decoder's output */
+	if (length > 0 && length <= (int)sizeof(g_last_sent)) {
+		memcpy(g_last_sent, buffer, (size_t)length);
+		g_last_sent_len = length;
+	}
+	return length;
+}
+
+/* Drive RTMP_ClientPacket by the real path: HandleInvoke finds the
+ * server's secureToken property and calls DecodeTEA on it, then echoes
+ * it back. `key` is r->Link.token (the TEA key) and `text` is the
+ * server-controlled secureToken value. */
+static void run_secure_token_case(const char *text, const char *key)
 {
 	AVal result = AVC("_result");
 	AVal secure_token = AVC("secureToken");
-	char response_value[] = "00000080";
-	AVal response = {response_value, sizeof(response_value) - 1};
-	char body[128];
+	AVal response = {(char *)text, (int)strlen(text)};
+	char body[256];
 	char *end = body;
 	int send_count = 0;
+
+	g_last_sent_len = 0;
+	memset(g_last_sent, 0, sizeof(g_last_sent));
 
 	end = AMF_EncodeString(end, body + sizeof(body), &result);
 	end = AMF_EncodeNumber(end, body + sizeof(body), 1.0);
@@ -222,8 +244,8 @@ static void run_secure_token_case(const char *token)
 	RTMP *rtmp = RTMP_Alloc();
 	assert_non_null(rtmp);
 	RTMP_Init(rtmp);
-	rtmp->Link.token.av_val = (char *)token;
-	rtmp->Link.token.av_len = (int)strlen(token);
+	rtmp->Link.token.av_val = (char *)key;
+	rtmp->Link.token.av_len = (int)strlen(key);
 	rtmp->Link.protocol |= RTMP_FEATURE_WRITE;
 	rtmp->m_methodCalls = calloc(1, sizeof(*rtmp->m_methodCalls));
 	assert_non_null(rtmp->m_methodCalls);
@@ -234,7 +256,7 @@ static void run_secure_token_case(const char *token)
 	rtmp->m_methodCalls[0].num = 1;
 	rtmp->m_numCalls = 1;
 	rtmp->m_bCustomSend = TRUE;
-	rtmp->m_customSendFunc = discard_rtmp_output;
+	rtmp->m_customSendFunc = capture_rtmp_output;
 	rtmp->m_customSendParam = &send_count;
 
 	RTMPPacket packet = {0};
@@ -252,15 +274,76 @@ static void run_secure_token_case(const char *token)
 static void secure_token_decode_uses_unsigned_shift(void **state)
 {
 	(void)state;
-	run_secure_token_case("0123456789abcdef");
+	run_secure_token_case("00000080", "0123456789abcdef");
 }
 
 /* Configured token (TEA key) with a high byte in the top position of a packed word. */
 static void secure_token_key_uses_unsigned_shift(void **state)
 {
 	(void)state;
-	run_secure_token_case("012\x80"
-			      "456789abcdef");
+	run_secure_token_case("00000080", "012\x80"
+					  "456789abcdef");
+}
+
+/* The secureToken text is server-controlled. DecodeTEA unpacks 8 hex
+ * characters per 32-bit word, so a well-formed token is a non-empty
+ * multiple of 8 characters. An empty one makes n = 0, which reads
+ * v[n-1] before the buffer and divides by zero; a length that is not a
+ * multiple of 8 rounds n up and reads past the token. Both must be
+ * rejected instead of decoded. */
+static void secure_token_short_or_unaligned_is_rejected(void **state)
+{
+	(void)state;
+	/* the response echoes the token back. DecodeTEA halves av_len when it
+	 * decodes, so the echoed length pins "did not decode": without the
+	 * length guard these decode anyway and the lengths change. */
+	run_secure_token_case("abc", "0123456789abcdef");
+	assert_int_equal(g_last_sent_len, 46);
+	/* the echoed token keeps its original 3 bytes: no decode happened */
+	assert_memory_equal(g_last_sent + 43, "abc", 3);
+
+	run_secure_token_case("1234567", "0123456789abcdef");
+	assert_int_equal(g_last_sent_len, 50);
+	assert_memory_equal(g_last_sent + 43, "1234567", 7);
+
+	run_secure_token_case("123456789", "0123456789abcdef");
+	assert_int_equal(g_last_sent_len, 52);
+	assert_memory_equal(g_last_sent + 43, "123456789", 9);
+
+	/* the empty token is the one that reads v[n-1] before its buffer and
+	 * divides by zero on master */
+	run_secure_token_case("", "0123456789abcdef");
+	assert_int_equal(g_last_sent_len, 43);
+	assert_int_equal(g_last_sent[43], 0);
+}
+
+/* Valid tokens still decode, and decode to the same bytes as before. */
+static void secure_token_valid_lengths_still_decode(void **state)
+{
+	(void)state;
+	run_secure_token_case("01234567", "0123456789abcdef");
+	assert_int_equal(g_last_sent_len, 47);
+	/* the echoed secureTokenResponse, which carries the 4 decoded bytes
+	 * at the end: \xc0\xa9\x0a\xdc. Pinned so a change in the decoder's
+	 * output is caught, not just "it did not crash". */
+	assert_memory_equal(g_last_sent,
+			    "\x43\x00\x00\x00\x00\x00\x27\x14"
+			    "\x02\x00\x13"
+			    "secureTokenResponse"
+			    "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x05"
+			    "\x02\x00\x04"
+			    "\xc0\xa9\x0a\xdc",
+			    47);
+	run_secure_token_case("0123456789abcdef", "0123456789abcdef");
+	assert_int_equal(g_last_sent_len, 51);
+	assert_memory_equal(g_last_sent,
+			    "\x43\x00\x00\x00\x00\x00\x2b\x14"
+			    "\x02\x00\x13"
+			    "secureTokenResponse"
+			    "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x05"
+			    "\x02\x00\x08"
+			    "\x5e\x6a\x95\x67\x90\xd9\xde\x45",
+			    51);
 }
 
 int main(void)
@@ -275,6 +358,8 @@ int main(void)
 		cmocka_unit_test(write_decodes_flv_timestamp),
 		cmocka_unit_test(secure_token_decode_uses_unsigned_shift),
 		cmocka_unit_test(secure_token_key_uses_unsigned_shift),
+		cmocka_unit_test(secure_token_short_or_unaligned_is_rejected),
+		cmocka_unit_test(secure_token_valid_lengths_still_decode),
 	};
 
 	return cmocka_run_group_tests(tests, NULL, NULL);

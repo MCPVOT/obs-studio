@@ -22,6 +22,7 @@ use obs_util::threading::Sem;
 use obs_util::threading::{Event, EventType, gnu_thread_name};
 
 const PING_PONG_COUNT: usize = 1000;
+#[cfg(unix)]
 const SEM_POST_COUNT: usize = 500;
 
 /// test_event_init_auto_manual

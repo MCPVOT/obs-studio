@@ -6,6 +6,7 @@
 //! and thread joins — never on sleeps or timing.
 
 use std::sync::Arc;
+#[cfg(unix)]
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use obs_c_oracle as _; // links the test bmalloc/bfree (oracle/test_bmem.c)
@@ -172,6 +173,8 @@ fn stress_sem_multi_producer() {
 /// reset() under contention: the waiter must observe a signal — a
 /// timed_wait that always timed out must not pass — and must never
 /// observe a signal that was reset before it consumed it.
+// Uses `Sem` (POSIX only) for its start handshake.
+#[cfg(unix)]
 #[test]
 fn stress_event_signal_reset_contention() {
     const ROUNDS: usize = 2000;

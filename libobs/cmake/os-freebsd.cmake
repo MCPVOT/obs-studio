@@ -23,6 +23,7 @@ target_sources(
   PRIVATE
     obs-nix-platform.c
     obs-nix-platform.h
+    obs-nix-x11-keymap.h
     obs-nix-x11.c
     obs-nix.c
     $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:util/pipe-posix.c>
