@@ -4585,7 +4585,7 @@ DecodeTEA(AVal *key, AVal *text)
     p = key->av_len > 16 ? 16 : key->av_len;
     for (i = 0; i < p; i++)
     {
-        u |= ptr[i] << (n * 8);
+        u |= (uint32_t)ptr[i] << (n * 8);
         if (n == 3)
         {
             *v++ = u;
