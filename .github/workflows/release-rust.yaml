@@ -1,26 +1,20 @@
 name: Release OBS-Studio-Rust
-run-name: Release OBS-Studio-Rust v${{ inputs.version }}${{ inputs.publish && '' || ' (dry run)' }} 🦀
-# Builds OBS-Studio-Rust (ENABLE_RUST_LIBOBS=ON) for Linux, macOS and Windows
-# and publishes it as a GitHub pre-release tagged obs-studio-rust-v<version>.
-#   gh workflow run release-rust.yaml -f version=0.1.0              # build + publish
-#   gh workflow run release-rust.yaml -f version=0.1.0 -f publish=false   # build only
-# The tag is created by the release itself, so the tag push does not start
-# push.yaml's upstream OBS release pipeline. Builds are unsigned.
+run-name: Daily OBS-Studio-Rust beta 🦀
+# Daily beta: builds OBS-Studio-Rust (ENABLE_RUST_LIBOBS=ON) for Linux, macOS
+# and Windows from master and publishes an unsigned GitHub pre-release tagged
+# obs-studio-rust-v<rust/libobs-rust version>-beta.<YYYYMMDD>.
+#   gh workflow run release-rust.yaml      # today's release now
+# Relaxed on purpose: a platform that fails to build or verify is left out and
+# the rest still ship; a day that already has a release is skipped. The release
+# creates the tag itself, so push.yaml's upstream OBS tag pipeline doesn't run.
 on:
+  schedule:
+    - cron: '0 9 * * *'
   workflow_dispatch:
-    inputs:
-      version:
-        description: Version to release; must equal rust/libobs-rust/Cargo.toml's version
-        type: string
-        required: true
-      publish:
-        description: Publish the pre-release (off = build and verify only)
-        type: boolean
-        default: true
 permissions:
   contents: read
 concurrency:
-  group: release-rust-${{ inputs.version }}
+  group: release-rust
   cancel-in-progress: false
 jobs:
   check:
@@ -29,34 +23,40 @@ jobs:
     outputs:
       tag: ${{ steps.check.outputs.tag }}
       sha: ${{ steps.check.outputs.sha }}
+      version: ${{ steps.check.outputs.version }}
+      crate: ${{ steps.check.outputs.crate }}
+      skip: ${{ steps.check.outputs.skip }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
       - id: check
         env:
-          VERSION: ${{ inputs.version }}
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           crate=$(sed -n 's/^version = "\(.*\)"/\1/p' rust/libobs-rust/Cargo.toml | head -1)
-          if [ "$VERSION" != "$crate" ]; then
-            echo "::error::version $VERSION does not match rust/libobs-rust/Cargo.toml ($crate)"
-            exit 1
-          fi
-          tag="obs-studio-rust-v$VERSION"
+          version="$crate-beta.$(date -u +%Y%m%d)"
+          tag="obs-studio-rust-v$version"
+          skip=false
           if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" >/dev/null 2>&1; then
-            echo "::error::tag $tag already exists"
-            exit 1
+            echo "::notice::$tag already exists; today's beta is out"
+            skip=true
           fi
-          echo "tag=$tag" >>"$GITHUB_OUTPUT"
-          echo "sha=$GITHUB_SHA" >>"$GITHUB_OUTPUT"
+          {
+            echo "crate=$crate"
+            echo "version=$version"
+            echo "tag=$tag"
+            echo "sha=$GITHUB_SHA"
+            echo "skip=$skip"
+          } >>"$GITHUB_OUTPUT"
 
   build:
     name: Build ${{ matrix.os }} 🧱
     needs: check
+    if: needs.check.outputs.skip != 'true'
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         include:
           - os: linux
@@ -123,7 +123,8 @@ jobs:
         shell: bash
         env:
           OS: ${{ matrix.os }}
-          VERSION: ${{ inputs.version }}
+          VERSION: ${{ needs.check.outputs.version }}
+          CRATE: ${{ needs.check.outputs.crate }}
         run: |
           set -euo pipefail
           mkdir -p pkg
@@ -147,7 +148,7 @@ jobs:
             prefix=build_ubuntu/install/RelWithDebInfo
             v=$(LD_LIBRARY_PATH="$prefix/lib:$prefix/lib/x86_64-linux-gnu" "$prefix/bin/obs" --version)
             echo "$v"
-            [[ "$v" == "OBS-Studio-Rust $VERSION"* ]] || { echo "::error::unexpected --version: $v"; exit 1; }
+            [[ "$v" == "OBS-Studio-Rust $CRATE"* ]] || { echo "::error::unexpected --version: $v"; exit 1; }
           fi
           ls -la pkg
 
@@ -160,7 +161,8 @@ jobs:
   release:
     name: Publish pre-release 🚀
     needs: [check, build]
-    if: inputs.publish
+    # Ship whatever platforms built.
+    if: always() && needs.check.result == 'success' && needs.check.outputs.skip != 'true' 
     runs-on: ubuntu-26.04
     permissions:
       contents: write
@@ -170,31 +172,35 @@ jobs:
           pattern: obs-studio-rust-*
           path: dist
           merge-multiple: true
+        continue-on-error: true
 
       - name: Create release 🛫
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.check.outputs.tag }}
           SHA: ${{ needs.check.outputs.sha }}
-          VERSION: ${{ inputs.version }}
+          VERSION: ${{ needs.check.outputs.version }}
         run: |
           set -euo pipefail
+          mkdir -p dist
           cd dist
-          sha256sum OBS-Studio-Rust-* >SHA256SUMS
+          shopt -s nullglob
+          files=(OBS-Studio-Rust-*)
+          if [ ${#files[@]} = 0 ]; then
+            echo "::error::no platform built; nothing to release"
+            exit 1
+          fi
+          sha256sum "${files[@]}" >SHA256SUMS
           cat SHA256SUMS
           cat >notes.md <<EOF
-          OBS-Studio-Rust $VERSION: OBS Studio built with \`ENABLE_RUST_LIBOBS=ON\`, so the ported libobs internals run from Rust. Built from [\`${SHA:0:9}\`](https://github.com/$GITHUB_REPOSITORY/commit/$SHA).
+          Daily beta of OBS-Studio-Rust $VERSION: OBS Studio built with \`ENABLE_RUST_LIBOBS=ON\`, so the ported libobs internals run from Rust. Built from [\`${SHA:0:9}\`](https://github.com/$GITHUB_REPOSITORY/commit/$SHA).
 
           **Pre-release, unsigned.** macOS: right-click → Open the first time. Windows: SmartScreen will warn. Linux: \`sudo apt install ./OBS-Studio-Rust-$VERSION-linux-x86_64.deb\` (Ubuntu 26.04).
 
-          | File | Platform |
-          |---|---|
-          | \`OBS-Studio-Rust-$VERSION-linux-x86_64.deb\` | Ubuntu 26.04, x86_64 |
-          | \`OBS-Studio-Rust-$VERSION-macos-arm64.dmg\` | macOS, Apple silicon |
-          | \`OBS-Studio-Rust-$VERSION-windows-x64.zip\` | Windows, x64 |
+          Platforms in this build: $(printf '%s ' "${files[@]}" | sed -E 's/OBS-Studio-Rust-[^ ]*-(linux|macos|windows)-[^ ]*/\1/g'). A platform missing from the list didn't build or verify today; see the workflow run.
 
           Checksums: \`SHA256SUMS\`.
           EOF
           gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$SHA" --prerelease \
             --title "OBS-Studio-Rust v$VERSION" --notes-file notes.md \
-            OBS-Studio-Rust-* SHA256SUMS
+            "${files[@]}" SHA256SUMS
