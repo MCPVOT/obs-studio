@@ -52,6 +52,23 @@ use obs_util::ffi::pipe as shim;
 use obs_util::pipe::Args;
 use proptest::prelude::*;
 
+/// Every test here that spawns holds this lock (obs-rust/obs-studio#192).
+///
+/// A child spawned on one thread can keep another test's pipe open:
+/// `pipe-posix.c` creates its pipes with `pipe()` and only then sets
+/// `FD_CLOEXEC`, so a spawn on another thread in between inherits them for
+/// the child's whole life; and any child holds copies of every fd until it
+/// execs. Either can keep a dead child's stdin open, and the dead-pipe
+/// write then goes through. Serializing spawns keeps the oracle the
+/// original C.
+#[cfg(unix)]
+static SPAWN: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+#[cfg(unix)]
+fn serial() -> std::sync::MutexGuard<'static, ()> {
+    SPAWN.lock().unwrap_or_else(|e| e.into_inner())
+}
+
 fn cstring(bytes: &[u8]) -> CString {
     let end = bytes.iter().position(|&b| b == 0).unwrap_or(bytes.len());
     CString::new(&bytes[..end]).expect("truncated at NUL")
@@ -221,6 +238,7 @@ fn c_abi_nulls_are_safe() {
             assert_eq!(oracle::oracle_os_process_pipe_destroy(ptr::null_mut()), 0);
             // A null `data` pointer yields 0 instead of crashing in
             // `fread`/`fwrite`.
+            let _serial = serial();
             let mut pipe = Pipe::create(Some(b"exit 0"), b"r").expect("spawn sh");
             assert_eq!(pipe.read(&mut []), 0);
             assert_eq!(pipe.destroy(), 0);
@@ -320,6 +338,7 @@ mod process {
 
     #[test]
     fn process_commands_match_oracle() {
+        let _serial = serial();
         for (cmd, type_) in [
             (&b"printf 'hello'"[..], &b"r"[..]),
             (b"exit 3", b"r"),
@@ -337,6 +356,7 @@ mod process {
     /// `create2` with a NUL-free argv on both sides.
     #[test]
     fn process_create2_matches_oracle() {
+        let _serial = serial();
         let items: &[&[u8]] = &[b"/bin/sh", b"-c", b"printf abc; printf err 1>&2"];
         let owned: Vec<Vec<u8>> = items.iter().map(|s| s.to_vec()).collect();
         let (oargs, sargs) = make_args(&owned);
@@ -385,6 +405,7 @@ mod process {
     /// Tier 1 pins the exact pid on the Rust side).
     #[test]
     fn signaled_child_destroys_to_pid() {
+        let _serial = serial();
         for _ in 0..4 {
             let opp = spawn_oracle(&cstring(b"kill -KILL $$"), &cstring(b"r"));
             assert!(!opp.is_null());
@@ -397,17 +418,11 @@ mod process {
         }
     }
 
-    /// A write to a dead pipe reports a short count on both sides (this
-    /// binary ignores SIGPIPE, like any Rust-main process; in a C-main
-    /// process both sides die on SIGPIPE identically). Sync is via `stderr`
-    /// EOF, which also proves the child is gone, so the EPIPE is
-    /// deterministic with no sleeps.
-    /// obs-rust/obs-studio#192: libobs/util/pipe-posix.c creates its pipes
-    /// with pipe() and marks them FD_CLOEXEC only afterwards. A process
-    /// spawned on another thread in between inherits them and keeps a dead
-    /// child's stdin open, so a write to it succeeds instead of failing.
-    /// cargo runs the process tests on parallel threads, which made
-    /// dead_pipe_write_matches_oracle flaky. Spawners run here on purpose.
+    /// obs-rust/obs-studio#192: other threads keep spawning while the
+    /// dead-pipe scenario runs, as the other tests in this binary do. Every
+    /// spawn holds [`serial`], so none can land between creating the dead
+    /// child's pipe and writing to it. Without the lock, 2 to 6 of 3000
+    /// writes went through on Linux (see `serial` for why).
     #[test]
     fn dead_pipe_write_survives_concurrent_spawns() {
         use std::sync::Arc;
@@ -420,7 +435,10 @@ mod process {
                     let cmd = cstring(b"sleep 0.05");
                     let r = cstring(b"r");
                     while !stop.load(Ordering::Relaxed) {
-                        let p = spawn_oracle(&cmd, &r);
+                        let p = {
+                            let _serial = serial();
+                            spawn_oracle(&cmd, &r)
+                        };
                         if !p.is_null() {
                             // SAFETY: live pipe from spawn_oracle.
                             unsafe { oracle::oracle_os_process_pipe_destroy(p) };
@@ -434,12 +452,14 @@ mod process {
         let big = vec![0xABu8; 1 << 20];
         let mut leaked = 0;
         for _ in 0..3000 {
+            let _serial = serial();
             let opp = spawn_oracle(&cmd, &w);
             assert!(!opp.is_null());
             let err = drain_oracle(opp, oracle::oracle_os_process_pipe_read_err);
             assert_eq!(err, b"closed\n");
             // SAFETY: live pipe; `big` covers its length.
-            let wrote = unsafe { oracle::oracle_os_process_pipe_write(opp, big.as_ptr(), big.len()) };
+            let wrote =
+                unsafe { oracle::oracle_os_process_pipe_write(opp, big.as_ptr(), big.len()) };
             if wrote != 0 {
                 leaked += 1;
             }
@@ -450,11 +470,20 @@ mod process {
         for t in spawners {
             t.join().unwrap();
         }
-        assert_eq!(leaked, 0, "{leaked} of 3000 writes reached a dead child through a leaked fd");
+        assert_eq!(
+            leaked, 0,
+            "{leaked} of 3000 writes reached a dead child through a leaked fd"
+        );
     }
 
+    /// A write to a dead pipe reports a short count on both sides (this
+    /// binary ignores SIGPIPE, like any Rust-main process; in a C-main
+    /// process both sides die on SIGPIPE identically). Sync is via `stderr`
+    /// EOF, which also proves the child is gone, so the EPIPE is
+    /// deterministic with no sleeps.
     #[test]
     fn dead_pipe_write_matches_oracle() {
+        let _serial = serial();
         let cmd = b"echo closed 1>&2; exec 0<&-";
         let opp = spawn_oracle(&cstring(cmd), &cstring(b"w"));
         assert!(!opp.is_null());
@@ -480,6 +509,7 @@ mod process {
         /// short counts and exit codes match.
         #[test]
         fn write_matches_oracle(payload in proptest::collection::vec(any::<u8>(), 0..1024)) {
+            let _serial = serial();
             let opp = spawn_oracle(&cstring(b"cat > /dev/null"), &cstring(b"w"));
             prop_assert!(!opp.is_null());
             let mut spp = spawn_shim(b"cat > /dev/null", b"w").expect("spawn");
@@ -500,6 +530,7 @@ mod process {
         /// codes match regardless of chunking.
         #[test]
         fn read_chunked_matches_oracle(chunk in 1usize..64) {
+            let _serial = serial();
             let opp = spawn_oracle(&cstring(b"printf '0123456789abcdef'"), &cstring(b"r"));
             prop_assert!(!opp.is_null());
             let mut spp = spawn_shim(b"printf '0123456789abcdef'", b"r").expect("spawn");
