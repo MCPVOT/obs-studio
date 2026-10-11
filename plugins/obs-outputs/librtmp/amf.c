@@ -1193,7 +1193,8 @@ AMF3_DecodeDepth(AMFObject *obj, const char *pBuffer, int nSize, int bAMFData,
                     return nOriginalSize;
                 }
                 len = AMF3ReadString(pBuffer, &memberName);
-                RTMP_Log(RTMP_LOGDEBUG, "Member: %s", memberName.av_val);
+                RTMP_Log(RTMP_LOGDEBUG, "Member: %.*s", (int)memberName.av_len,
+                         memberName.av_val);
                 AMF3CD_AddProp(&cd, &memberName);
                 nSize -= len;
                 pBuffer += len;
