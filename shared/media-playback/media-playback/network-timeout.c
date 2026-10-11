@@ -16,14 +16,23 @@
 
 #include "network-timeout.h"
 
-#include <util/c99defs.h>
+#include <util/dstr.h>
+
+/* Socket I/O timeout of FFmpeg's RTSP demuxer, in microseconds. A read that
+ * gets no data for this long fails, which stops the media and makes the
+ * source reconnect. */
+#define RTSP_IO_TIMEOUT_USEC "5000000"
+
+static bool is_rtsp(const char *path)
+{
+	return path && (astrcmpi_n(path, "rtsp://", 7) == 0 || astrcmpi_n(path, "rtsps://", 8) == 0);
+}
 
 void mp_media_set_network_timeouts(AVDictionary **opts, const char *path)
 {
-	UNUSED_PARAMETER(path);
-
-	/* Moved unchanged out of init_avformat(). "stimeout" was removed from
-	 * FFmpeg's RTSP demuxer in FFmpeg 5.0 (renamed to "timeout"), so it is
-	 * left unused and network reads have no timeout at all. */
-	av_dict_set(opts, "stimeout", "30000000", 0);
+	/* FFmpeg 5.0 renamed the RTSP option "stimeout" to "timeout". Other
+	 * protocols give "timeout" other meanings and units, so it is only set
+	 * for RTSP. */
+	if (is_rtsp(path))
+		av_dict_set(opts, "timeout", RTSP_IO_TIMEOUT_USEC, AV_DICT_DONT_OVERWRITE);
 }
