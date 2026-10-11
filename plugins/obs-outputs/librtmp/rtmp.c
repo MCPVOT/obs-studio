@@ -3602,7 +3602,15 @@ HandleChangeChunkSize(RTMP *r, const RTMPPacket *packet)
 {
     if (packet->m_nBodySize >= 4)
     {
-        r->m_inChunkSize = AMF_DecodeInt32(packet->m_body);
+        int32_t chunkSize = AMF_DecodeInt32(packet->m_body);
+        /* RTMP 1.0 5.4.1: 1 to 0x7FFFFFFF. Bit 31 set reads as negative. */
+        if (chunkSize < 1)
+        {
+            RTMP_Log(RTMP_LOGWARNING, "%s, ignoring invalid chunk size %d", __FUNCTION__,
+                     chunkSize);
+            return;
+        }
+        r->m_inChunkSize = chunkSize;
         RTMP_Log(RTMP_LOGDEBUG, "%s, received: chunk size change to %d", __FUNCTION__,
                  r->m_inChunkSize);
     }
