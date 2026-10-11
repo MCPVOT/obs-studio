@@ -38,6 +38,7 @@ pub mod profiler;
 pub mod profiler_snapshot;
 pub mod task;
 pub mod text_lookup;
+pub mod threading;
 pub mod utf8;
 pub mod util_uint64;
 pub mod vec2;

@@ -12,12 +12,15 @@ pub mod darray;
 pub mod dstr;
 pub mod file_serializer;
 pub mod lexer;
+#[cfg(unix)]
+pub mod native_sem;
 pub mod path_extension;
 pub mod pipe;
 pub mod profiler;
 pub mod profiler_snapshot;
 pub mod task;
 pub mod text_lookup;
+pub mod threading;
 #[cfg(not(windows))]
 pub mod utf8;
 #[cfg(windows)]
