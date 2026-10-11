@@ -2565,6 +2565,7 @@ static void obs_source_update_async_video(obs_source_t *source)
 			if (source->async_update_texture) {
 				update_async_textures(source, frame, source->async_textures, source->async_texrender);
 				source->async_update_texture = false;
+				source->async_textures_stale = false;
 			}
 
 			source->async_last_rendered_ts = frame->timestamp;
@@ -2597,7 +2598,7 @@ static void rotate_async_video(obs_source_t *source, long rotation)
 
 static inline void obs_source_render_async_video(obs_source_t *source)
 {
-	if (source->async_textures[0] && source->async_active) {
+	if (source->async_textures[0] && source->async_active && !source->async_textures_stale) {
 		gs_timer_t *timer = NULL;
 		const uint64_t start = source_profiler_source_render_begin(&timer);
 
@@ -3605,6 +3606,10 @@ static void obs_source_output_video_internal(obs_source_t *source, const struct 
 	if (!frame) {
 		pthread_mutex_lock(&source->async_mutex);
 		source->async_active = false;
+		/* A new frame makes the source active again as soon as it is
+		 * queued, but it only reaches the textures when it is rendered.
+		 * Until then, do not draw what was there before. */
+		source->async_textures_stale = true;
 		source->last_frame_ts = 0;
 		free_async_cache(source);
 		pthread_mutex_unlock(&source->async_mutex);
@@ -3818,6 +3823,7 @@ void obs_source_show_preloaded_video(obs_source_t *source)
 
 	set_async_texture_size(source, source->async_preload_frame);
 	update_async_textures(source, source->async_preload_frame, source->async_textures, source->async_texrender);
+	source->async_textures_stale = false;
 	source->async_active = true;
 
 	obs_leave_graphics();
@@ -3846,6 +3852,7 @@ static void obs_source_set_video_frame_internal(obs_source_t *source, const stru
 	copy_frame_data(source->async_preload_frame, frame);
 	set_async_texture_size(source, source->async_preload_frame);
 	update_async_textures(source, source->async_preload_frame, source->async_textures, source->async_texrender);
+	source->async_textures_stale = false;
 
 	source->last_frame_ts = frame->timestamp;
 
