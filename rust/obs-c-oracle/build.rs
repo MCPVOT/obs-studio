@@ -25,13 +25,16 @@ fn main() {
     }
     // Every oracle/*.c is compiled (obs-rust/obs-studio#137): a port adds its
     // wrapper file, not a line here. `*_posix.c` wrappers are Unix-only
-    // (pipe-posix.c needs <spawn.h>).
+    // (pipe-posix.c needs <spawn.h>) and `*_windows.c` wrappers are
+    // Windows-only (pipe-windows.c needs <windows.h>).
     let unix = std::env::var_os("CARGO_CFG_UNIX").is_some();
+    let windows = std::env::var_os("CARGO_CFG_WINDOWS").is_some();
     let mut sources: Vec<PathBuf> = std::fs::read_dir(manifest.join("oracle"))
         .expect("read oracle/")
         .map(|e| e.expect("dir entry").path())
         .filter(|p| p.extension().is_some_and(|e| e == "c"))
         .filter(|p| unix || !p.to_string_lossy().ends_with("_posix.c"))
+        .filter(|p| windows || !p.to_string_lossy().ends_with("_windows.c"))
         .collect();
     sources.sort();
     oracle.files(sources);

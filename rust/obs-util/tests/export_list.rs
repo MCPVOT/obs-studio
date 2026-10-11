@@ -255,10 +255,8 @@ fn unix_only_shims_are_marked_unix_in_rust_exports() {
             }
         }
     }
-    assert!(
-        unix_only.contains("os_process_pipe_create"),
-        "cfg(unix) shim scan found nothing: {unix_only:?}"
-    );
+    // No shim is Unix-only since the pipe-windows.c port, so the scan
+    // finding nothing is expected; the check stays for per-OS ports.
     assert_eq!(
         marked, unix_only,
         "rust-exports.d `unix` markers must match the cfg(unix) shims"

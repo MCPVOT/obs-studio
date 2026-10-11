@@ -568,3 +568,360 @@ mod process {
         }
     }
 }
+
+/// `pipe-windows.c` against the Rust Windows half, with cmd.exe children.
+///
+/// Notes for this half, not exclusions:
+/// - Spawning is serialized (`windows_process::serial`). Children
+///   inherit every inheritable handle (`bInheritHandles`, as in C), so
+///   concurrent tests could hand each other's pipe ends to their children
+///   and keep them open; the cmocka cases also run one at a time. Within a
+///   test the two sides spawn one after the other, which is safe: our ends
+///   are made non-inheritable before the next spawn.
+/// - The handles C leaks when creating a pipe fails half-way are closed on
+///   the Rust side. Only the handle count can tell, so it is not compared.
+/// - A child's output is in the console code page, the same for both
+///   sides, so bytes are compared as they come.
+#[cfg(windows)]
+mod windows_process {
+    use super::*;
+    use core::ptr;
+    use obs_util::pipe::Pipe as ShimPipe;
+    use std::sync::{Mutex, MutexGuard};
+
+    static SPAWN: Mutex<()> = Mutex::new(());
+
+    fn serial() -> MutexGuard<'static, ()> {
+        SPAWN.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    /// Drain one stream to EOF through a C ABI reader.
+    fn drain<P>(
+        pp: *mut P,
+        reader: unsafe extern "C" fn(*mut P, *mut u8, usize) -> usize,
+    ) -> Vec<u8> {
+        let mut out = Vec::new();
+        let mut chunk = [0u8; 32];
+        loop {
+            // SAFETY: `pp` is live; `chunk` covers its length.
+            let n = unsafe { reader(pp, chunk.as_mut_ptr(), chunk.len()) };
+            if n == 0 {
+                break;
+            }
+            out.extend_from_slice(&chunk[..n]);
+        }
+        out
+    }
+
+    /// What one side did with a pipe: `None` if it did not spawn, else
+    /// stdout (read mode) or the write count (write mode), stderr, and the
+    /// exit code.
+    type Outcome = Option<(Vec<u8>, usize, Vec<u8>, c_int)>;
+
+    /// Runs one pipe through the C ABI of either side. Write mode writes a
+    /// payload and leaves stderr alone, as on POSIX: draining it first
+    /// would wait for a child that waits for stdin.
+    unsafe fn run<P>(
+        pp: *mut P,
+        read_mode: bool,
+        read: unsafe extern "C" fn(*mut P, *mut u8, usize) -> usize,
+        read_err: unsafe extern "C" fn(*mut P, *mut u8, usize) -> usize,
+        write: unsafe extern "C" fn(*mut P, *const u8, usize) -> usize,
+        destroy: unsafe extern "C" fn(*mut P) -> c_int,
+    ) -> Outcome {
+        if pp.is_null() {
+            return None;
+        }
+        let payload = b"parity payload\r\n";
+        let (out, wrote, err) = if read_mode {
+            (drain(pp, read), 0, drain(pp, read_err))
+        } else {
+            // SAFETY: `pp` is live; `payload` covers its length.
+            let wrote = unsafe { write(pp, payload.as_ptr(), payload.len()) };
+            (Vec::new(), wrote, Vec::new())
+        };
+        // SAFETY: `pp` is live and destroyed once.
+        let code = unsafe { destroy(pp) };
+        Some((out, wrote, err, code))
+    }
+
+    fn oracle_command(cmd: &CStr, type_: &CStr) -> Outcome {
+        let read_mode = type_.to_bytes().first() == Some(&b'r');
+        // SAFETY: live C strings; the pipe is used and destroyed by `run`.
+        unsafe {
+            let pp = oracle::oracle_os_process_pipe_create(cmd.as_ptr(), type_.as_ptr());
+            run(
+                pp,
+                read_mode,
+                oracle::oracle_os_process_pipe_read,
+                oracle::oracle_os_process_pipe_read_err,
+                oracle::oracle_os_process_pipe_write,
+                oracle::oracle_os_process_pipe_destroy,
+            )
+        }
+    }
+
+    fn shim_command(cmd: &CStr, type_: &CStr) -> Outcome {
+        let read_mode = type_.to_bytes().first() == Some(&b'r');
+        // SAFETY: live C strings; the pipe is used and destroyed by `run`.
+        unsafe {
+            let pp = shim::os_process_pipe_create(cmd.as_ptr(), type_.as_ptr());
+            run(
+                pp,
+                read_mode,
+                shim::os_process_pipe_read,
+                shim::os_process_pipe_read_err,
+                shim::os_process_pipe_write,
+                shim::os_process_pipe_destroy,
+            )
+        }
+    }
+
+    fn check_command(cmd: &[u8], type_: &[u8]) -> Outcome {
+        let (cmd, type_) = (cstring(cmd), cstring(type_));
+        let want = oracle_command(&cmd, &type_);
+        let got = shim_command(&cmd, &type_);
+        assert_eq!(got, want, "{cmd:?} {type_:?}");
+        got
+    }
+
+    #[test]
+    fn process_commands_match_oracle() {
+        let _serial = serial();
+        for (cmd, type_, spawns) in [
+            (&b"cmd /c echo hello"[..], &b"r"[..], true),
+            (b"cmd /c exit 3", b"r", true),
+            (b"cmd /c exit 255", b"r", true),
+            (b"cmd /c exit -1", b"r", true),
+            (b"cmd /c (echo out) & (1>&2 echo err) & exit 5", b"r", true),
+            (b"cmd /c echo", b"r", true),
+            (b"cmd /c more > NUL", b"w", true),
+            (b"cmd /c more > NUL", b"wx", true),
+            (b"cmd /c (1>&2 echo skipped) & more > NUL", b"w", true),
+            (b"cmd /c exit 0", b"rw", true),
+            (b"\xef\xbb\xbfcmd /c echo bom", b"r", true),
+            (b"cmd /c echo caf\xc3\xa9 \xff\xfe end", b"r", true),
+            (b"cmd /c exit 0", b"x", false),
+            (b"cmd /c exit 0", b"", false),
+            (b"", b"r", false),
+            (b"\xef\xbb\xbf", b"r", false),
+            (b"obs-test-binary-that-does-not-exist", b"r", false),
+        ] {
+            assert_eq!(check_command(cmd, type_).is_some(), spawns, "{cmd:?}");
+        }
+    }
+
+    /// `create2` through both C ABIs with the same argv; `None` if either
+    /// did not spawn.
+    fn create2_outcomes(items: &[Vec<u8>], type_: &CStr) -> (Outcome, Outcome) {
+        let (oargs, sargs) = make_args(items);
+        let read_mode = type_.to_bytes().first() == Some(&b'r');
+        // SAFETY: live args and C strings; each pipe is used and destroyed
+        // by `run`.
+        let outcomes = unsafe {
+            let opp = oracle::oracle_os_process_pipe_create2(oargs, type_.as_ptr());
+            let want = run(
+                opp,
+                read_mode,
+                oracle::oracle_os_process_pipe_read,
+                oracle::oracle_os_process_pipe_read_err,
+                oracle::oracle_os_process_pipe_write,
+                oracle::oracle_os_process_pipe_destroy,
+            );
+            let spp = shim::os_process_pipe_create2(sargs, type_.as_ptr());
+            let got = run(
+                spp,
+                read_mode,
+                shim::os_process_pipe_read,
+                shim::os_process_pipe_read_err,
+                shim::os_process_pipe_write,
+                shim::os_process_pipe_destroy,
+            );
+            (want, got)
+        };
+        free_args(oargs, sargs);
+        outcomes
+    }
+
+    #[test]
+    fn process_create2_matches_oracle() {
+        let _serial = serial();
+        let cases: &[(&[&[u8]], bool)] = &[
+            (
+                &[b"cmd", b"/c", b"echo", b"a b", b"", b"x\"y", b"s p\\"],
+                true,
+            ),
+            (&[b"cmd", b"/c", b"exit", b"9"], true),
+            (&[b"cmd", b"/c", b"(1>&2 echo e)"], true),
+            (&[b"obs-test-binary-that-does-not-exist", b"x"], false),
+            (&[b""], false),
+        ];
+        for (items, spawns) in cases {
+            let owned: Vec<Vec<u8>> = items.iter().map(|s| s.to_vec()).collect();
+            let (want, got) = create2_outcomes(&owned, c"r");
+            assert_eq!(got, want, "{items:?}");
+            assert_eq!(got.is_some(), *spawns, "{items:?}");
+        }
+    }
+
+    /// Characters that cmd.exe passes through `echo` unchanged, plus the
+    /// ones the quoting is about.
+    fn echo_arg() -> impl Strategy<Value = Vec<u8>> {
+        proptest::collection::vec(
+            prop_oneof![
+                3 => proptest::sample::select(b"abcXYZ019.-_,:".to_vec()),
+                2 => Just(b' '),
+                1 => Just(b'\t'),
+                2 => Just(b'"'),
+                3 => Just(b'\\'),
+            ],
+            0..10,
+        )
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(48))]
+
+        /// Random arguments to `cmd /c echo`: echo prints the command line
+        /// create2 built, so both sides must print the same bytes.
+        #[test]
+        fn create2_quoting_matches_oracle(args in proptest::collection::vec(echo_arg(), 1..5)) {
+            let _serial = serial();
+            let mut items = vec![b"cmd".to_vec(), b"/c".to_vec(), b"echo".to_vec(), b"=".to_vec()];
+            items.extend(args);
+            let (want, got) = create2_outcomes(&items, c"r");
+            prop_assert!(want.is_some());
+            prop_assert_eq!(got, want);
+        }
+
+        /// Random payloads through `more > NUL` in write mode.
+        #[test]
+        fn write_matches_oracle(payload in proptest::collection::vec(0x20u8..0x7f, 0..1024)) {
+            let _serial = serial();
+            let opp = unsafe {
+                oracle::oracle_os_process_pipe_create(c"cmd /c more > NUL".as_ptr(), c"w".as_ptr())
+            };
+            prop_assert!(!opp.is_null());
+            let mut spp = ShimPipe::create(Some(b"cmd /c more > NUL"), b"w").expect("spawn");
+            // SAFETY: `opp` is live; `payload` covers its length.
+            let o_wrote = unsafe {
+                oracle::oracle_os_process_pipe_write(opp, payload.as_ptr(), payload.len())
+            };
+            let s_wrote = spp.write(&payload);
+            // SAFETY: `opp` is live.
+            let o_code = unsafe { oracle::oracle_os_process_pipe_destroy(opp) };
+            let s_code = spp.destroy();
+            prop_assert_eq!(s_wrote, o_wrote);
+            prop_assert_eq!(s_code, o_code);
+        }
+
+        /// Random read sizes over a fixed output: concatenations and codes
+        /// match whatever the chunking.
+        #[test]
+        fn read_chunked_matches_oracle(chunk in 1usize..64) {
+            let _serial = serial();
+            let cmd = c"cmd /c echo 0123456789abcdef";
+            let opp = unsafe { oracle::oracle_os_process_pipe_create(cmd.as_ptr(), c"r".as_ptr()) };
+            prop_assert!(!opp.is_null());
+            let mut spp = ShimPipe::create(Some(cmd.to_bytes()), b"r").expect("spawn");
+            let (mut o_out, mut s_out) = (Vec::new(), Vec::new());
+            let mut buf = vec![0u8; chunk];
+            loop {
+                // SAFETY: `opp` is live; `buf` covers its length.
+                let n = unsafe { oracle::oracle_os_process_pipe_read(opp, buf.as_mut_ptr(), buf.len()) };
+                if n == 0 {
+                    break;
+                }
+                o_out.extend_from_slice(&buf[..n]);
+            }
+            loop {
+                let n = spp.read(&mut buf);
+                if n == 0 {
+                    break;
+                }
+                s_out.extend_from_slice(&buf[..n]);
+            }
+            // SAFETY: `opp` is live.
+            let o_code = unsafe { oracle::oracle_os_process_pipe_destroy(opp) };
+            prop_assert_eq!(&s_out, &o_out);
+            prop_assert_eq!(s_out, b"0123456789abcdef\r\n");
+            prop_assert_eq!(spp.destroy(), o_code);
+        }
+    }
+
+    /// A write after the child exited fails on both sides (the broken pipe
+    /// is `ERROR_NO_DATA`). Sync is via stderr EOF, which also proves the
+    /// child is gone, so there are no sleeps.
+    #[test]
+    fn dead_pipe_write_matches_oracle() {
+        let _serial = serial();
+        let cmd = c"cmd /c (1>&2 echo closed) & exit 7";
+        // SAFETY: live C strings; each pipe is used and destroyed once.
+        unsafe {
+            let opp = oracle::oracle_os_process_pipe_create(cmd.as_ptr(), c"w".as_ptr());
+            assert!(!opp.is_null());
+            assert_eq!(
+                drain(opp, oracle::oracle_os_process_pipe_read_err),
+                b"closed\r\n"
+            );
+            let spp = shim::os_process_pipe_create(cmd.as_ptr(), c"w".as_ptr());
+            assert!(!spp.is_null());
+            assert_eq!(drain(spp, shim::os_process_pipe_read_err), b"closed\r\n");
+
+            let data = [0xabu8; 64];
+            let o_wrote = oracle::oracle_os_process_pipe_write(opp, data.as_ptr(), data.len());
+            let s_wrote = shim::os_process_pipe_write(spp, data.as_ptr(), data.len());
+            assert_eq!(s_wrote, o_wrote);
+            assert_eq!(s_wrote, 0);
+            let o_code = oracle::oracle_os_process_pipe_destroy(opp);
+            assert_eq!(shim::os_process_pipe_destroy(spp), o_code);
+            assert_eq!(o_code, 7);
+        }
+    }
+
+    /// The null cases that C checks too, on both sides, and a null `data`
+    /// on the Rust side (C passes it to `ReadFile`/`WriteFile`, which fail).
+    #[test]
+    fn nulls_match_oracle() {
+        let mut scratch = [0u8; 4];
+        // SAFETY: only null handles and live C strings are passed.
+        unsafe {
+            assert!(shim::os_process_pipe_create(ptr::null(), c"r".as_ptr()).is_null());
+            assert!(oracle::oracle_os_process_pipe_create(ptr::null(), c"r".as_ptr()).is_null());
+            assert!(shim::os_process_pipe_create(c"cmd /c exit 0".as_ptr(), ptr::null()).is_null());
+            assert!(
+                oracle::oracle_os_process_pipe_create(c"cmd /c exit 0".as_ptr(), ptr::null())
+                    .is_null()
+            );
+            assert!(shim::os_process_pipe_create2(ptr::null(), c"r".as_ptr()).is_null());
+            assert_eq!(shim::os_process_pipe_destroy(ptr::null_mut()), 0);
+            assert_eq!(oracle::oracle_os_process_pipe_destroy(ptr::null_mut()), 0);
+            for read in [shim::os_process_pipe_read, shim::os_process_pipe_read_err] {
+                assert_eq!(read(ptr::null_mut(), scratch.as_mut_ptr(), 4), 0);
+            }
+            for read in [
+                oracle::oracle_os_process_pipe_read,
+                oracle::oracle_os_process_pipe_read_err,
+            ] {
+                assert_eq!(read(ptr::null_mut(), scratch.as_mut_ptr(), 4), 0);
+            }
+            assert_eq!(
+                shim::os_process_pipe_write(ptr::null_mut(), scratch.as_ptr(), 4),
+                0
+            );
+            assert_eq!(
+                oracle::oracle_os_process_pipe_write(ptr::null_mut(), scratch.as_ptr(), 4),
+                0
+            );
+        }
+
+        let _serial = serial();
+        // SAFETY: live C strings; the pipe is destroyed once.
+        unsafe {
+            let spp = shim::os_process_pipe_create(c"cmd /c exit 0".as_ptr(), c"r".as_ptr());
+            assert!(!spp.is_null());
+            assert_eq!(shim::os_process_pipe_read(spp, ptr::null_mut(), 4), 0);
+            assert_eq!(shim::os_process_pipe_destroy(spp), 0);
+        }
+    }
+}
