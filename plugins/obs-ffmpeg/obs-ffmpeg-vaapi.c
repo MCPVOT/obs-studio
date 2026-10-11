@@ -584,6 +584,13 @@ static inline bool vaapi_test_texencode(struct vaapi_encoder *enc)
 static void *vaapi_create_tex_internal(obs_data_t *settings, obs_encoder_t *encoder, enum codec_type codec,
 				       const char *fallback)
 {
+	if (!obs_encoder_video_tex_active(encoder, VIDEO_FORMAT_NV12) &&
+	    !obs_encoder_video_tex_active(encoder, VIDEO_FORMAT_P010)) {
+		blog(LOG_INFO, "VAAPI: GPU textures not available for this video format, falling back to %s encoder",
+		     fallback);
+		return obs_encoder_create_rerouted(encoder, fallback);
+	}
+
 	void *enc = vaapi_create_internal(settings, encoder, codec);
 	if (!enc) {
 		return NULL;
