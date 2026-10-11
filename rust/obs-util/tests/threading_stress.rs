@@ -176,16 +176,19 @@ fn stress_event_signal_reset_contention() {
     let ack = Arc::new(Event::new(EventType::Auto));
     let started = Arc::new(Sem::new(0));
     let observed = Arc::new(AtomicUsize::new(0));
+    let stop = Arc::new(AtomicUsize::new(0));
 
-    // A manual event's first signal stays set until the first reset, so
-    // the waiter's first timed_wait is guaranteed to observe it and ack
-    // back — the toggler waits for the waiter to be running and then
-    // blocks on that ack before entering the loop, making observed >= 1
-    // deterministic rather than scheduler luck.
+    // The waiter must stay in its wait loop until the toggler is done:
+    // `while ev.timed_wait(1)` exits on a 1 ms timeout that lands before
+    // the first signal, so a once-running waiter is not a still-waiting
+    // one. Poll `stop` on each timeout instead; the manual flag stays
+    // set until the toggler's first reset, so the first observation and
+    // the ack are guaranteed once the waiter runs.
     let toggler = {
         let ev = Arc::clone(&ev);
         let ack = Arc::clone(&ack);
         let started = Arc::clone(&started);
+        let stop = Arc::clone(&stop);
         std::thread::spawn(move || {
             started.wait();
             ev.signal();
@@ -194,6 +197,11 @@ fn stress_event_signal_reset_contention() {
                 ev.signal();
                 ev.reset();
             }
+            stop.store(1, Ordering::SeqCst);
+            // Wake the waiter out of its current timed_wait promptly,
+            // then leave the flag reset for the terminal assertion.
+            ev.signal();
+            ev.reset();
         })
     };
 
@@ -202,10 +210,11 @@ fn stress_event_signal_reset_contention() {
         let ack = Arc::clone(&ack);
         let started = Arc::clone(&started);
         let observed = Arc::clone(&observed);
+        let stop = Arc::clone(&stop);
         std::thread::spawn(move || {
             started.post();
-            while ev.timed_wait(1) {
-                if observed.fetch_add(1, Ordering::SeqCst) == 0 {
+            while stop.load(Ordering::SeqCst) == 0 {
+                if ev.timed_wait(50) && observed.fetch_add(1, Ordering::SeqCst) == 0 {
                     ack.signal();
                 }
             }
