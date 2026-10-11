@@ -15,12 +15,26 @@ pub use posix::*;
 
 #[cfg(unix)]
 mod posix {
-    use core::ffi::{c_char, c_int, c_ulong};
+    use core::ffi::{c_char, c_int, c_ulong, c_void};
+    use core::ptr;
 
+    use crate::ffi::darray::{bfree, bmalloc};
     use crate::threading::{Event, EventType, Sem};
 
     /// `OS_EVENT_TYPE_MANUAL` in `enum os_event_type`.
     const OS_EVENT_TYPE_MANUAL: c_int = 1;
+
+    /// The C's `bzalloc`: `bmalloc` + zero-fill. Routing every handle
+    /// through it keeps each live event/semaphore one `bnum_allocs` unit,
+    /// exactly as `bzalloc(sizeof(struct os_*_data))` does in the C.
+    /// `bmalloc` cannot fail — it `bcrash`es on OOM like the C.
+    unsafe fn bzalloc(size: usize) -> *mut c_void {
+        // SAFETY: `bmalloc` returns `size` writable bytes or crashes.
+        let p = unsafe { bmalloc(size) };
+        // SAFETY: `p` is writable for `size` bytes.
+        unsafe { ptr::write_bytes(p.cast::<u8>(), 0, size) };
+        p
+    }
 
     /// # Safety
     ///
@@ -33,13 +47,19 @@ mod posix {
             return libc::EINVAL;
         }
         let manual = type_ == OS_EVENT_TYPE_MANUAL;
-        // SAFETY: `event` is checked non-null above.
+        let data = unsafe { bzalloc(size_of::<Event>()) };
+        // SAFETY: `data` is `size_of::<Event>()` writable bytes and `event`
+        // is checked non-null above.
         unsafe {
-            *event = Box::into_raw(Box::new(Event::new(if manual {
-                EventType::Manual
-            } else {
-                EventType::Auto
-            })));
+            ptr::write(
+                data.cast::<Event>(),
+                Event::new(if manual {
+                    EventType::Manual
+                } else {
+                    EventType::Auto
+                }),
+            );
+            *event = data.cast();
         }
         0
     }
@@ -52,8 +72,12 @@ mod posix {
         if event.is_null() {
             return;
         }
-        // SAFETY: `event` is a live `Box<Event>` we allocated, destroyed once.
-        unsafe { drop(Box::from_raw(event)) };
+        // SAFETY: `event` is a live `Event` from `os_event_init`, dropped
+        // once; the block came from `bzalloc`.
+        unsafe {
+            ptr::drop_in_place(event);
+            bfree(event.cast());
+        }
     }
 
     /// # Safety
@@ -135,17 +159,28 @@ mod posix {
     /// A negative `value` fails the way the C does on every Unix: -1,
     /// either from `semaphore_create` (macOS) or from `sem_init`, which
     /// returns -1 itself while EINVAL only appears in errno.
+    ///
+    /// The C initializes the native semaphore first and `bzalloc`s the
+    /// handle second; here the order is reversed because `sem_t` cannot
+    /// be relocated into the block after `sem_init`. The net effect is
+    /// identical: a failed init frees the block again, and a successful
+    /// one leaves exactly one `bnum_allocs` unit.
     #[unsafe(no_mangle)]
     pub unsafe extern "C" fn os_sem_init(sem: *mut *mut Sem, value: c_int) -> c_int {
         if sem.is_null() {
             return libc::EINVAL;
         }
-        if value < 0 {
-            return -1;
+        let data = unsafe { bzalloc(size_of::<Sem>()) };
+        // SAFETY: `data` is `size_of::<Sem>()` writable bytes.
+        let code = unsafe { Sem::init_in(data.cast(), value) };
+        if code != 0 {
+            // SAFETY: `data` came from `bzalloc` and was never made live.
+            unsafe { bfree(data) };
+            return code;
         }
         // SAFETY: `sem` is checked non-null above.
         unsafe {
-            *sem = Box::into_raw(Box::new(Sem::new(value as u32)));
+            *sem = data.cast();
         }
         0
     }
@@ -158,34 +193,39 @@ mod posix {
         if sem.is_null() {
             return;
         }
-        // SAFETY: `sem` is a live `Box<Sem>` we allocated, destroyed once.
-        unsafe { drop(Box::from_raw(sem)) };
+        // SAFETY: `sem` is a live `Sem` from `os_sem_init`, dropped once;
+        // the block came from `bzalloc`.
+        unsafe {
+            ptr::drop_in_place(sem);
+            bfree(sem.cast());
+        }
     }
 
     /// # Safety
     ///
-    /// `sem` came from [`os_sem_init`] or is null (-1, as in C).
+    /// `sem` came from [`os_sem_init`] or is null (-1, as in C). Returns
+    /// the primitive's own code like the C does — including -1 on
+    /// EOVERFLOW past SEM_VALUE_MAX (non-Apple POSIX).
     #[unsafe(no_mangle)]
     pub unsafe extern "C" fn os_sem_post(sem: *mut Sem) -> c_int {
         if sem.is_null() {
             return -1;
         }
         // SAFETY: `sem` is a live `Sem` when non-null.
-        unsafe { &*sem }.post();
-        0
+        unsafe { &*sem }.post()
     }
 
     /// # Safety
     ///
-    /// Same contract as [`os_sem_post`].
+    /// Same contract as [`os_sem_post`]. Returns the primitive's own code,
+    /// including -1 when a signal interrupts the wait (EINTR).
     #[unsafe(no_mangle)]
     pub unsafe extern "C" fn os_sem_wait(sem: *mut Sem) -> c_int {
         if sem.is_null() {
             return -1;
         }
         // SAFETY: `sem` is a live `Sem` when non-null.
-        unsafe { &*sem }.wait();
-        0
+        unsafe { &*sem }.wait()
     }
 
     /// # Safety

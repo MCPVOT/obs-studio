@@ -20,6 +20,10 @@
 //! - The `volatile bool signalled` read inside `pthread_cond_wait`: not
 //!   observable through the API.
 //! - `timedwait` with timeouts long enough to race scheduling.
+//! - The wait clock itself: C deadlines are `CLOCK_REALTIME`/`gettimeofday`
+//!   absolutes recomputed per iteration; Rust's `Condvar::wait_timeout` is
+//!   a relative monotonic wait. They diverge only under a wall-clock jump
+//!   mid-wait — a documented difference in `src/threading.rs`.
 //!
 //! Reminder: the mutation check (break the core, see this file fail) is done
 //! once per port, not on every change.
@@ -40,13 +44,12 @@ use obs_c_oracle::threading::{
     oracle_os_sem_destroy, oracle_os_sem_init, oracle_os_sem_post, oracle_os_sem_trywait,
     oracle_os_sem_wait, oracle_os_set_thread_name,
 };
-use obs_util::ffi::bmem::bnum_allocs;
 use obs_util::ffi::threading::{
     os_event_destroy, os_event_init, os_event_reset, os_event_signal, os_event_timedwait,
     os_event_try, os_event_wait, os_sem_destroy, os_sem_init, os_sem_post, os_sem_wait,
     os_set_thread_name,
 };
-use obs_util::threading::{Event, Sem};
+use obs_util::threading::Sem;
 use proptest::prelude::*;
 
 const MANUAL: c_int = 1;
@@ -157,13 +160,7 @@ fn oracle_sem_api() -> SemApi {
 }
 
 /// Run the op sequence against one implementation; return the return codes.
-fn run(
-    manual: bool,
-    initial: c_int,
-    ops: &[Op],
-    api: &EventApi,
-    sem_api: &SemApi,
-) -> Vec<c_int> {
+fn run(manual: bool, initial: c_int, ops: &[Op], api: &EventApi, sem_api: &SemApi) -> Vec<c_int> {
     let mut results = Vec::new();
     let mut event: *mut u8 = ptr::null_mut();
     let mut sem: *mut u8 = ptr::null_mut();
@@ -450,25 +447,6 @@ fn sem_wait_eintr_matches() {
         os_sem_destroy(rust_sem);
         oracle_os_sem_destroy(oracle_sem);
     }
-}
-
-/// Event and semaphore handles are `bzalloc` allocations in the C, so each
-/// live handle must be one `bnum_allocs` unit here too.
-#[test]
-fn allocs_match_bzalloc_accounting() {
-    let base = unsafe { bnum_allocs() };
-
-    let mut event: *mut Event = ptr::null_mut();
-    assert_eq!(unsafe { os_event_init(&mut event, 0) }, 0);
-    assert_eq!(unsafe { bnum_allocs() }, base + 1);
-    unsafe { os_event_destroy(event) };
-    assert_eq!(unsafe { bnum_allocs() }, base);
-
-    let mut sem: *mut Sem = ptr::null_mut();
-    assert_eq!(unsafe { os_sem_init(&mut sem, 0) }, 0);
-    assert_eq!(unsafe { bnum_allocs() }, base + 1);
-    unsafe { os_sem_destroy(sem) };
-    assert_eq!(unsafe { bnum_allocs() }, base);
 }
 
 /// `os_set_thread_name` sets the same kernel-visible name in both

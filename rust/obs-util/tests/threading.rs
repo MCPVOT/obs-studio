@@ -17,9 +17,9 @@
 use std::sync::Arc;
 
 use obs_c_oracle as _; // links the test bmalloc/bfree (oracle/test_bmem.c)
-use obs_util::threading::{Event, EventType, gnu_thread_name};
 #[cfg(unix)]
 use obs_util::threading::Sem;
+use obs_util::threading::{Event, EventType, gnu_thread_name};
 
 const PING_PONG_COUNT: usize = 1000;
 const SEM_POST_COUNT: usize = 500;

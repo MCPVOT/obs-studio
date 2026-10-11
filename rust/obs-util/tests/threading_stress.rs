@@ -9,9 +9,9 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use obs_c_oracle as _; // links the test bmalloc/bfree (oracle/test_bmem.c)
-use obs_util::threading::{Event, EventType};
 #[cfg(unix)]
 use obs_util::threading::Sem;
+use obs_util::threading::{Event, EventType};
 
 /// Ping-pong pairs of auto events across many thread pairs: every volley
 /// must complete exactly once per direction.
