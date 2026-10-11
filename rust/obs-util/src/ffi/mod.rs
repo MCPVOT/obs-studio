@@ -18,4 +18,8 @@ pub mod profiler;
 pub mod profiler_snapshot;
 pub mod task;
 pub mod text_lookup;
+#[cfg(not(windows))]
+pub mod utf8;
+#[cfg(windows)]
+#[path = "utf8_windows.rs"]
 pub mod utf8;
