@@ -1,5 +1,6 @@
 #include "obs-internal.h"
 #include "pulseaudio-wrapper.h"
+#include "pulseaudio-stream-flags.h"
 
 #define PULSE_DATA(voidptr) struct audio_monitor *data = voidptr;
 #define blog(level, msg, ...) blog(level, "pulse-am: " msg, ##__VA_ARGS__)
@@ -435,7 +436,7 @@ static bool audio_monitor_init(struct audio_monitor *monitor, obs_source_t *sour
 	monitor->attr.prebuf = (uint32_t)-1;
 	monitor->attr.tlength = pa_usec_to_bytes(25000, &spec);
 
-	pa_stream_flags_t flags = PA_STREAM_INTERPOLATE_TIMING | PA_STREAM_AUTO_TIMING_UPDATE | PA_STREAM_START_CORKED;
+	pa_stream_flags_t flags = pulseaudio_monitor_stream_flags(id);
 
 	int_fast32_t ret = pulseaudio_connect_playback(monitor->stream, monitor->device, &monitor->attr, flags);
 	if (ret < 0) {
