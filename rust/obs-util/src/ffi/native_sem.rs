@@ -78,9 +78,16 @@ mod mach_sem {
 }
 
 /// `os_sem_t`. The native object is created in place and never moves;
-/// see the module docs for how that is enforced. `Sem` is `!Unpin`, so
-/// `Pin::into_inner` — the only safe way back to a movable `Box<Sem>` —
-/// does not compile:
+/// see the module docs for how that is enforced. `Sem::new` returns a
+/// pinned box — a movable `Box<Sem>` would not typecheck here:
+///
+/// ```
+/// let pinned: std::pin::Pin<Box<obs_util::threading::Sem>> =
+///     obs_util::threading::Sem::new(0);
+/// ```
+///
+/// and `Sem` is `!Unpin`, so `Pin::into_inner` — the only safe way back
+/// to a movable `Box<Sem>` — does not compile:
 ///
 /// ```compile_fail
 /// let sem = obs_util::threading::Sem::new(0);
