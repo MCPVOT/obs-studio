@@ -1,0 +1,10 @@
+profile_end
+profile_reenable_thread
+profile_register_root
+profile_snapshot_create
+profile_start
+profiler_free
+profiler_name_store_create
+profiler_name_store_free
+profiler_start
+profiler_stop
