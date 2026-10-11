@@ -5,10 +5,7 @@ add_executable(
   test_multitrack_ladder.c
   "${CMAKE_SOURCE_DIR}/frontend/utility/multitrack-ladder.c"
 )
-target_include_directories(
-  test_multitrack_ladder
-  PRIVATE ${CMOCKA_INCLUDE_DIR} "${CMAKE_SOURCE_DIR}/frontend/utility"
-)
+target_include_directories(test_multitrack_ladder PRIVATE ${CMOCKA_INCLUDE_DIR} "${CMAKE_SOURCE_DIR}/frontend/utility")
 target_link_libraries(test_multitrack_ladder PRIVATE ${CMOCKA_LIBRARIES})
 
 add_dependencies(cmocka-tests test_multitrack_ladder)

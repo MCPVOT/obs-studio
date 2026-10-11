@@ -10,6 +10,7 @@
 #include <utility/GoLiveAPI_Network.hpp>
 #include <utility/GoLiveAPI_PostData.hpp>
 #include <utility/MultitrackVideoError.hpp>
+#include <utility/multitrack-ladder.h>
 #include <widgets/OBSBasic.hpp>
 
 #include <qt-wrappers.hpp>
@@ -21,6 +22,10 @@
 #include <QUuid>
 
 #include <nlohmann/json.hpp>
+
+#include <climits>
+#include <string>
+#include <vector>
 
 static void setup_ladder_table(QTableWidget *table);
 
@@ -1943,37 +1948,59 @@ void OBSBasicSettings::ResetEncoders(bool streamOnly)
 	}
 }
 
-static QString ladder_json_field(const nlohmann::json &settings, const char *key)
+struct LadderOwnedSetting {
+	std::string bitrate;
+	std::string preset;
+	std::string tune;
+	std::string bframes;
+	std::string lookahead;
+};
+
+static mtv_ladder_value ladder_setting_from_json(const nlohmann::json &settings, const char *key, std::string &storage)
 {
+	mtv_ladder_value value = {};
+
 	if (!settings.is_object()) {
-		return QStringLiteral("-");
+		return value;
 	}
 
 	auto it = settings.find(key);
 	if (it == settings.end() || it->is_null()) {
-		return QStringLiteral("-");
+		return value;
 	}
 	if (it->is_string()) {
-		return QString::fromStdString(it->get<std::string>());
+		value.kind = MTV_LADDER_STRING;
+		storage = it->get<std::string>();
+		value.text = storage.c_str();
+		return value;
+	}
+	if (it->is_number_unsigned()) {
+		const auto wide = it->get<unsigned long long>();
+		if (wide > (unsigned long long)LLONG_MAX) {
+			value.kind = MTV_LADDER_RAW;
+			storage = it->dump();
+			value.text = storage.c_str();
+			return value;
+		}
+		value.kind = MTV_LADDER_INT;
+		value.integer = (long long)wide;
+		return value;
 	}
 	if (it->is_number_integer()) {
-		return QString::number(it->get<long long>());
+		value.kind = MTV_LADDER_INT;
+		value.integer = it->get<long long>();
+		return value;
 	}
 	if (it->is_boolean()) {
-		return it->get<bool>() ? QStringLiteral("true") : QStringLiteral("false");
+		value.kind = MTV_LADDER_BOOL;
+		value.boolean = it->get<bool>() ? 1 : 0;
+		return value;
 	}
-	return QString::fromStdString(it->dump());
-}
 
-static QString ladder_fps(const std::optional<media_frames_per_second> &fps)
-{
-	if (!fps || fps->denominator == 0) {
-		return QTStr("Basic.Settings.Stream.MultitrackVideoLadder.CanvasFps");
-	}
-	if (fps->numerator % fps->denominator == 0) {
-		return QString::number(fps->numerator / fps->denominator);
-	}
-	return QStringLiteral("%1/%2").arg(fps->numerator).arg(fps->denominator);
+	value.kind = MTV_LADDER_RAW;
+	storage = it->dump();
+	value.text = storage.c_str();
+	return value;
 }
 
 static void ladder_set_cell(QTableWidget *table, int row, int column, const QString &text)
@@ -2008,61 +2035,107 @@ static void setup_ladder_table(QTableWidget *table)
 static void show_ladder(Ui::OBSBasicSettings *ui, const GoLiveApi::Config &config, const QStringList &canvasNames)
 {
 	auto *table = ui->multitrackVideoLadder;
+	const size_t rung_count = config.encoder_configurations.size();
+	const size_t audio_count = config.audio_configurations.live.size();
+	std::vector<LadderOwnedSetting> owned(rung_count);
+	std::vector<mtv_ladder_rung> rungs(rung_count);
+	std::vector<std::string> canvas_storage;
+	std::vector<const char *> canvas_names;
+	std::vector<std::string> audio_codecs(audio_count);
+	std::vector<std::string> audio_bitrates(audio_count);
+	std::vector<mtv_ladder_audio> audio_in(audio_count);
+	std::vector<mtv_ladder_row> rows(rung_count);
+	std::vector<mtv_ladder_audio_out> audio_out(audio_count);
+	const std::string fps_label = QTStr("Basic.Settings.Stream.MultitrackVideoLadder.CanvasFps").toStdString();
+
 	setup_ladder_table(table);
-	table->setRowCount((int)config.encoder_configurations.size());
+	canvas_storage.reserve(canvasNames.size());
+	for (const QString &name : canvasNames) {
+		canvas_storage.push_back(name.toStdString());
+	}
+	canvas_names.reserve(canvas_storage.size());
+	for (const std::string &name : canvas_storage) {
+		canvas_names.push_back(name.c_str());
+	}
 
-	long long total_bitrate = 0;
-	bool any_bitrate = false;
-	for (size_t i = 0; i < config.encoder_configurations.size(); i++) {
+	for (size_t i = 0; i < rung_count; i++) {
 		const auto &encoder = config.encoder_configurations[i];
-		QString canvas = QTStr("Basic.Settings.Stream.MultitrackVideoLadder.CanvasMain");
-		if (encoder.canvas_index < (uint32_t)canvasNames.size()) {
-			canvas = canvasNames[(int)encoder.canvas_index];
-		} else {
-			canvas = QString::number(encoder.canvas_index);
-		}
+		mtv_ladder_rung &rung = rungs[i];
 
-		QString bitrate = ladder_json_field(encoder.settings, "bitrate");
-		bool bitrate_ok = false;
-		long long bitrate_value = bitrate.toLongLong(&bitrate_ok);
-		if (bitrate_ok) {
-			any_bitrate = true;
-			total_bitrate += bitrate_value;
-			bitrate += QStringLiteral(" Kbps");
+		rung.encoder = encoder.type.c_str();
+		rung.width = encoder.width;
+		rung.height = encoder.height;
+		rung.has_fps = encoder.framerate.has_value() ? 1 : 0;
+		if (encoder.framerate) {
+			rung.fps_num = encoder.framerate->numerator;
+			rung.fps_den = encoder.framerate->denominator;
 		}
+		rung.canvas_index = encoder.canvas_index;
+		rung.bitrate = ladder_setting_from_json(encoder.settings, "bitrate", owned[i].bitrate);
+		rung.preset = ladder_setting_from_json(encoder.settings, "preset", owned[i].preset);
+		rung.tune = ladder_setting_from_json(encoder.settings, "tune", owned[i].tune);
+		rung.bframes = ladder_setting_from_json(encoder.settings, "bf", owned[i].bframes);
+		rung.lookahead = ladder_setting_from_json(encoder.settings, "lookahead", owned[i].lookahead);
+	}
 
-		int row = (int)i;
-		ladder_set_cell(table, row, 0, QString::number(i));
-		ladder_set_cell(table, row, 1, canvas);
-		ladder_set_cell(table, row, 2, QString::fromStdString(encoder.type));
-		ladder_set_cell(table, row, 3, QStringLiteral("%1x%2").arg(encoder.width).arg(encoder.height));
-		ladder_set_cell(table, row, 4, ladder_fps(encoder.framerate));
-		ladder_set_cell(table, row, 5, bitrate);
-		ladder_set_cell(table, row, 6, ladder_json_field(encoder.settings, "preset"));
-		ladder_set_cell(table, row, 7, ladder_json_field(encoder.settings, "tune"));
-		ladder_set_cell(table, row, 8, ladder_json_field(encoder.settings, "bf"));
-		ladder_set_cell(table, row, 9, ladder_json_field(encoder.settings, "lookahead"));
+	for (size_t i = 0; i < audio_count; i++) {
+		const auto &audio = config.audio_configurations.live[i];
+
+		audio_codecs[i] = audio.codec;
+		audio_in[i].codec = audio_codecs[i].c_str();
+		audio_in[i].channels = audio.channels;
+		audio_in[i].bitrate = ladder_setting_from_json(audio.settings, "bitrate", audio_bitrates[i]);
+	}
+
+	mtv_ladder_in in = {};
+	in.rungs = rungs.empty() ? nullptr : rungs.data();
+	in.rung_count = rung_count;
+	in.canvas_names = canvas_names.empty() ? nullptr : canvas_names.data();
+	in.canvas_count = canvas_names.size();
+	in.canvas_fps_label = fps_label.c_str();
+	in.audio = audio_in.empty() ? nullptr : audio_in.data();
+	in.audio_count = audio_count;
+	in.config_id = config.meta.config_id.c_str();
+
+	mtv_ladder_out out = {};
+	out.rows = rows.empty() ? nullptr : rows.data();
+	out.audio = audio_out.empty() ? nullptr : audio_out.data();
+	mtv_ladder_fill(&in, &out);
+
+	table->setRowCount((int)out.row_count);
+	for (size_t i = 0; i < out.row_count; i++) {
+		const mtv_ladder_row &row = rows[i];
+		int table_row = (int)i;
+
+		ladder_set_cell(table, table_row, 0, QString::fromUtf8(row.track));
+		ladder_set_cell(table, table_row, 1, QString::fromUtf8(row.canvas));
+		ladder_set_cell(table, table_row, 2, QString::fromUtf8(row.encoder));
+		ladder_set_cell(table, table_row, 3, QString::fromUtf8(row.resolution));
+		ladder_set_cell(table, table_row, 4, QString::fromUtf8(row.fps));
+		ladder_set_cell(table, table_row, 5, QString::fromUtf8(row.bitrate));
+		ladder_set_cell(table, table_row, 6, QString::fromUtf8(row.preset));
+		ladder_set_cell(table, table_row, 7, QString::fromUtf8(row.tune));
+		ladder_set_cell(table, table_row, 8, QString::fromUtf8(row.bframes));
+		ladder_set_cell(table, table_row, 9, QString::fromUtf8(row.lookahead));
 	}
 	table->resizeColumnsToContents();
 
-	QString config_id = config.meta.config_id.empty()
-				    ? QStringLiteral("-")
-				    : QString::fromStdString(config.meta.config_id).toHtmlEscaped();
+	QString config_id = QString::fromUtf8(out.config_id).toHtmlEscaped();
 	QString fetched = QDateTime::currentDateTime().toString(Qt::ISODate).toHtmlEscaped();
 	QString summary;
-	if (any_bitrate) {
+	if (out.any_bitrate) {
 		summary = QTStr("Basic.Settings.Stream.MultitrackVideoLadder.Summary")
-				  .arg(config_id, fetched, QString::number(total_bitrate));
+				  .arg(config_id, fetched, QString::number(out.total_bitrate_kbps));
 	} else {
 		summary = QTStr("Basic.Settings.Stream.MultitrackVideoLadder.SummaryNoBitrate").arg(config_id, fetched);
 	}
 
 	QStringList audio_parts;
-	for (const auto &audio : config.audio_configurations.live) {
+	for (size_t i = 0; i < out.audio_count; i++) {
 		audio_parts << QTStr("Basic.Settings.Stream.MultitrackVideoLadder.AudioTrack")
-				       .arg(QString::fromStdString(audio.codec).toHtmlEscaped())
-				       .arg(audio.channels)
-				       .arg(ladder_json_field(audio.settings, "bitrate").toHtmlEscaped());
+				       .arg(QString::fromUtf8(audio_out[i].codec).toHtmlEscaped())
+				       .arg(audio_out[i].channels)
+				       .arg(QString::fromUtf8(audio_out[i].bitrate).toHtmlEscaped());
 	}
 	if (!audio_parts.isEmpty()) {
 		summary += QStringLiteral("<br/>");
