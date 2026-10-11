@@ -305,8 +305,10 @@ impl Pipe {
         }
     }
 
-    /// Write until `buf` is consumed or the pipe errors, mirroring the
-    /// `fwrite` loop in `os_process_pipe_write`. Zero for a read-mode pipe.
+    /// Write until `buf` is consumed or the pipe errors, mirroring the one
+    /// `fwrite` in `os_process_pipe_write`, which also writes until done or
+    /// an error and returns the bytes the kernel took. Zero for a read-mode
+    /// pipe.
     /// A write to a closed reader surfaces as a short count here; in a
     /// C-main process (libobs) both sides die on SIGPIPE identically, since
     /// signal disposition is a process property (Rust `std` only ignores

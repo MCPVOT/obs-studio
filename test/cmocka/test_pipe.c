@@ -5,6 +5,10 @@
 
 #include <string.h>
 
+#ifndef _WIN32
+#include <signal.h>
+#endif
+
 #include <util/bmem.h>
 #include <util/pipe.h>
 
@@ -204,6 +208,54 @@ static void test_pipe_write_mode(void **state)
 
 	assert_int_equal(os_process_pipe_destroy(pp), 0);
 }
+
+#ifdef __linux__
+static void test_pipe_write_stops_after_partial_error(void **state)
+{
+	UNUSED_PARAMETER(state);
+
+	/* More than Linux's default pipe capacity, including on 64 KiB-page hosts. */
+	const size_t len = 16 * 1024 * 1024;
+	uint8_t *data = bzalloc(len);
+	assert_non_null(data);
+
+	struct sigaction ignore = {0};
+	struct sigaction previous;
+	ignore.sa_handler = SIG_IGN;
+	sigemptyset(&ignore.sa_mask);
+	assert_int_equal(sigaction(SIGPIPE, &ignore, &previous), 0);
+
+	/*
+	 * dd consumes exactly one byte and exits. The large write must therefore
+	 * transfer a prefix and encounter EPIPE. The EOF handshake ensures stderr
+	 * cannot keep the parent waiting while dd waits for that first byte.
+	 */
+	os_process_pipe_t *pp =
+		os_process_pipe_create("exec 2>&-; dd bs=1 count=1 of=/dev/null 2>/dev/null", "w");
+	bool created = pp != NULL;
+	size_t err_bytes = 0;
+	size_t written = 0;
+	size_t next_written = 0;
+	int exit_status = -1;
+	if (pp) {
+		uint8_t byte;
+		err_bytes = os_process_pipe_read_err(pp, &byte, 1);
+		written = os_process_pipe_write(pp, data, len);
+		next_written = os_process_pipe_write(pp, data, len);
+		exit_status = os_process_pipe_destroy(pp);
+	}
+
+	int restore_status = sigaction(SIGPIPE, &previous, NULL);
+	bfree(data);
+	assert_int_equal(restore_status, 0);
+	assert_true(created);
+	assert_int_equal(err_bytes, 0);
+	assert_int_equal(exit_status, 0);
+	assert_true(written > 0);
+	assert_true(written < len);
+	assert_int_equal(next_written, 0);
+}
+#endif
 
 static void test_pipe_write_on_read_pipe(void **state)
 {
@@ -440,6 +492,9 @@ int main(void)
 #endif
 		cmocka_unit_test(test_pipe_create2_missing_binary),
 		cmocka_unit_test(test_pipe_write_mode),
+#ifdef __linux__
+		cmocka_unit_test(test_pipe_write_stops_after_partial_error),
+#endif
 		cmocka_unit_test(test_pipe_write_on_read_pipe),
 		cmocka_unit_test(test_pipe_type_handling),
 		cmocka_unit_test(test_pipe_null_arguments),
