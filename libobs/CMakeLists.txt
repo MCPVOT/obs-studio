@@ -128,6 +128,7 @@ target_sources(
     $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:util/profiler-snapshot.c>
     util/profiler-snapshot.h
     util/profiler.c
+    util/profiler-io.c
     util/profiler.h
     util/profiler.hpp
     util/serializer.h
