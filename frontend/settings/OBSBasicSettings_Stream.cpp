@@ -7,11 +7,22 @@
 #ifdef YOUTUBE_ENABLED
 #include <utility/YoutubeApiWrappers.hpp>
 #endif
+#include <utility/GoLiveAPI_Network.hpp>
+#include <utility/GoLiveAPI_PostData.hpp>
+#include <utility/MultitrackVideoError.hpp>
 #include <widgets/OBSBasic.hpp>
 
 #include <qt-wrappers.hpp>
 
+#include <QApplication>
+#include <QDateTime>
+#include <QHeaderView>
+#include <QTableWidget>
 #include <QUuid>
+
+#include <nlohmann/json.hpp>
+
+static void setup_ladder_table(QTableWidget *table);
 
 static void add_override_choice(QComboBox *box, const char *text_key, const char *value)
 {
@@ -125,6 +136,17 @@ void OBSBasicSettings::InitStreamPage()
 		&OBSBasicSettings::UpdateMultitrackVideo);
 	connect(ui->multitrackVideoConfigOverrideEnable, &QCheckBox::toggled, this,
 		&OBSBasicSettings::UpdateMultitrackVideo);
+	connect(ui->multitrackVideoPreviewLadder, &QPushButton::clicked, this,
+		&OBSBasicSettings::PreviewMultitrackVideoLadder);
+	connect(ui->multitrackVideoMaximumAggregateBitrate, qOverload<int>(&QSpinBox::valueChanged), this,
+		&OBSBasicSettings::UpdateMultitrackVideoLadderStale);
+	connect(ui->multitrackVideoMaximumVideoTracks, qOverload<int>(&QSpinBox::valueChanged), this,
+		&OBSBasicSettings::UpdateMultitrackVideoLadderStale);
+	connect(ui->multitrackVideoAdditionalCanvas, qOverload<int>(&QComboBox::currentIndexChanged), this,
+		&OBSBasicSettings::UpdateMultitrackVideoLadderStale);
+	connect(ui->key, &QLineEdit::textChanged, this, &OBSBasicSettings::UpdateMultitrackVideoLadderStale);
+	connect(ui->multitrackVideoConfigOverride, &QPlainTextEdit::textChanged, this,
+		&OBSBasicSettings::UpdateMultitrackVideoLadderStale);
 }
 
 void OBSBasicSettings::LoadStream1Settings()
@@ -275,6 +297,9 @@ void OBSBasicSettings::LoadStream1Settings()
 	UpdateMoreInfoLink();
 	UpdateVodTrackSetting();
 	UpdateServiceRecommendations();
+	setup_ladder_table(ui->multitrackVideoLadder);
+	ui->multitrackVideoLadderStatus->setOpenExternalLinks(true);
+	ui->multitrackVideoLadderStatus->setTextInteractionFlags(Qt::TextBrowserInteraction);
 	UpdateMultitrackVideo();
 
 	bool streamActive = obs_frontend_streaming_active();
@@ -1051,6 +1076,7 @@ void OBSBasicSettings::UpdateVodTrackSetting()
 
 	HookWidget(simpleVodTrack.data(), &QCheckBox::clicked, &OBSBasicSettings::OutputsChanged);
 	connect(ui->simpleOutAdvanced, &QCheckBox::toggled, simpleVodTrack.data(), &QCheckBox::setVisible);
+	connect(simpleVodTrack.data(), &QCheckBox::toggled, this, &OBSBasicSettings::UpdateMultitrackVideoLadderStale);
 
 	/* -------------------------------------- */
 	/* advanced output mode vod track widgets */
@@ -1069,6 +1095,8 @@ void OBSBasicSettings::UpdateVodTrackSetting()
 	}
 
 	HookWidget(vodTrackCheckbox.data(), &QCheckBox::clicked, &OBSBasicSettings::OutputsChanged);
+	connect(vodTrackCheckbox.data(), &QCheckBox::toggled, this,
+		&OBSBasicSettings::UpdateMultitrackVideoLadderStale);
 
 	vodTrackLayout->addStretch();
 	vodTrackLayout->setContentsMargins(0, 0, 0, 0);
@@ -1912,5 +1940,271 @@ void OBSBasicSettings::ResetEncoders(bool streamOnly)
 		idx = ui->simpleOutStrAEncoder->findData(lastAudioEnc);
 		s3.unblock();
 		ui->simpleOutStrAEncoder->setCurrentIndex(idx);
+	}
+}
+
+static QString ladder_json_field(const nlohmann::json &settings, const char *key)
+{
+	if (!settings.is_object()) {
+		return QStringLiteral("-");
+	}
+
+	auto it = settings.find(key);
+	if (it == settings.end() || it->is_null()) {
+		return QStringLiteral("-");
+	}
+	if (it->is_string()) {
+		return QString::fromStdString(it->get<std::string>());
+	}
+	if (it->is_number_integer()) {
+		return QString::number(it->get<long long>());
+	}
+	if (it->is_boolean()) {
+		return it->get<bool>() ? QStringLiteral("true") : QStringLiteral("false");
+	}
+	return QString::fromStdString(it->dump());
+}
+
+static QString ladder_fps(const std::optional<media_frames_per_second> &fps)
+{
+	if (!fps || fps->denominator == 0) {
+		return QTStr("Basic.Settings.Stream.MultitrackVideoLadder.CanvasFps");
+	}
+	if (fps->numerator % fps->denominator == 0) {
+		return QString::number(fps->numerator / fps->denominator);
+	}
+	return QStringLiteral("%1/%2").arg(fps->numerator).arg(fps->denominator);
+}
+
+static void ladder_set_cell(QTableWidget *table, int row, int column, const QString &text)
+{
+	auto *item = new QTableWidgetItem(text);
+	item->setFlags(Qt::ItemIsEnabled);
+	table->setItem(row, column, item);
+}
+
+static void setup_ladder_table(QTableWidget *table)
+{
+	table->setColumnCount(10);
+	table->setHorizontalHeaderLabels({QTStr("Basic.Settings.Stream.MultitrackVideoLadder.Col.Track"),
+					  QTStr("Basic.Settings.Stream.MultitrackVideoLadder.Col.Canvas"),
+					  QTStr("Basic.Settings.Stream.MultitrackVideoLadder.Col.Encoder"),
+					  QTStr("Basic.Settings.Stream.MultitrackVideoLadder.Col.Resolution"),
+					  QTStr("Basic.Settings.Stream.MultitrackVideoLadder.Col.Fps"),
+					  QTStr("Basic.Settings.Stream.MultitrackVideoLadder.Col.Bitrate"),
+					  QTStr("Basic.Settings.Stream.MultitrackVideoLadder.Col.Preset"),
+					  QTStr("Basic.Settings.Stream.MultitrackVideoLadder.Col.Tune"),
+					  QTStr("Basic.Settings.Stream.MultitrackVideoLadder.Col.BFrames"),
+					  QTStr("Basic.Settings.Stream.MultitrackVideoLadder.Col.Lookahead")});
+	table->setEditTriggers(QAbstractItemView::NoEditTriggers);
+	table->setSelectionMode(QAbstractItemView::NoSelection);
+	table->setFocusPolicy(Qt::NoFocus);
+	table->verticalHeader()->setVisible(false);
+	table->horizontalHeader()->setStretchLastSection(true);
+	table->setWordWrap(false);
+	table->setTextElideMode(Qt::ElideRight);
+}
+
+static void show_ladder(Ui::OBSBasicSettings *ui, const GoLiveApi::Config &config, const QStringList &canvasNames)
+{
+	auto *table = ui->multitrackVideoLadder;
+	setup_ladder_table(table);
+	table->setRowCount((int)config.encoder_configurations.size());
+
+	long long total_bitrate = 0;
+	bool any_bitrate = false;
+	for (size_t i = 0; i < config.encoder_configurations.size(); i++) {
+		const auto &encoder = config.encoder_configurations[i];
+		QString canvas = QTStr("Basic.Settings.Stream.MultitrackVideoLadder.CanvasMain");
+		if (encoder.canvas_index < (uint32_t)canvasNames.size()) {
+			canvas = canvasNames[(int)encoder.canvas_index];
+		} else {
+			canvas = QString::number(encoder.canvas_index);
+		}
+
+		QString bitrate = ladder_json_field(encoder.settings, "bitrate");
+		bool bitrate_ok = false;
+		long long bitrate_value = bitrate.toLongLong(&bitrate_ok);
+		if (bitrate_ok) {
+			any_bitrate = true;
+			total_bitrate += bitrate_value;
+			bitrate += QStringLiteral(" Kbps");
+		}
+
+		int row = (int)i;
+		ladder_set_cell(table, row, 0, QString::number(i));
+		ladder_set_cell(table, row, 1, canvas);
+		ladder_set_cell(table, row, 2, QString::fromStdString(encoder.type));
+		ladder_set_cell(table, row, 3, QStringLiteral("%1x%2").arg(encoder.width).arg(encoder.height));
+		ladder_set_cell(table, row, 4, ladder_fps(encoder.framerate));
+		ladder_set_cell(table, row, 5, bitrate);
+		ladder_set_cell(table, row, 6, ladder_json_field(encoder.settings, "preset"));
+		ladder_set_cell(table, row, 7, ladder_json_field(encoder.settings, "tune"));
+		ladder_set_cell(table, row, 8, ladder_json_field(encoder.settings, "bf"));
+		ladder_set_cell(table, row, 9, ladder_json_field(encoder.settings, "lookahead"));
+	}
+	table->resizeColumnsToContents();
+
+	QString config_id = config.meta.config_id.empty()
+				    ? QStringLiteral("-")
+				    : QString::fromStdString(config.meta.config_id).toHtmlEscaped();
+	QString fetched = QDateTime::currentDateTime().toString(Qt::ISODate).toHtmlEscaped();
+	QString summary;
+	if (any_bitrate) {
+		summary = QTStr("Basic.Settings.Stream.MultitrackVideoLadder.Summary")
+				  .arg(config_id, fetched, QString::number(total_bitrate));
+	} else {
+		summary = QTStr("Basic.Settings.Stream.MultitrackVideoLadder.SummaryNoBitrate").arg(config_id, fetched);
+	}
+
+	QStringList audio_parts;
+	for (const auto &audio : config.audio_configurations.live) {
+		audio_parts << QTStr("Basic.Settings.Stream.MultitrackVideoLadder.AudioTrack")
+				       .arg(QString::fromStdString(audio.codec).toHtmlEscaped())
+				       .arg(audio.channels)
+				       .arg(ladder_json_field(audio.settings, "bitrate").toHtmlEscaped());
+	}
+	if (!audio_parts.isEmpty()) {
+		summary += QStringLiteral("<br/>");
+		summary += QTStr("Basic.Settings.Stream.MultitrackVideoLadder.Audio").arg(audio_parts.join(", "));
+	}
+
+	ui->multitrackVideoLadderStatus->setTextFormat(Qt::RichText);
+	ui->multitrackVideoLadderStatus->setText(summary);
+}
+
+void OBSBasicSettings::UpdateMultitrackVideoLadderStale()
+{
+	ui->multitrackVideoLadderStale->setVisible(ui->multitrackVideoLadder->rowCount() > 0 &&
+						   multitrackLadderKey != MultitrackVideoLadderRequestKey());
+}
+
+QString OBSBasicSettings::MultitrackVideoLadderRequestKey() const
+{
+	QString vod = QStringLiteral("0");
+	if (ui->outputMode->currentIndex() == 0) {
+		vod = (simpleVodTrack && simpleVodTrack->isChecked()) ? QStringLiteral("1") : QStringLiteral("0");
+	} else if (vodTrackCheckbox && vodTrackCheckbox->isChecked()) {
+		vod = QStringLiteral("1");
+	}
+
+	return ui->service->currentText() + '\n' + ui->key->text() + '\n' + ui->customServer->text() + '\n' +
+	       QString::number(ui->multitrackVideoMaximumAggregateBitrateAuto->isChecked()) + '\n' +
+	       QString::number(ui->multitrackVideoMaximumAggregateBitrate->value()) + '\n' +
+	       QString::number(ui->multitrackVideoMaximumVideoTracksAuto->isChecked()) + '\n' +
+	       QString::number(ui->multitrackVideoMaximumVideoTracks->value()) + '\n' +
+	       ui->multitrackVideoAdditionalCanvas->currentData().toString() + '\n' + vod + '\n' +
+	       QString::number(IsCustomService()) + '\n' +
+	       QString::number(ui->multitrackVideoConfigOverrideEnable->isChecked()) + '\n' +
+	       ui->multitrackVideoConfigOverride->toPlainText();
+}
+
+void OBSBasicSettings::PreviewMultitrackVideoLadder()
+{
+	auto fail = [&](const QString &message, bool rich) {
+		ui->multitrackVideoLadder->setRowCount(0);
+		multitrackLadderKey.clear();
+		ui->multitrackVideoLadderStale->setVisible(false);
+		ui->multitrackVideoLadderStatus->setTextFormat(rich ? Qt::RichText : Qt::PlainText);
+		ui->multitrackVideoLadderStatus->setText(message);
+	};
+
+	std::vector<OBSCanvasAutoRelease> canvases;
+	QStringList canvasNames;
+	canvases.emplace_back(obs_get_main_canvas());
+	canvasNames << QTStr("Basic.Settings.Stream.MultitrackVideoLadder.CanvasMain");
+
+	const QString extra = ui->multitrackVideoAdditionalCanvas->currentData().toString();
+	if (!extra.isEmpty()) {
+		obs_canvas_t *canvas = obs_get_canvas_by_uuid(extra.toUtf8().constData());
+		if (!canvas) {
+			fail(QTStr("FailedToStartStream.MissingCanvas"), false);
+			return;
+		}
+		canvasNames << QString::fromUtf8(obs_canvas_get_name(canvas));
+		canvases.emplace_back(canvas);
+	}
+
+	if (IsCustomService()) {
+		if (!ui->multitrackVideoConfigOverrideEnable->isChecked()) {
+			fail(QTStr("Basic.Settings.Stream.MultitrackVideoLadder.CustomNeedsOverride"), false);
+			return;
+		}
+
+		try {
+			auto parsed =
+				nlohmann::json::parse(ui->multitrackVideoConfigOverride->toPlainText().toStdString());
+			GoLiveApi::Config config = parsed;
+			show_ladder(ui.get(), config, canvasNames);
+			multitrackLadderKey = MultitrackVideoLadderRequestKey();
+			ui->multitrackVideoLadderStale->setVisible(false);
+		} catch (const nlohmann::json::exception &exception) {
+			fail(QTStr("FailedToStartStream.InvalidCustomConfig") + QStringLiteral("\n") +
+				     QString::fromUtf8(exception.what()),
+			     false);
+		}
+		return;
+	}
+
+	if (ui->key->text().trimmed().isEmpty()) {
+		fail(QTStr("Basic.Settings.Stream.MultitrackVideoLadder.NeedKey"), false);
+		return;
+	}
+
+	OBSDataAutoRelease service_settings = obs_data_create();
+	obs_data_set_string(service_settings, "service", QT_TO_UTF8(ui->service->currentText()));
+	OBSServiceAutoRelease service = obs_service_create_private("rtmp_common", "ladder preview", service_settings);
+	if (!service) {
+		fail(QTStr("FailedToStartStream.MissingConfigURL"), false);
+		return;
+	}
+
+	const QString url = MultitrackVideoAutoConfigURL(service);
+	if (url.isEmpty()) {
+		fail(QTStr("FailedToStartStream.MissingConfigURL"), false);
+		return;
+	}
+
+	std::optional<uint64_t> maximum_aggregate_bitrate;
+	if (!ui->multitrackVideoMaximumAggregateBitrateAuto->isChecked()) {
+		maximum_aggregate_bitrate = (uint64_t)ui->multitrackVideoMaximumAggregateBitrate->value();
+	}
+	std::optional<uint32_t> maximum_video_tracks;
+	if (!ui->multitrackVideoMaximumVideoTracksAuto->isChecked()) {
+		maximum_video_tracks = (uint32_t)ui->multitrackVideoMaximumVideoTracks->value();
+	}
+
+	bool vod_track = false;
+	if (ui->outputMode->currentIndex() == 0) {
+		vod_track = simpleVodTrack && simpleVodTrack->isChecked();
+	} else {
+		vod_track = vodTrackCheckbox && vodTrackCheckbox->isChecked();
+	}
+
+	auto multitrack_video_name = QTStr("Basic.Settings.Stream.MultitrackVideoLabel");
+	OBSDataAutoRelease created_settings = obs_service_get_settings(service);
+	if (obs_data_has_user_value(created_settings, "multitrack_video_name")) {
+		multitrack_video_name = obs_data_get_string(created_settings, "multitrack_video_name");
+	}
+
+	ui->multitrackVideoLadderStatus->setTextFormat(Qt::PlainText);
+	ui->multitrackVideoLadderStatus->setText(QTStr("Basic.Settings.Stream.MultitrackVideoLadder.Fetching"));
+	struct WaitCursor {
+		WaitCursor() { QApplication::setOverrideCursor(Qt::WaitCursor); }
+		~WaitCursor() { QApplication::restoreOverrideCursor(); }
+	} wait_cursor;
+	QApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
+
+	try {
+		auto post_data = constructGoLivePost(ui->key->text(), maximum_aggregate_bitrate, maximum_video_tracks,
+						     vod_track, canvases);
+		auto config = DownloadGoLiveConfig(this, url, post_data, multitrack_video_name, false);
+		show_ladder(ui.get(), config, canvasNames);
+		multitrackLadderKey = MultitrackVideoLadderRequestKey();
+		ui->multitrackVideoLadderStale->setVisible(false);
+	} catch (const MultitrackVideoError &error) {
+		QString message = error.error.isEmpty() ? QTStr("Basic.Settings.Stream.MultitrackVideoLadder.Help")
+							: error.error;
+		fail(message, message.contains('<'));
 	}
 }

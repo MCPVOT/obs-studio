@@ -5880,6 +5880,10 @@ void OBSBasicSettings::UpdateMultitrackVideo()
 		QTStr("Basic.Settings.Stream.MultitrackVideoDisableLookahead.ToolTip"));
 	ui->multitrackVideoPreset->setToolTip(QTStr("Basic.Settings.Stream.MultitrackVideoPreset.ToolTip"));
 	ui->multitrackVideoTune->setToolTip(QTStr("Basic.Settings.Stream.MultitrackVideoTune.ToolTip"));
+	ui->multitrackVideoPreviewLadder->setEnabled(toggle_available && ui->enableMultitrackVideo->isChecked());
+	ui->multitrackVideoPreviewLadder->setToolTip(
+		QTStr("Basic.Settings.Stream.MultitrackVideoPreviewLadder.ToolTip"));
+	UpdateMultitrackVideoLadderStale();
 	ui->multitrackVideoConfigOverrideEnable->setEnabled(toggle_available && ui->enableMultitrackVideo->isChecked());
 	ui->multitrackVideoConfigOverrideLabel->setEnabled(toggle_available && ui->enableMultitrackVideo->isChecked() &&
 							   ui->multitrackVideoConfigOverrideEnable->isChecked());
