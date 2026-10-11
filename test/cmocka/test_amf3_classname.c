@@ -1,6 +1,11 @@
+#include <setjmp.h>
+#include <stdarg.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <cmocka.h>
+
 #include "librtmp/rtmp_sys.h"
 #include "librtmp/amf.h"
 #include "librtmp/log.h"
