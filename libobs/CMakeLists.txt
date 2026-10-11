@@ -218,7 +218,7 @@ target_sources(
     graphics/matrix4.h
     graphics/plane.c
     graphics/plane.h
-    graphics/quat.c
+    $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:graphics/quat.c>
     graphics/quat.h
     graphics/shader-parser.c
     graphics/shader-parser.h

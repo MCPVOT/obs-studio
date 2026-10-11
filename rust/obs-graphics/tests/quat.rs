@@ -1,6 +1,7 @@
-//! Tier 1: safe-API tests mirroring `test/cmocka/test_quat.c`.
-//!
-//! RED: the core is `todo!()` until the port is implemented.
+//! Tier 1: safe-API tests mirroring `test/cmocka/test_quat.c`, plus edge
+//! cases.
+
+use core::ops::Mul;
 
 use obs_c_oracle as _;
 use obs_graphics::axisang::AxisAng;
@@ -26,8 +27,12 @@ fn test_quat_from_axisang_zero_is_identity() {
 
 #[test]
 fn test_quat_from_axisang_z90() {
+    // Same literals as `test/cmocka/test_quat.c`, not the rounded constants.
+    #[allow(clippy::approx_constant, clippy::excessive_precision)]
     let half = 0.70710678;
-    let q = Quat::from_axisang(AxisAng::new(0.0, 0.0, 1.0, 3.14159265 / 2.0));
+    #[allow(clippy::approx_constant, clippy::excessive_precision)]
+    let angle = 3.14159265 / 2.0;
+    let q = Quat::from_axisang(AxisAng::new(0.0, 0.0, 1.0, angle));
     assert!(near(q.x, 0.0) && near(q.y, 0.0), "{q:?}");
     assert!(near(q.z, half) && near(q.w, half), "{q:?}");
 }

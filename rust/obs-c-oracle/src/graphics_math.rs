@@ -90,6 +90,35 @@ unsafe extern "C" {
     pub fn oracle_quat_offset_z() -> usize;
     pub fn oracle_quat_offset_w() -> usize;
     pub fn oracle_quat_offset_m() -> usize;
+
+    pub fn oracle_quat_mul(dst: *mut OracleQuat, q1: *const OracleQuat, q2: *const OracleQuat);
+    pub fn oracle_quat_from_axisang(dst: *mut OracleQuat, aa: *const OracleAxisAng);
+    pub fn oracle_quat_from_matrix3(dst: *mut OracleQuat, m: *const OracleMatrix3);
+    pub fn oracle_quat_from_matrix4(dst: *mut OracleQuat, m: *const OracleMatrix4);
+    pub fn oracle_quat_get_dir(dst: *mut OracleVec3, q: *const OracleQuat);
+    pub fn oracle_quat_set_look_dir(dst: *mut OracleQuat, dir: *const OracleVec3);
+    pub fn oracle_quat_log(dst: *mut OracleQuat, q: *const OracleQuat);
+    pub fn oracle_quat_exp(dst: *mut OracleQuat, q: *const OracleQuat);
+    pub fn oracle_quat_interpolate(
+        dst: *mut OracleQuat,
+        q1: *const OracleQuat,
+        q2: *const OracleQuat,
+        t: f32,
+    );
+    pub fn oracle_quat_get_tangent(
+        dst: *mut OracleQuat,
+        prev: *const OracleQuat,
+        q: *const OracleQuat,
+        next: *const OracleQuat,
+    );
+    pub fn oracle_quat_interpolate_cubic(
+        dst: *mut OracleQuat,
+        q1: *const OracleQuat,
+        q2: *const OracleQuat,
+        m1: *const OracleQuat,
+        m2: *const OracleQuat,
+        t: f32,
+    );
 }
 
 unsafe extern "C" {
