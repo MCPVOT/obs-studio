@@ -177,10 +177,9 @@ bool audio_resampler_resample(audio_resampler_t *resampler, uint8_t *output[], u
 			r->buf_bytes[p] = need;
 		}
 		for (uint32_t i = 0; i < out; i++) {
-			uint32_t src_frame = (uint32_t)((uint64_t)i * r->src.samples_per_sec /
-							r->dst.samples_per_sec);
-			memcpy(r->buf[p] + (size_t)i * r->frame_bytes,
-			       input[p] + (size_t)src_frame * r->frame_bytes, r->frame_bytes);
+			uint32_t src_frame = (uint32_t)((uint64_t)i * r->src.samples_per_sec / r->dst.samples_per_sec);
+			memcpy(r->buf[p] + (size_t)i * r->frame_bytes, input[p] + (size_t)src_frame * r->frame_bytes,
+			       r->frame_bytes);
 		}
 		output[p] = r->buf[p];
 	}
@@ -251,8 +250,7 @@ bool oracle_audio_mix_input_resampled(audio_t *audio, size_t mix_idx, size_t inp
 	return audio->mixes[mix_idx].inputs.array[input_idx].resampler != NULL;
 }
 
-const struct audio_convert_info *oracle_audio_mix_input_conversion(audio_t *audio, size_t mix_idx,
-								   size_t input_idx)
+const struct audio_convert_info *oracle_audio_mix_input_conversion(audio_t *audio, size_t mix_idx, size_t input_idx)
 {
 	return &audio->mixes[mix_idx].inputs.array[input_idx].conversion;
 }
