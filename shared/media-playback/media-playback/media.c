@@ -337,6 +337,10 @@ static inline int64_t mp_media_get_base_pts(mp_media_t *m)
 /* maximum timestamp variance in nanoseconds */
 #define MAX_TS_VAR 2000000000LL
 
+/* longest the last frame is held when playback ends, in nanoseconds (the
+ * same limit as the wait between two frames) */
+#define MAX_HOLD_NS 3000000000LL
+
 static inline bool mp_media_can_play_frame(mp_media_t *m, struct mp_decode *d)
 {
 	if (m->full_decode)
@@ -387,6 +391,8 @@ void mp_media_next_video(mp_media_t *m, bool preload)
 			return;
 
 		d->frame_ready = false;
+		m->v_output_interval = d->frame_pts - m->v_output_pts;
+		m->v_output_pts = d->frame_pts;
 
 		if (!m->v_cb)
 			return;
@@ -640,6 +646,50 @@ bool mp_media_eof(mp_media_t *m)
 	return eof;
 }
 
+/* Playback that ends without looping keeps its last frame for that frame's
+ * duration before it stops, as looping playback does before it starts over.
+ * Stopping also clears the source (with "Show nothing when playback ends"),
+ * which drops the frames libobs has not shown yet. libobs shows a buffered
+ * async frame up to one frame interval plus one output frame after it is
+ * output, so wait for that as well, and one more output frame for jitter. */
+static bool mp_media_hold_last_frame(mp_media_t *m)
+{
+	bool v_ended = !m->has_video || !m->v.frame_ready;
+	bool a_ended = !m->has_audio || !m->a.frame_ready;
+
+	if (!v_ended || !a_ended) {
+		m->last_frame_held = false;
+		return false;
+	}
+	if (m->last_frame_held)
+		return false;
+	m->last_frame_held = true;
+
+	pthread_mutex_lock(&m->mutex);
+	bool looping = m->looping;
+	pthread_mutex_unlock(&m->mutex);
+	if (looping)
+		return false;
+
+	int64_t hold = mp_media_get_base_pts(m) - m->next_pts_ns;
+	if (hold < 0 || hold > MAX_HOLD_NS)
+		hold = 0;
+
+	if (m->has_video) {
+		int64_t interval = m->v_output_interval;
+		if (interval < 0 || interval > MAX_HOLD_NS)
+			interval = 0;
+		hold += interval + 2 * (int64_t)obs_get_frame_interval_ns();
+	}
+
+	if (!hold)
+		return false;
+
+	m->next_ns += hold;
+	m->next_pts_ns += hold;
+	return true;
+}
+
 static int interrupt_callback(void *data)
 {
 	mp_media_t *m = data;
@@ -823,6 +873,8 @@ static inline bool mp_media_thread(mp_media_t *m)
 
 			if (!mp_media_prepare_frames(m))
 				return false;
+			if (mp_media_hold_last_frame(m))
+				continue;
 			if (mp_media_eof(m))
 				continue;
 
