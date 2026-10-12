@@ -1257,6 +1257,16 @@ void obs_hotkeys_retry_background(void)
 	wake_background_client();
 }
 
+void obs_hotkeys_configure_background(void)
+{
+	if (!lock())
+		return;
+
+	obs->hotkeys.background.configure = true;
+	obs->hotkeys.background.flags &= ~OBS_HOTKEYS_BACKGROUND_CONFIGURE_FAILED;
+	wake_background_client();
+}
+
 void obs_hotkeys_set_background_probe(bool enable)
 {
 	if (!lock())
@@ -1267,6 +1277,9 @@ void obs_hotkeys_set_background_probe(bool enable)
 		return;
 	}
 	obs->hotkeys.background.probe = enable;
+	/* A request to open the desktop's editor belongs to this probe. */
+	if (!enable)
+		obs->hotkeys.background.configure = false;
 	wake_background_client();
 }
 
