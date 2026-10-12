@@ -1698,9 +1698,12 @@ static void source_output_audio_data(obs_source_t *source, const struct audio_da
 
 	source->next_audio_sys_ts_min = source->next_audio_ts_min + source->timing_adjust;
 
+	/* A packet appended to the buffer ignores its timestamp, and so the
+	 * sync offset in it: after the offset changes, place the next packet
+	 * by its timestamp, whatever the previous offset was. Before the first
+	 * packet (no audio_ts yet) it is placed anyway. */
 	if (source->last_sync_offset != sync_offset) {
-		if (source->last_sync_offset)
-			push_back = false;
+		push_back = false;
 		source->last_sync_offset = sync_offset;
 	}
 
