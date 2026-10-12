@@ -64,6 +64,13 @@ struct vlc_source {
 	struct obs_source_audio audio;
 	size_t audio_capacity;
 
+	/* libVLC clock time (us) at which the audio handed to libobs so far
+	 * ends; only touched by libVLC's audio thread */
+	int64_t audio_end_pts;
+	/* set to cut a running drain short when playback is stopped or the
+	 * playlist moves on */
+	os_event_t *drain_abort;
+
 	pthread_mutex_t mutex;
 	media_file_array_t files;
 	enum behavior behavior;
@@ -333,10 +340,19 @@ static const char *vlcs_get_name(void *unused)
 	return obs_module_text("VLCSource");
 }
 
+/* Called before stopping playback or switching items, so that a pending
+ * drain does not hold up libVLC's stop. */
+static inline void abort_drain(struct vlc_source *c)
+{
+	if (c->drain_abort)
+		os_event_signal(c->drain_abort);
+}
+
 static void vlcs_destroy(void *data)
 {
 	struct vlc_source *c = data;
 
+	abort_drain(c);
 	if (c->media_list_player) {
 		libvlc_media_list_player_stop_(c->media_list_player);
 		libvlc_media_list_player_release_(c->media_list_player);
@@ -350,6 +366,8 @@ static void vlcs_destroy(void *data)
 
 	free_files(&c->files);
 	pthread_mutex_destroy(&c->mutex);
+	if (c->drain_abort)
+		os_event_destroy(c->drain_abort);
 	bfree(c);
 }
 
@@ -477,8 +495,33 @@ static void vlcs_audio_play(void *data, const void *samples, unsigned count, int
 			  get_audio_bytes_per_channel(c->audio.format));
 	c->audio.timestamp = (uint64_t)pts * 1000ULL - time_start;
 	c->audio.frames = count;
+	if (c->audio.samples_per_sec)
+		c->audio_end_pts = pts + (int64_t)util_mul_div64(count, 1000000ULL, c->audio.samples_per_sec);
 
 	obs_source_output_audio(c->source, &c->audio);
+}
+
+/* Without a drain callback libVLC considers a track finished as soon as its
+ * last samples have been handed to vlcs_audio_play. Those samples are
+ * timestamped about a second ahead of the libVLC clock, so the next playlist
+ * item would start, and be timestamped, while libobs still has that second of
+ * the previous track to play, and its audio would replace it. Wait until the
+ * audio handed over so far is due, as an audio device drains its buffer. */
+#define MAX_DRAIN_MS 3000
+
+static void vlcs_audio_drain(void *data)
+{
+	struct vlc_source *c = data;
+	int64_t wait_us = c->audio_end_pts - libvlc_clock_();
+
+	if (wait_us <= 0)
+		return;
+
+	unsigned long wait_ms = (unsigned long)((wait_us + 999) / 1000);
+	if (wait_ms > MAX_DRAIN_MS)
+		wait_ms = MAX_DRAIN_MS;
+
+	os_event_timedwait(c->drain_abort, wait_ms);
 }
 
 static int vlcs_audio_setup(void **p_data, char *format, unsigned *rate, unsigned *channels)
@@ -680,6 +723,7 @@ static void vlcs_update(void *data, obs_data_t *settings)
 	/* ------------------------------------- */
 	/* update settings data */
 
+	abort_drain(c);
 	libvlc_media_list_player_stop_(c->media_list_player);
 
 	pthread_mutex_lock(&c->mutex);
@@ -745,6 +789,7 @@ static void vlcs_update(void *data, obs_data_t *settings)
 static void vlcs_started(const struct libvlc_event_t *event, void *data)
 {
 	struct vlc_source *c = data;
+	os_event_reset(c->drain_abort);
 	obs_source_media_started(c->source);
 
 	UNUSED_PARAMETER(event);
@@ -806,6 +851,7 @@ static void vlcs_restart(void *data)
 {
 	struct vlc_source *c = data;
 
+	abort_drain(c);
 	libvlc_media_list_player_stop_(c->media_list_player);
 	libvlc_media_list_player_play_(c->media_list_player);
 }
@@ -814,6 +860,7 @@ static void vlcs_stop(void *data)
 {
 	struct vlc_source *c = data;
 
+	abort_drain(c);
 	libvlc_media_list_player_stop_(c->media_list_player);
 	obs_source_output_video(c->source, NULL);
 }
@@ -822,6 +869,7 @@ static void vlcs_playlist_next(void *data)
 {
 	struct vlc_source *c = data;
 
+	abort_drain(c);
 	libvlc_media_list_player_next_(c->media_list_player);
 }
 
@@ -829,6 +877,7 @@ static void vlcs_playlist_prev(void *data)
 {
 	struct vlc_source *c = data;
 
+	abort_drain(c);
 	libvlc_media_list_player_previous_(c->media_list_player);
 }
 
@@ -937,6 +986,8 @@ static void *vlcs_create(obs_data_t *settings, obs_source_t *source)
 	pthread_mutex_init_value(&c->mutex);
 	if (pthread_mutex_init(&c->mutex, NULL) != 0)
 		goto error;
+	if (os_event_init(&c->drain_abort, OS_EVENT_TYPE_MANUAL) != 0)
+		goto error;
 
 	if (!load_libvlc())
 		goto error;
@@ -954,7 +1005,7 @@ static void *vlcs_create(obs_data_t *settings, obs_source_t *source)
 	libvlc_video_set_callbacks_(c->media_player, vlcs_video_lock, NULL, vlcs_video_display, c);
 	libvlc_video_set_format_callbacks_(c->media_player, vlcs_video_format, NULL);
 
-	libvlc_audio_set_callbacks_(c->media_player, vlcs_audio_play, NULL, NULL, NULL, NULL, c);
+	libvlc_audio_set_callbacks_(c->media_player, vlcs_audio_play, NULL, NULL, NULL, vlcs_audio_drain, c);
 	libvlc_audio_set_format_callbacks_(c->media_player, vlcs_audio_setup, NULL);
 
 	libvlc_event_manager_t *event_manager;
@@ -992,6 +1043,7 @@ static void vlcs_deactivate(void *data)
 	struct vlc_source *c = data;
 
 	if (c->behavior == BEHAVIOR_STOP_RESTART) {
+		abort_drain(c);
 		libvlc_media_list_player_stop_(c->media_list_player);
 		obs_source_output_video(c->source, NULL);
 
