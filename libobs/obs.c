@@ -3094,14 +3094,35 @@ uint32_t obs_get_lagged_frames(void)
 	return obs->video.lagged_frames;
 }
 
+/* An encoder that rescales on the GPU encodes from an encoder-only mix of
+ * the same view (maybe_set_up_gpu_rescale() in obs-encoder.c), and that
+ * mix's video_t counts its frames. The mixes are read under mixes_mutex: an
+ * encoder-only mix is freed under it when its last encoder stops. */
 void obs_get_video_frame_counts(uint32_t *total, uint32_t *skipped)
 {
-	video_t *video = obs_get_video();
+	struct obs_core_video_mix *main_mix = obs->data.main_canvas ? obs->data.main_canvas->mix : NULL;
+	uint32_t total_frames = 0;
+	uint32_t skipped_frames = 0;
+
+	if (main_mix) {
+		pthread_mutex_lock(&obs->video.mixes_mutex);
+		for (size_t i = 0; i < obs->video.mixes.num; i++) {
+			struct obs_core_video_mix *mix = obs->video.mixes.array[i];
+			bool counted = mix == main_mix || (mix->encoder_only_mix && mix->view == main_mix->view);
+
+			if (!counted || !mix->video)
+				continue;
+
+			total_frames += video_output_get_total_frames(mix->video);
+			skipped_frames += video_output_get_skipped_frames(mix->video);
+		}
+		pthread_mutex_unlock(&obs->video.mixes_mutex);
+	}
 
 	if (total)
-		*total = video ? video_output_get_total_frames(video) : 0;
+		*total = total_frames;
 	if (skipped)
-		*skipped = video ? video_output_get_skipped_frames(video) : 0;
+		*skipped = skipped_frames;
 }
 
 struct obs_core_video_mix *get_mix_for_video(video_t *v)

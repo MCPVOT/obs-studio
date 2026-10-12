@@ -259,9 +259,7 @@ static uint32_t first_lagged = 0xFFFFFFFF;
 
 void OBSBasicStats::InitializeValues()
 {
-	video_t *video = obs_get_video();
-	first_encoded = video_output_get_total_frames(video);
-	first_skipped = video_output_get_skipped_frames(video);
+	obs_get_video_frame_counts(&first_encoded, &first_skipped);
 	first_rendered = obs_get_total_frames();
 	first_lagged = obs_get_lagged_frames();
 }
@@ -362,9 +360,9 @@ void OBSBasicStats::Update()
 
 	/* ------------------ */
 
-	video_t *video = obs_get_video();
-	uint32_t total_encoded = video_output_get_total_frames(video);
-	uint32_t total_skipped = video_output_get_skipped_frames(video);
+	/* Includes encoders that rescale the output on their own video mix. */
+	uint32_t total_encoded, total_skipped;
+	obs_get_video_frame_counts(&total_encoded, &total_skipped);
 
 	if (total_encoded < first_encoded || total_skipped < first_skipped) {
 		first_encoded = total_encoded;

@@ -55,8 +55,8 @@ void OBSBasicStatusBar::Activate()
 		refreshTimer = new QTimer(this);
 		connect(refreshTimer, &QTimer::timeout, this, &OBSBasicStatusBar::UpdateStatusBar);
 
-		int skipped = video_output_get_skipped_frames(obs_get_video());
-		int total = video_output_get_total_frames(obs_get_video());
+		uint32_t total, skipped;
+		obs_get_video_frame_counts(&total, &skipped);
 
 		totalStreamSeconds = 0;
 		totalRecordSeconds = 0;
@@ -471,11 +471,20 @@ void OBSBasicStatusBar::UpdateStatusBar()
 
 	UpdateDroppedFrames();
 
-	int skipped = video_output_get_skipped_frames(obs_get_video());
-	int total = video_output_get_total_frames(obs_get_video());
+	/* Includes encoders that rescale the output on their own video mix.
+	 * Such a mix and its counts go away when its encoder stops, so start
+	 * counting again when the totals drop. */
+	uint32_t total_frames, skipped_frames;
+	obs_get_video_frame_counts(&total_frames, &skipped_frames);
 
-	skipped -= startSkippedFrameCount;
-	total -= startTotalFrameCount;
+	if (total_frames < startTotalFrameCount || skipped_frames < startSkippedFrameCount) {
+		startTotalFrameCount = total_frames;
+		startSkippedFrameCount = skipped_frames;
+		lastSkippedFrameCount = 0;
+	}
+
+	int skipped = int(skipped_frames - startSkippedFrameCount);
+	int total = int(total_frames - startTotalFrameCount);
 
 	int diff = skipped - lastSkippedFrameCount;
 	double percentage = double(skipped) / double(total) * 100.0;
