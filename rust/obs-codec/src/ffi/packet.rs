@@ -6,9 +6,9 @@ use core::ffi::{c_int, c_long, c_void};
 use core::mem::size_of;
 use core::{ptr, slice};
 
-use obs_util::ffi::darray::bmalloc;
+use obs_util::ffi::darray::{bmalloc, darray, darray_push_back_array, darray_reserve};
 
-use crate::nal::{LengthPrefixed, SplitHeaders};
+use crate::nal::{LENGTH_PREFIX_SLACK, SplitHeaders, UnitRating};
 
 /// `struct encoder_packet` from `obs-encoder.h`.
 #[repr(C)]
@@ -79,20 +79,36 @@ pub(crate) fn bmalloc_concat(parts: &[&[u8]]) -> *mut u8 {
 pub(crate) unsafe fn parse_packet(
     out: *mut encoder_packet,
     src: *const encoder_packet,
-    convert: impl FnOnce(&[u8], bool, i32) -> LengthPrefixed,
+    convert: impl FnOnce(&[u8], bool, i32, &mut dyn FnMut(&[u8])) -> UnitRating,
 ) {
     // SAFETY: the caller guarantees `src` is readable; read before writing.
     let mut packet = unsafe { ptr::read(src) };
     // SAFETY: the caller guarantees the packet data is readable.
     let data = unsafe { bytes(packet.data, packet.size) };
-    let parsed = convert(data, packet.keyframe, packet.priority);
+
+    // The C serializes into a `DARRAY(uint8_t)`. Reserving the usual size
+    // up front keeps the appends from reallocating.
+    let mut block = darray {
+        array: ptr::null_mut(),
+        num: 0,
+        capacity: 0,
+    };
+    let reserve = size_of::<c_long>() + data.len() + LENGTH_PREFIX_SLACK;
+    // SAFETY: `block` is a valid, empty byte darray.
+    unsafe { darray_reserve(1, &raw mut block, reserve) };
+    let mut write = |bytes: &[u8]| {
+        // SAFETY: `block` is a byte darray; `bytes` is readable.
+        unsafe { darray_push_back_array(1, &raw mut block, bytes.as_ptr().cast(), bytes.len()) };
+    };
 
     // C: long ref = 1; serialize(&s, &ref, sizeof(ref));
     let reference: c_long = 1;
-    let block = bmalloc_concat(&[&reference.to_ne_bytes(), &parsed.payload]);
+    write(&reference.to_ne_bytes());
+    let parsed = convert(data, packet.keyframe, packet.priority, &mut write);
+
     // SAFETY: the block holds the reference count first.
-    packet.data = unsafe { block.add(size_of::<c_long>()) };
-    packet.size = parsed.payload.len();
+    packet.data = unsafe { block.array.cast::<u8>().add(size_of::<c_long>()) };
+    packet.size = block.num - size_of::<c_long>();
     packet.keyframe = parsed.keyframe;
     packet.priority = parsed.priority;
     packet.drop_priority = parsed.priority;

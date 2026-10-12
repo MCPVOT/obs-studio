@@ -8,7 +8,7 @@
 
 use obs_util::bitstream::BitstreamReader;
 
-use crate::nal::{self, Bucket, LengthPrefixed, SplitHeaders, UnitRating, nal_units};
+use crate::nal::{self, Bucket, LengthPrefixed, SplitHeaders, UnitRating, nal_headers, nal_units};
 
 pub const NAL_SLICE: u8 = 1;
 pub const NAL_SLICE_IDR: u8 = 5;
@@ -25,8 +25,8 @@ fn kind(header: u8) -> u8 {
 /// Units before it (SPS, PPS, SEI, ...) are skipped; no slice is `false`.
 #[must_use]
 pub fn keyframe(data: &[u8]) -> bool {
-    for nal in nal_units(data) {
-        let kind = kind(nal.header(data));
+    for header in nal_headers(data) {
+        let kind = kind(header);
         if kind == NAL_SLICE_IDR || kind == NAL_SLICE {
             return kind == NAL_SLICE_IDR;
         }
@@ -56,6 +56,16 @@ pub fn packet_priority(data: &[u8], priority: i32) -> i32 {
 #[must_use]
 pub fn to_avcc(data: &[u8], keyframe: bool, priority: i32) -> LengthPrefixed {
     nal::to_length_prefixed(data, keyframe, priority, rate)
+}
+
+/// [`to_avcc`], with the AVCC bytes passed to `write` piece by piece.
+pub fn write_avcc(
+    data: &[u8],
+    keyframe: bool,
+    priority: i32,
+    write: impl FnMut(&[u8]),
+) -> UnitRating {
+    nal::write_length_prefixed(data, keyframe, priority, rate, write)
 }
 
 /// `has_start_code`: whether `data` opens with `00 00 01` or `00 00 00 01`.

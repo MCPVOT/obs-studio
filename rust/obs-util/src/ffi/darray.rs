@@ -147,10 +147,13 @@ pub unsafe fn darray_push_back_array(
     if array.is_null() || num == 0 {
         return cur;
     }
-    // SAFETY: `dst` is valid; after the resize the buffer holds `cur + num`
-    // items, and `array` is valid for `num` items and does not overlap.
+    // SAFETY: `dst` is valid; the buffer then holds `cur + num` items, and
+    // `array` is valid for `num` items and does not overlap. The header
+    // resizes here, which zeroes the new items before the copy overwrites
+    // every one of them.
     unsafe {
-        darray_resize(element_size, dst, cur + num);
+        darray_ensure_capacity(element_size, dst, cur + num);
+        (*dst).num = cur + num;
         ptr::copy_nonoverlapping(
             array as *const u8,
             ((*dst).array as *mut u8).add(element_size * cur),

@@ -32,7 +32,11 @@ pub unsafe extern "C" fn obs_parse_hevc_packet(
     src: *const encoder_packet,
 ) {
     // SAFETY: forwarded from the caller.
-    unsafe { parse_packet(hevc_packet, src, hevc::to_hvcc) };
+    unsafe {
+        parse_packet(hevc_packet, src, |data, keyframe, priority, write| {
+            hevc::write_hvcc(data, keyframe, priority, write)
+        })
+    };
 }
 
 /// Returns the packet's priority raised to the highest NAL priority in it.

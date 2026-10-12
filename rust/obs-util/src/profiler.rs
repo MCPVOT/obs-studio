@@ -353,7 +353,8 @@ impl Active {
 struct Root {
     name: ProfileName,
     entry: Mutex<ProfileEntry>,
-    prev: Mutex<Option<Arc<Active>>>,
+    /// When the previous call of this root started.
+    prev_start: Mutex<Option<u64>>,
 }
 
 struct Globals {
@@ -395,7 +396,7 @@ fn get_root(globals: &mut Globals, name: ProfileName) -> Arc<Root> {
     let root = Arc::new(Root {
         name,
         entry: Mutex::new(ProfileEntry::new(name)),
-        prev: Mutex::new(None),
+        prev_start: Mutex::new(None),
     });
     globals.roots.push(Arc::clone(&root));
     root
@@ -561,8 +562,7 @@ pub fn profile_end(
 }
 
 fn merge_call(entry: &mut ProfileEntry, active: &Active, idx: usize, prev_start: Option<u64>) {
-    let children = active.nodes[idx].children.clone();
-    for child in children {
+    for &child in &active.nodes[idx].children {
         let child_name = active.nodes[child].name;
         let ci = entry.child_index(child_name);
         merge_call(&mut entry.children[ci], active, child, None);
@@ -583,7 +583,6 @@ fn merge_call(entry: &mut ProfileEntry, active: &Active, idx: usize, prev_start:
 }
 
 fn merge_context(active: Active) {
-    let active = Arc::new(active);
     let name = active.nodes[0].name;
     let mut globals = lock_globals();
     if !globals.enabled {
@@ -592,11 +591,10 @@ fn merge_context(active: Active) {
         return;
     }
     let root = get_root(&mut globals, name);
-    let old = root.prev.lock().unwrap().replace(Arc::clone(&active));
+    let prev_start = root.prev_start.lock().unwrap().replace(active.root_start());
     let root = Arc::clone(&root);
     drop(globals);
     let mut entry = root.entry.lock().unwrap();
-    let prev_start = old.as_ref().map(|a| a.root_start());
     merge_call(&mut entry, &active, 0, prev_start);
 }
 

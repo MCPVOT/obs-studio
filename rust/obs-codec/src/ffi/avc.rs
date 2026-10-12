@@ -44,7 +44,11 @@ pub unsafe extern "C" fn obs_parse_avc_packet(
     src: *const encoder_packet,
 ) {
     // SAFETY: forwarded from the caller.
-    unsafe { parse_packet(avc_packet, src, avc::to_avcc) };
+    unsafe {
+        parse_packet(avc_packet, src, |data, keyframe, priority, write| {
+            avc::write_avcc(data, keyframe, priority, write)
+        })
+    };
 }
 
 /// Returns the packet's priority raised to the highest NAL priority in it.

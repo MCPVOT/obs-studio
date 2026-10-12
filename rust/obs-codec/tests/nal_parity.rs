@@ -16,7 +16,7 @@
 
 use obs_c_oracle::nal as c;
 use obs_codec::ffi::nal as rs;
-use obs_codec::nal::find_startcode;
+use obs_codec::nal::{find_startcode, nal_headers, nal_units};
 use proptest::prelude::*;
 
 /// An 8-byte-aligned scratch buffer.
@@ -87,8 +87,44 @@ fn annex_b() -> impl Strategy<Value = Vec<u8>> {
     })
 }
 
+/// Long buffers of nonzero bytes with a few start codes and near misses
+/// dropped in, so a search runs through many steps before it finds one.
+fn sparse_codes() -> impl Strategy<Value = Vec<u8>> {
+    let marks = prop::collection::vec((any::<prop::sample::Index>(), 0..4usize), 0..4);
+    (prop::collection::vec(1u8..=255, 64..500), marks).prop_map(|(mut data, marks)| {
+        for (at, kind) in marks {
+            let pattern: &[u8] = match kind {
+                0 => &[0, 0, 1],
+                1 => &[0, 0, 0, 1],
+                2 => &[0, 0, 2],
+                _ => &[0, 1],
+            };
+            let at = at.index(data.len());
+            for (k, &b) in pattern.iter().enumerate() {
+                if at + k < data.len() {
+                    data[at + k] = b;
+                }
+            }
+        }
+        data
+    })
+}
+
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(4096))]
+
+    #[test]
+    fn find_startcode_matches_c_on_sparse_codes(data in sparse_codes()) {
+        check(&data)?;
+    }
+
+    /// The lazy header walk yields the header of every unit of the full walk.
+    #[test]
+    fn headers_match_units(data in prop_oneof![nal_bytes(), annex_b(), sparse_codes()]) {
+        let headers: Vec<u8> = nal_headers(&data).collect();
+        let units: Vec<u8> = nal_units(&data).map(|nal| nal.header(&data)).collect();
+        prop_assert_eq!(headers, units);
+    }
 
     #[test]
     fn find_startcode_matches_c_on_biased_bytes(data in nal_bytes()) {
@@ -111,6 +147,26 @@ proptest! {
 #[test]
 fn every_position_matches_c() {
     for len in 0..40 {
+        for pos in 0..len {
+            for code in [&[0u8, 0, 1][..], &[0, 0, 0, 1]] {
+                let mut data = vec![0x11u8; len];
+                for (k, &b) in code.iter().enumerate() {
+                    if pos + k < len {
+                        data[pos + k] = b;
+                    }
+                }
+                check(&data).unwrap();
+            }
+        }
+    }
+}
+
+/// Every placement of a start code in buffers around one, two and three
+/// 64-position steps, so each step of the search sees a code at each of its
+/// offsets and at each distance from the end.
+#[test]
+fn every_position_in_long_buffers_matches_c() {
+    for len in (60..=76).chain(124..=140).chain(188..=204) {
         for pos in 0..len {
             for code in [&[0u8, 0, 1][..], &[0, 0, 0, 1]] {
                 let mut data = vec![0x11u8; len];
