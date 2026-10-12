@@ -21,6 +21,10 @@
 #define profile_start oracle_aio_profile_start
 #define profile_end oracle_aio_profile_end
 #define profile_reenable_thread oracle_aio_profile_reenable_thread
+/* The profiler oracle (oracle/profiler.c) defines a scripted os_gettime_ns;
+ * audio-io runs on the real clock under private names. */
+#define os_gettime_ns oracle_aio_os_gettime_ns
+#define os_sleepto_ns oracle_aio_os_sleepto_ns
 
 #define audio_output_open oracle_audio_output_open
 #define audio_output_close oracle_audio_output_close
