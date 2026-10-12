@@ -174,13 +174,20 @@ impl Sem {
     /// Returns the `Sem` pinned in its box so the initialized native
     /// object cannot be moved.
     pub fn new(value: u32) -> Pin<Box<Self>> {
+        Self::try_new(value).unwrap_or_else(|| panic!("os_sem_init({value}) failed"))
+    }
+
+    /// Fallible [`Sem::new`]: `None` where the C would take the init-fail
+    /// cleanup path (e.g. `os_task_queue_create` returning NULL).
+    pub fn try_new(value: u32) -> Option<Pin<Box<Self>>> {
         let mut sem = Box::<Self>::new_uninit();
-        // SAFETY: `sem` is `size_of::<Sem>()` writable uninit bytes.
+        // SAFETY: `sem` is `size_of::<Sem>()` writable uninit bytes; a
+        // failed init leaves it dead with nothing to drop.
         match unsafe { Self::init_in(sem.as_mut_ptr(), value as c_int) } {
             // SAFETY: `*sem` is a live `Sem`, boxed so it cannot move;
             // `Sem` is `!Unpin`.
-            0 => unsafe { Pin::new_unchecked(sem.assume_init()) },
-            rc => panic!("os_sem_init({value}) failed: {rc}"),
+            0 => Some(unsafe { Pin::new_unchecked(sem.assume_init()) }),
+            _ => None,
         }
     }
 
