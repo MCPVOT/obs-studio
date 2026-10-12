@@ -12,7 +12,10 @@ fn v(x: f32, y: f32, z: f32, w: f32) -> Vec3 {
 }
 
 fn assert_plane(p: Plane, x: f32, y: f32, z: f32, w: f32, dist: f32) {
-    assert_eq!((p.dir.x, p.dir.y, p.dir.z, p.dir.w, p.dist), (x, y, z, w, dist));
+    assert_eq!(
+        (p.dir.x, p.dir.y, p.dir.z, p.dir.w, p.dist),
+        (x, y, z, w, dist)
+    );
 }
 
 fn identity3() -> Matrix3 {
@@ -35,19 +38,31 @@ fn identity4() -> Matrix4 {
 
 #[test]
 fn test_plane_from_tri_xy() {
-    let p = Plane::from_tri(v(0.0, 0.0, 0.0, 0.0), v(1.0, 0.0, 0.0, 0.0), v(0.0, 1.0, 0.0, 0.0));
+    let p = Plane::from_tri(
+        v(0.0, 0.0, 0.0, 0.0),
+        v(1.0, 0.0, 0.0, 0.0),
+        v(0.0, 1.0, 0.0, 0.0),
+    );
     assert_plane(p, 0.0, 0.0, 1.0, 0.0, 0.0);
 }
 
 #[test]
 fn test_plane_from_tri_offset() {
-    let p = Plane::from_tri(v(0.0, 0.0, 1.0, 0.0), v(1.0, 0.0, 1.0, 0.0), v(0.0, 1.0, 1.0, 0.0));
+    let p = Plane::from_tri(
+        v(0.0, 0.0, 1.0, 0.0),
+        v(1.0, 0.0, 1.0, 0.0),
+        v(0.0, 1.0, 1.0, 0.0),
+    );
     assert_plane(p, 0.0, 0.0, 1.0, 0.0, 1.0);
 }
 
 #[test]
 fn test_plane_from_tri_degenerate() {
-    let p = Plane::from_tri(v(0.0, 0.0, 0.0, 0.0), v(1.0, 0.0, 0.0, 0.0), v(2.0, 0.0, 0.0, 0.0));
+    let p = Plane::from_tri(
+        v(0.0, 0.0, 0.0, 0.0),
+        v(1.0, 0.0, 0.0, 0.0),
+        v(2.0, 0.0, 0.0, 0.0),
+    );
     assert_plane(p, 0.0, 0.0, 0.0, 0.0, 0.0);
 }
 
@@ -56,13 +71,21 @@ fn test_plane_from_tri_degenerate() {
 /// normalized dir with itself instead.
 #[test]
 fn test_plane_from_tri_tilted() {
-    let p = Plane::from_tri(v(0.0, 0.0, 1.0, 0.0), v(1.0, 0.0, 0.0, 0.0), v(0.0, 1.0, 0.0, 0.0));
+    let p = Plane::from_tri(
+        v(0.0, 0.0, 1.0, 0.0),
+        v(1.0, 0.0, 0.0, 0.0),
+        v(0.0, 1.0, 0.0, 0.0),
+    );
     assert_plane(p, 0.57735026, 0.57735026, 0.57735026, 0.0, 0.57735026);
 }
 
 #[test]
 fn test_plane_from_tri_nan_w() {
-    let p = Plane::from_tri(v(0.0, 0.0, 0.0, f32::NAN), v(1.0, 0.0, 0.0, 0.0), v(0.0, 1.0, 0.0, 0.0));
+    let p = Plane::from_tri(
+        v(0.0, 0.0, 0.0, f32::NAN),
+        v(1.0, 0.0, 0.0, 0.0),
+        v(0.0, 1.0, 0.0, 0.0),
+    );
     assert_eq!((p.dir.x, p.dir.y, p.dir.z, p.dir.w), (0.0, 0.0, 1.0, 0.0));
     assert!(p.dist.is_nan());
 }

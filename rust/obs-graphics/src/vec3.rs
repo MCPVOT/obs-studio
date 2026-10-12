@@ -58,6 +58,36 @@ impl Vec3 {
         Self::new(self.x - other.x, self.y - other.y, self.z - other.z)
     }
 
+    /// SSE `vec3_cross`. `w` is `w1*w2 - w1*w2`, which is 0 for finite lanes
+    /// and NaN when a lane is NaN. The y component is `z1*x2 - x1*z2`.
+    #[must_use]
+    pub fn cross(self, other: Self) -> Self {
+        // `w*w - w*w` is 0 when `w` is finite and NaN when it is NaN, which
+        // is what `_mm_sub_ps` of the two products produces. Clippy's eq_op
+        // lint would fold it to 0 and lose the NaN.
+        let w_prod = self.w * other.w;
+        #[allow(clippy::eq_op)]
+        let w = w_prod - w_prod;
+        Self::with_w(
+            self.y * other.z - self.z * other.y,
+            self.z * other.x - self.x * other.z,
+            self.x * other.y - self.y * other.x,
+            w,
+        )
+    }
+
+    /// SSE `vec3_norm`. A length whose square is not strictly positive
+    /// becomes the zero vector, including `w`.
+    #[must_use]
+    pub fn norm(self) -> Self {
+        let dot_val = self.dot(self);
+        if dot_val > 0.0 {
+            self.mulf(1.0 / dot_val.sqrt())
+        } else {
+            Self::new(0.0, 0.0, 0.0)
+        }
+    }
+
     /// Lane-wise product of all four lanes (`vec3_mul`). `w` is kept.
     #[must_use]
     pub fn lane_mul(self, other: Self) -> Self {

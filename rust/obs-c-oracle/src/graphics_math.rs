@@ -191,6 +191,48 @@ unsafe extern "C" {
         m: *const OracleMatrix3,
         v: *const OracleVec3,
     );
+
+    pub fn oracle_plane_from_tri(
+        dst: *mut OraclePlane,
+        v1: *const OracleVec3,
+        v2: *const OracleVec3,
+        v3: *const OracleVec3,
+    );
+    pub fn oracle_plane_transform(
+        dst: *mut OraclePlane,
+        p: *const OraclePlane,
+        m: *const OracleMatrix4,
+    );
+    pub fn oracle_plane_transform3x4(
+        dst: *mut OraclePlane,
+        p: *const OraclePlane,
+        m: *const OracleMatrix3,
+    );
+    pub fn oracle_plane_intersection_ray(
+        p: *const OraclePlane,
+        orig: *const OracleVec3,
+        dir: *const OracleVec3,
+        t: *mut f32,
+    ) -> bool;
+    pub fn oracle_plane_intersection_line(
+        p: *const OraclePlane,
+        v1: *const OracleVec3,
+        v2: *const OracleVec3,
+        t: *mut f32,
+    ) -> bool;
+    pub fn oracle_plane_tri_inside(
+        p: *const OraclePlane,
+        v1: *const OracleVec3,
+        v2: *const OracleVec3,
+        v3: *const OracleVec3,
+        precision: f32,
+    ) -> bool;
+    pub fn oracle_plane_line_inside(
+        p: *const OraclePlane,
+        v1: *const OracleVec3,
+        v2: *const OracleVec3,
+        precision: f32,
+    ) -> bool;
 }
 
 unsafe extern "C" {
