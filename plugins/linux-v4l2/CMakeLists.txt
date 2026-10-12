@@ -30,6 +30,7 @@ target_sources(
     linux-v4l2.c
     v4l2-controls.c
     v4l2-decoder.c
+    v4l2-frame-action.c
     v4l2-framerate.c
     v4l2-helpers.c
     v4l2-input-caps.c

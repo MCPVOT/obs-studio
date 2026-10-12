@@ -40,6 +40,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "v4l2-helpers.h"
 #include "v4l2-input-caps.h"
 #include "v4l2-decoder.h"
+#include "v4l2-frame-action.h"
 
 #define FALLBACK_FRAMERATE 30
 
@@ -248,9 +249,18 @@ static void *v4l2_thread(void *vptr)
 		blog(LOG_DEBUG, "%s: ts: %06ld buf id #%d, flags 0x%08X, seq #%d, len %d, used %d", data->device_id,
 		     buf.timestamp.tv_usec, buf.index, buf.flags, buf.sequence, buf.length, buf.bytesused);
 
-		if (buf.flags & V4L2_BUF_FLAG_ERROR) {
+		start = (uint8_t *)data->buffers.info[buf.index].start;
+
+		switch (v4l2_frame_action(&out, data->pixfmt, &buf, start, plane_offsets, &data->decoder)) {
+		case V4L2_FRAME_OUTPUT:
+			break;
+		case V4L2_FRAME_SKIP:
+		case V4L2_FRAME_DROP:
 			blog(LOG_DEBUG, "skipping decoding of buffer with recoverable error-flag set");
 			goto continue_queue_buffer;
+		case V4L2_FRAME_STOP:
+			blog(LOG_ERROR, "failed to unpack jpeg or h264");
+			goto stop;
 		}
 
 		out.timestamp = timeval2ns(buf.timestamp);
@@ -258,17 +268,6 @@ static void *v4l2_thread(void *vptr)
 			first_ts = out.timestamp;
 		out.timestamp -= first_ts;
 
-		start = (uint8_t *)data->buffers.info[buf.index].start;
-
-		if (data->pixfmt == V4L2_PIX_FMT_MJPEG || data->pixfmt == V4L2_PIX_FMT_H264) {
-			if (v4l2_decode_frame(&out, start, buf.bytesused, &data->decoder) < 0) {
-				blog(LOG_ERROR, "failed to unpack jpeg or h264");
-				break;
-			}
-		} else {
-			for (uint_fast32_t i = 0; i < MAX_AV_PLANES; ++i)
-				out.data[i] = start + plane_offsets[i];
-		}
 		obs_source_output_video(data->source, &out);
 
 	continue_queue_buffer:
@@ -280,6 +279,7 @@ static void *v4l2_thread(void *vptr)
 		frames++;
 	}
 
+stop:
 	blog(LOG_INFO, "%s: Stopped capture after %" PRIu64 " frames", data->device_id, frames);
 
 exit:
