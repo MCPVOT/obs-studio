@@ -53,9 +53,13 @@ float4 load_at_image(int2 texel, int x, int y)
 	return image.Load(select(texel, x, y));
 }
 
+/* field_order is 1 for top field first, so it is also the row parity of the
+ * second field of a frame. Yadif keeps the first field from the current frame
+ * and the second field from the previous one, which puts the kept field
+ * between the two frames it interpolates from, whatever the field order. */
 float4 load_at(int2 texel, int x, int y, int field)
 {
-	if(field == 0)
+	if(field != field_order)
 		return load_at_image(texel, x, y);
 	else
 		return load_at_prev(texel, x, y);
