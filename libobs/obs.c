@@ -3094,6 +3094,16 @@ uint32_t obs_get_lagged_frames(void)
 	return obs->video.lagged_frames;
 }
 
+void obs_get_video_frame_counts(uint32_t *total, uint32_t *skipped)
+{
+	video_t *video = obs_get_video();
+
+	if (total)
+		*total = video ? video_output_get_total_frames(video) : 0;
+	if (skipped)
+		*skipped = video ? video_output_get_skipped_frames(video) : 0;
+}
+
 struct obs_core_video_mix *get_mix_for_video(video_t *v)
 {
 	struct obs_core_video_mix *result = NULL;

@@ -942,6 +942,16 @@ EXPORT uint64_t obs_get_frame_interval_ns(void);
 EXPORT uint32_t obs_get_total_frames(void);
 EXPORT uint32_t obs_get_lagged_frames(void);
 
+/**
+ * Frames the main canvas has sent to its video encoders and raw outputs, and
+ * frames it skipped because one of them could not keep up ("encoding lag").
+ * Counts the main video mix and the video mixes created for encoders that
+ * rescale it on the GPU (obs_encoder_set_scaled_size() with a GPU scale
+ * type), each once. A rescaling encoder's mix goes away when the encoder
+ * stops, so the totals can drop. Either pointer may be NULL.
+ */
+EXPORT void obs_get_video_frame_counts(uint32_t *total, uint32_t *skipped);
+
 OBS_DEPRECATED EXPORT bool obs_nv12_tex_active(void);
 OBS_DEPRECATED EXPORT bool obs_p010_tex_active(void);
 
