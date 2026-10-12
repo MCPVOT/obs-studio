@@ -1,0 +1,7 @@
+plane_from_tri
+plane_intersection_line
+plane_intersection_ray
+plane_line_inside
+plane_transform
+plane_transform3x4
+plane_tri_inside

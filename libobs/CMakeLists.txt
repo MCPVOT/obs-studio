@@ -218,7 +218,7 @@ target_sources(
     graphics/matrix3.h
     $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:graphics/matrix4.c>
     graphics/matrix4.h
-    graphics/plane.c
+    $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:graphics/plane.c>
     graphics/plane.h
     $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:graphics/quat.c>
     graphics/quat.h
