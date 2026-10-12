@@ -474,7 +474,7 @@ libcaption_stauts_t sei_from_caption_frame(sei_t* sei, caption_frame_t* frame)
 
         // Write the row
         for (prev_cc_data = 0, data = caption_frame_read_char(frame, r, c, 0, 0);
-             (*data) && c < SCREEN_COLS; ++c, data = caption_frame_read_char(frame, r, c, &styl, &unl)) {
+             c < SCREEN_COLS; ++c, data = caption_frame_read_char(frame, r, c, &styl, &unl)) {
             uint16_t cc_data = eia608_from_utf8_1(data, DEFAULT_CHANNEL);
 
             if (unl != prev_unl || styl != prev_styl) {
