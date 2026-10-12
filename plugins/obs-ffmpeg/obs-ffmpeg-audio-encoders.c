@@ -128,10 +128,10 @@ static bool initialize_codec(struct enc_encoder *enc)
 	ret = avcodec_open2(enc->context, enc->codec, NULL);
 	if (ret < 0) {
 		struct dstr error_message = {0};
-		dstr_printf(&error_message, "Failed to open AAC codec: %s", av_err2str(ret));
+		dstr_printf(&error_message, "Failed to open %s codec: %s", enc->type, av_err2str(ret));
 		obs_encoder_set_last_error(enc->encoder, error_message.array);
 		dstr_free(&error_message);
-		warn("Failed to open AAC codec: %s", av_err2str(ret));
+		warn("Failed to open %s codec: %s", enc->type, av_err2str(ret));
 		return false;
 	}
 	enc->aframe->format = enc->context->sample_fmt;
@@ -235,6 +235,15 @@ static void *enc_create(obs_data_t *settings, obs_encoder_t *encoder, const char
 		enc->context->ch_layout = (AVChannelLayout)AV_CHANNEL_LAYOUT_7POINT1_WIDE_BACK;
 
 	enc->context->sample_rate = audio_output_get_sample_rate(audio);
+
+	/* libopus refuses more than 256 kbps per channel, so a mono track
+	 * above 256 kbps would fail to start (obsproject/obs-studio#12753). */
+	const int64_t opus_max_bit_rate = 256000 * (int64_t)enc->context->ch_layout.nb_channels;
+	if (astrcmpi(enc->type, "libopus") == 0 && enc->context->bit_rate > opus_max_bit_rate) {
+		warn("Bitrate %d kbps is above the libopus limit for %d channel(s), using %" PRId64 " kbps", bitrate,
+		     enc->context->ch_layout.nb_channels, opus_max_bit_rate / 1000);
+		enc->context->bit_rate = opus_max_bit_rate;
+	}
 
 	const enum AVSampleFormat *sample_fmts = NULL;
 	const int *supported_samplerates = NULL;
