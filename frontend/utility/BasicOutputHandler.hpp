@@ -50,6 +50,9 @@ struct BasicOutputHandler {
 	std::string lastError;
 
 	std::string lastRecordingPath;
+	/* The empty file GetOutputFilename() created for the recording, until
+	 * the recording stops; see ReleaseRecordingReservation(). */
+	std::string reservedRecordingPath;
 
 	OBSSignal startRecording;
 	OBSSignal stopRecording;
@@ -102,8 +105,14 @@ struct BasicOutputHandler {
 protected:
 	void SetupAutoRemux(const char *&container);
 	std::string GetRecordingFilename(const char *path, const char *container, bool noSpace, bool overwrite,
-					 const char *format, bool ffmpeg);
+					 const char *format, bool ffmpeg, std::string *reservedPath = nullptr);
 
+public:
+	/* Removes the file reserved for a recording that failed before it
+	 * wrote anything. */
+	void ReleaseRecordingReservation();
+
+protected:
 	std::shared_future<void> SetupMultitrackVideo(obs_service_t *service, std::string audio_encoder_id,
 						      size_t main_audio_mixer, std::optional<size_t> vod_track_mixer,
 						      std::function<void(std::optional<bool>)> continuation);

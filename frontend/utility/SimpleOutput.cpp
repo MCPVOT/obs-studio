@@ -864,7 +864,7 @@ bool SimpleOutput::ConfigureRecording(bool updateReplayBuffer)
 	} else {
 		f = GetFormatString(filenameFormat, nullptr, nullptr);
 		string strPath = GetRecordingFilename(path, ffmpegOutput ? "avi" : format, noSpace, overwriteIfExists,
-						      f.c_str(), ffmpegOutput);
+						      f.c_str(), ffmpegOutput, &reservedRecordingPath);
 		obs_data_set_string(settings, ffmpegOutput ? "url" : "path", strPath.c_str());
 		if (ffmpegOutput) {
 			obs_output_set_mixers(fileOutput, tracks);
@@ -900,9 +900,11 @@ bool SimpleOutput::StartRecording()
 {
 	UpdateRecording();
 	if (!ConfigureRecording(false)) {
+		ReleaseRecordingReservation();
 		return false;
 	}
 	if (!obs_output_start(fileOutput)) {
+		ReleaseRecordingReservation();
 		QString error_reason;
 		const char *error = obs_output_get_last_error(fileOutput);
 		if (error) {

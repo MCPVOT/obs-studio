@@ -412,15 +412,24 @@ static inline bool ffmpeg_mux_start_internal(struct ffmpeg_muxer *stream, obs_da
 		 * message.
 		 *
 		 * TODO: remove once ffmpeg-mux is refactored to pass
-		 * errors back */
-		FILE *test_file = os_fopen(path, "wb");
+		 * errors back
+		 *
+		 * The frontend reserves the name of a new recording with an
+		 * empty file, so another output (or another OBS) starting in
+		 * the same second does not pick the same name before
+		 * ffmpeg-mux opens it. Keep a file that is already there and
+		 * do not truncate it; ffmpeg-mux truncates it when it opens
+		 * it. */
+		bool existed = os_file_exists(path);
+		FILE *test_file = os_fopen(path, existed ? "ab" : "wb");
 		if (!test_file) {
 			set_file_not_readable_error(stream, settings, path);
 			return false;
 		}
 
 		fclose(test_file);
-		os_unlink(path);
+		if (!existed)
+			os_unlink(path);
 	}
 
 	start_pipe(stream, path);

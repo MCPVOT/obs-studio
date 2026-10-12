@@ -32,6 +32,8 @@ target_sources(
     utility/NativeEventFilter.hpp
     utility/output-filename-format.c
     utility/output-filename-format.h
+    utility/output-filename-reserve.c
+    utility/output-filename-reserve.h
     utility/multitrack-ladder.c
     utility/multitrack-ladder.h
     utility/product-name.c

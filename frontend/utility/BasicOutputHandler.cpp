@@ -3,6 +3,7 @@
 #include "SimpleOutput.hpp"
 
 #include <utility/MultitrackVideoError.hpp>
+#include <utility/output-filename-reserve.h>
 #include <utility/StartMultiTrackVideoStreamingGuard.hpp>
 #include <utility/VCamConfig.hpp>
 #include <widgets/OBSBasic.hpp>
@@ -439,15 +440,28 @@ void BasicOutputHandler::SetupAutoRemux(const char *&container)
 }
 
 std::string BasicOutputHandler::GetRecordingFilename(const char *path, const char *container, bool noSpace,
-						     bool overwrite, const char *format, bool ffmpeg)
+						     bool overwrite, const char *format, bool ffmpeg,
+						     std::string *reservedPath)
 {
 	if (!ffmpeg) {
 		SetupAutoRemux(container);
 	}
 
-	string dst = GetOutputFilename(path, container, noSpace, overwrite, format);
+	bool reserved = false;
+	string dst = GetOutputFilename(path, container, noSpace, overwrite, format, &reserved);
 	lastRecordingPath = dst;
+	if (reservedPath) {
+		*reservedPath = reserved ? dst : string();
+	}
 	return dst;
+}
+
+void BasicOutputHandler::ReleaseRecordingReservation()
+{
+	if (!reservedRecordingPath.empty()) {
+		output_filename_release(reservedRecordingPath.c_str());
+		reservedRecordingPath.clear();
+	}
 }
 
 extern std::string DeserializeConfigText(const char *text);

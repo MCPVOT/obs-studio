@@ -295,6 +295,8 @@ std::string CurrentDateTimeString();
 std::string GetFormatString(const char *format, const char *prefix, const char *suffix);
 std::string GenerateTimeDateFilename(const char *extension, bool noSpace = false);
 std::string GetFormatExt(const char *container);
-std::string GetOutputFilename(const char *path, const char *container, bool noSpace, bool overwrite,
-			      const char *format);
+/* Unless overwrite is set, creates the returned file as an empty placeholder
+ * (see output-filename-reserve.h); *reserved tells whether it did. */
+std::string GetOutputFilename(const char *path, const char *container, bool noSpace, bool overwrite, const char *format,
+			      bool *reserved = nullptr);
 QObject *CreateShortcutFilter();

@@ -191,6 +191,13 @@ void OBSBasic::RecordingStop(int code, QString last_error)
 
 	blog(LOG_INFO, RECORDING_STOP);
 
+	/* A recording that failed before writing anything leaves no empty
+	 * file behind; one that wrote data keeps its file. */
+	if (code != OBS_OUTPUT_SUCCESS) {
+		outputHandler->ReleaseRecordingReservation();
+	}
+	outputHandler->reservedRecordingPath.clear();
+
 	if (code == OBS_OUTPUT_UNSUPPORTED && isVisible()) {
 		OBSMessageBox::critical(this, QTStr("Output.RecordFail.Title"), QTStr("Output.RecordFail.Unsupported"));
 
