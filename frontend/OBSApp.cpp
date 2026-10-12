@@ -18,6 +18,7 @@
 #include "OBSApp.hpp"
 
 #include <utility/output-filename-format.h>
+#include <utility/output-filename-reserve.h>
 
 #include <components/Multiview.hpp>
 #include <dialogs/LogUploadDialog.hpp>
@@ -1593,39 +1594,6 @@ string GenerateSpecifiedFilename(const char *extension, bool noSpace, const char
 	return string(filename);
 }
 
-static void FindBestFilename(string &strPath, bool noSpace)
-{
-	int num = 2;
-
-	if (!os_file_exists(strPath.c_str())) {
-		return;
-	}
-
-	const char *ext = strrchr(strPath.c_str(), '.');
-	if (!ext) {
-		return;
-	}
-
-	int extStart = int(ext - strPath.c_str());
-	for (;;) {
-		string testPath = strPath;
-		string numStr;
-
-		numStr = noSpace ? "_" : " (";
-		numStr += to_string(num++);
-		if (!noSpace) {
-			numStr += ")";
-		}
-
-		testPath.insert(extStart, numStr);
-
-		if (!os_file_exists(testPath.c_str())) {
-			strPath = testPath;
-			break;
-		}
-	}
-}
-
 static void ensure_directory_exists(string &path)
 {
 	replace(path.begin(), path.end(), '\\', '/');
@@ -1663,8 +1631,13 @@ string GetFormatExt(const char *container)
 	return ext;
 }
 
-string GetOutputFilename(const char *path, const char *container, bool noSpace, bool overwrite, const char *format)
+string GetOutputFilename(const char *path, const char *container, bool noSpace, bool overwrite, const char *format,
+			 bool *reserved)
 {
+	if (reserved) {
+		*reserved = false;
+	}
+
 	OBSBasic *main = OBSBasic::Get();
 
 	os_dir_t *dir = path && path[0] ? os_opendir(path) : nullptr;
@@ -1691,11 +1664,11 @@ string GetOutputFilename(const char *path, const char *container, bool noSpace, 
 	string ext = GetFormatExt(container);
 	strPath += GenerateSpecifiedFilename(ext.c_str(), noSpace, format);
 	ensure_directory_exists(strPath);
-	if (!overwrite) {
-		FindBestFilename(strPath, noSpace);
-	}
 
-	return strPath;
+	/* Creates the file (unless overwrite is set), so another output
+	 * starting in the same second gets its own name. */
+	BPtr<char> reservedPath = output_filename_reserve(strPath.c_str(), noSpace, overwrite, reserved);
+	return reservedPath ? string(reservedPath) : strPath;
 }
 
 vector<pair<string, string>> GetLocaleNames()

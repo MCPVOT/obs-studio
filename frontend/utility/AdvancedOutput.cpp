@@ -827,8 +827,8 @@ bool AdvancedOutput::StartRecording()
 		splitFile = config_get_bool(main->Config(), "AdvOut", "RecSplitFile");
 
 		string f = GetFormatString(filenameFormat, nullptr, nullptr);
-		string strPath =
-			GetRecordingFilename(path, recFormat, noSpace, overwriteIfExists, f.c_str(), ffmpegRecording);
+		string strPath = GetRecordingFilename(path, recFormat, noSpace, overwriteIfExists, f.c_str(),
+						      ffmpegRecording, &reservedRecordingPath);
 
 		OBSDataAutoRelease settings = obs_data_create();
 		obs_data_set_string(settings, ffmpegRecording ? "url" : "path", strPath.c_str());
@@ -856,6 +856,7 @@ bool AdvancedOutput::StartRecording()
 	}
 
 	if (!obs_output_start(fileOutput)) {
+		ReleaseRecordingReservation();
 		QString error_reason;
 		const char *error = obs_output_get_last_error(fileOutput);
 		if (error) {

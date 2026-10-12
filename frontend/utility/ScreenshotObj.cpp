@@ -19,6 +19,8 @@
 #include "ScreenshotObj.hpp"
 #include "display-helpers.hpp"
 
+#include <utility/output-filename-reserve.h>
+
 #include <widgets/OBSBasic.hpp>
 
 #include <qt-wrappers.hpp>
@@ -332,17 +334,27 @@ static HRESULT SaveJxr(LPCWSTR path, uint8_t *pixels, uint32_t cx, uint32_t cy)
 
 void ScreenshotObj::muxFile()
 {
+	/* GetOutputFilename() created the file empty to reserve its name;
+	 * remove it again if nothing could be saved into it. */
 	if (half_bytes.empty()) {
-		image.save(QT_UTF8(path.c_str()));
+		if (!image.save(QT_UTF8(path.c_str()))) {
+			output_filename_release(path.c_str());
+		}
 		blog(LOG_INFO, "Saved screenshot to '%s'", path.c_str());
 	} else {
 #ifdef _WIN32
 		wchar_t *path_w = nullptr;
 		os_utf8_to_wcs_ptr(path.c_str(), 0, &path_w);
 		if (path_w) {
-			SaveJxr(path_w, half_bytes.data(), outputWidth, outputHeight);
+			if (FAILED(SaveJxr(path_w, half_bytes.data(), outputWidth, outputHeight))) {
+				output_filename_release(path.c_str());
+			}
 			bfree(path_w);
+		} else {
+			output_filename_release(path.c_str());
 		}
+#else
+		output_filename_release(path.c_str());
 #endif
 	}
 }
