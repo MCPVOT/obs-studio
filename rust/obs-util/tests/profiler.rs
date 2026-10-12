@@ -13,6 +13,7 @@ use std::ptr;
 use std::sync::Mutex;
 
 use obs_c_oracle as _;
+use obs_util::ffi::profiler::profiler_name_store_free;
 use obs_util::ffi::profiler_snapshot::{
     profile_snapshot_free, profiler_snapshot_entry_expected_time_between_calls,
     profiler_snapshot_entry_max_time, profiler_snapshot_entry_max_time_between_calls,
@@ -23,9 +24,9 @@ use obs_util::ffi::profiler_snapshot::{
     profiler_snapshot_enumerate_roots, profiler_snapshot_num_children, profiler_snapshot_num_roots,
 };
 use obs_util::profiler::{
-    NameStore, ProfileName, SnapshotEntry, name_store_free, profile_end, profile_reenable_thread,
+    NameStore, ProfileLog, ProfileName, SnapshotEntry, profile_end, profile_reenable_thread,
     profile_register_root, profile_snapshot_create, profile_start, profiler_free, profiler_start,
-    profiler_stop,
+    profiler_stop, testing_reset,
 };
 use obs_util::profiler_snapshot::{FilterStep, enumerate, filter};
 
@@ -67,7 +68,9 @@ fn test_profiler_name_store() {
     assert_eq!(stored(a2), "alpha-1");
     drop(store);
 
-    unsafe { name_store_free(ptr::null_mut()) };
+    // Null is a no-op. The guard is the shim's now (the core no longer takes
+    // the raw pointer), so this is the C boundary's contract.
+    unsafe { profiler_name_store_free(ptr::null_mut()) };
 }
 
 fn test_profiler_disabled() {
@@ -76,8 +79,8 @@ fn test_profiler_disabled() {
     profile_register_root(root, 1_000_000);
     profile_start(root, 1);
     profile_start(child, 2);
-    profile_end(child, &mut || 3);
-    profile_end(root, &mut || 4);
+    profile_end(child, &mut || 3, &mut |_| {});
+    profile_end(root, &mut || 4, &mut |_| {});
 
     let snap = profile_snapshot_create();
     assert_eq!(snap.roots.len(), 0);
@@ -135,11 +138,11 @@ fn test_profiler_lifecycle() {
     for _ in 0..ITERATIONS {
         profile_start(root, clock(&mut now));
         profile_start(child, clock(&mut now));
-        profile_end(child, &mut || clock(&mut now));
-        profile_end(root, &mut || clock(&mut now));
+        profile_end(child, &mut || clock(&mut now), &mut |_| {});
+        profile_end(root, &mut || clock(&mut now), &mut |_| {});
     }
     profile_start(other, clock(&mut now));
-    profile_end(other, &mut || clock(&mut now));
+    profile_end(other, &mut || clock(&mut now), &mut |_| {});
 
     let mut snap = profile_snapshot_create();
     assert_eq!(snap.roots.len(), 2);
@@ -193,8 +196,8 @@ fn test_profiler_lifecycle() {
     profiler_stop();
     profile_start(root, clock(&mut now));
     profile_start(child, clock(&mut now));
-    profile_end(child, &mut || clock(&mut now));
-    profile_end(root, &mut || clock(&mut now));
+    profile_end(child, &mut || clock(&mut now), &mut |_| {});
+    profile_end(root, &mut || clock(&mut now), &mut |_| {});
 
     let after = profile_snapshot_create();
     assert_eq!(after.roots.len(), 2);
@@ -223,4 +226,52 @@ fn static_name_reads_back_exactly() {
     let name = ProfileName::from_static(c"abc");
     let read = unsafe { CStr::from_ptr(name.as_ptr()) };
     assert_eq!(read.to_bytes(), b"abc");
+}
+
+/// The C test cannot cover the two `LOG_ERROR` lines (`blog`'s output is not
+/// capturable from cmocka), so nothing pinned them before. The core reports
+/// them through [`profile_end`]'s callback instead, which this can check.
+#[test]
+fn profile_end_reports_the_log_lines() {
+    let _guard = TEST_LOCK.lock().unwrap();
+    testing_reset();
+
+    let root = ProfileName::from_static(ROOT_NAME);
+    let other = ProfileName::from_static(OTHER_NAME);
+    let mut now = 0u64;
+
+    profiler_start();
+    profile_reenable_thread();
+    profile_register_root(root, 0);
+    profile_start(root, clock(&mut now));
+
+    // An end with another name reports the open frame and the name asked for,
+    // and leaves the frame open because nothing matched to close.
+    let mut reported = Vec::new();
+    profile_end(other, &mut || clock(&mut now), &mut |entry| {
+        reported.push(entry)
+    });
+    assert_eq!(
+        reported,
+        vec![ProfileLog::Mismatch {
+            started: root,
+            ended: other,
+        }]
+    );
+
+    // Ending the right name closes it, with nothing to report.
+    let mut reported = Vec::new();
+    profile_end(root, &mut || clock(&mut now), &mut |entry| {
+        reported.push(entry)
+    });
+    assert!(reported.is_empty());
+
+    // With no active profile, the other line is reported.
+    let mut reported = Vec::new();
+    profile_end(root, &mut || clock(&mut now), &mut |entry| {
+        reported.push(entry)
+    });
+    assert_eq!(reported, vec![ProfileLog::NoActive]);
+
+    testing_reset();
 }

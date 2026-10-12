@@ -944,9 +944,17 @@ impl Config {
     }
 
     /// `config_get_string`: user value, else default value.
+    ///
+    /// The bytes are copied with the lock held. Going through the
+    /// [`Self::get_string_ptr`] address instead would read the value after the
+    /// lock is dropped, so a concurrent writer that replaces it frees the
+    /// buffer the pointer came from.
     pub fn get_string(&self, section: &[u8], name: &[u8]) -> Option<Vec<u8>> {
-        self.get_string_ptr(ckey(section), ckey(name))
-            .map(|p| unsafe { std::ffi::CStr::from_ptr(p) }.to_bytes().to_vec())
+        let (section, name) = (ckey(section), ckey(name));
+        let inner = self.lock();
+        find_item(&inner.sections, section, name)
+            .or_else(|| find_item(&inner.defaults, section, name))
+            .map(|i| i.value.as_bytes().to_vec())
     }
 
     fn get_string_ptr(&self, section: &[u8], name: &[u8]) -> Option<*const std::ffi::c_char> {

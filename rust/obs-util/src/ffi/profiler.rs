@@ -4,19 +4,56 @@
 //! CSV dump stay in `util/profiler-io.c`. Snapshots are `bmalloc` / `DARRAY`
 //! values so `profile_snapshot_free` can release them.
 
-use core::ffi::c_char;
+use core::ffi::{c_char, c_void};
 use core::mem::size_of;
 use core::ptr;
+use std::ffi::CStr;
 
-use super::bmem::bmalloc;
+use super::bmem::{bfree, bmalloc};
 use super::darray::darray_resize;
 use super::profiler_snapshot::{
     Darray, profiler_snapshot, profiler_snapshot_entry, profiler_time_entry,
 };
-use crate::profiler::{self as prof, NameStore, ProfileName, Snapshot, SnapshotEntry, TimeEntry};
+use crate::base::LOG_ERROR;
+use crate::profiler::{
+    self as prof, NameStore, ProfileLog, ProfileName, Snapshot, SnapshotEntry, TimeEntry,
+};
 
 unsafe extern "C" {
     fn os_gettime_ns() -> u64;
+    fn blog(log_level: i32, format: *const c_char, ...);
+}
+
+/// The `LOG_ERROR` lines `profiler.c` prints through `blog`. The core reports
+/// what happened ([`ProfileLog`]); the C format strings live here.
+fn log_profile(entry: ProfileLog) {
+    match entry {
+        ProfileLog::NoActive => {
+            // SAFETY: the format is a literal and takes no arguments.
+            unsafe {
+                blog(
+                    LOG_ERROR,
+                    c"Called profile end with no active profile".as_ptr(),
+                )
+            };
+        }
+        ProfileLog::Mismatch { started, ended } => {
+            // SAFETY: the four conversions of the format match the four
+            // arguments: both `%s` read a NUL-terminated name, and both `%p`
+            // the same address as a pointer.
+            unsafe {
+                blog(
+                    LOG_ERROR,
+                    c"Called profile end with mismatching name: start(\"%s\"[%p]) <-> end(\"%s\"[%p])"
+                        .as_ptr(),
+                    started.as_ptr(),
+                    started.as_ptr().cast::<c_void>(),
+                    ended.as_ptr(),
+                    ended.as_ptr().cast::<c_void>(),
+                );
+            }
+        }
+    }
 }
 
 /// # Safety
@@ -80,7 +117,11 @@ pub unsafe extern "C" fn profile_start(name: *const c_char) {
 /// `name` follows the `profile_end` contract.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn profile_end(name: *const c_char) {
-    prof::profile_end(ProfileName::new(name), &mut || unsafe { os_gettime_ns() });
+    prof::profile_end(
+        ProfileName::new(name),
+        &mut || unsafe { os_gettime_ns() },
+        &mut |entry| log_profile(entry),
+    );
 }
 
 /// # Safety
@@ -96,7 +137,12 @@ pub unsafe extern "C" fn profiler_name_store_create() -> *mut NameStore {
 /// `store` is null or a pointer from [`profiler_name_store_create`].
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn profiler_name_store_free(store: *mut NameStore) {
-    unsafe { prof::name_store_free(store) }
+    if store.is_null() {
+        return;
+    }
+    // SAFETY: `store` is a box from `profiler_name_store_create` whose
+    // ownership the caller returns here.
+    unsafe { drop(Box::from_raw(store)) };
 }
 
 /// # Safety
@@ -108,7 +154,20 @@ pub unsafe extern "C" fn profiler_name_store_push(
     store: *mut NameStore,
     owned: *mut c_char,
 ) -> *const c_char {
-    unsafe { (*store).push_owned(owned) }
+    let bytes = if owned.is_null() {
+        Vec::new()
+    } else {
+        // SAFETY: `owned` is a NUL-terminated `bmalloc` allocation, and the
+        // copy stops at that NUL, which `to_bytes_with_nul` keeps.
+        let bytes = unsafe { CStr::from_ptr(owned) }
+            .to_bytes_with_nul()
+            .to_vec();
+        // SAFETY: the push takes ownership of the allocation, as in C.
+        unsafe { bfree(owned.cast::<c_void>()) };
+        bytes
+    };
+    // SAFETY: `store` is a live store from `profiler_name_store_create`.
+    unsafe { (*store).adopt_bytes(bytes) }
 }
 
 /// # Safety

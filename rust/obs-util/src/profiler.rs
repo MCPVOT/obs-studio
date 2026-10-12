@@ -4,19 +4,15 @@
 //! pointer identity, as in C. `profile_end` pulls a timestamp from the
 //! caller's clock once on entry (and again for each mismatched frame it
 //! closes), which is where `profiler.c` calls `os_gettime_ns`.
+//!
+//! The two `LOG_ERROR` lines `profiler.c` prints are reported through the
+//! `log` callback of [`profile_end`] instead of calling `blog` from here; the
+//! shim turns them into the C calls (the same split as [`crate::pipe`] uses
+//! for a failed `CreateProcessW`).
 
 use core::cell::{Cell, RefCell};
-use core::ffi::{CStr, c_char, c_void};
+use core::ffi::{CStr, c_char};
 use std::sync::{Arc, Mutex, MutexGuard};
-
-use crate::ffi::bmem::bfree;
-
-/// `LOG_ERROR` in `util/base.h`.
-const LOG_ERROR: i32 = 100;
-
-unsafe extern "C" {
-    fn blog(log_level: i32, format: *const c_char, ...);
-}
 
 /// A profile name. Equality is the pointer address, not the bytes.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Hash)]
@@ -75,6 +71,21 @@ pub struct Snapshot {
     pub roots: Vec<SnapshotEntry>,
 }
 
+/// What `profile_end` hands to its log callback.
+///
+/// `profiler.c` prints both through `blog` at `LOG_ERROR`; the shim owns that
+/// call, this only says what happened.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ProfileLog {
+    /// No active profile on this thread.
+    NoActive,
+    /// The frame being ended has a different name.
+    Mismatch {
+        started: ProfileName,
+        ended: ProfileName,
+    },
+}
+
 /// Owned copies of formatted profile names.
 ///
 /// Each store returns a distinct pointer, including for equal bytes. The
@@ -97,24 +108,12 @@ impl NameStore {
         self.keep(bytes)
     }
 
-    /// Takes ownership of a `bmalloc`'d NUL-terminated buffer.
+    /// Adopts the bytes of a NUL-terminated C string, NUL included.
     ///
-    /// # Safety
-    ///
-    /// `owned` is null or a `bmalloc` allocation this function frees.
-    pub unsafe fn push_owned(&self, owned: *mut c_char) -> *const c_char {
-        if owned.is_null() {
-            return self.keep(Vec::new());
-        }
-        let mut len = 0usize;
-        // SAFETY: `owned` is a NUL-terminated allocation.
-        while unsafe { *owned.add(len) } != 0 {
-            len += 1;
-        }
-        // SAFETY: the bytes through the NUL are readable.
-        let bytes = unsafe { core::slice::from_raw_parts(owned.cast::<u8>(), len + 1) }.to_vec();
-        // SAFETY: the caller transferred the `bmalloc` allocation.
-        unsafe { bfree(owned.cast::<c_void>()) };
+    /// The shim reads the `bmalloc` buffer that `profiler_name_store_push`
+    /// takes ownership of and frees it; an empty slice is the null pointer, as
+    /// in C.
+    pub fn adopt_bytes(&self, bytes: Vec<u8>) -> *const c_char {
         self.keep(bytes)
     }
 
@@ -129,20 +128,10 @@ impl NameStore {
     }
 }
 
-/// Frees a store from the C ABI. Null is a no-op.
-///
-/// # Safety
-///
-/// `store` is null or a pointer returned by [`name_store_create`].
-pub unsafe fn name_store_free(store: *mut NameStore) {
-    if store.is_null() {
-        return;
-    }
-    // SAFETY: the caller transferred a box from `name_store_create`.
-    drop(unsafe { Box::from_raw(store) });
-}
-
 /// Boxes a store for the C ABI.
+///
+/// The shim drops the box again (`profiler_name_store_free`): the core never
+/// handles the raw pointer.
 pub fn name_store_create() -> *mut NameStore {
     Box::into_raw(Box::new(NameStore::new()))
 }
@@ -491,29 +480,6 @@ pub fn profile_start(name: ProfileName, now_ns: u64) {
     });
 }
 
-fn log_no_active() {
-    unsafe {
-        blog(
-            LOG_ERROR,
-            c"Called profile end with no active profile".as_ptr(),
-        );
-    }
-}
-
-fn log_mismatch(started: ProfileName, ended: ProfileName) {
-    unsafe {
-        blog(
-            LOG_ERROR,
-            c"Called profile end with mismatching name: start(\"%s\"[%p]) <-> end(\"%s\"[%p])"
-                .as_ptr(),
-            started.as_ptr(),
-            started.as_ptr().cast::<c_void>(),
-            ended.as_ptr(),
-            ended.as_ptr().cast::<c_void>(),
-        );
-    }
-}
-
 fn top_name() -> Option<ProfileName> {
     STACK.with(|stack_slot| {
         let stack = stack_slot.borrow();
@@ -531,25 +497,34 @@ fn top_name() -> Option<ProfileName> {
 ///
 /// `clock` is read immediately, including when this thread is disabled, and
 /// once more for every inner frame a mismatched end closes.
-pub fn profile_end(name: ProfileName, clock: &mut dyn FnMut() -> u64) {
+///
+/// `log` receives the `LOG_ERROR` lines `profiler.c` prints, in the C's order.
+pub fn profile_end(
+    name: ProfileName,
+    clock: &mut dyn FnMut() -> u64,
+    log: &mut dyn FnMut(ProfileLog),
+) {
     let now = clock();
     if !thread_enabled() {
         return;
     }
     let Some(mut active) = ACTIVE.with(|slot| slot.borrow_mut().take()) else {
-        log_no_active();
+        log(ProfileLog::NoActive);
         return;
     };
     let Some(cur) = STACK.with(|slot| slot.borrow().last().copied()) else {
         ACTIVE.with(|slot| *slot.borrow_mut() = Some(active));
-        log_no_active();
+        log(ProfileLog::NoActive);
         return;
     };
     if active.nodes[cur].name.is_null() {
         active.nodes[cur].name = name;
     }
     if active.nodes[cur].name != name {
-        log_mismatch(active.nodes[cur].name, name);
+        log(ProfileLog::Mismatch {
+            started: active.nodes[cur].name,
+            ended: name,
+        });
         let mut parent = active.nodes[cur].parent;
         while let Some(p) = parent {
             if active.nodes[p].parent.is_some() && active.nodes[p].name != name {
@@ -567,7 +542,7 @@ pub fn profile_end(name: ProfileName, clock: &mut dyn FnMut() -> u64) {
             let Some(top) = top_name() else {
                 return;
             };
-            profile_end(top, clock);
+            profile_end(top, clock, log);
         }
         active = ACTIVE
             .with(|slot| slot.borrow_mut().take())
