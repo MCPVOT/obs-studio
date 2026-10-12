@@ -6,7 +6,7 @@
 //!
 //! Excluded inputs: a null input with `insize == 0` (C calls `strlen` or
 //! `wcslen` on it), and sizes above `i32::MAX`, which C casts to negative
-//! `int`s (the port returns 0; documented in `obs_util::utf8::windows`).
+//! `int`s (the port returns 0; documented in `obs_util::platform::windows::utf8`).
 //!
 //! Reminder: the mutation check (break the core, see this file fail) is done
 //! once per port, not on every change.
@@ -16,7 +16,7 @@ use core::ptr;
 
 use obs_c_oracle::utf8 as c;
 use obs_util::ffi::utf8 as rs;
-use obs_util::utf8::windows::{utf8_to_wchar, wchar_to_utf8};
+use obs_util::platform::windows::utf8::{utf8_to_wchar, wchar_to_utf8};
 use proptest::prelude::*;
 
 const SENTINEL_BYTE: u8 = 0xa5;

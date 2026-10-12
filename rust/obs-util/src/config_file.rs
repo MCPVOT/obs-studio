@@ -750,17 +750,7 @@ fn dtostr(v: f64) -> Vec<u8> {
 /* --------------------------------------------------------------------- */
 /* paths (byte paths; C treats them as fopen(3) strings)                   */
 
-#[cfg(unix)]
-fn path_from_bytes(b: &[u8]) -> std::path::PathBuf {
-    use std::os::unix::ffi::OsStrExt;
-    std::path::PathBuf::from(std::ffi::OsStr::from_bytes(b))
-}
-
-#[cfg(not(unix))]
-fn path_from_bytes(b: &[u8]) -> std::path::PathBuf {
-    // C treats paths as UTF-8 for _wfopen on Windows.
-    std::path::PathBuf::from(String::from_utf8_lossy(b).into_owned())
-}
+use crate::platform::path_from_bytes;
 
 /// `file.ext` construction from `config_save_safe`: a `.` is inserted
 /// unless the extension already starts with one.
@@ -873,8 +863,7 @@ impl Config {
             Err(_) => return CONFIG_FILENOTFOUND,
         };
         let mut out = Vec::new();
-        #[cfg(windows)]
-        out.extend_from_slice(b"\xEF\xBB\xBF"); // C writes a BOM on Windows.
+        out.extend_from_slice(crate::platform::CONFIG_FILE_BOM); // C writes a BOM on Windows.
         for (i, sec) in inner.sections.iter().enumerate() {
             if i > 0 {
                 out.push(b'\n');

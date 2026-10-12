@@ -1,5 +1,6 @@
 //! Safe core for `utf8_to_wchar` / `wchar_to_utf8` (`libobs/util/utf8.c`,
-//! non-Windows branch). The Windows branch is [`windows`].
+//! non-Windows branch). The Windows branch is
+//! `crate::platform::windows::utf8`.
 //!
 //! Wide characters are 32-bit code units (`wchar_t` on Linux and macOS). The
 //! core works on slices; "insize == 0 means NUL-terminated" and NULL pointer
@@ -9,10 +10,6 @@
 //! sequences are accepted, only the octets 0xc0, 0xc1, 0xf5 and 0xff and the
 //! surrogate range are "forbidden", and a failed conversion may leave partial
 //! output in the buffer.
-
-#[cfg(windows)]
-#[allow(unsafe_code)] // MultiByteToWideChar/WideCharToMultiByte; see the module docs
-pub mod windows;
 
 /// Skip invalid input instead of failing (`UTF8_IGNORE_ERROR`).
 pub const UTF8_IGNORE_ERROR: i32 = 0x01;

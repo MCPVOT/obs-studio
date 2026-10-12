@@ -21,7 +21,7 @@ before coding, search open PRs first, target master, RED then GREEN commits.
 
 ## Local gate (run before every push)
 
-- `./lint` (8 s): clang-format 22.1.3 and gersemi 0.25.0 pinned via uvx, rustfmt, clippy. `./lint --fix` rewrites files.
+- `./lint` (8 s): clang-format 22.1.3 and gersemi 0.25.0 pinned via uvx, rustfmt, clippy, and the repo Dylints (`dylints/*`). `./lint --fix` rewrites files.
 - `./unittest`: Rust Tiers 1-3, then Tier 2 (cmocka with `ENABLE_RUST_LIBOBS` OFF/ON in Docker; ~30-40 s warm thanks to ccache).
 - To let CI skip the Linux unit-test jobs, commit, then run
   `uvx --from git+https://github.com/zackees/ci.yml@1a970f01574447d681571ff3d0b8de56cb983dcc ci-lint local-gate run`.
@@ -33,5 +33,10 @@ before coding, search open PRs first, target master, RED then GREEN commits.
 - Use `soldr cargo ...`, never bare `cargo`.
 - Pin `rust-toolchain.toml` to the latest Rust the CI soldr version supports natively, never beyond; bump it only after a soldr bump (see the testing policy).
 - Never edit existing C tests or public C headers to make a port pass.
+- Host-specific code (`#[cfg(windows|unix|target_os..)]`, `cfg!()`, `std::os::*`,
+  `libc::`, Win32) goes only in the crate's `src/platform/` (single
+  `cfg_select!` in `platform/mod.rs`) or `src/ffi/`. A pre-expansion Dylint
+  (`dylints/ban_platform_cfg_outside_boundary`) fails `./lint` otherwise; see
+  the testing policy's "Platform boundary" rule.
 - Every port starts RED (failing test against stubs) and ends GREEN.
 - Do not add new GitHub Actions workflow files without explicit sign-off.

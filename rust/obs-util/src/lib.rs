@@ -4,10 +4,14 @@
 //! original `EXPORT` symbols live in [`ffi`]. See
 //! `docs/rust-port/testing-policy.md`.
 //!
+//! Host-specific code lives only in [`platform`] (and the per-OS export set in
+//! [`ffi`]); the `ban_platform_cfg_outside_boundary` Dylint rejects host
+//! `cfg`s and native OS paths anywhere else.
+//!
 //! `unsafe_code` is denied for the whole crate: the safe cores have none. Two
 //! places carry their own `#[allow(unsafe_code)]` with the reason: the C ABI
-//! shims in [`ffi`], and the Windows platform modules that call Win32 directly
-//! ([`pipe::windows`], [`utf8::windows`]).
+//! shims in [`ffi`], and the Windows platform module that calls Win32 directly
+//! (`platform::windows`).
 
 #![deny(unsafe_code)]
 
@@ -30,6 +34,7 @@ pub mod file_serializer;
 pub mod lexer;
 pub mod path_extension;
 pub mod pipe;
+pub mod platform;
 pub mod profiler;
 pub mod profiler_snapshot;
 pub mod task;

@@ -16,7 +16,7 @@
 use core::ffi::{c_int, c_void};
 use core::ptr;
 
-use super::{Args, windows_command_line};
+use crate::pipe::{Args, windows_command_line};
 
 // The Win32 calls, declared here against kernel32.lib like `ffi::bmem`
 // declares `malloc`. windows-sys would bring its own import records for

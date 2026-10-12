@@ -11,8 +11,8 @@ commit message (see local-gate.toml and ci-attestations.yml).
 
 Lanes:
   lint         clang-format 22.1.3 and gersemi 0.25.0 over the same files as
-               build-aux/run-clang-format and run-gersemi, plus rustfmt and
-               clippy -D warnings. Formatters are pinned through uvx, so no
+               build-aux/run-clang-format and run-gersemi, plus rustfmt,
+               clippy -D warnings and the repo Dylints (dylints/*). Formatters are pinned through uvx, so no
                brew/zsh install is needed.
   rust-test    soldr cargo test --workspace --locked (Tiers 1-3).
 
@@ -154,6 +154,12 @@ def lane_lint(fix: bool) -> None:
     self_test()
     soldr_cargo(["fmt", "--all"] + ([] if fix else ["--check"]))
     soldr_cargo(["clippy", "--workspace", "--all-targets", "--locked", "--", "-D", "warnings"])
+    # Pre-expansion Dylints (dylints/*), so host-cfg'd code is checked on
+    # one Linux lane (obs-rust/obs-studio#323). They scan whole src/ files,
+    # inline test modules included, so lib + bins covers their scope;
+    # --all-targets would also type-check integration tests that need
+    # CARGO_BIN_EXE_* from a real build.
+    soldr_cargo(["dylint", "--all", "--", "--workspace", "--lib", "--bins"])
 
 
 def lane_rust_test(fix: bool) -> None:

@@ -2,7 +2,8 @@
 //!
 //! Safe cores live at the crate root; the C ABI shims that replace the
 //! original `EXPORT` symbols live in [`ffi`]. See
-//! `docs/rust-port/testing-policy.md`.
+//! `docs/rust-port/testing-policy.md`. Host-specific code lives only in
+//! `platform` (and the per-OS export set in [`ffi`]).
 
 #![deny(unsafe_code)]
 
@@ -18,6 +19,7 @@ pub mod audio_math;
 pub mod ffi;
 pub mod format_conversion;
 pub mod frame_rate;
+mod platform;
 pub mod video_fourcc;
 pub mod video_frame;
 pub mod video_io;

@@ -1,6 +1,6 @@
 #![cfg(windows)]
 //! C ABI shims for `utf8_to_wchar` and `wchar_to_utf8` on Windows, over
-//! the Windows branch of `utf8.c` in [`crate::utf8::windows`].
+//! the Windows branch of `utf8.c` in [`crate::platform::windows::utf8`].
 //!
 //! The functions only convert pointers to slices (including the `insize ==
 //! 0` NUL-terminated scan) and map the two pointer cases the API decides by
@@ -9,7 +9,7 @@
 
 use core::ffi::{CStr, c_char, c_int};
 
-use crate::utf8::windows as utf8;
+use crate::platform::windows::utf8;
 
 /// `wchar_t` on Windows.
 pub type WChar = u16;

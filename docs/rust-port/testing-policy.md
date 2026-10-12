@@ -285,11 +285,13 @@ rust/
     src/{path_extension,darray,array_serializer,crc32,utf8,lexer,text_lookup,dstr,bmem,cf_tokenizer}.rs # more safe cores
     src/ffi/bitstream.rs      # extern "C" shim, #[repr(C)] types (Tier 2)
     src/ffi/*.rs              # matching shims for the cores above
+    src/platform/             # the only host-specific code (cfg_select!, unix/, windows/)
     tests/bitstream.rs        # Tier 1: 1:1 port of test/cmocka/test_bitstream.c
     tests/bitstream_layout.rs # Tier 2: struct layout vs. C header
     tests/bitstream_parity.rs # Tier 3: proptest vs. C oracle
   obs-graphics/               # ports of libobs/graphics/*
   obs-media-io/               # ports of libobs/media-io/*
+  ../dylints/                 # repo Dylints run by ./lint (not workspace members)
   obs-c-oracle/               # dev-only: original C compiled with oracle_ prefix
     build.rs
     oracle/bitstream.c        # #define renames + #include of libobs/util/bitstream.c
@@ -322,9 +324,25 @@ directory (`obs-util`, `obs-graphics`, `obs-media-io`, ...).
   Tier 2/3 test files that call C ABI functions. Each `unsafe` block has a
   `// SAFETY:` comment. Every port crate denies the `unsafe_code` lint, so a
   safe core cannot use it: `allow` is written only where the C boundary is
-  (the `ffi` module) and on the Windows platform modules that must call Win32
-  directly (`obs_util::pipe::windows`, `obs_util::utf8::windows`, each saying
-  why). Keep it that way when adding a port.
+  (the `ffi` module) and on the platform modules that must call the OS
+  directly (`obs_util::platform::windows`, `obs-media-io`'s `platform::unix`,
+  each saying why). Keep it that way when adding a port.
+- **Platform boundary** (#323). Host-specific code lives only in the crate's
+  `src/platform/` module and in `src/ffi/` (the exported symbol set itself
+  differs per OS). `src/platform/mod.rs` is the crate's single host-selection
+  site: one `cfg_select!` that declares the per-OS children
+  (`platform/unix.rs`, `platform/windows/`, ...) and re-exports a neutral API
+  (types, functions, `const` flags, or a capability macro such as
+  `with_audio_thread_port!` for items that exist only on some hosts).
+  Everywhere else in `rust/<crate>/src/`, host `#[cfg]`/`#[cfg_attr]`/`cfg!()`
+  (`windows`, `unix`, `target_os`, `target_env`, `target_arch`, ...) and native
+  paths (`std::os::{unix,windows,..}`, `libc::`, `windows_sys`) are errors.
+  `dylints/ban_platform_cfg_outside_boundary` enforces this in `./lint`
+  (`soldr cargo dylint --all -- --workspace --lib --bins`). It reads the
+  source before cfg expansion, so code compiled out on Linux is checked too;
+  that is what lets one Linux lint lane stand in for every OS. Out of scope:
+  `obs-c-oracle`, `rust/tools`, and `tests/`. There is no allowlist: move the
+  code into `platform/`, do not opt out.
 - Do not add new GitHub Actions workflow files without explicit sign-off from
   the maintainer. Hook tests into existing workflows instead.
 - Do not edit a public C header, an existing C test, or an exported function

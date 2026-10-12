@@ -37,6 +37,8 @@
 
 # Rust port and agent instructions
 !/rust
+!/dylints
+/dylints/*/target
 !AGENTS.md
 !CLAUDE.md
 !Cargo.lock

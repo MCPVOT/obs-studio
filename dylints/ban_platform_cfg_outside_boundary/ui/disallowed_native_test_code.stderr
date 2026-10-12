@@ -1,0 +1,12 @@
+error: host-platform selection outside the platform boundary: direct native-platform reference `windows_sys`; move it into this crate's src/platform/ (or src/ffi/ for C ABI shims), see docs/rust-port/testing-policy.md
+  --> $DIR/disallowed_native_test_code.rs:1:1
+   |
+LL | / fn test_helper() {
+LL | |     let windows_sys = ();
+LL | | }
+   | |_^
+   |
+   = note: `#[deny(ban_platform_cfg_outside_boundary)]` on by default
+
+error: aborting due to 1 previous error
+

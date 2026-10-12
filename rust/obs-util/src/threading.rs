@@ -15,8 +15,7 @@
 //! the full relative span. Spurious wakeups behave identically — both
 //! restart the full timeout.
 
-#[cfg(unix)]
-pub use crate::ffi::native_sem::Sem;
+pub use crate::platform::Sem;
 use std::sync::{Condvar, Mutex, MutexGuard};
 use std::time::Duration;
 

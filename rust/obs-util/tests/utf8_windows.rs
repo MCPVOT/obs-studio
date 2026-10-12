@@ -1,9 +1,9 @@
 #![cfg(windows)]
 //! Tier 1: the safe core of the Windows branch of `utf8.c`
-//! (`obs_util::utf8::windows`), mirroring `test/cmocka/test_utf8_windows.c`.
+//! (`obs_util::platform::windows::utf8`), mirroring `test/cmocka/test_utf8_windows.c`.
 
 use obs_c_oracle as _;
-use obs_util::utf8::windows::{utf8_to_wchar, wchar_to_utf8};
+use obs_util::platform::windows::utf8::{utf8_to_wchar, wchar_to_utf8};
 
 const SENTINEL: u16 = 0x5a5a;
 

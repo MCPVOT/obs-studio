@@ -14,13 +14,10 @@
 /// If `div` is 0 (UB in C), and on MSVC x64 if the quotient does not fit
 /// in 64 bits (`_udiv128` faults).
 pub fn mul_div64(num: u64, mul: u64, div: u64) -> u64 {
-    #[cfg(all(target_env = "msvc", target_arch = "x86_64"))]
-    {
+    if crate::platform::MUL_DIV64_IS_UDIV128 {
         let quotient = u128::from(num) * u128::from(mul) / u128::from(div);
         u64::try_from(quotient).expect("util_mul_div64 quotient overflows 64 bits")
-    }
-    #[cfg(not(all(target_env = "msvc", target_arch = "x86_64")))]
-    {
+    } else {
         let rem = num % div;
         (num / div)
             .wrapping_mul(mul)

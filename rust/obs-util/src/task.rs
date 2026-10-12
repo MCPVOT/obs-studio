@@ -16,9 +16,7 @@ use std::sync::atomic::{AtomicI64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 
-#[cfg(unix)]
-use crate::threading::Sem;
-use crate::threading::{Event, EventType};
+use crate::threading::{Event, EventType, Sem};
 
 /// Boxed task, the safe equivalent of `os_task_t` + `void *param`.
 pub type Task = Box<dyn FnOnce() + Send + 'static>;
@@ -33,51 +31,13 @@ thread_local! {
 
 static THREAD_ID_COUNTER: AtomicI64 = AtomicI64::new(1);
 
-/// `os_sem_init(&tq->sem, 0)`. On Unix this is the same native semaphore
-/// behind the exported `os_sem_*` calls ([`crate::threading::Sem`], the
-/// `libc::sem_t`/Mach port); on Windows `os_sem_*` is not ported yet
-/// (`threading-windows.c` still owns it), so the condvar sem below fills
-/// in until then.
-#[cfg(unix)]
+/// `os_sem_init(&tq->sem, 0)`: [`crate::threading::Sem`], the native
+/// semaphore behind the exported `os_sem_*` calls on Unix (see
+/// [`crate::platform`] for the Windows stand-in).
 fn sem_init_zero() -> Option<Pin<Box<Sem>>> {
     // `Sem::try_new` is the same failure channel the C's `os_sem_init`
     // check uses; on failure the C frees the queue and returns NULL.
     Sem::try_new(0)
-}
-
-/// Counting semaphore for non-Unix builds only: `os_sem_*` is not
-/// exported there yet, so there is nothing shared to reuse. When
-/// `threading-windows.c` lands, this is deleted in favour of the same
-/// `Sem` the export shim uses.
-#[cfg(not(unix))]
-struct Sem {
-    count: Mutex<usize>,
-    avail: std::sync::Condvar,
-}
-
-#[cfg(not(unix))]
-impl Sem {
-    fn post(&self) {
-        *self.count.lock().unwrap() += 1;
-        self.avail.notify_one();
-    }
-
-    fn wait(&self) -> i32 {
-        let mut count = self.count.lock().unwrap();
-        while *count == 0 {
-            count = self.avail.wait(count).unwrap();
-        }
-        *count -= 1;
-        0
-    }
-}
-
-#[cfg(not(unix))]
-fn sem_init_zero() -> Option<Pin<Box<Sem>>> {
-    Some(Box::pin(Sem {
-        count: Mutex::new(0),
-        avail: std::sync::Condvar::new(),
-    }))
 }
 
 /// A queued entry. `wait` and `stop` are distinct markers so the worker can

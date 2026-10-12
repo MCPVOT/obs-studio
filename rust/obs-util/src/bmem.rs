@@ -10,19 +10,7 @@ use core::sync::atomic::Ordering;
 /// this many bytes.
 pub const ALIGNMENT: usize = 32;
 
-/// C `long` is 32-bit on Windows and 64-bit on the other supported targets.
-#[cfg(windows)]
-pub type CLong = i32;
-/// C `long` is 32-bit on Windows and 64-bit on the other supported targets.
-#[cfg(not(windows))]
-pub type CLong = i64;
-
-/// Atomic with the width of C `long` (`os_atomic_*_long`).
-#[cfg(windows)]
-pub type CLongAtomic = core::sync::atomic::AtomicI32;
-/// Atomic with the width of C `long` (`os_atomic_*_long`).
-#[cfg(not(windows))]
-pub type CLongAtomic = core::sync::atomic::AtomicI64;
+pub use crate::platform::{CLong, CLongAtomic};
 
 /// Offset added to a raw `malloc` address by the `ALIGNMENT_HACK`:
 /// `((~addr) & (ALIGNMENT - 1)) + 1`. Always in `1..=ALIGNMENT`, so it fits

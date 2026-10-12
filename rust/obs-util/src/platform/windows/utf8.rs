@@ -7,7 +7,7 @@
 //! with part of the buffer possibly written).
 //!
 //! `flags` do nothing here, as in C: `UTF8_IGNORE_ERROR` and `UTF8_SKIP_BOM`
-//! belong to the other branch ([`super`]). A leading UTF-8 BOM is always
+//! belong to the other branch ([`crate::utf8`]). A leading UTF-8 BOM is always
 //! dropped from the input of [`utf8_to_wchar`] instead.
 //!
 //! Intentional difference: C casts the sizes to `int`. A length above
@@ -18,7 +18,7 @@ use core::ptr;
 const CP_UTF8: u32 = 65001;
 const UTF8_BOM: &[u8] = &[0xef, 0xbb, 0xbf];
 
-// Declared against kernel32.lib, like `crate::pipe::windows`: windows-sys's
+// Declared against kernel32.lib, like `crate::platform::windows::pipe`: windows-sys's
 // raw-dylib import records collide with std's in obs.dll (LNK2005).
 #[link(name = "kernel32")]
 #[allow(non_snake_case)]
