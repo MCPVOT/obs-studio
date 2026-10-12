@@ -5,15 +5,24 @@
 //! and native OS paths (`std::os::*`, `libc::`, Win32) outside this module
 //! and [`crate::ffi`].
 
+/// `enum os_event_type`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EventType {
+    /// `OS_EVENT_TYPE_AUTO`: a successful wait consumes the signal.
+    Auto,
+    /// `OS_EVENT_TYPE_MANUAL`: the event stays signalled until `reset`.
+    Manual,
+}
+
 cfg_select! {
     unix => {
         pub mod unix;
-        pub use unix::{Pipe, Sem, path_from_bytes};
+        pub use unix::{Event, Pipe, Sem, path_from_bytes};
     }
     windows => {
         #[allow(unsafe_code)] // Win32 handle and string calls; see the module docs
         pub mod windows;
-        pub use windows::{Pipe, Sem, path_from_bytes};
+        pub use windows::{Event, Pipe, Sem, path_from_bytes};
     }
 }
 

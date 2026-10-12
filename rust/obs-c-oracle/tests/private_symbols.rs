@@ -3,7 +3,7 @@
 //! binary that links both archives (obs-media-io's audio_io) fails with
 //! duplicate symbols whenever the linker pulls both definitions in, which
 //! non-incremental builds do. The oracle's C callers use the private copy in
-//! oracle/threading_posix.c instead.
+//! oracle/threading_posix.c on Unix and oracle/threading_windows.c on Windows.
 #![cfg(unix)]
 
 use std::path::Path;

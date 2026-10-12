@@ -1,8 +1,10 @@
 //! Unix (Linux, macOS) side of the [platform boundary](super).
 
+pub mod event;
 pub mod pipe;
 
 pub use crate::ffi::native_sem::Sem;
+pub use event::Event;
 pub use pipe::Pipe;
 
 use std::os::unix::ffi::OsStrExt;

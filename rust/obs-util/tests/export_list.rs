@@ -200,15 +200,14 @@ fn rust_exports_list_matches_no_mangle_shims() {
     }
 }
 
-/// Names of no_mangle fns inside a `#[cfg(unix)] mod name { ... }` block
-/// (closed by a `}` in column 0). On Windows the C implementation of those
-/// symbols stays in libobs, so they must not be /EXPORTed from Rust there.
-fn unix_only_fns(src: &str) -> Vec<String> {
+/// Names of no_mangle fns inside a `#[cfg(...)] mod name { ... }` block
+/// (closed by a `}` in column 0).
+fn cfg_mod_fns(src: &str, cfg: &str) -> Vec<String> {
     let lines: Vec<&str> = src.lines().collect();
     let mut out = Vec::new();
     let mut i = 0;
     while i < lines.len() {
-        if lines[i].trim() == "#[cfg(unix)]"
+        if lines[i].trim() == cfg
             && lines
                 .get(i + 1)
                 .is_some_and(|l| l.starts_with("mod ") && l.trim_end().ends_with('{'))
@@ -224,6 +223,17 @@ fn unix_only_fns(src: &str) -> Vec<String> {
         i += 1;
     }
     out
+}
+
+/// Names that exist only inside a `#[cfg(unix)]` module. A symbol that also
+/// has a Windows shim is compiled on both platforms, so rust.cmake must
+/// `/EXPORT` it and the fragment must not mark it `unix`.
+fn unix_only_fns(src: &str) -> Vec<String> {
+    let windows: BTreeSet<String> = cfg_mod_fns(src, "#[cfg(windows)]").into_iter().collect();
+    cfg_mod_fns(src, "#[cfg(unix)]")
+        .into_iter()
+        .filter(|name| !windows.contains(name))
+        .collect()
 }
 
 /// `rust-exports.d` lines are `symbol` or `symbol unix`. The `unix`

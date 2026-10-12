@@ -100,11 +100,12 @@ fn main() {
         .collect();
     sources.sort();
     oracle.files(sources);
-    // Keep the oracle's POSIX threading helpers private. The Rust obs-util
-    // crate exports the real libobs os_event/os_sem/os_set_thread_name symbols;
+    // Keep the oracle's threading helpers private. The Rust obs-util crate
+    // exports the real libobs os_event/os_sem/os_set_thread_name symbols;
     // the C oracle must call its renamed copy so both implementations can link
-    // into the same test executable.
-    if unix {
+    // into the same test executable. Unix includes them from
+    // oracle/threading_posix.c, Windows from oracle/threading_windows.c.
+    if unix || windows {
         for (from, to) in [
             ("os_event_init", "oracle_os_event_init"),
             ("os_event_destroy", "oracle_os_event_destroy"),
@@ -135,17 +136,16 @@ fn main() {
         .include(manifest.join("vendor/uthash"))
         .std("c11");
     // task.c calls pthread_mutex_*/pthread_create plus os_event/os_sem helpers.
-    // Unix gets the helpers from oracle/threading_posix.c, where the real C
-    // source is included under private names. MSVC has no pthread: libobs builds
-    // against deps/w32-pthreads, so the oracle compiles its single-file build
-    // and the real threading-windows.c instead.
+    // Those helpers come from oracle/threading_posix.c or
+    // oracle/threading_windows.c, included under private names. MSVC has no
+    // pthread: libobs builds against deps/w32-pthreads, so the oracle compiles
+    // its single-file build.
     if oracle.get_compiler().is_like_msvc() {
         let deps = libobs.with_file_name("deps");
         oracle
             .include(deps.join("w32-pthreads"))
             .define("PTW32_STATIC_LIB", None)
-            .file(deps.join("w32-pthreads/pthread.c"))
-            .file(libobs.join("util/threading-windows.c"));
+            .file(deps.join("w32-pthreads/pthread.c"));
         flags.push("-DPTW32_STATIC_LIB");
     }
     // Every directory the oracle can read C/headers from. libobs is the

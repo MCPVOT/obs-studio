@@ -1,5 +1,5 @@
-//! `util/threading-posix.c` (Unix only — the symbols do not exist in
-//! the oracle on Windows; tests using them are `cfg(unix)`).
+//! `util/threading-posix.c` on Unix and `util/threading-windows.c` on
+//! Windows. Each wrapper renames the globals to `oracle_*`.
 use core::ffi::{c_char, c_int, c_ulong};
 
 /// `struct os_event_data`, opaque in `util/threading.h`.
@@ -20,8 +20,9 @@ unsafe extern "C" {
     pub fn oracle_os_sem_destroy(sem: *mut OracleSem);
     pub fn oracle_os_sem_post(sem: *mut OracleSem) -> c_int;
     pub fn oracle_os_sem_wait(sem: *mut OracleSem) -> c_int;
-    /// Oracle-side non-blocking take (`sem_trywait`, or a zero-timeout
-    /// `semaphore_timedwait` on macOS). Test probe only.
+    /// Oracle-side non-blocking take (`sem_trywait`, a zero-timeout
+    /// `semaphore_timedwait` on macOS, or `WaitForSingleObject` with a
+    /// zero timeout on Windows). Test probe only.
     pub fn oracle_os_sem_trywait(sem: *mut OracleSem) -> c_int;
     pub fn oracle_os_set_thread_name(name: *const c_char);
 }

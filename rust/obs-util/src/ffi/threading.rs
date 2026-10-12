@@ -1,8 +1,5 @@
-//! C ABI shim for `libobs/util/threading-posix.c`.
-//!
-//! The whole surface is Unix-only (`#[cfg(unix)]`): on Windows the same
-//! symbols come from `util/threading-windows.c`, which stays in C and is
-//! not replaced by this port.
+//! C ABI shim for `libobs/util/threading-posix.c` and
+//! `libobs/util/threading-windows.c`.
 //!
 //! NULL arguments where the C would dereference the pointer (`os_event_*`
 //! except destroy, the out-pointer of `os_event_init`/`os_sem_init`) get
@@ -12,6 +9,172 @@
 
 #[cfg(unix)]
 pub use posix::*;
+
+#[cfg(windows)]
+pub use windows::*;
+
+/// C ABI for `util/threading-windows.c`. NULL event handles are defined
+/// in that file (`EINVAL`, or a no-op for destroy/reset). A NULL
+/// out-pointer on init is undefined in the C once the kernel object
+/// exists; the shim closes it and returns `EINVAL`.
+#[cfg(windows)]
+mod windows {
+    use core::ffi::{c_char, c_int, c_ulong};
+
+    use crate::platform::windows::{Event, Sem};
+
+    /// `OS_EVENT_TYPE_MANUAL`.
+    const OS_EVENT_TYPE_MANUAL: c_int = 1;
+
+    /// # Safety
+    /// `event` is a live out-pointer or null. `type_` is `enum os_event_type`;
+    /// anything other than manual is auto, as in C.
+    #[unsafe(no_mangle)]
+    pub unsafe extern "C" fn os_event_init(event: *mut *mut Event, type_: c_int) -> c_int {
+        let Some(created) = Event::try_new(type_ == OS_EVENT_TYPE_MANUAL) else {
+            return -1;
+        };
+        if event.is_null() {
+            return libc::EINVAL;
+        }
+        // SAFETY: `event` is checked non-null.
+        unsafe { *event = Box::into_raw(Box::new(created)) };
+        0
+    }
+
+    /// # Safety
+    /// `event` came from [`os_event_init`] or is null.
+    #[unsafe(no_mangle)]
+    pub unsafe extern "C" fn os_event_destroy(event: *mut Event) {
+        if event.is_null() {
+            return;
+        }
+        // SAFETY: `event` is a live box from `os_event_init`, dropped once.
+        unsafe { drop(Box::from_raw(event)) };
+    }
+
+    /// # Safety
+    /// `event` came from [`os_event_init`] or is null (`EINVAL`).
+    #[unsafe(no_mangle)]
+    pub unsafe extern "C" fn os_event_wait(event: *mut Event) -> c_int {
+        if event.is_null() {
+            return libc::EINVAL;
+        }
+        // SAFETY: `event` is a live `Event` when non-null.
+        unsafe { &*event }.wait_code()
+    }
+
+    /// # Safety
+    /// Same contract as [`os_event_wait`].
+    #[unsafe(no_mangle)]
+    pub unsafe extern "C" fn os_event_timedwait(event: *mut Event, milliseconds: c_ulong) -> c_int {
+        if event.is_null() {
+            return libc::EINVAL;
+        }
+        // SAFETY: `event` is a live `Event` when non-null.
+        unsafe { &*event }.wait_for(milliseconds)
+    }
+
+    /// # Safety
+    /// Same contract as [`os_event_wait`]. A timeout is `EAGAIN`, as in C.
+    #[unsafe(no_mangle)]
+    pub unsafe extern "C" fn os_event_try(event: *mut Event) -> c_int {
+        if event.is_null() {
+            return libc::EINVAL;
+        }
+        // SAFETY: `event` is a live `Event` when non-null.
+        let code = unsafe { &*event }.wait_for(0);
+        if code == libc::ETIMEDOUT {
+            libc::EAGAIN
+        } else {
+            code
+        }
+    }
+
+    /// # Safety
+    /// Same contract as [`os_event_wait`].
+    #[unsafe(no_mangle)]
+    pub unsafe extern "C" fn os_event_signal(event: *mut Event) -> c_int {
+        if event.is_null() {
+            return libc::EINVAL;
+        }
+        // SAFETY: `event` is a live `Event` when non-null.
+        unsafe { &*event }.signal_code()
+    }
+
+    /// # Safety
+    /// `event` came from [`os_event_init`] or is null.
+    #[unsafe(no_mangle)]
+    pub unsafe extern "C" fn os_event_reset(event: *mut Event) {
+        if event.is_null() {
+            return;
+        }
+        // SAFETY: `event` is a live `Event` when non-null.
+        unsafe { &*event }.reset();
+    }
+
+    /// # Safety
+    /// `sem` is a live out-pointer or null. A negative `value` fails with
+    /// -1 before the out-pointer is touched, as `CreateSemaphore` does.
+    /// A null out-pointer after a successful create is undefined in C;
+    /// the handle is closed and this returns `EINVAL`.
+    #[unsafe(no_mangle)]
+    pub unsafe extern "C" fn os_sem_init(sem: *mut *mut Sem, value: c_int) -> c_int {
+        if value < 0 {
+            return -1;
+        }
+        let Some(created) = Sem::try_new(value as u32) else {
+            return -1;
+        };
+        if sem.is_null() {
+            return libc::EINVAL;
+        }
+        // SAFETY: `sem` is checked non-null. `Sem` is `Unpin`.
+        unsafe { *sem = Box::into_raw(std::pin::Pin::into_inner(created)) };
+        0
+    }
+
+    /// # Safety
+    /// `sem` came from [`os_sem_init`] or is null.
+    #[unsafe(no_mangle)]
+    pub unsafe extern "C" fn os_sem_destroy(sem: *mut Sem) {
+        if sem.is_null() {
+            return;
+        }
+        // SAFETY: `sem` is a live box from `os_sem_init`, dropped once.
+        unsafe { drop(Box::from_raw(sem)) };
+    }
+
+    /// # Safety
+    /// `sem` came from [`os_sem_init`] or is null (-1, as in C).
+    #[unsafe(no_mangle)]
+    pub unsafe extern "C" fn os_sem_post(sem: *mut Sem) -> c_int {
+        if sem.is_null() {
+            return -1;
+        }
+        // SAFETY: `sem` is a live `Sem` when non-null.
+        unsafe { &*sem }.post()
+    }
+
+    /// # Safety
+    /// Same contract as [`os_sem_post`].
+    #[unsafe(no_mangle)]
+    pub unsafe extern "C" fn os_sem_wait(sem: *mut Sem) -> c_int {
+        if sem.is_null() {
+            return -1;
+        }
+        // SAFETY: `sem` is a live `Sem` when non-null.
+        unsafe { &*sem }.wait()
+    }
+
+    /// # Safety
+    /// `name` is a C string or null, as `threading-windows.c` accepts.
+    #[unsafe(no_mangle)]
+    pub unsafe extern "C" fn os_set_thread_name(name: *const c_char) {
+        // SAFETY: `name` is a C string or null.
+        unsafe { crate::platform::windows::set_thread_name(name) };
+    }
+}
 
 #[cfg(unix)]
 mod posix {

@@ -31,9 +31,8 @@ thread_local! {
 
 static THREAD_ID_COUNTER: AtomicI64 = AtomicI64::new(1);
 
-/// `os_sem_init(&tq->sem, 0)`: [`crate::threading::Sem`], the native
-/// semaphore behind the exported `os_sem_*` calls on Unix (see
-/// [`crate::platform`] for the Windows stand-in).
+/// `os_sem_init(&tq->sem, 0)`. The same semaphore the exported `os_sem_*`
+/// calls use: `sem_t` or a Mach port on Unix, a Win32 semaphore on Windows.
 fn sem_init_zero() -> Option<Pin<Box<Sem>>> {
     // `Sem::try_new` is the same failure channel the C's `os_sem_init`
     // check uses; on failure the C frees the queue and returns NULL.
@@ -72,9 +71,9 @@ impl TaskQueue {
     pub fn new() -> Option<Self> {
         // The C returns NULL on any init failure — os_sem_init,
         // os_event_init or pthread_create — after freeing the partial
-        // queue. Event::new cannot fail (std Mutex+Condvar), so only the
-        // native semaphore (Sem::try_new) and the thread spawn carry the
-        // C's NULL channel here.
+        // queue. Event::new panics only if the kernel object cannot be
+        // created. Sem::try_new and the thread spawn carry the C's NULL
+        // channel here.
         let inner = Arc::new(Inner {
             id: THREAD_ID_COUNTER.fetch_add(1, Ordering::SeqCst),
             sem: sem_init_zero()?,

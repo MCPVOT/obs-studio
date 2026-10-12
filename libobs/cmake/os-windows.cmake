@@ -48,7 +48,7 @@ target_sources(
     obs-windows.c
     $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:util/pipe-windows.c>
     util/platform-windows.c
-    util/threading-windows.c
+    $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:util/threading-windows.c>
     util/threading-windows.h
     util/windows/CoTaskMemPtr.hpp
     util/windows/device-enum.c
