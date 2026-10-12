@@ -2,8 +2,8 @@
  * CAPTION_LINE_BYTES (128) bytes: caption_text_new() stored text in a fixed
  * 129-byte array, and the "split text into 32 character strings" comment was
  * never implemented. A caption longer than 128 bytes lost its tail, and a
- * multibyte UTF-8 character straddling byte 128 was cut in half, leaving
- * invalid UTF-8 on the wire.
+ * multibyte UTF-8 character straddling byte 128 was cut in half, leaving a
+ * truncated sequence in the queued text.
  *
  * The fix implements the comment: text is word-wrapped at 32 columns and
  * paginated at 15 rows, each page enqueued as its own caption_text node with
@@ -50,8 +50,7 @@ static void enc_destroy(void *data)
 	(void)data;
 }
 
-static bool enc_encode(void *data, struct encoder_frame *frame, struct encoder_packet *packet,
-		       bool *received_packet)
+static bool enc_encode(void *data, struct encoder_frame *frame, struct encoder_packet *packet, bool *received_packet)
 {
 	(void)data;
 	(void)frame;
@@ -220,7 +219,7 @@ static void assert_pages_preserve(struct caption_harness *h, const char *input)
 	for (size_t i = 0; i < pages; i++) {
 		assert_valid_utf8(texts[i]);
 		for (const char *c = texts[i]; *c && out < capacity - 1; c++) {
-			if (*c != '\n')
+			if (*c != '\n' && *c != ' ' && *c != '\r' && *c != '\t')
 				joined[out++] = *c;
 		}
 	}
@@ -338,10 +337,19 @@ static void caption_multi_page(void **state)
 	for (size_t i = 0; i < pages; i++)
 		assert_true(durs[i] == 3.5);
 
-	assert_non_null(strstr(texts[0], "row00"));
-	assert_null(strstr(texts[0], "row15"));
-	assert_non_null(strstr(texts[1], "row15"));
-	assert_non_null(strstr(texts[2], "row39"));
+	/* every input row must appear, in order, on the expected page:
+	 * rows 0-14 on page 0, 15-29 on page 1, 30-39 on page 2 */
+	for (int i = 0; i < 40; i++) {
+		char marker[8];
+		snprintf(marker, sizeof(marker), "row%02d", i);
+		size_t expected_page = (size_t)i / 15;
+		for (size_t p = 0; p < pages; p++) {
+			if (p == expected_page)
+				assert_non_null(strstr(texts[p], marker));
+			else
+				assert_null(strstr(texts[p], marker));
+		}
+	}
 
 	harness_destroy(h);
 }
@@ -365,6 +373,130 @@ static void caption_word_wrap(void **state)
 	harness_destroy(h);
 }
 
+/* 15 rows x 32 columns = 480 columns exactly fills one page. */
+static void caption_page_edge_480(void **state)
+{
+	(void)state;
+	struct caption_harness *h = harness_create();
+	char *input = repeat_char(480, 'a');
+
+	obs_output_output_caption_text2(h->output, input, 2.0);
+	assert_pages_preserve(h, input);
+
+	const char *texts[8];
+	double durs[8];
+	assert_int_equal(1, collect_pages(h, texts, durs, 8));
+
+	bfree(input);
+	harness_destroy(h);
+}
+
+/* 481 columns spill one character onto a second page. */
+static void caption_page_edge_481(void **state)
+{
+	(void)state;
+	struct caption_harness *h = harness_create();
+	char *input = repeat_char(481, 'a');
+
+	obs_output_output_caption_text2(h->output, input, 2.0);
+	assert_pages_preserve(h, input);
+
+	const char *texts[8];
+	double durs[8];
+	size_t pages = collect_pages(h, texts, durs, 8);
+	assert_int_equal(2, pages);
+	assert_string_equal("a", texts[1]);
+
+	bfree(input);
+	harness_destroy(h);
+}
+
+/* A 3-byte UTF-8 character filling column 32 must not split mid-sequence. */
+static void caption_utf8_3byte_at_edge(void **state)
+{
+	(void)state;
+	struct caption_harness *h = harness_create();
+
+	/* 31 'a' then 中 (U+4E2D, 3 bytes) as character 32, then 'b' wraps. */
+	char *input = bzalloc(64);
+	memset(input, 'a', 31);
+	strcat(input, "\xE4\xB8\xAD");
+	strcat(input, "b");
+
+	obs_output_output_caption_text2(h->output, input, 2.0);
+	assert_pages_preserve(h, input);
+
+	const char *texts[8];
+	double durs[8];
+	size_t pages = collect_pages(h, texts, durs, 8);
+	assert_int_equal(1, pages);
+	/* row 1 = 31 a's + 中, row 2 = 'b' */
+	assert_non_null(strstr(texts[0], "\xE4\xB8\xAD\nb"));
+
+	bfree(input);
+	harness_destroy(h);
+}
+
+/* A 4-byte UTF-8 character filling column 32 must not split mid-sequence. */
+static void caption_utf8_4byte_at_edge(void **state)
+{
+	(void)state;
+	struct caption_harness *h = harness_create();
+
+	char *input = bzalloc(64);
+	memset(input, 'a', 31);
+	strcat(input, "\xF0\x9F\xA6\x84");
+	strcat(input, "b");
+
+	obs_output_output_caption_text2(h->output, input, 2.0);
+	assert_pages_preserve(h, input);
+
+	const char *texts[8];
+	double durs[8];
+	size_t pages = collect_pages(h, texts, durs, 8);
+	assert_int_equal(1, pages);
+	assert_non_null(strstr(texts[0], "\xF0\x9F\xA6\x84\nb"));
+
+	bfree(input);
+	harness_destroy(h);
+}
+
+/* Whitespace-only input enqueues the historical single empty page. */
+static void caption_whitespace_only(void **state)
+{
+	(void)state;
+	struct caption_harness *h = harness_create();
+
+	obs_output_output_caption_text2(h->output, "   \t\n  ", 2.0);
+
+	const char *texts[8];
+	double durs[8];
+	size_t pages = collect_pages(h, texts, durs, 8);
+	assert_int_equal(1, pages);
+	assert_string_equal("", texts[0]);
+	assert_true(durs[0] == 2.0);
+
+	harness_destroy(h);
+}
+
+/* A tab is interior whitespace: it becomes a space in the row so the text
+ * after it is not lost to an unmappable-cell row cutoff. */
+static void caption_tab_becomes_space(void **state)
+{
+	(void)state;
+	struct caption_harness *h = harness_create();
+
+	obs_output_output_caption_text2(h->output, "hello\tworld", 2.0);
+
+	const char *texts[8];
+	double durs[8];
+	size_t pages = collect_pages(h, texts, durs, 8);
+	assert_int_equal(1, pages);
+	assert_string_equal("hello world", texts[0]);
+
+	harness_destroy(h);
+}
+
 int main(void)
 {
 	obs_up = obs_startup("en-US", NULL, NULL);
@@ -375,12 +507,12 @@ int main(void)
 	register_types();
 
 	const struct CMUnitTest tests[] = {
-		cmocka_unit_test(caption_boundary_127),
-		cmocka_unit_test(caption_boundary_128),
-		cmocka_unit_test(caption_boundary_129),
-		cmocka_unit_test(caption_multibyte_at_128),
-		cmocka_unit_test(caption_multi_page),
-		cmocka_unit_test(caption_word_wrap),
+		cmocka_unit_test(caption_boundary_127),       cmocka_unit_test(caption_boundary_128),
+		cmocka_unit_test(caption_boundary_129),       cmocka_unit_test(caption_multibyte_at_128),
+		cmocka_unit_test(caption_multi_page),         cmocka_unit_test(caption_word_wrap),
+		cmocka_unit_test(caption_page_edge_480),      cmocka_unit_test(caption_page_edge_481),
+		cmocka_unit_test(caption_utf8_3byte_at_edge), cmocka_unit_test(caption_utf8_4byte_at_edge),
+		cmocka_unit_test(caption_whitespace_only),    cmocka_unit_test(caption_tab_becomes_space),
 	};
 	int rc = cmocka_run_group_tests(tests, NULL, NULL);
 

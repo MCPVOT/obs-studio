@@ -26,7 +26,6 @@
 
 #include <caption/caption.h>
 #include <caption/mpeg.h>
-#include <caption/utf8.h>
 
 #define get_weak(output) ((obs_weak_output_t *)output->context.control)
 
@@ -3228,13 +3227,9 @@ static size_t caption_utf8_char_length(const char *text)
 	return 0;
 }
 
-static size_t caption_newline_length(const char *text)
+static bool caption_is_newline(const char *text)
 {
-	if (text[0] == '\r')
-		return text[1] == '\n' ? 2 : 1;
-	if (text[0] == '\n')
-		return text[1] == '\r' ? 2 : 1;
-	return 0;
+	return text[0] == '\r' || text[0] == '\n';
 }
 
 static bool caption_utf8_whitespace(const char *text, size_t bytes)
@@ -3283,7 +3278,7 @@ static size_t caption_text_row(const char **text, char row[CAPTION_LINE_BYTES + 
 			scan++;
 			continue;
 		}
-		if (caption_newline_length(scan)) {
+		if (caption_is_newline(scan)) {
 			end = scan;
 			break;
 		}
@@ -3305,6 +3300,14 @@ static size_t caption_text_row(const char **text, char row[CAPTION_LINE_BYTES + 
 			scan++;
 			continue;
 		}
+		/* Interior whitespace that is not a newline (tab, VT, FF) has no
+		 * EIA-608 mapping; emitting a space keeps it from becoming an
+		 * empty cell that ends the row early. */
+		if (len == 1 && caption_utf8_whitespace(scan, 1)) {
+			row[bytes++] = ' ';
+			scan++;
+			continue;
+		}
 		memcpy(row + bytes, scan, len);
 		bytes += len;
 		scan += len;
@@ -3316,16 +3319,15 @@ static size_t caption_text_row(const char **text, char row[CAPTION_LINE_BYTES + 
 
 static size_t caption_text_page(const char **text, char page[CAPTION_PAGE_BYTES + 1])
 {
-	char row[CAPTION_LINE_BYTES + 1];
 	size_t page_bytes = 0;
 
 	for (size_t rows = 0; rows < CAPTION_PAGE_ROWS; rows++) {
+		char *row = page + page_bytes + (rows ? 1 : 0);
 		size_t row_bytes = caption_text_row(text, row);
 		if (!row_bytes)
 			break;
 		if (rows)
 			page[page_bytes++] = '\n';
-		memcpy(page + page_bytes, row, row_bytes);
 		page_bytes += row_bytes;
 	}
 	page[page_bytes] = 0;
