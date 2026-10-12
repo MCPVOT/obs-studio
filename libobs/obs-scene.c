@@ -259,9 +259,13 @@ static void scene_enum_sources(void *data, obs_source_enum_proc_t enum_callback,
 
 		obs_sceneitem_addref(item);
 		if (active) {
-			if (item->visible && transition_active(item->show_transition))
+			/* A running item transition is an active child of the
+			 * scene (obs_sceneitem_do_transition), whatever the
+			 * item's visibility: hiding a group starts the hide
+			 * transitions of children that stay visible. */
+			if (transition_active(item->show_transition))
 				enum_callback(scene->source, item->show_transition, param);
-			else if (!item->visible && transition_active(item->hide_transition))
+			else if (transition_active(item->hide_transition))
 				enum_callback(scene->source, item->hide_transition, param);
 			if (os_atomic_load_long(&item->active_refs) > 0)
 				enum_callback(scene->source, item->source, param);
@@ -4118,16 +4122,25 @@ void obs_sceneitem_transition_stop(void *data, calldata_t *calldata)
 		signal_handler_disconnect(sh, "transition_stop", obs_sceneitem_transition_stop, parent);
 }
 
+/* Stop a running item transition for good. The transition_stop signal takes it
+ * out of the scene's active children while it still holds its sources; the
+ * transition must then stop running too, or the scene's active tree would
+ * still list it and deactivate it a second time. */
+static void stop_item_transition(obs_source_t *transition)
+{
+	if (!transition_active(transition))
+		return;
+	obs_transition_force_stop(transition);
+	obs_transition_clear(transition);
+}
+
 void obs_sceneitem_do_transition(obs_sceneitem_t *item, bool visible)
 {
 	if (!item)
 		return;
 
-	if (transition_active(item->show_transition))
-		obs_transition_force_stop(item->show_transition);
-
-	if (transition_active(item->hide_transition))
-		obs_transition_force_stop(item->hide_transition);
+	stop_item_transition(item->show_transition);
+	stop_item_transition(item->hide_transition);
 
 	obs_source_t *transition = obs_sceneitem_get_transition(item, visible);
 	if (!transition)
