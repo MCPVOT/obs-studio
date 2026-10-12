@@ -33,15 +33,17 @@ enum v4l2_frame_action {
 	V4L2_FRAME_OUTPUT,
 	/* nothing to show for this buffer; requeue it */
 	V4L2_FRAME_SKIP,
-	/* the buffer could not be decoded; requeue it */
+	/* the buffer could not be decoded; requeue it, the decoder takes the
+	 * next one as usual */
 	V4L2_FRAME_DROP,
-	/* end the capture */
-	V4L2_FRAME_STOP,
 };
 
 /**
  * Decide what to do with a dequeued buffer, decoding MJPEG and H.264 into
  * out and pointing out's planes into the buffer for raw formats.
+ *
+ * No buffer content ends the capture: a damaged frame only loses that
+ * frame. Only device errors (select, VIDIOC_DQBUF, VIDIOC_QBUF) stop it.
  *
  * @param out the obs frame prepared for this capture
  * @param pixfmt the V4L2 pixel format of the capture

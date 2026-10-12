@@ -59,7 +59,9 @@ void v4l2_destroy_decoder(struct v4l2_decoder *decoder);
  * @param data the codec data
  * @param length length of the data
  * @param decoder the decoder as initialized by v4l2_init_decoder
- * @return non-zero on failure
+ * @return 0 when out holds a new picture, AVERROR(EAGAIN) when the decoder
+ *         needs more input first, another negative AVERROR code when the
+ *         data could not be decoded
  */
 int v4l2_decode_frame(struct obs_source_frame *out, uint8_t *data, size_t length, struct v4l2_decoder *decoder);
 

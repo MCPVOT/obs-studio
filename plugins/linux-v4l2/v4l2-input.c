@@ -168,6 +168,8 @@ static void *v4l2_thread(void *vptr)
 	uint8_t *start;
 	uint64_t frames;
 	uint64_t first_ts;
+	bool have_first_ts;
+	uint64_t dropped;
 	struct timeval tv;
 	struct v4l2_buffer buf;
 	struct obs_source_frame out;
@@ -195,6 +197,8 @@ static void *v4l2_thread(void *vptr)
 
 	frames = 0;
 	first_ts = 0;
+	have_first_ts = false;
+	dropped = 0;
 	v4l2_prep_obs_frame(data, &out, plane_offsets);
 
 	blog(LOG_DEBUG, "%s: obs frame prepared", data->device_id);
@@ -253,19 +257,27 @@ static void *v4l2_thread(void *vptr)
 
 		switch (v4l2_frame_action(&out, data->pixfmt, &buf, start, plane_offsets, &data->decoder)) {
 		case V4L2_FRAME_OUTPUT:
+			if (dropped) {
+				blog(LOG_INFO, "%s: decoding again after dropping %" PRIu64 " frames", data->device_id,
+				     dropped);
+				dropped = 0;
+			}
 			break;
 		case V4L2_FRAME_SKIP:
-		case V4L2_FRAME_DROP:
-			blog(LOG_DEBUG, "skipping decoding of buffer with recoverable error-flag set");
+			blog(LOG_DEBUG, "%s: no new picture in buffer (error flag, empty or decoder waiting)",
+			     data->device_id);
 			goto continue_queue_buffer;
-		case V4L2_FRAME_STOP:
-			blog(LOG_ERROR, "failed to unpack jpeg or h264");
-			goto stop;
+		case V4L2_FRAME_DROP:
+			if (!dropped++)
+				blog(LOG_WARNING, "%s: dropping frames that cannot be decoded", data->device_id);
+			goto continue_queue_buffer;
 		}
 
 		out.timestamp = timeval2ns(buf.timestamp);
-		if (!frames)
+		if (!have_first_ts) {
 			first_ts = out.timestamp;
+			have_first_ts = true;
+		}
 		out.timestamp -= first_ts;
 
 		obs_source_output_video(data->source, &out);
@@ -279,7 +291,6 @@ static void *v4l2_thread(void *vptr)
 		frames++;
 	}
 
-stop:
 	blog(LOG_INFO, "%s: Stopped capture after %" PRIu64 " frames", data->device_id, frames);
 
 exit:
