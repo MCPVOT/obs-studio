@@ -82,6 +82,9 @@ struct mp_media {
 	uint64_t next_ns;
 	int64_t start_ts;
 	int64_t base_ts;
+	int64_t v_output_pts;
+	int64_t v_output_interval;
+	bool last_frame_held;
 	bool full_decode;
 
 	uint64_t interrupt_poll_ts;
