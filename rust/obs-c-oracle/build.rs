@@ -162,6 +162,20 @@ fn main() {
         "cargo:rustc-env=OBS_ORACLE_INPUT_HASH={:016x}",
         oracle_input_hash(&roots, &flags)
     );
+    // platform-nix.c calls uuid_generate. macOS has it in libSystem.
+    // Linux needs libuuid, which the OBS build already links.
+    // FreeBSD also calls libsysinfo's sysinfo() for the total-memory path,
+    // and the uuid header lives in /usr/local.
+    match std::env::var("CARGO_CFG_TARGET_OS").ok().as_deref() {
+        Some("linux") => println!("cargo:rustc-link-lib=uuid"),
+        Some("freebsd") => {
+            oracle.include("/usr/local/include");
+            println!("cargo:rustc-link-search=native=/usr/local/lib");
+            println!("cargo:rustc-link-lib=uuid");
+            println!("cargo:rustc-link-lib=sysinfo");
+        }
+        _ => {}
+    }
     oracle.compile("obs_c_oracle");
 
     println!("cargo:rerun-if-changed=oracle");

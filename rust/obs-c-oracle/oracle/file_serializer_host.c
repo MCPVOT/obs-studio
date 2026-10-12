@@ -1,7 +1,9 @@
 /* Symbols file-serializer.c needs from platform.c / bmem.c, without pulling
- * obs.h in. On Unix these are the same calls platform.c and platform-nix.c
- * make. On Windows they follow platform.c (wide fopen) and platform-windows.c
- * (DeleteFileW / MoveFileExW). */
+ * obs.h in. On Unix, os_fopen / os_fseeki64 / os_ftelli64 match platform.c.
+ * os_unlink, os_rename, and os_file_exists are the Rust platform-nix shims.
+ * os_safe_replace is oracle_host_os_safe_replace so the file oracles keep
+ * the C copy. On Windows these follow platform.c (wide fopen) and
+ * platform-windows.c (DeleteFileW / MoveFileExW). */
 #define _FILE_OFFSET_BITS 64
 #ifndef _WIN32
 /* fseeko/ftello are POSIX; -std=c11 hides them without this. */
@@ -130,17 +132,11 @@ int64_t os_ftelli64(FILE *file)
 	return ftello(file);
 }
 
-int os_unlink(const char *path)
-{
-	return unlink(path);
-}
+/* os_unlink and os_rename are the Rust platform-nix shims. */
 
-int os_rename(const char *old_path, const char *new_path)
-{
-	return rename(old_path, new_path);
-}
-
-int os_safe_replace(const char *target, const char *from, const char *backup)
+/* Private name: the Rust platform-nix shim owns os_safe_replace. The
+ * file-serializer and config-file oracles call this copy. */
+int oracle_host_os_safe_replace(const char *target, const char *from, const char *backup)
 {
 	if (backup && access(target, F_OK) == 0 && rename(target, backup) != 0)
 		return -1;

@@ -16,6 +16,8 @@ pub mod lexer;
 pub mod native_sem;
 pub mod path_extension;
 pub mod pipe;
+#[cfg(unix)]
+pub mod platform_nix;
 pub mod profiler;
 pub mod profiler_snapshot;
 pub mod task;

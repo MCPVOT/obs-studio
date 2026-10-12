@@ -24,6 +24,16 @@ unsafe extern "C" {
     fn blog(log_level: i32, format: *const c_char, ...);
 }
 
+/// Scripted test clock when one is armed, otherwise the libobs clock.
+fn now_ns() -> u64 {
+    if let Some(now) = prof::testing_clock_tick() {
+        return now;
+    }
+    // SAFETY: `os_gettime_ns` takes no pointers. This runs only when the
+    // test clock is unset.
+    unsafe { os_gettime_ns() }
+}
+
 /// The `LOG_ERROR` lines `profiler.c` prints through `blog`. The core reports
 /// what happened ([`ProfileLog`]); the C format strings live here.
 fn log_profile(entry: ProfileLog) {
@@ -107,8 +117,8 @@ pub unsafe extern "C" fn profile_start(name: *const c_char) {
     if !prof::thread_enabled() {
         return;
     }
-    // SAFETY: libobs clock. Read only when the thread is enabled, as in C.
-    let now = unsafe { os_gettime_ns() };
+    // Read only when the thread is enabled, as in C.
+    let now = now_ns();
     prof::profile_start(ProfileName::new(name), now);
 }
 
@@ -117,11 +127,9 @@ pub unsafe extern "C" fn profile_start(name: *const c_char) {
 /// `name` follows the `profile_end` contract.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn profile_end(name: *const c_char) {
-    prof::profile_end(
-        ProfileName::new(name),
-        &mut || unsafe { os_gettime_ns() },
-        &mut |entry| log_profile(entry),
-    );
+    prof::profile_end(ProfileName::new(name), &mut || now_ns(), &mut |entry| {
+        log_profile(entry)
+    });
 }
 
 /// # Safety

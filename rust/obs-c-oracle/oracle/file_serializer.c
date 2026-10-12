@@ -8,5 +8,9 @@
 #define file_output_serializer_init oracle_file_output_serializer_init
 #define file_output_serializer_init_safe oracle_file_output_serializer_init_safe
 #define file_output_serializer_free oracle_file_output_serializer_free
+/* Unix os_safe_replace is the Rust shim. This oracle keeps the C copy. */
+#ifndef _WIN32
+#define os_safe_replace oracle_host_os_safe_replace
+#endif
 
 #include "util/file-serializer.c"

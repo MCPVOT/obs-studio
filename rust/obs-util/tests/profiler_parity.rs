@@ -1,9 +1,9 @@
 //! Tier 3 for `libobs/util/profiler.c`.
 //!
-//! The oracle and the Rust shims both call the scripted `os_gettime_ns` in
-//! `oracle/profiler.c`, so time buckets are comparable. Print and CSV stay in
-//! `util/profiler-io.c` and are not differential-tested here; `test_profiler.c`
-//! covers the CSV header.
+//! The oracle calls `oracle_profiler_gettime_ns`. The Rust shims read the
+//! same timestamps from `testing_set_clock`, and use `os_gettime_ns` only
+//! when that clock is unset. Print and CSV stay in `util/profiler-io.c` and
+//! are not differential-tested here; `test_profiler.c` covers the CSV header.
 //!
 //! `oracle_profiler_reset` runs the real `profiler_free` and re-inits the
 //! mutex that free destroys. Each case starts from that clean state.
@@ -25,7 +25,7 @@ use obs_util::ffi::profiler::{
     profile_start, profiler_start, profiler_stop,
 };
 use obs_util::ffi::profiler_snapshot::{profile_snapshot_free, profiler_snapshot_num_roots};
-use obs_util::profiler::{Snapshot, SnapshotEntry, testing_reset};
+use obs_util::profiler::{Snapshot, SnapshotEntry, testing_reset, testing_set_clock};
 use proptest::prelude::*;
 
 #[derive(Clone, Debug)]
@@ -191,11 +191,13 @@ fn run_both(ops: &[Op]) -> (Vec<Compared>, Vec<Compared>, usize) {
         oracle_profile_snapshot_free(oracle_ptr);
 
         oracle_profiler_set_clock(times.as_ptr(), times.len());
+        testing_set_clock(Some(&times));
         apply_rust(ops);
         let rust_snap = obs_util::profiler::profile_snapshot_create();
         let c_snap = profile_snapshot_create();
         let c_roots = profiler_snapshot_num_roots(c_snap);
         profile_snapshot_free(c_snap);
+        testing_set_clock(None);
         (oracle, rust_view(&rust_snap), c_roots)
     }
 }

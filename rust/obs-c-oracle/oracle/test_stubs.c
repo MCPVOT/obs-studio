@@ -6,6 +6,7 @@
  * EXPORT/dllexport. Prototypes below match libobs/util/base.h and
  * libobs/util/platform.h. */
 #include <stdarg.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -18,11 +19,28 @@ void os_breakpoint(void);
 void os_oom(void);
 size_t os_fread_utf8(FILE *file, char **pstr);
 
+/* Unix cargo tests also link the Rust os_breakpoint / os_oom shims.
+ * The weak stubs lose that link. MSVC has no weak symbols; Windows does
+ * not build the unix shim, so these stay strong and empty. */
+#if defined(_MSC_VER)
 void os_breakpoint(void) {}
-
 void os_oom(void) {}
+#else
+__attribute__((weak)) void os_breakpoint(void) {}
+__attribute__((weak)) void os_oom(void) {}
+#endif
 
 /* os_fopen comes from oracle/file_serializer_host.c. */
+
+/* The Rust shim defines os_gettime_ns on non-Apple Unix. macOS cargo tests
+ * do not link platform-cocoa.m, and Windows does not build that shim. The
+ * profiler oracle's scripted clock is oracle_profiler_gettime_ns. */
+#if defined(__APPLE__) || defined(_WIN32)
+uint64_t os_gettime_ns(void)
+{
+	return 0;
+}
+#endif
 
 /* Mirrors platform.c os_fread_utf8, including returning 0 for the length. */
 size_t os_fread_utf8(FILE *file, char **pstr)

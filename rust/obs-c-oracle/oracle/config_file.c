@@ -43,5 +43,9 @@
 #define config_has_default_value oracle_config_has_default_value
 #define blog oracle_blog
 #define blogva oracle_blogva
+/* Unix os_safe_replace is the Rust shim. This oracle keeps the C copy. */
+#ifndef _WIN32
+#define os_safe_replace oracle_host_os_safe_replace
+#endif
 
 #include "util/config-file.c"

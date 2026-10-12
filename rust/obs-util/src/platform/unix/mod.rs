@@ -1,6 +1,7 @@
 //! Unix (Linux, macOS) side of the [platform boundary](super).
 
 pub mod event;
+pub mod nix;
 pub mod pipe;
 
 pub use crate::ffi::native_sem::Sem;

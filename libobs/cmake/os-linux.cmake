@@ -13,7 +13,7 @@ target_sources(
     obs-nix-x11.c
     obs-nix.c
     $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:util/pipe-posix.c>
-    util/platform-nix.c
+    $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:util/platform-nix.c>
     $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:util/threading-posix.c>
     util/threading-posix.h
 )

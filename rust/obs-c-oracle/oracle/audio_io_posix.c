@@ -4,7 +4,8 @@
  * only, the libobs symbols audio-io.c calls that no oracle source provides:
  * the profiler hooks (no-ops), obs_get_profiler_name_store (NULL),
  * audio_resampler_* (create fails NULL like an absent backend), and the two
- * platform-nix.c time helpers (real POSIX implementations, same semantics).
+ * platform-nix.c time helpers (real POSIX implementations, same semantics,
+ * under private names so they do not collide with the Rust shims).
  * pthread/os_event/os_set_thread_name come from the real threading-posix.c
  * and blog from the real base-variadic.c already compiled here. */
 #define _GNU_SOURCE
@@ -21,10 +22,13 @@
 #define profile_start oracle_aio_profile_start
 #define profile_end oracle_aio_profile_end
 #define profile_reenable_thread oracle_aio_profile_reenable_thread
-/* The profiler oracle (oracle/profiler.c) defines a scripted os_gettime_ns;
- * audio-io runs on the real clock under private names. */
+/* audio-io.c calls os_gettime_ns. Keep that clock under a private name
+ * so it does not collide with the Rust shim, or with the zero stub
+ * macOS and Windows cargo tests link. */
 #define os_gettime_ns oracle_aio_os_gettime_ns
 #define os_sleepto_ns oracle_aio_os_sleepto_ns
+/* The Rust platform-nix shim owns this name. audio-io keeps its own clock. */
+#define os_sleepto_ns_fast oracle_aio_os_sleepto_ns_fast
 
 #define audio_output_open oracle_audio_output_open
 #define audio_output_close oracle_audio_output_close

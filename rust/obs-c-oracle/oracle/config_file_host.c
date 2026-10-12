@@ -1,7 +1,8 @@
 /* Symbols config-file.c needs from platform.c / platform-nix.c /
  * platform-windows.c, copied from those files so the oracle does not pull
- * them in wholesale. os_fopen/os_safe_replace/os_unlink/os_rename and the
- * mbs/wcs stubs live in file_serializer_host.c. */
+ * them in wholesale. os_fopen and the mbs/wcs stubs live in
+ * file_serializer_host.c. Unix os_file_exists is the Rust platform-nix
+ * shim. */
 #define _FILE_OFFSET_BITS 64
 #ifndef _WIN32
 /* fseeko/ftello are POSIX; -std=c11 hides them without this. */
@@ -121,7 +122,7 @@ int os_dtostr(double value, char *dst, size_t size)
 	return (int)length;
 }
 
-/* platform-nix.c / platform-windows.c */
+/* platform-windows.c. Unix os_file_exists is the Rust shim. */
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -156,12 +157,5 @@ bool os_file_exists(const char *path)
 	res = GetFileAttributesW(wpath);
 	free(wpath);
 	return res != INVALID_FILE_ATTRIBUTES;
-}
-#else
-#include <unistd.h>
-
-bool os_file_exists(const char *path)
-{
-	return access(path, F_OK) == 0;
 }
 #endif

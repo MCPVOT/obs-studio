@@ -21,7 +21,7 @@ target_sources(
     util/apple/cfstring-utils.h
     $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:util/pipe-posix.c>
     util/platform-cocoa.m
-    util/platform-nix.c
+    $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:util/platform-nix.c>
     $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:util/threading-posix.c>
     util/threading-posix.h
 )

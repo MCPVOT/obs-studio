@@ -1,7 +1,7 @@
 //! `util/profiler.c`: the recording engine.
 //!
-//! Print and CSV stay in `profiler-io.c`. `os_gettime_ns` is the scripted
-//! clock in `oracle/profiler.c`.
+//! Print and CSV stay in `profiler-io.c`. The scripted clock is
+//! `oracle_profiler_gettime_ns` in `oracle/profiler.c`.
 
 use core::ffi::c_char;
 

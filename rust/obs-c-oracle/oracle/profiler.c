@@ -2,8 +2,9 @@
  * its exported names prefixed by oracle_. Print and CSV live in
  * profiler-io.c (they stay C) and are not part of this translation unit.
  *
- * os_gettime_ns is scripted so a parity test can feed one clock to this
- * oracle and to the Rust shims. oracle_profiler_reset frees the roots
+ * The scripted clock is oracle_profiler_gettime_ns. The Rust shim owns
+ * os_gettime_ns, and the parity harness feeds the Rust side separately.
+ * oracle_profiler_reset frees the roots
  * through the real profiler_free and re-inits the mutex that free destroys,
  * so cases do not share state. */
 
@@ -33,6 +34,8 @@ static size_t oracle_profiler_clock_pos;
 #define profile_snapshot_create oracle_profile_snapshot_create
 /* dstr_vprintf stays in dstr-libc.c and is renamed in the oracle. */
 #define dstr_vprintf oracle_dstr_vprintf
+/* Calls inside profiler.c use the scripted clock, not the Rust shim. */
+#define os_gettime_ns oracle_profiler_gettime_ns
 
 #include "util/profiler.c"
 

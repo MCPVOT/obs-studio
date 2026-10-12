@@ -5,3 +5,6 @@ base_begin_crash
 profiler_name_store_push
 utf8_to_wchar
 wchar_to_utf8
+# platform-nix.c: obs-module.c calls this inside libobs. The C file is not
+# exported (no EXPORT). The unix shim is hidden the same way.
+get_plugin_info
