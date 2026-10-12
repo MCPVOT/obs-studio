@@ -34,7 +34,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 static bool v4l2_control_changed(void *data, obs_properties_t *props, obs_property_t *prop, obs_data_t *settings)
 {
-	int dev = v4l2_open(obs_data_get_string(settings, "device_id"), O_RDWR | O_NONBLOCK);
+	int dev = v4l2_open(obs_data_get_string(settings, "device_id"), O_RDWR | O_NONBLOCK | O_CLOEXEC);
 	bool ret = false;
 
 	(void)props;
