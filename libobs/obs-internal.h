@@ -1180,11 +1180,13 @@ struct obs_weak_output {
 };
 
 #define CAPTION_LINE_CHARS (32)
+#define CAPTION_PAGE_ROWS (15)
 #define CAPTION_LINE_BYTES (4 * CAPTION_LINE_CHARS)
+#define CAPTION_PAGE_BYTES (CAPTION_PAGE_ROWS * CAPTION_LINE_BYTES + CAPTION_PAGE_ROWS - 1)
 struct caption_text {
-	char text[CAPTION_LINE_BYTES + 1];
 	double display_duration;
 	struct caption_text *next;
+	char text[];
 };
 
 struct caption_track_data {

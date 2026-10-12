@@ -643,8 +643,11 @@ General Output Functions
    *text2*, except that the *display_duration* is hardcoded to 2.0 seconds.
 
    *display_duration* represents the minimum quantity of time that a given
-   caption can be displayed for before moving onto the next caption in the
-   queue.
+   caption page can be displayed for before moving onto the next caption in
+   the queue. Text is word-wrapped to 32 columns and paginated at 15 rows.
+   Each page produced by one call receives the specified duration, so a call
+   producing N pages takes at least N × *display_duration* to display fully.
+   The duration does not schedule an automatic clear when the queue is empty.
 
 ---------------------
 
