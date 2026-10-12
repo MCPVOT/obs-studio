@@ -383,7 +383,7 @@ static void v4l2_device_list(obs_property_t *prop, obs_data_t *settings)
 		dstr_resize(&device, 5);
 		dstr_cat(&device, dp->d_name);
 
-		if ((fd = v4l2_open(device.array, O_RDWR | O_NONBLOCK)) == -1) {
+		if ((fd = v4l2_open(device.array, O_RDWR | O_NONBLOCK | O_CLOEXEC)) == -1) {
 			blog(LOG_INFO, "Unable to open %s", device.array);
 			continue;
 		}
@@ -627,7 +627,7 @@ static void v4l2_framerate_list(int dev, uint_fast32_t pixelformat, uint_fast32_
  */
 static bool device_selected(obs_properties_t *props, obs_property_t *p, obs_data_t *settings)
 {
-	int dev = v4l2_open(obs_data_get_string(settings, "device_id"), O_RDWR | O_NONBLOCK);
+	int dev = v4l2_open(obs_data_get_string(settings, "device_id"), O_RDWR | O_NONBLOCK | O_CLOEXEC);
 
 	v4l2_props_set_enabled(props, p, (dev == -1) ? false : true);
 
@@ -656,7 +656,7 @@ static bool device_selected(obs_properties_t *props, obs_property_t *p, obs_data
 static bool input_selected(obs_properties_t *props, obs_property_t *p, obs_data_t *settings)
 {
 	UNUSED_PARAMETER(p);
-	int dev = v4l2_open(obs_data_get_string(settings, "device_id"), O_RDWR | O_NONBLOCK);
+	int dev = v4l2_open(obs_data_get_string(settings, "device_id"), O_RDWR | O_NONBLOCK | O_CLOEXEC);
 	if (dev == -1)
 		return false;
 
@@ -671,7 +671,7 @@ static bool input_selected(obs_properties_t *props, obs_property_t *p, obs_data_
 
 static int input_caps_open(const char *device)
 {
-	return v4l2_open(device, O_RDWR | O_NONBLOCK);
+	return v4l2_open(device, O_RDWR | O_NONBLOCK | O_CLOEXEC);
 }
 
 static int input_caps_close(int dev)
@@ -739,7 +739,7 @@ static bool resolution_selected(obs_properties_t *props, obs_property_t *p, obs_
 {
 	UNUSED_PARAMETER(p);
 	int width, height;
-	int dev = v4l2_open(obs_data_get_string(settings, "device_id"), O_RDWR | O_NONBLOCK);
+	int dev = v4l2_open(obs_data_get_string(settings, "device_id"), O_RDWR | O_NONBLOCK | O_CLOEXEC);
 	if (dev == -1)
 		return false;
 
@@ -917,7 +917,9 @@ static void v4l2_init(struct v4l2_data *data)
 	int fps_num, fps_denom;
 
 	blog(LOG_INFO, "Start capture from %s", data->device_id);
-	data->dev = v4l2_open(data->device_id, O_RDWR | O_NONBLOCK);
+	/* Close-on-exec, so processes OBS starts (obs-ffmpeg-mux while recording)
+	 * do not keep the device busy after the source closes it. */
+	data->dev = v4l2_open(data->device_id, O_RDWR | O_NONBLOCK | O_CLOEXEC);
 	if (data->dev == -1) {
 		blog(LOG_ERROR, "Unable to open device");
 		goto fail;
