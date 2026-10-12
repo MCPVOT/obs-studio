@@ -191,7 +191,7 @@ target_sources(
   PRIVATE
     $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:graphics/axisang.c>
     graphics/axisang.h
-    graphics/bounds.c
+    $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:graphics/bounds.c>
     graphics/bounds.h
     graphics/device-exports.h
     graphics/effect-parser.c
