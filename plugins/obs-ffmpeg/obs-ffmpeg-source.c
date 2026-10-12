@@ -54,6 +54,10 @@ struct ffmpeg_source {
 	bool is_track_matte;
 	bool log_changes;
 
+	/* The first frame of the current media is held as the preloaded
+	 * frame; set from the media thread. */
+	volatile bool first_frame_preloaded;
+
 	pthread_t reconnect_thread;
 	pthread_mutex_t reconnect_mutex;
 	bool reconnect_thread_valid;
@@ -249,8 +253,12 @@ static void preload_frame(void *opaque, struct obs_source_frame *f)
 	if (s->close_when_inactive)
 		return;
 
-	if (s->is_clear_on_media_end || s->is_looping)
+	/* A source that restarts on activation shows the first frame as
+	 * soon as it becomes active, before playback has started again. */
+	if (s->is_clear_on_media_end || s->is_looping || s->restart_on_activate) {
 		obs_source_preload_video(s->source, f);
+		os_atomic_set_bool(&s->first_frame_preloaded, true);
+	}
 
 	if (!s->is_local_file && os_atomic_set_bool(&s->reconnecting, false))
 		FF_BLOG(LOG_INFO, "Reconnected.");
@@ -259,6 +267,8 @@ static void preload_frame(void *opaque, struct obs_source_frame *f)
 static void seek_frame(void *opaque, struct obs_source_frame *f)
 {
 	struct ffmpeg_source *s = opaque;
+	/* this replaces the preloaded frame */
+	os_atomic_set_bool(&s->first_frame_preloaded, false);
 	obs_source_set_video_frame(s->source, f);
 }
 
@@ -311,6 +321,7 @@ static void ffmpeg_source_open(struct ffmpeg_source *s)
 			.full_decode = s->full_decode,
 		};
 
+		os_atomic_set_bool(&s->first_frame_preloaded, false);
 		s->media = media_playback_create(&info);
 	}
 }
@@ -324,7 +335,8 @@ static void ffmpeg_source_start(struct ffmpeg_source *s)
 		return;
 
 	media_playback_play(s->media, s->is_looping, s->reconnecting);
-	if (s->is_local_file && media_playback_has_video(s->media) && (s->is_clear_on_media_end || s->is_looping))
+	if ((s->is_local_file && media_playback_has_video(s->media) && (s->is_clear_on_media_end || s->is_looping)) ||
+	    (s->restart_on_activate && os_atomic_load_bool(&s->first_frame_preloaded)))
 		obs_source_show_preloaded_video(s->source);
 	else
 		obs_source_output_video(s->source, NULL);
@@ -658,8 +670,12 @@ static void ffmpeg_source_activate(void *data)
 	if (s->restart_on_activate) {
 		/* The restart is queued and only runs on the next video tick,
 		 * after this one has been drawn. Drop the previous playback's
-		 * frame now so it does not flash before playback starts over. */
+		 * frame now so it does not flash before playback starts over,
+		 * and show the first frame in its place if it is preloaded, so
+		 * this tick does not show nothing either. */
 		obs_source_output_video(s->source, NULL);
+		if (s->media && os_atomic_load_bool(&s->first_frame_preloaded))
+			obs_source_show_preloaded_video(s->source);
 		obs_source_media_restart(s->source);
 	}
 }
