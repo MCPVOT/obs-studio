@@ -16,6 +16,12 @@
 #include <stdarg.h>
 #include <stdio.h>
 
+/* obs-util exports the Rust profiler (util/profiler.c port) under the libobs
+ * names, so the no-op hooks get private names here to avoid a duplicate. */
+#define profile_start oracle_aio_profile_start
+#define profile_end oracle_aio_profile_end
+#define profile_reenable_thread oracle_aio_profile_reenable_thread
+
 #define audio_output_open oracle_audio_output_open
 #define audio_output_close oracle_audio_output_close
 #define audio_output_connect oracle_audio_output_connect
