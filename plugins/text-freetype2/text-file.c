@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <sys/stat.h>
 
 #include <util/bmem.h>
 #include <util/platform.h>
@@ -178,4 +179,71 @@ wchar_t *ft2_read_text_file_end(const char *filename, uint32_t log_lines)
 	text = read_utf8(tmp_file, filesize - cur_pos);
 	fclose(tmp_file);
 	return text;
+}
+
+static time_t get_modified_timestamp(const char *filename)
+{
+	struct stat stats;
+
+	// stat is apparently terrifying and horrible, but we only call it once
+	// every second at most.
+	if (os_stat(filename, &stats) != 0)
+		return -1;
+
+	return stats.st_mtime;
+}
+
+enum ft2_text_file_action ft2_text_file_watch_set(struct ft2_text_file_watch *watch, const char *path, bool force,
+						  uint64_t now)
+{
+	if (!path || !*path) {
+		ft2_text_file_watch_free(watch);
+		return FT2_TEXT_FILE_MISSING;
+	}
+
+	/* Keep polling a file that does not exist yet (another program may
+	 * write it later), and stop polling the previous one. */
+	if (!os_file_exists(path)) {
+		if (!watch->path || strcmp(watch->path, path) != 0) {
+			bfree(watch->path);
+			watch->path = bstrdup(path);
+		}
+		watch->timestamp = -1;
+		watch->changed = false;
+		watch->last_checked = now;
+		return FT2_TEXT_FILE_MISSING;
+	}
+
+	if (watch->path != NULL && strcmp(watch->path, path) == 0 && !force)
+		return FT2_TEXT_FILE_UNCHANGED;
+
+	bfree(watch->path);
+	watch->path = bstrdup(path);
+	watch->last_checked = now;
+	return FT2_TEXT_FILE_LOAD;
+}
+
+bool ft2_text_file_watch_tick(struct ft2_text_file_watch *watch, uint64_t now)
+{
+	if (!watch->path || now - watch->last_checked < 1000000000)
+		return false;
+
+	time_t t = get_modified_timestamp(watch->path);
+	watch->last_checked = now;
+
+	bool reload = watch->changed;
+	watch->changed = false;
+
+	if (watch->timestamp != t) {
+		watch->timestamp = t;
+		watch->changed = true;
+	}
+
+	return reload;
+}
+
+void ft2_text_file_watch_free(struct ft2_text_file_watch *watch)
+{
+	bfree(watch->path);
+	watch->path = NULL;
 }
