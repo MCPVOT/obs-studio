@@ -509,6 +509,22 @@ Video, Audio, and Graphics
 
 ---------------------
 
+.. function:: void obs_get_video_frame_counts(uint32_t *total, uint32_t *skipped)
+
+   Gets the number of frames the main canvas has sent to its video
+   encoders and raw outputs, and the number it skipped because one of them
+   could not keep up (encoding lag). Counts the main video mix and the
+   video mixes created for encoders that rescale it on the GPU
+   (:c:func:`obs_encoder_set_scaled_size()` with a GPU scale type), each
+   once; :c:func:`video_output_get_total_frames()` of
+   :c:func:`obs_get_video()` misses the latter. A rescaling encoder's mix
+   is removed when the encoder stops, so the totals can go down.
+
+   :param total:   Receives the number of frames (may be *NULL*)
+   :param skipped: Receives the number of skipped frames (may be *NULL*)
+
+---------------------
+
 .. function:: void obs_set_output_source(uint32_t channel, obs_source_t *source)
 
    Sets the primary output source for a channel.

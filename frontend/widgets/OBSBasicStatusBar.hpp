@@ -36,8 +36,8 @@ private:
 	int delaySecStarting = 0;
 	int delaySecStopping = 0;
 
-	int startSkippedFrameCount = 0;
-	int startTotalFrameCount = 0;
+	uint32_t startSkippedFrameCount = 0;
+	uint32_t startTotalFrameCount = 0;
 	int lastSkippedFrameCount = 0;
 
 	int seconds = 0;
