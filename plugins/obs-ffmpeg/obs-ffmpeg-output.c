@@ -102,7 +102,10 @@ static bool parse_params(AVCodecContext *context, char **opts)
 	return ret;
 }
 
-static bool open_video_codec(struct ffmpeg_data *data)
+/* Applies the video settings and opens the encoder. When avcodec_open2()
+ * fails, *open_ret receives its error and nothing is logged, so the caller
+ * can try another pixel format first. */
+static bool open_video_codec(struct ffmpeg_data *data, int *open_ret)
 {
 	AVCodecContext *const context = data->video_ctx;
 	char **opts = strlist_split(data->config.video_settings, ' ', false);
@@ -119,9 +122,10 @@ static bool open_video_codec(struct ffmpeg_data *data)
 		strlist_free(opts);
 	}
 
+	*open_ret = 0;
 	ret = avcodec_open2(context, data->vcodec, NULL);
 	if (ret < 0) {
-		ffmpeg_log_error(LOG_WARNING, data, "Failed to open video codec: %s", av_err2str(ret));
+		*open_ret = ret;
 		return false;
 	}
 
@@ -165,12 +169,69 @@ static bool init_swscale(struct ffmpeg_data *data, AVCodecContext *context)
 	return true;
 }
 
+static inline bool pix_fmt_has_alpha(enum AVPixelFormat format)
+{
+	const AVPixFmtDescriptor *desc = av_pix_fmt_desc_get(format);
+	return desc && (desc->flags & AV_PIX_FMT_FLAG_ALPHA) != 0;
+}
+
+/* Removes the rejected format from the candidates (a list terminated by
+ * AV_PIX_FMT_NONE) and returns the next-best one if it still has alpha.
+ * Encoders may list alpha formats they refuse to open: libvpx-vp9 lists
+ * gbrap since FFmpeg 8 but only opens it with strict experimental
+ * compliance and asks for yuva420p instead (obsproject/obs-studio#13785).
+ * Falling back to a format without alpha would silently drop the alpha
+ * channel, so this returns AV_PIX_FMT_NONE then. */
+static enum AVPixelFormat next_alpha_format(enum AVPixelFormat *candidates, enum AVPixelFormat rejected,
+					    enum AVPixelFormat src_format)
+{
+	size_t count = 0;
+	for (size_t i = 0; candidates[i] != AV_PIX_FMT_NONE; i++) {
+		if (candidates[i] != rejected)
+			candidates[count++] = candidates[i];
+	}
+	candidates[count] = AV_PIX_FMT_NONE;
+
+	if (!count || !pix_fmt_has_alpha(rejected))
+		return AV_PIX_FMT_NONE;
+
+	const enum AVPixelFormat next = avcodec_find_best_pix_fmt_of_list(candidates, src_format, true, NULL);
+	return pix_fmt_has_alpha(next) ? next : AV_PIX_FMT_NONE;
+}
+
+static AVCodecContext *create_video_context(struct ffmpeg_data *data, const struct obs_video_info *ovi,
+					    enum AVPixelFormat format)
+{
+	AVCodecContext *context = avcodec_alloc_context3(data->vcodec);
+	context->bit_rate = (int64_t)data->config.video_bitrate * 1000;
+	context->width = data->config.scale_width;
+	context->height = data->config.scale_height;
+	context->time_base = (AVRational){ovi->fps_den, ovi->fps_num};
+	context->framerate = (AVRational){ovi->fps_num, ovi->fps_den};
+	context->gop_size = data->config.gop_size;
+	context->color_range = data->config.color_range;
+	context->color_primaries = data->config.color_primaries;
+	context->color_trc = data->config.color_trc;
+	context->colorspace = data->config.colorspace;
+	context->thread_count = 0;
+	context->pix_fmt = format;
+	context->chroma_sample_location = determine_chroma_location(format, data->config.colorspace);
+
+	if (data->output->oformat->flags & AVFMT_GLOBALHEADER)
+		context->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
+
+	return context;
+}
+
 static bool create_video_stream(struct ffmpeg_data *data)
 {
 	enum AVPixelFormat closest_format;
 	AVCodecContext *context;
 	struct obs_video_info ovi;
 	const enum AVPixelFormat *pix_fmts = NULL;
+	enum AVPixelFormat *candidates = NULL;
+	int num_pix_fmts = 0;
+	int ret;
 
 	if (!obs_get_video_info(&ovi)) {
 		ffmpeg_log_error(LOG_WARNING, data, "No active video");
@@ -181,41 +242,58 @@ static bool create_video_stream(struct ffmpeg_data *data)
 			data->config.video_encoder))
 		return false;
 
-	context = avcodec_alloc_context3(data->vcodec);
-	context->bit_rate = (int64_t)data->config.video_bitrate * 1000;
-	context->width = data->config.scale_width;
-	context->height = data->config.scale_height;
-	context->time_base = (AVRational){ovi.fps_den, ovi.fps_num};
-	context->framerate = (AVRational){ovi.fps_num, ovi.fps_den};
-	context->gop_size = data->config.gop_size;
-	context->color_range = data->config.color_range;
-	context->color_primaries = data->config.color_primaries;
-	context->color_trc = data->config.color_trc;
-	context->colorspace = data->config.colorspace;
-	context->thread_count = 0;
+	context = create_video_context(data, &ovi, data->config.format);
 
 	avcodec_get_supported_config(context, data->vcodec, AV_CODEC_CONFIG_PIX_FORMAT, 0, (const void **)&pix_fmts,
-				     NULL);
+				     &num_pix_fmts);
 
 	closest_format = data->config.format;
+	const bool has_alpha = closest_format == AV_PIX_FMT_BGRA;
 	if (pix_fmts) {
-		const int has_alpha = closest_format == AV_PIX_FMT_BGRA;
 		closest_format = avcodec_find_best_pix_fmt_of_list(pix_fmts, closest_format, has_alpha, NULL);
+		context->pix_fmt = closest_format;
+		context->chroma_sample_location = determine_chroma_location(closest_format, data->config.colorspace);
+
+		if (has_alpha) {
+			candidates = bmalloc(((size_t)num_pix_fmts + 1) * sizeof(*candidates));
+			memcpy(candidates, pix_fmts, (size_t)num_pix_fmts * sizeof(*candidates));
+			candidates[num_pix_fmts] = AV_PIX_FMT_NONE;
+		}
 	}
 
-	context->pix_fmt = closest_format;
-	context->chroma_sample_location = determine_chroma_location(closest_format, data->config.colorspace);
-
+	const enum AVPixelFormat first_format = closest_format;
 	data->video->time_base = context->time_base;
 	data->video->avg_frame_rate = (AVRational){ovi.fps_num, ovi.fps_den};
 
-	if (data->output->oformat->flags & AVFMT_GLOBALHEADER)
-		context->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
-
 	data->video_ctx = context;
 
-	if (!open_video_codec(data))
-		return false;
+	while (!open_video_codec(data, &ret)) {
+		const enum AVPixelFormat next =
+			(candidates && ret == AVERROR(EINVAL))
+				? next_alpha_format(candidates, closest_format, data->config.format)
+				: AV_PIX_FMT_NONE;
+		if (next == AV_PIX_FMT_NONE) {
+			if (ret < 0)
+				ffmpeg_log_error(LOG_WARNING, data, "Failed to open video codec: %s", av_err2str(ret));
+			bfree(candidates);
+			return false;
+		}
+
+		blog(LOG_DEBUG, "Video encoder '%s' rejected pixel format '%s', trying '%s'", data->vcodec->name,
+		     av_get_pix_fmt_name(closest_format), av_get_pix_fmt_name(next));
+
+		/* A context that failed to open cannot be opened again. */
+		avcodec_free_context(&data->video_ctx);
+		closest_format = next;
+		context = create_video_context(data, &ovi, closest_format);
+		data->video_ctx = context;
+	}
+
+	bfree(candidates);
+
+	if (closest_format != first_format)
+		blog(LOG_INFO, "Video encoder '%s' rejected pixel format '%s', using '%s'", data->vcodec->name,
+		     av_get_pix_fmt_name(first_format), av_get_pix_fmt_name(closest_format));
 
 	const enum AVColorTransferCharacteristic trc = data->config.color_trc;
 	const bool pq = trc == AVCOL_TRC_SMPTE2084;
