@@ -544,6 +544,15 @@ static void seek_to(mp_media_t *m, int64_t pos)
 		if (ret < 0) {
 			blog(LOG_WARNING, "MP: Failed to seek: %s", av_err2str(ret));
 		}
+
+		/* The demuxer reads from the new position, so the end of the
+		 * file reached before the seek no longer applies. It is
+		 * reached early when a stream has no more packets: an album
+		 * cover (an attached picture) is a video stream with a single
+		 * frame, so reading ahead for the next video frame reads to
+		 * the end of the file at once. Without this, playback ended
+		 * right after a seek and started over. */
+		m->eof = false;
 	}
 
 	if (m->has_video && m->is_local_file) {
