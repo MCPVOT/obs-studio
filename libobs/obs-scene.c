@@ -3363,6 +3363,31 @@ static void get_ungrouped_transform(obs_sceneitem_t *group, obs_sceneitem_t *ite
  * relationship along, or activation and deactivation walk different trees and
  * the source's activate/show counts drift (obsproject/obs-studio#9961).
  * Add before removing so a source that stays on screen never drops to zero. */
+struct contains_source_info {
+	obs_source_t *target;
+	bool found;
+};
+
+static void contains_source_cb(obs_source_t *parent, obs_source_t *child, void *param)
+{
+	struct contains_source_info *info = param;
+	UNUSED_PARAMETER(parent);
+	if (child == info->target)
+		info->found = true;
+}
+
+/* Whether moving `item` into `to` would make a scene contain itself: `to` is
+ * the item's own source or somewhere inside it (obsproject/obs-studio#10466). */
+static bool move_would_recurse(obs_scene_t *to, obs_sceneitem_t *item)
+{
+	if (item->source == to->source)
+		return true;
+
+	struct contains_source_info info = {to->source, false};
+	obs_source_enum_full_tree(item->source, contains_source_cb, &info);
+	return info.found;
+}
+
 static void move_active_child(obs_scene_t *from, obs_scene_t *to, obs_sceneitem_t *item)
 {
 	if (from == to || os_atomic_load_long(&item->active_refs) <= 0)
@@ -3731,6 +3756,12 @@ void obs_sceneitem_group_add_item(obs_sceneitem_t *group, obs_sceneitem_t *item)
 	if (item->parent == groupscene)
 		return;
 
+	if (move_would_recurse(groupscene, item)) {
+		blog(LOG_WARNING, "Not adding '%s' to group '%s': it contains the group",
+		     obs_source_get_name(item->source), obs_source_get_name(group->source));
+		return;
+	}
+
 	/* ------------------------- */
 
 	full_lock(scene);
@@ -3878,6 +3909,19 @@ bool obs_scene_reorder_items2(obs_scene_t *scene, struct obs_sceneitem_order_inf
 {
 	if (!scene || !item_order_size || !item_order)
 		return false;
+
+	for (size_t i = 0; i < item_order_size; i++) {
+		struct obs_sceneitem_order_info *info = &item_order[i];
+		if (!info->group || !info->item || !info->group->is_group)
+			continue;
+
+		obs_scene_t *sub_scene = info->group->source->context.data;
+		if (info->item->parent != sub_scene && move_would_recurse(sub_scene, info->item)) {
+			blog(LOG_WARNING, "Not reordering: '%s' cannot go into group '%s', which it contains",
+			     obs_source_get_name(info->item->source), obs_source_get_name(info->group->source));
+			return false;
+		}
+	}
 
 	scene = obs_scene_get_ref(scene);
 	if (!scene)
