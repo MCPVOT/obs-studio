@@ -1,57 +1,20 @@
-# Exclude everything
-/*
+# Ignore generated and local files only. New source anywhere is picked up
+# without editing this file (ci/test_gitignore.py checks that).
 
-# Except for default project files
-!/.github
-!/build-aux
-!/cmake
-!/deps
-!/docs
-!/frontend
-!/libobs*
-!/plugins
-!/shared
-!/test
-!/tools
-!.cirrus.xml
-!.clang-format
-!.editorconfig
-!.gersemirc
-!.git-blame-ignore-devs
-!.gitmodules
-!.gitignore
-!.mailmap
-!.swift-format
-!AUTHORS
-!buildspec.json
-!CMakeLists.txt
-!CMakePresets.json
-!COC.rst
-!COMMITMENT
-!CONSTITUTION.md
-!CONTRIBUTING.md
-!CODESTYLE.md
-!COPYING
-!INSTALL
-!README.rst
+# CMake build trees and user presets
+/build/
+/build_*/
+/out/
+/release/
+CMakeUserPresets.json
+/cmake/.CMakeBuildNumber
+compile_commands.json
 
-# Rust port and agent instructions
-!/rust
-!/dylints
-/dylints/*/target
-!AGENTS.md
-!CLAUDE.md
-!Cargo.lock
-!Cargo.toml
-!rust-toolchain.toml
+# Cargo build output
+/target/
+/dylints/*/target/
 
-# Local gate (zackees/ci.yml)
-!/ci
-!.coderabbit.yaml
-!ci-attestations.yml
-!lint
-!local-gate.toml
-!unittest
+# Python
 __pycache__/
 *.py[cod]
 
@@ -66,8 +29,13 @@ __pycache__/
 # Exclude modified Flatpak files
 build-aux/flatpak-github-action-modified-*
 
-# Exclude macOS legacy resource forks
+# Editors and OS
 .DS_Store
+.vs/
+.idea/
+*.swp
+*~
 
-# Exclude CMake build number cache
-/cmake/.CMakeBuildNumber
+# Local agent state
+/.claude/
+/.clud/
