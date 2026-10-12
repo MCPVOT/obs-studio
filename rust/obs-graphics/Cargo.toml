@@ -7,7 +7,10 @@ rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
 
-[dev-dependencies]
+[dependencies]
+# `rand` / `RAND_MAX` in ffi/math_extra.rs, the same CRT libobs calls.
 libc = "0.2"
+
+[dev-dependencies]
 obs-c-oracle = { path = "../obs-c-oracle" }
 proptest = "1"

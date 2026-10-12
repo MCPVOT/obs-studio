@@ -212,7 +212,7 @@ target_sources(
     graphics/libnsgif/lzw.h
     graphics/libnsgif/nsgif.h
     graphics/math-defs.h
-    graphics/math-extra.c
+    $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:graphics/math-extra.c>
     graphics/math-extra.h
     $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:graphics/matrix3.c>
     graphics/matrix3.h

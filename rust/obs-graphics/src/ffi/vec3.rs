@@ -7,18 +7,13 @@
 use core::ffi::c_int;
 use core::ptr;
 
+use super::math_extra::rand_float;
 use super::matrix3::matrix3;
 use super::matrix4::matrix4;
 use super::plane::plane;
 use super::vec4::vec4;
 use crate::vec3::Vec3;
 use crate::vec4::Vec4;
-
-unsafe extern "C" {
-    /// libobs `graphics/math-extra.c`, still C. `vec3_rand` calls it, as
-    /// `vec3.c` did.
-    fn rand_float(positive_only: c_int) -> f32;
-}
 
 /// `struct vec3`. Like `struct vec4` it is a union with `__m128`, so it has
 /// four floats (`w` is the lane the C code keeps at 0), size 16, align 16.
@@ -152,6 +147,7 @@ pub unsafe extern "C" fn vec3_mirrorv(dst: *mut vec3, v: *const vec3, vec: *cons
 }
 
 /// Writes three `rand_float(positive_only)` values to `*dst`, `x` first.
+/// `rand_float` is the math-extra port.
 ///
 /// # Safety
 ///

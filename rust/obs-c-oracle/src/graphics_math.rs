@@ -4,6 +4,8 @@
 
 use core::ffi::c_int;
 
+use super::vec2::OracleVec2;
+
 /// Independent declaration of `struct vec3`: four floats in a union
 /// with `__m128`, so 16 bytes aligned to 16.
 #[repr(C, align(16))]
@@ -399,4 +401,19 @@ unsafe extern "C" {
         epsilon: f32,
     ) -> bool;
     pub fn oracle_bounds_min_dist(b: *const OracleBounds, p: *const OraclePlane) -> f32;
+
+    pub fn oracle_polar_to_cart(dst: *mut OracleVec3, v: *const OracleVec3);
+    pub fn oracle_cart_to_polar(dst: *mut OracleVec3, v: *const OracleVec3);
+    pub fn oracle_norm_to_polar(dst: *mut OracleVec2, norm: *const OracleVec3);
+    pub fn oracle_polar_to_norm(dst: *mut OracleVec3, polar: *const OracleVec2);
+    pub fn oracle_calc_torquef(val1: f32, val2: f32, torque: f32, min_adjust: f32, t: f32) -> f32;
+    pub fn oracle_calc_torque(
+        dst: *mut OracleVec3,
+        v1: *const OracleVec3,
+        v2: *const OracleVec3,
+        torque: f32,
+        min_adjust: f32,
+        t: f32,
+    );
+    pub fn oracle_rand_float(positive_only: c_int) -> f32;
 }

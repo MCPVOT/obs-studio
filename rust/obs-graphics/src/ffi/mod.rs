@@ -2,6 +2,7 @@
 
 pub mod axisang;
 pub mod bounds;
+pub mod math_extra;
 pub mod matrix3;
 pub mod matrix4;
 pub mod plane;

@@ -13,6 +13,7 @@ pub mod axisang;
 pub mod bounds;
 #[allow(unsafe_code)] // the C ABI shims
 pub mod ffi;
+pub mod math_extra;
 pub mod matrix3;
 pub mod matrix4;
 pub mod plane;
