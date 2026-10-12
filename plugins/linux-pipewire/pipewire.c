@@ -1397,8 +1397,14 @@ void obs_pipewire_stream_video_render(obs_pipewire_stream *obs_pw_stream, gs_eff
 	 * See https://gitlab.freedesktop.org/pipewire/pipewire/-/issues/3126
 	 *
 	 * The cursor bitmap alpha mode is also not specified, and the
-	 * convention there also seems to be premultiplied. */
+	 * convention there also seems to be premultiplied.
+	 *
+	 * Turn blending on as well: when the output colour space differs from
+	 * the source's (Rec. 2100 PQ/HLG), libobs renders the source into an
+	 * intermediate texture with blending disabled, and the cursor's
+	 * transparent texels would replace the frame under them. */
 	gs_blend_state_push();
+	gs_enable_blending(true);
 	gs_blend_function(GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
 
 	if (has_effective_crop(obs_pw_stream)) {
