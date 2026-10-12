@@ -18,7 +18,13 @@
  * Regressions: UTF-16 files were copied into the wchar_t buffer as raw
  * 2-byte units, which is wrong where wchar_t is 4 bytes and left the text
  * without a terminator; an odd-sized UTF-16 file also over-read on Windows
- * and made the backwards scan of ft2_read_text_file_end wrap around. */
+ * and made the backwards scan of ft2_read_text_file_end wrap around.
+ *
+ * NUL bytes (obsproject/obs-studio#7595, reported by raleighlittles): a file
+ * with NUL padding, such as a device's descriptor dump, showed only the text
+ * before the first NUL, because the UTF-8 reader took the length with
+ * strlen(). NULs cannot be shown, so they are dropped and the rest of the
+ * file is read. */
 
 #define TEXT_PATH "test_text_file.txt"
 
@@ -170,6 +176,33 @@ static void test_utf16_end_matches_utf8(void **state)
 	}
 }
 
+/* NUL-padded lines, as in the report: every line is read. */
+static void test_utf8_nul_bytes(void **state)
+{
+	(void)state;
+
+	const char padded[] = "first\0\0\0\nsecond\0\0\nthird\n";
+	write_bytes(padded, sizeof(padded) - 1);
+	expect_text(ft2_read_text_file(TEXT_PATH), "first\nsecond\nthird\n");
+	expect_text(ft2_read_text_file_end(TEXT_PATH, 1), "third\n");
+	expect_text(ft2_read_text_file_end(TEXT_PATH, 2), "second\nthird\n");
+
+	const char leading[] = "\0\0text \xc3\xa9\0";
+	write_bytes(leading, sizeof(leading) - 1);
+	expect_text(ft2_read_text_file(TEXT_PATH), "text \xc3\xa9");
+	expect_text(ft2_read_text_file_end(TEXT_PATH, 3), "text \xc3\xa9");
+}
+
+static void test_utf16_nul_units(void **state)
+{
+	(void)state;
+
+	const uint16_t units[] = {'a', 0, 0, '\n', 'b', 0, '\n', 'c'};
+	write_utf16(units, 8, 0);
+	expect_text(ft2_read_text_file(TEXT_PATH), "a\nb\nc");
+	expect_text(ft2_read_text_file_end(TEXT_PATH, 1), "b\nc");
+}
+
 int main(void)
 {
 	const struct CMUnitTest tests[] = {
@@ -178,6 +211,8 @@ int main(void)
 		cmocka_unit_test_teardown(test_utf16_odd_size, teardown),
 		cmocka_unit_test_teardown(test_utf8_end, teardown),
 		cmocka_unit_test_teardown(test_utf16_end_matches_utf8, teardown),
+		cmocka_unit_test_teardown(test_utf8_nul_bytes, teardown),
+		cmocka_unit_test_teardown(test_utf16_nul_units, teardown),
 	};
 
 	return cmocka_run_group_tests(tests, NULL, NULL);
