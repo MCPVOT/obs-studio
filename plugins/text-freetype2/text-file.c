@@ -18,7 +18,7 @@ static void remove_cr(wchar_t *source)
 }
 
 /* UTF-16LE text as a NUL-terminated wide string, in a new bmalloc buffer.
- * A stray last byte is dropped. Where wchar_t is UTF-32, surrogate pairs are
+ * A stray last byte and NUL units are dropped. Where wchar_t is UTF-32, surrogate pairs are
  * joined and unpaired surrogates become U+FFFD. */
 static wchar_t *utf16le_to_wcs(const uint8_t *data, size_t size)
 {
@@ -39,10 +39,33 @@ static wchar_t *utf16le_to_wcs(const uint8_t *data, size_t size)
 		if (c >= 0xD800 && c < 0xE000)
 			c = 0xFFFD;
 #endif
-		text[len++] = (wchar_t)c;
+		if (c != 0)
+			text[len++] = (wchar_t)c;
 	}
 
 	text[len] = 0;
+	return text;
+}
+
+/* `size` bytes of UTF-8 text from the current position of `file`, as a
+ * wide string. NUL bytes cannot be shown and would end the string early
+ * (obsproject/obs-studio#7595), so they are dropped. */
+static wchar_t *read_utf8(FILE *file, size_t size)
+{
+	char *data = bmalloc(size + 1);
+	size = fread(data, 1, size, file);
+
+	size_t len = 0;
+	for (size_t i = 0; i < size; i++) {
+		if (data[i] != 0)
+			data[len++] = data[i];
+	}
+	data[len] = 0;
+
+	wchar_t *text = bzalloc((len + 1) * sizeof(wchar_t));
+	os_utf8_to_wcs(data, len, text, len + 1);
+	bfree(data);
+	remove_cr(text);
 	return text;
 }
 
@@ -86,15 +109,8 @@ wchar_t *ft2_read_text_file(const char *filename)
 
 	fseek(tmp_file, 0, SEEK_SET);
 
-	tmp_read = bzalloc(filesize + 1);
-	bytes_read = fread(tmp_read, filesize, 1, tmp_file);
+	text = read_utf8(tmp_file, filesize);
 	fclose(tmp_file);
-
-	text = bzalloc((strlen(tmp_read) + 1) * sizeof(wchar_t));
-	os_utf8_to_wcs(tmp_read, strlen(tmp_read), text, (strlen(tmp_read) + 1));
-
-	remove_cr(text);
-	bfree(tmp_read);
 	return text;
 }
 
@@ -159,14 +175,7 @@ wchar_t *ft2_read_text_file_end(const char *filename, uint32_t log_lines)
 		return text;
 	}
 
-	tmp_read = bzalloc((filesize - cur_pos) + 1);
-	bytes_read = fread(tmp_read, filesize - cur_pos, 1, tmp_file);
+	text = read_utf8(tmp_file, filesize - cur_pos);
 	fclose(tmp_file);
-
-	text = bzalloc((strlen(tmp_read) + 1) * sizeof(wchar_t));
-	os_utf8_to_wcs(tmp_read, strlen(tmp_read), text, (strlen(tmp_read) + 1));
-
-	remove_cr(text);
-	bfree(tmp_read);
 	return text;
 }
