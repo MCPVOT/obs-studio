@@ -551,8 +551,8 @@ static int vlcs_audio_setup(void **p_data, char *format, unsigned *rate, unsigne
 	return 0;
 }
 
-static void add_file(struct vlc_source *c, media_file_array_t *new_files, const char *path, int network_caching,
-		     int track_index, int subtitle_index, bool subtitle_enable)
+static void add_file(media_file_array_t *new_files, const char *path, int network_caching, int track_index,
+		     int subtitle_index, bool subtitle_enable)
 {
 	struct media_file_data data;
 	struct dstr new_path = {0};
@@ -566,10 +566,12 @@ static void add_file(struct vlc_source *c, media_file_array_t *new_files, const 
 #endif
 	path = new_path.array;
 
-	new_media = get_media(&c->files, path);
-
-	if (!new_media)
-		new_media = get_media(new_files, path);
+	/* Never reuse a media object from the previous settings: libVLC media
+	 * options cannot be removed, and libvlc_media_add_option() skips an
+	 * option string the media already has, so switching back to an earlier
+	 * audio or subtitle track would keep the later one. A file listed
+	 * twice in the new playlist gets the same options, so it can share. */
+	new_media = get_media(new_files, path);
 	if (!new_media)
 		new_media = create_media_from_file(path);
 
@@ -707,14 +709,14 @@ static void vlcs_update(void *data, obs_data_t *settings)
 				dstr_copy(&dir_path, path);
 				dstr_cat_ch(&dir_path, '/');
 				dstr_cat(&dir_path, ent->d_name);
-				add_file(c, &new_files, dir_path.array, network_caching, track_index, subtitle_index,
+				add_file(&new_files, dir_path.array, network_caching, track_index, subtitle_index,
 					 subtitle_enable);
 			}
 
 			dstr_free(&dir_path);
 			os_closedir(dir);
 		} else {
-			add_file(c, &new_files, path, network_caching, track_index, subtitle_index, subtitle_enable);
+			add_file(&new_files, path, network_caching, track_index, subtitle_index, subtitle_enable);
 		}
 
 		obs_data_release(item);
