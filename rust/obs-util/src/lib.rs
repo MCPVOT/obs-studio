@@ -3,6 +3,13 @@
 //! Safe cores live at the crate root; the C ABI shims that replace the
 //! original `EXPORT` symbols live in [`ffi`]. See
 //! `docs/rust-port/testing-policy.md`.
+//!
+//! `unsafe_code` is denied for the whole crate: the safe cores have none. Two
+//! places carry their own `#[allow(unsafe_code)]` with the reason: the C ABI
+//! shims in [`ffi`], and the Windows platform modules that call Win32 directly
+//! ([`pipe::windows`], [`utf8::windows`]).
+
+#![deny(unsafe_code)]
 
 #[cfg(test)]
 use obs_c_oracle as _; // links the oracle test stubs (oracle/test_stubs.c)
@@ -17,6 +24,7 @@ pub mod config_file;
 pub mod crc32;
 pub mod darray;
 pub mod dstr;
+#[allow(unsafe_code)] // the C ABI shims
 pub mod ffi;
 pub mod file_serializer;
 pub mod lexer;

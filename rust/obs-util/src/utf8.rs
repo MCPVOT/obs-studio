@@ -11,6 +11,7 @@
 //! output in the buffer.
 
 #[cfg(windows)]
+#[allow(unsafe_code)] // MultiByteToWideChar/WideCharToMultiByte; see the module docs
 pub mod windows;
 
 /// Skip invalid input instead of failing (`UTF8_IGNORE_ERROR`).

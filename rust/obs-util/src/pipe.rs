@@ -148,6 +148,7 @@ pub fn windows_command_line(args: &Args) -> Vec<u8> {
 }
 
 #[cfg(windows)]
+#[allow(unsafe_code)] // Win32 handle calls; see the module docs
 pub mod windows;
 #[cfg(windows)]
 pub use windows::Pipe;
