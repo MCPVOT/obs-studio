@@ -1,6 +1,6 @@
 //! `libobs/media-io/audio-io.c`: the audio output object, its per-mix input
-//! lists, and the audio thread that drives them — in safe Rust over the same
-//! libobs platform calls the C makes (`os_*` timing, `audio_resampler_*` and
+//! lists, and the audio thread that drives them, over the same libobs
+//! platform calls the C makes (`os_*` timing, `audio_resampler_*` and
 //! the profiler hooks resolve when the staticlib links into libobs, and under
 //! `cargo test` into the oracle's real POSIX threading build plus its stubs).
 //!
@@ -21,9 +21,12 @@
 //! mutex is created at its final address (POSIX forbids moving an
 //! initialized mutex).
 //!
-//! Unsafe-location exception (policy §unsafe): the audio thread shares state
-//! with FFI callers, so `Shared` carries one `UnsafeCell` behind the lock —
-//! the C does the same with `pthread_mutex_*` on the same fields. All unsafe
+//! Why this is in `ffi` (#294): every tick calls C function pointers (the
+//! input and output callbacks), `audio_resampler_*` handles and libobs
+//! `os_*`/profiler symbols, and the audio thread shares state with FFI
+//! callers, so `Shared` carries `UnsafeCell`s behind the lock — the C does
+//! the same with `pthread_mutex_*` on the same fields. The safe header
+//! inlines stay in `crate::audio_io`, which re-exports this module. All unsafe
 //! stays in single-statement accessors with SAFETY comments. The raw
 //! C-shaped boundary — `open`/`open_no_worker`/`connect`/`tick_for_test` —
 //! is `unsafe` with documented name/context/thread contracts; `disconnect`,
@@ -45,7 +48,7 @@
 //!   exports stay marked C-side); the oracle's POSIX timing is gated the
 //!   same way. A Windows backend is separate work.
 //!
-use super::*;
+use crate::audio_io::{AUDIO_OUTPUT_FRAMES, MAX_AUDIO_CHANNELS, MAX_AUDIO_MIXES};
 
 use core::ffi::{c_char, c_int, c_void};
 use core::ptr;
@@ -77,10 +80,7 @@ unsafe extern "C" {
     fn profile_end(name: *const c_char);
     fn profile_reenable_thread();
     fn blog(level: c_int, format: *const c_char, ...);
-    fn audio_resampler_create(
-        dst: *const resample_info,
-        src: *const resample_info,
-    ) -> *mut c_void;
+    fn audio_resampler_create(dst: *const resample_info, src: *const resample_info) -> *mut c_void;
     fn audio_resampler_destroy(resampler: *mut c_void);
     fn audio_resampler_resample(
         resampler: *mut c_void,
@@ -295,8 +295,7 @@ impl Shared {
                 // by connect/disconnect.
                 let mix = &self.mixes[mix_idx];
                 let unclamped = unsafe { &mut *mix.buffer_unclamped.get() };
-                unclamped[start..end]
-                    .copy_from_slice(&unsafe { &*mix.buffer.get() }[start..end]);
+                unclamped[start..end].copy_from_slice(&unsafe { &*mix.buffer.get() }[start..end]);
                 for val in &mut unsafe { &mut *mix.buffer.get() }[start..end] {
                     let mut v = *val;
                     if v.is_nan() {
@@ -439,10 +438,7 @@ fn audio_input_init(input: &mut AudioInput, info: &audio_output_info) -> bool {
 impl AudioOutput {
     /// `valid_audio_params`.
     fn valid_audio_params(info: &audio_output_info) -> bool {
-        info.format != 0
-            && !info.name.is_null()
-            && info.samples_per_sec > 0
-            && info.speakers > 0
+        info.format != 0 && !info.name.is_null() && info.samples_per_sec > 0 && info.speakers > 0
     }
 
     /// `audio_output_open` body: validate, build, start the thread. On
@@ -515,9 +511,7 @@ impl AudioOutput {
             mixes: std::array::from_fn(|_| AudioMix {
                 inputs: UnsafeCell::new(Vec::new()),
                 buffer: UnsafeCell::new([0.0; MAX_AUDIO_CHANNELS * AUDIO_OUTPUT_FRAMES]),
-                buffer_unclamped: UnsafeCell::new(
-                    [0.0; MAX_AUDIO_CHANNELS * AUDIO_OUTPUT_FRAMES],
-                ),
+                buffer_unclamped: UnsafeCell::new([0.0; MAX_AUDIO_CHANNELS * AUDIO_OUTPUT_FRAMES]),
             }),
         });
         // SAFETY: first and only init, at the mutex's final (boxed) address.
@@ -806,8 +800,7 @@ fn audio_thread(shared: *const Shared) {
 
     while !s.stop.load(Ordering::SeqCst) {
         samples += AUDIO_OUTPUT_FRAMES as u64;
-        let audio_time =
-            start_time.wrapping_add(mul_div64(samples, 1_000_000_000, rate as u64));
+        let audio_time = start_time.wrapping_add(mul_div64(samples, 1_000_000_000, rate as u64));
 
         unsafe { os_sleepto_ns_fast(audio_time) };
 
