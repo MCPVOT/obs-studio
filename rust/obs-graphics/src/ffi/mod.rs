@@ -1,6 +1,7 @@
 //! C ABI shims replacing the original libobs `EXPORT` symbols.
 
 pub mod axisang;
+pub mod bounds;
 pub mod matrix3;
 pub mod matrix4;
 pub mod plane;

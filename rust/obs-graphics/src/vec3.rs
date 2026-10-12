@@ -88,6 +88,51 @@ impl Vec3 {
         }
     }
 
+    /// Lane-wise sum with `w` cleared (`vec3_add`).
+    #[must_use]
+    pub fn add_xyz(self, other: Self) -> Self {
+        Self::new(self.x + other.x, self.y + other.y, self.z + other.z)
+    }
+
+    /// SSE `minps` on xyz, then `w` cleared (`vec3_min`).
+    ///
+    /// The second operand is kept unless `self < other`, so a NaN in either
+    /// lane, or two equal values, yields `other`.
+    #[must_use]
+    pub fn min_xyz(self, other: Self) -> Self {
+        Self::new(
+            sse_min(self.x, other.x),
+            sse_min(self.y, other.y),
+            sse_min(self.z, other.z),
+        )
+    }
+
+    /// SSE `maxps` on xyz, then `w` cleared (`vec3_max`).
+    ///
+    /// The second operand is kept unless `self > other`.
+    #[must_use]
+    pub fn max_xyz(self, other: Self) -> Self {
+        Self::new(
+            sse_max(self.x, other.x),
+            sse_max(self.y, other.y),
+            sse_max(self.z, other.z),
+        )
+    }
+
+    /// `fabsf` of xyz with `w` cleared (`vec3_abs`).
+    #[must_use]
+    pub fn abs_xyz(self) -> Self {
+        Self::new(self.x.abs(), self.y.abs(), self.z.abs())
+    }
+
+    /// `sqrt(dot)` when the square is strictly positive, else 0 (`vec3_len`).
+    /// The dot includes `w`.
+    #[must_use]
+    pub fn len(self) -> f32 {
+        let dot_val = self.dot(self);
+        if dot_val > 0.0 { dot_val.sqrt() } else { 0.0 }
+    }
+
     /// Lane-wise product of all four lanes (`vec3_mul`). `w` is kept.
     #[must_use]
     pub fn lane_mul(self, other: Self) -> Self {
@@ -157,4 +202,14 @@ impl Vec3 {
         let z = next();
         Self::new(x, y, z)
     }
+}
+
+/// `minps`: `b` unless `a < b`.
+fn sse_min(a: f32, b: f32) -> f32 {
+    if a < b { a } else { b }
+}
+
+/// `maxps`: `b` unless `a > b`.
+fn sse_max(a: f32, b: f32) -> f32 {
+    if a > b { a } else { b }
 }

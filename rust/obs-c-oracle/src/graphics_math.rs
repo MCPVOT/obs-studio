@@ -322,3 +322,81 @@ unsafe extern "C" {
     pub fn oracle_matrix4_inv(dst: *mut OracleMatrix4, m: *const OracleMatrix4) -> bool;
     pub fn oracle_matrix4_transpose(dst: *mut OracleMatrix4, m: *const OracleMatrix4);
 }
+
+/// Independent declaration of `struct bounds`: two `vec3`s.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct OracleBounds {
+    pub min: OracleVec3,
+    pub max: OracleVec3,
+}
+
+unsafe extern "C" {
+    pub fn oracle_bounds_size() -> usize;
+    pub fn oracle_bounds_align() -> usize;
+    pub fn oracle_bounds_offset_min() -> usize;
+    pub fn oracle_bounds_offset_max() -> usize;
+
+    pub fn oracle_bounds_move(dst: *mut OracleBounds, b: *const OracleBounds, v: *const OracleVec3);
+    pub fn oracle_bounds_scale(
+        dst: *mut OracleBounds,
+        b: *const OracleBounds,
+        v: *const OracleVec3,
+    );
+    pub fn oracle_bounds_merge(
+        dst: *mut OracleBounds,
+        b1: *const OracleBounds,
+        b2: *const OracleBounds,
+    );
+    pub fn oracle_bounds_merge_point(
+        dst: *mut OracleBounds,
+        b: *const OracleBounds,
+        v: *const OracleVec3,
+    );
+    pub fn oracle_bounds_get_point(dst: *mut OracleVec3, b: *const OracleBounds, i: u32);
+    pub fn oracle_bounds_get_center(dst: *mut OracleVec3, b: *const OracleBounds);
+    pub fn oracle_bounds_transform(
+        dst: *mut OracleBounds,
+        b: *const OracleBounds,
+        m: *const OracleMatrix4,
+    );
+    pub fn oracle_bounds_transform3x4(
+        dst: *mut OracleBounds,
+        b: *const OracleBounds,
+        m: *const OracleMatrix3,
+    );
+    pub fn oracle_bounds_intersection_ray(
+        b: *const OracleBounds,
+        orig: *const OracleVec3,
+        dir: *const OracleVec3,
+        t: *mut f32,
+    ) -> bool;
+    pub fn oracle_bounds_intersection_line(
+        b: *const OracleBounds,
+        p1: *const OracleVec3,
+        p2: *const OracleVec3,
+        t: *mut f32,
+    ) -> bool;
+    /// Declared `u8` because the C body returns 1, 2, or 3 from a `bool`
+    /// function. The byte the compiler actually stores is what parity reads.
+    pub fn oracle_bounds_plane_test(b: *const OracleBounds, p: *const OraclePlane) -> u8;
+    pub fn oracle_bounds_under_plane(b: *const OracleBounds, p: *const OraclePlane) -> bool;
+    pub fn oracle_bounds_intersects(
+        b: *const OracleBounds,
+        test: *const OracleBounds,
+        epsilon: f32,
+    ) -> bool;
+    pub fn oracle_bounds_intersects_obb(
+        b: *const OracleBounds,
+        test: *const OracleBounds,
+        m: *const OracleMatrix4,
+        epsilon: f32,
+    ) -> bool;
+    pub fn oracle_bounds_intersects_obb3x4(
+        b: *const OracleBounds,
+        test: *const OracleBounds,
+        m: *const OracleMatrix3,
+        epsilon: f32,
+    ) -> bool;
+    pub fn oracle_bounds_min_dist(b: *const OracleBounds, p: *const OraclePlane) -> f32;
+}

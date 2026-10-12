@@ -3,3 +3,23 @@
 #include "graphics_math_names.h"
 
 #include "graphics/bounds.c"
+
+#include <stddef.h>
+
+/* Layout of struct bounds. Not part of bounds.c. */
+size_t oracle_bounds_size(void)
+{
+	return sizeof(struct bounds);
+}
+size_t oracle_bounds_align(void)
+{
+	return _Alignof(struct bounds);
+}
+size_t oracle_bounds_offset_min(void)
+{
+	return offsetof(struct bounds, min);
+}
+size_t oracle_bounds_offset_max(void)
+{
+	return offsetof(struct bounds, max);
+}
