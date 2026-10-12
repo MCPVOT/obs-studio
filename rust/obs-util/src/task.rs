@@ -40,15 +40,9 @@ static THREAD_ID_COUNTER: AtomicI64 = AtomicI64::new(1);
 /// in until then.
 #[cfg(unix)]
 fn sem_init_zero() -> Option<Pin<Box<Sem>>> {
-    let mut sem = Box::<Sem>::new_uninit();
-    // SAFETY: `sem` is `size_of::<Sem>()` writable uninit bytes; a failed
-    // init leaves it dead with nothing to drop — exactly the C's fail
-    // path, which frees the queue and returns NULL.
-    if unsafe { Sem::init_in(sem.as_mut_ptr(), 0) } != 0 {
-        return None;
-    }
-    // SAFETY: `*sem` is a live `Sem`, pinned in its box so it cannot move.
-    Some(unsafe { Box::into_pin(sem.assume_init()) })
+    // `Sem::try_new` is the same failure channel the C's `os_sem_init`
+    // check uses; on failure the C frees the queue and returns NULL.
+    Sem::try_new(0)
 }
 
 /// Counting semaphore for non-Unix builds only: `os_sem_*` is not
@@ -116,11 +110,11 @@ pub struct TaskQueue {
 impl TaskQueue {
     /// `os_task_queue_create`.
     pub fn new() -> Option<Self> {
-        // The C returns NULL when os_sem_init fails; os_event_init and
-        // pthread_create failures also unwind to NULL. Event::new cannot
-        // fail (std Mutex+Condvar), matching the C only in that an event
-        // init failure is a resource failure the process does not survive
-        // either way. `init_in` preserves the semaphore failure channel.
+        // The C returns NULL on any init failure — os_sem_init,
+        // os_event_init or pthread_create — after freeing the partial
+        // queue. Event::new cannot fail (std Mutex+Condvar), so only the
+        // native semaphore (Sem::try_new) and the thread spawn carry the
+        // C's NULL channel here.
         let inner = Arc::new(Inner {
             id: THREAD_ID_COUNTER.fetch_add(1, Ordering::SeqCst),
             sem: sem_init_zero()?,
