@@ -320,7 +320,11 @@ directory (`obs-util`, `obs-graphics`, `obs-media-io`, ...).
   must be clean.
 - `unsafe` is allowed only in `src/ffi/` shims, in `obs-c-oracle`, and in the
   Tier 2/3 test files that call C ABI functions. Each `unsafe` block has a
-  `// SAFETY:` comment.
+  `// SAFETY:` comment. Every port crate denies the `unsafe_code` lint, so a
+  safe core cannot use it: `allow` is written only where the C boundary is
+  (the `ffi` module) and on the Windows platform modules that must call Win32
+  directly (`obs_util::pipe::windows`, `obs_util::utf8::windows`, each saying
+  why). Keep it that way when adding a port.
 - Do not add new GitHub Actions workflow files without explicit sign-off from
   the maintainer. Hook tests into existing workflows instead.
 - Do not edit a public C header, an existing C test, or an exported function

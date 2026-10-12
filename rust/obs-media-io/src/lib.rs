@@ -4,11 +4,17 @@
 //! original `EXPORT` symbols live in [`ffi`]. See
 //! `docs/rust-port/testing-policy.md`.
 
+#![deny(unsafe_code)]
+
 #[cfg(test)]
 use obs_c_oracle as _; // links the test bmalloc/bfree (oracle/test_bmem.c)
 
+// Temporary: the raw-pointer audio-io API still lives in the safe core.
+// Tracked in obs-rust/obs-studio#294 (move it into src/ffi).
+#[allow(unsafe_code)]
 pub mod audio_io;
 pub mod audio_math;
+#[allow(unsafe_code)] // the C ABI shims
 pub mod ffi;
 pub mod format_conversion;
 pub mod frame_rate;
