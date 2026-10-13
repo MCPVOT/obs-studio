@@ -19,6 +19,8 @@ add_compile_options($<$<COMPILE_LANG_AND_ID:C,AppleClang,Clang,GNU>:-Wno-double-
 # const away freely, so -Wcast-qual (obs-rust/obs-studio#516) covers the
 # product code, not the tests.
 add_compile_options($<$<COMPILE_LANG_AND_ID:C,AppleClang,Clang,GNU>:-Wno-cast-qual>)
+# Likewise -Wformat=2 (obs-rust/obs-studio#516) covers the product code only.
+add_compile_options($<$<COMPILE_LANG_AND_ID:C,AppleClang,Clang,GNU>:-Wno-format-nonliteral>)
 
 # Per-test sanitizers (obs-rust/obs-studio#159). Some tests compile the code
 # they check with ASan/UBSan so a bug fails the test. Those flags are added

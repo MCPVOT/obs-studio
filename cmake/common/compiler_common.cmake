@@ -68,6 +68,7 @@ set(
   -Wundef
   -Wdouble-promotion
   -Wcast-qual
+  -Wformat=2
   -Wno-shadow
   -Wno-float-conversion
 )

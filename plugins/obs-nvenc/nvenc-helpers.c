@@ -29,7 +29,16 @@ bool nv_fail2(obs_encoder_t *encoder, void *session, const char *format, ...)
 
 	va_list args;
 	va_start(args, format);
+	/* Pass-through of the caller's format; its call sites are not all
+	 * checkable here, so keep the nonliteral warning off for this call. */
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wformat-nonliteral"
+#endif
 	dstr_vprintf(&message, format, args);
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 	va_end(args);
 
 	dstr_printf(&error_message, "NVENC Error: %s", message.array);
