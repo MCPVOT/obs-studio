@@ -69,6 +69,10 @@ this document covers *who does what, and when*.
   exists.
 - **Oracle differences** (a stand-in behaving unlike libobs): their own issue,
   fixed before any port relies on that oracle (#79, #84, #145).
+- **Feature ideas and questions** are not issues: post ideas in
+  [Discussions → Ideas](https://github.com/obs-rust/obs-studio/discussions/categories/ideas)
+  and questions in Q&A. Issues are for bugs and claimable port or task work;
+  an idea becomes an issue once it is agreed and someone can pick it up.
 
 ## 6. Collisions
 
