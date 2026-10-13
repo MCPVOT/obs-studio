@@ -1,8 +1,8 @@
 # AppImage
 
 `.github/workflows/appimage.yaml` builds OBS-Studio-Rust as an
-[AppImage](https://appimage.org) and starts it in stock Debian, Ubuntu and
-Fedora containers to prove that it runs on other distributions and that its
+[AppImage](https://appimage.org) and starts it in stock Debian, Ubuntu, Fedora and
+Arch Linux containers to prove that it runs on other distributions and that its
 captures work (see Tests). A push to master publishes it as the `continuous`
 pre-release, a tag push attaches it to that tag's release.
 
@@ -18,9 +18,30 @@ pre-release, a tag push attaches it to that tag's release.
 
 ## How it works
 
-- **Everything is bundled** except the GPU and hardware video drivers (Mesa,
-  NVIDIA, VA-API), which have to come from the host. That includes glibc, so the
-  AppImage also runs on distributions older than the build host.
+- **Everything is bundled** except the GPU driver stack, which has to come from
+  the host: `libGL`, `libGLX`, `libEGL`, `libOpenGL`, `libGLdispatch`, `libgbm`,
+  `libdrm`, `libvulkan`, `libwayland-client`/`-egl`, Mesa, LLVM and
+  the NVIDIA libraries (the AppImage excludelist). The host's drivers are built
+  against the host's copies of these and look for their backends in the
+  host's directories; a bundled copy would win over them through the relative
+  RPATH (#625). The test fails if any of them is bundled. `libva` is the one
+  exception: the bundled FFmpeg needs a newer one than old hosts have (Ubuntu
+  22.04 failed to start without it), so it is bundled and `AppRun` points
+  `LIBVA_DRIVERS_PATH` at the host's `dri` directories.
+- **glibc, libstdc++ and libgcc_s are bundled but the host's are used when they
+  are at least as new** (#621). The host's Mesa loads LLVM, which needs the
+  host's glibc and libstdc++ (Arch: glibc 2.44, GLIBCXX_3.4.36); on the
+  bundled 2.43 loader video initialisation failed with `eglGetDisplay failed`.
+  The copies live in `glibc/`, outside `usr/lib`; every ELF file's RPATH ends
+  with `/tmp/.obs-rust-appimage-<hash>/lib`. `AppRun` compares the host's loader
+  version (`ld.so --version`) and libstdc++ (`GLIBCXX_3.4.N`) with the bundled
+  ones (`glibc/GLIBC_VERSION`, `glibc/GLIBCXX_MINOR`). If the host's are at
+  least as new, it installs the host's loader at the fixed interpreter path and
+  leaves that `lib` directory empty, so the host's libc is found; otherwise it
+  installs the bundled loader and copies `glibc/*.so*` into `lib`. The AppImage
+  thus also runs on distributions older than the build host.
+  `OBS_APPIMAGE_BUNDLED_LIBC=1` forces the bundled ones. `AppRun` records its
+  choice in `/tmp/.obs-rust-appimage-<hash>/mode`.
 - **All of glibc, not just what OBS links.** The host's drivers run on the
   bundled loader and libc and link more of glibc (the NVIDIA driver's `libcuda`
   needs `librt`, `libpthread` and `libdl`). The host's copies of those need
@@ -51,7 +72,7 @@ pre-release, a tag push attaches it to that tag's release.
 
 ## Tests
 
-`test-appimage.sh` runs in stock Debian 13, Ubuntu 22.04 and Fedora containers
+`test-appimage.sh` runs in stock Debian 13, Ubuntu 22.04, Fedora and Arch Linux (glibc newer than the build host's) containers
 with none of OBS's dependencies installed, and fails unless all of these pass:
 
 1. **Bundle:** `check-appdir.sh`, and every bundled ELF file resolves all of its

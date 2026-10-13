@@ -243,8 +243,10 @@ jobs:
       fail-fast: false
       matrix:
         # Different glibc versions and families, none with OBS dependencies installed:
-        # Debian 13 (glibc 2.41), Ubuntu 22.04 (2.35, older than the build host), Fedora.
-        image: ['debian:trixie-slim', 'ubuntu:22.04', 'fedora:latest']
+        # Debian 13 (glibc 2.41), Ubuntu 22.04 (2.35, older than the build host), Fedora, and
+        # Arch Linux (rolling: glibc 2.44+, newer than the 2.43 the AppImage is built with, whose
+        # Mesa/LLVM cannot load against an older glibc; obs-rust/obs-studio#621).
+        image: ['debian:trixie-slim', 'ubuntu:22.04', 'fedora:latest', 'archlinux:latest']
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -272,7 +274,7 @@ jobs:
       # running. Every scenario runs even after one fails.
       - name: Run the AppImage in stock containers 🐳
         run: |
-          mkdir -p results pkgcache/apt pkgcache/lists pkgcache/dnf
+          mkdir -p results pkgcache/apt pkgcache/lists pkgcache/dnf pkgcache/pacman
           status=0
           for scenario in bundle first-start probes saved-profile; do
             echo "::group::Scenario: $scenario"
@@ -282,6 +284,7 @@ jobs:
               -v "$PWD/pkgcache/apt:/var/cache/apt/archives" \
               -v "$PWD/pkgcache/lists:/var/lib/apt/lists" \
               -v "$PWD/pkgcache/dnf:/var/cache/libdnf5" \
+              -v "$PWD/pkgcache/pacman:/var/cache/pacman/pkg" \
               -v "$PWD:/work" -w /work "${{ matrix.image }}" \
               bash -c "build-aux/appimage/test-appimage.sh OBS_Studio-*-x86_64.AppImage results/$scenario obs-appimage-testkit $scenario" ||
               { status=1; echo "::error::scenario $scenario failed on ${{ matrix.image }}"; }

@@ -192,7 +192,8 @@ case "${ID_LIKE:-} ${ID}" in
     apt-get update -qq
     apt-get install -y -qq --no-install-recommends \
         ca-certificates xvfb icewm x11-utils imagemagick fonts-dejavu-core gdb procps dbus \
-        libgl1-mesa-dri libglx-mesa0 libegl-mesa0 >/dev/null
+        libgl1-mesa-dri libglx-mesa0 libegl-mesa0 libgl1 libegl1 libgbm1 libdrm2 libva2 libva-drm2 libopengl0 \
+        libwayland-client0 libwayland-egl1 libvulkan1 >/dev/null
     # HOSTILE_QT=1: a host that has its own, different Qt plugins - the usual desktop - which
     # a bundled Qt must not load (this crashed OBS in QIcon via the host's libqsvgicon.so).
     if [ -n "${HOSTILE_QT:-}" ]; then
@@ -205,7 +206,17 @@ case "${ID_LIKE:-} ${ID}" in
     FAMILY=fedora
     dnf install -y -q --setopt=install_weak_deps=False --setopt=keepcache=1 \
         xorg-x11-server-Xvfb icewm xwininfo ImageMagick dbus-daemon \
-        dejavu-sans-fonts gdb procps-ng mesa-dri-drivers mesa-libGL mesa-libEGL >/dev/null
+        dejavu-sans-fonts gdb procps-ng mesa-dri-drivers mesa-libGL mesa-libEGL mesa-libgbm libdrm libva \
+        libglvnd-glx libglvnd-egl libglvnd-opengl libwayland-client libwayland-egl vulkan-loader >/dev/null
+    ;;
+*arch*)
+    FAMILY=arch
+    # A rolling distribution: its glibc is newer than the one the AppImage is
+    # built with, and its Mesa (libgallium -> libLLVM) needs that newer glibc
+    # and libstdc++ (obs-rust/obs-studio#621).
+    pacman -Syu --noconfirm --needed \
+        xorg-server-xvfb icewm xorg-xwininfo imagemagick ttf-dejavu gdb procps-ng dbus \
+        mesa libglvnd libdrm libva wayland vulkan-icd-loader >/dev/null
     ;;
 *)
     echo "::error::unsupported test distribution: $PRETTY_NAME"
@@ -246,6 +257,23 @@ fi
 "$APPIMAGE" --appimage-extract >/dev/null
 APPDIR="$PWD/squashfs-root"
 LOADER="$APPDIR/lib64/ld-linux-x86-64.so.2"
+# The C and C++ runtime is bundled in glibc/, outside usr/lib, so that AppRun can
+# use the host's newer one instead (obs-rust/obs-studio#621). Probes that run a
+# bundled ELF file with the bundled loader directly are given it explicitly.
+LOADER_ARGS=()
+[ -d "$APPDIR/glibc" ] && LOADER_ARGS=(--library-path "$APPDIR/glibc")
+# Which C library AppRun picked for this run, written by AppRun (bundled|host);
+# empty before AppRun has run, or for an AppImage that always bundles it.
+DRIVER_STACK_RE='libGL\.|libGLX|libEGL|libOpenGL|libGLdispatch|libGLESv|libglapi|libgbm|libdrm|libvulkan|libwayland-(client|egl|server)|libgallium|libLLVM|libcuda|libnvidia'
+runtime_mode() { cat /tmp/.obs-rust-appimage-*/mode 2>/dev/null | head -1; }
+# What this host should get: its own glibc and libstdc++ when they are at least
+# as new as the bundled ones (so it can load the host's Mesa/LLVM), else the bundle.
+host_glibc_is_newer() {
+    local host bundled
+    host="$(ldd --version | sed -n '1s/.* \([0-9][0-9]*\.[0-9][0-9]*\)$/\1/p')"
+    bundled="$("$LOADER" --version | sed -n '1s/.*release version \([0-9][0-9]*\.[0-9][0-9]*\).*/\1/p')"
+    [ "$(printf '%s\n%s\n' "$bundled" "$host" | sort -V | tail -1)" = "$host" ] && [ "$host" != "$bundled" ]
+}
 # The helper is built with RPATH $ORIGIN/../lib, so placed next to obs it finds
 # the bundled libraries exactly the way obs does (no --library-path).
 install -m755 "$TESTKIT" "$APPDIR/usr/bin/obs-appimage-testkit"
@@ -266,18 +294,32 @@ if [ "$SCENARIO" = bundle ]; then
     "$HERE_DIR/check-appdir.sh" "$APPDIR" || fail "the AppImage lacks files that AppRun points OBS at (see above)"
     # The bundled loader resolves every bundled ELF file the way it will at runtime
     # (each file's own RPATH into the AppDir), binding every symbol now.
+    # The GPU driver stack must come from the host (the AppImage excludelist): the
+    # host's Mesa, NVIDIA and VA-API drivers are built against the host's copies and
+    # look for their backends in the host's directories, and a bundled copy wins
+    # over them through the relative RPATH (obs-rust/obs-studio#625).
+    stack="$(find "$APPDIR" -path '*/qt6/plugins' -prune -o \( -type f -o -type l \) \
+        \( -name 'libGL.so*' -o -name 'libGLX*' -o -name 'libEGL*' -o -name 'libOpenGL*' -o -name 'libGLdispatch*' \
+        -o -name 'libGLESv*' -o -name 'libglapi*' -o -name 'libgbm*' -o -name 'libdrm*' \
+        -o -name 'libvulkan*' -o -name 'libwayland-client*' -o -name 'libwayland-egl*' -o -name 'libwayland-server*' \
+        -o -name 'libgallium*' -o -name 'libLLVM*' -o -name 'libcuda*' -o -name 'libnvidia*' \) \
+        -printf '%P\n' | sort)"
+    if [ -n "$stack" ]; then
+        echo "$stack"
+        fail "the AppImage bundles the GPU driver stack above; it must come from the host"
+    fi
     unresolved=0
     checked=0
     while IFS= read -r -d '' f; do
         [ "$(head -c4 "$f" | od -An -c | tr -d ' ')" = '177ELF' ] || continue
         case "$(basename "$f")" in ld-linux*) continue ;; esac
         checked=$((checked + 1))
-        if ! out="$(LD_TRACE_LOADED_OBJECTS=1 LD_WARN=yes LD_BIND_NOW=yes "$LOADER" "$f" 2>&1)" ||
+        if ! out="$(LD_TRACE_LOADED_OBJECTS=1 LD_WARN=yes LD_BIND_NOW=yes "$LOADER" "${LOADER_ARGS[@]}" "$f" 2>&1)" ||
             grep -qE 'not found|undefined symbol|error while loading' <<<"$out"; then
             echo "${f#"$APPDIR"/}:"
             grep -E 'not found|undefined symbol|error while loading' <<<"$out" | sed "s|$APPDIR/||g" | head -5
             unresolved=$((unresolved + 1))
-        elif grep '=> /' <<<"$out" | grep -v "$APPDIR" | grep -vE '=> [^ ]*/(libGL|libEGL|libGLX|libgbm|libdrm|libvulkan|libcuda|libnvidia)' | grep .; then
+        elif grep '=> /' <<<"$out" | grep -v "$APPDIR" | grep -v "=> /tmp/.obs-rust-appimage-[0-9a-f]*/lib/" | grep -vE "=> [^ ]*/($DRIVER_STACK_RE)" | grep .; then
             # (the host's GPU driver stack is the only thing allowed outside the bundle)
             echo "  ^ ${f#"$APPDIR"/} resolves the libraries above from the host"
             unresolved=$((unresolved + 1))
@@ -293,14 +335,14 @@ if [ "$SCENARIO" = bundle ]; then
     # bundled loader lacks wherever the host's glibc is newer (libcuda failed to
     # load, so NVENC was missing). LD_PRELOAD by name resolves each one the way a
     # host driver's DT_NEEDED entry does.
-    if [ -e "$APPDIR/usr/lib/libc.so.6" ]; then
+    if [ -e "$APPDIR/usr/lib/libc.so.6" ] || [ -e "$APPDIR/glibc/libc.so.6" ]; then
         for lib in libm.so.6 libmvec.so.1 librt.so.1 libpthread.so.0 libdl.so.2 libutil.so.1 \
             libanl.so.1 libresolv.so.2 libnss_files.so.2 libnss_dns.so.2; do
             out="$(LD_TRACE_LOADED_OBJECTS=1 LD_WARN=yes LD_BIND_NOW=yes LD_PRELOAD="$lib" \
-                "$LOADER" "$APPDIR/usr/bin/obs" 2>&1 || true)"
+                "$LOADER" "${LOADER_ARGS[@]}" "$APPDIR/usr/bin/obs" 2>&1 || true)"
             where="$(awk -v l="$lib" '$1 == l && $2 == "=>" {print $3}' <<<"$out")"
             [ "$where" = not ] && where="nothing (not found)"
-            if [[ "$where" != "$APPDIR"/* ]]; then
+            if [[ "$where" != "$APPDIR"/* && "$where" != /tmp/.obs-rust-appimage-*/lib/* ]]; then
                 fail "glibc's $lib is not bundled with libc.so.6: a host driver that links it gets ${where:-nothing}"
             elif grep -E 'undefined symbol|error while loading' <<<"$out"; then
                 fail "the bundled $lib does not load with the bundled loader (see above)"
@@ -397,8 +439,32 @@ if [ "$SCENARIO" = first-start ]; then
             grep -o '/[^ ]*' "/proc/$OBS_PID/maps" | grep '/libqsvg' | grep -q "$APPDIR" && break
             sleep 1
         done
-        require_mapped_from_appimage "$OBS_PID" libqsvgicon.so libqsvg.so libc.so.6 libstdc++.so.6 \
+        require_mapped_from_appimage "$OBS_PID" libqsvgicon.so libqsvg.so \
             libQt6Core.so libQt6Widgets.so libavcodec.so libobs.so libX11.so libxcb.so
+        # The C and C++ runtime: the bundled one on a host with an older glibc, but the
+        # host's own on a host with a newer one - the host's Mesa/LLVM cannot load
+        # against an older glibc (obs-rust/obs-studio#621).
+        MODE="$(runtime_mode)"
+        echo "C library mode: ${MODE:-bundled (AppRun without modes)} (host: $(ldd --version | head -1))"
+        if host_glibc_is_newer && [ -d "$APPDIR/glibc" ]; then
+            [ "$MODE" = host ] || fail "this host's glibc is newer than the bundled one but OBS runs on the bundled C library (mode: ${MODE:-none})"
+        fi
+        if [ "$MODE" = host ]; then
+            for lib in libc.so.6 libstdc++.so.6 libgcc_s.so.1; do
+                if grep -o '/[^ ]*' "/proc/$OBS_PID/maps" | grep "/$lib" | grep -q "$APPDIR\|/tmp/.obs-rust-appimage-"; then
+                    fail "$lib comes from the AppImage although the host's is newer"
+                fi
+            done
+        else
+            for lib in libc.so.6 libstdc++.so.6; do
+                grep -o '/[^ ]*' "/proc/$OBS_PID/maps" | grep "/$lib" | grep -q "$APPDIR\|/tmp/.obs-rust-appimage-" ||
+                    fail "$lib was not loaded from inside the AppImage"
+            done
+        fi
+        # The GPU driver stack comes from the host, never from the AppImage.
+        if grep -o '/[^ ]*' "/proc/$OBS_PID/maps" | grep -E "/($DRIVER_STACK_RE)" | grep "$APPDIR" | grep .; then
+            fail "GPU driver stack libraries above were loaded from inside the AppImage"
+        fi
     else
         fail "OBS exited during its first start"
     fi
@@ -418,8 +484,8 @@ if [ "$SCENARIO" = first-start ]; then
     echo "::endgroup::"
     [ "$WINDOW_FOUND" -eq 1 ] || fail "no OBS window ever appeared"
     [ "$RENDERED" -eq 1 ] || fail "OBS window exists but the screen stayed blank"
-    if [ -n "$LOG" ] && grep -qiE 'Failed to initialize video|Failed to load.*libobs-opengl' "$LOG"; then
-        grep -iE 'Failed to' "$LOG"
+    if [ -n "$LOG" ] && grep -qiE 'Failed to initialize video|Failed to load.*libobs-opengl|eglGetDisplay failed|Failed to create (OpenGL|EGL)' "$LOG" "$OUT/obs-stdout.log"; then
+        grep -iE 'Failed to|eglGetDisplay' "$LOG" "$OUT/obs-stdout.log"
         fail "OBS reported a fatal initialisation failure"
     fi
     require_no_crash_report
@@ -441,6 +507,10 @@ fedora)
     dnf install -y -q --setopt=install_weak_deps=False --setopt=keepcache=1 \
         pipewire wireplumber pipewire-pulseaudio pulseaudio-utils pipewire-utils \
         gstreamer1 gstreamer1-plugins-base pipewire-gstreamer >/dev/null
+    ;;
+*arch*)
+    pacman -S --noconfirm --needed pipewire wireplumber pipewire-pulse libpulse \
+        gstreamer gst-plugins-base gst-plugin-pipewire >/dev/null
     ;;
 esac
 pipewire --version | tail -1
@@ -477,7 +547,7 @@ in_appimage() {
         # shellcheck disable=SC2034 # used by $APPRUN_ENV
         HERE="$APPDIR"
         eval "$APPRUN_ENV"
-        exec "$LOADER" "$APPDIR/usr/bin/obs-appimage-testkit" "$@"
+        exec "$LOADER" "${LOADER_ARGS[@]}" "$APPDIR/usr/bin/obs-appimage-testkit" "$@"
     )
 }
 
