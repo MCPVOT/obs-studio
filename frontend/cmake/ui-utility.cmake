@@ -42,6 +42,8 @@ target_sources(
     utility/multitrack-ladder.h
     utility/product-name.c
     utility/product-name.h
+    utility/scene-collection-migration.cpp
+    utility/scene-collection-migration.hpp
     utility/service-encoder-settings.c
     utility/service-encoder-settings.h
     utility/transform-clipboard.c
