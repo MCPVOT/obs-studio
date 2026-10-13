@@ -1279,8 +1279,11 @@ OBSBasic::~OBSBasic()
 {
 	// Normal shutdown clears the API before deleting the window. Startup
 	// failures must also detach callbacks before their main window disappears.
-	if (api)
+	if (api) {
 		obs_frontend_set_callbacks_internal(nullptr);
+	}
+	os_cpu_usage_info_destroy(std::exchange(cpuUsageInfo, nullptr));
+	delete shortcutFilter;
 }
 
 void OBSBasic::applicationShutdown() noexcept
@@ -1322,7 +1325,7 @@ void OBSBasic::applicationShutdown() noexcept
 	 * the Qt UI stuff, so we have to manually clear any references to
 	 * libobs. */
 	delete cpuUsageTimer;
-	os_cpu_usage_info_destroy(cpuUsageInfo);
+	os_cpu_usage_info_destroy(std::exchange(cpuUsageInfo, nullptr));
 
 	obs_hotkey_set_callback_routing_func(nullptr, nullptr);
 	ClearHotkeys();
