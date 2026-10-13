@@ -31,6 +31,11 @@ endif()
 add_executable(obs-studio)
 add_executable(OBS::studio ALIAS obs-studio)
 
+if(ENABLE_UNIT_TESTS)
+  add_executable(test_virtual_cam_shutdown tests/test_virtual_cam_shutdown.cpp)
+  add_test(NAME test_virtual_cam_shutdown COMMAND test_virtual_cam_shutdown)
+endif()
+
 target_link_libraries(
   obs-studio
   PRIVATE

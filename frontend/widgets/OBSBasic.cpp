@@ -18,6 +18,7 @@
 ******************************************************************************/
 
 #include "OBSBasic.hpp"
+#include "VirtualCamShutdown.hpp"
 #include "ui-config.h"
 
 #include "ColorSelect.hpp"
@@ -1849,9 +1850,7 @@ void OBSBasic::closeWindow()
 		program->DestroyDisplay();
 	}
 
-	if (outputHandler->VirtualCamActive()) {
-		outputHandler->StopVirtualCam();
-	}
+	StopVirtualCamForShutdown(outputHandler.get());
 
 	if (introCheckThread) {
 		introCheckThread->wait();
