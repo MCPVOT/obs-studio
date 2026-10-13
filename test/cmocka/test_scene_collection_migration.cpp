@@ -8,7 +8,10 @@
 #include <stddef.h>
 #include <setjmp.h>
 #include <stdint.h>
+// The Windows cmocka.h has no extern "C" guard of its own.
+extern "C" {
 #include <cmocka.h>
+}
 
 #include <util/base.h>
 #include <util/c99defs.h>
