@@ -3,13 +3,15 @@
 
     python3 ci/ci_scope.py <base-ref>        # writes core/macos/windows to $GITHUB_OUTPUT
 
-The Linux jobs (Ubuntu OBS build, Rust tests, Tier 2 Linux) always run. On
-top of them:
-- core:    libobs or the Rust workspace changed -> the Rust-libobs OBS build;
-- macos:   macOS code (or shared build/CI config) changed -> the macOS jobs;
-- windows: Windows code (or shared build/CI config) changed -> the Windows jobs.
-Flatpak and the rest run only in the release gate (`full`). A platform job
-that is skipped here can't hide a break: it runs at the release gate.
+The Linux Rust tests and Tier 2 always run. On top of them:
+- macos:   macOS code (or shared build/CI config) changed -> macOS Rust
+           tests and Tier 2;
+- windows: Windows code (or shared build/CI config) changed -> Windows Rust
+           tests and Tier 2;
+- core:    libobs or the Rust workspace changed (informational).
+Every OBS app build (Ubuntu, macOS, Windows, Flatpak) runs only in the
+release gate (`full`). A job that is skipped here can't hide a break: it
+runs at the release gate.
 """
 
 from __future__ import annotations
