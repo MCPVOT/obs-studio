@@ -36,6 +36,7 @@ class SoldrCacheTest(unittest.TestCase):
             mock.patch.object(local_gate, "clang_format"),
             mock.patch.object(local_gate, "gersemi"),
             mock.patch.object(local_gate, "self_test", create=True),
+            mock.patch.object(local_gate, "toolchain_gcc_ld", return_value="/sysroot/gcc-ld"),
         ):
             # The caller's own setting must not leak into the check.
             if "SOLDR_RUSTC_WRAPPER" not in (env or {}):

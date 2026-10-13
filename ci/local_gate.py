@@ -65,7 +65,7 @@ def run(cmd: list[str], **kw) -> None:
     subprocess.run(cmd, cwd=ROOT, check=True, **kw)
 
 
-def soldr_cargo(args: list[str]) -> None:
+def soldr_cargo(args: list[str], extra_env: dict[str, str] | None = None) -> None:
     """Run `soldr cargo ...` with soldr's zccache rustc wrapper disabled.
 
     The wrapper has replayed stale rustc output (old diagnostics, and green
@@ -76,7 +76,18 @@ def soldr_cargo(args: list[str]) -> None:
     env = dict(os.environ)
     if env.get("OBS_GATE_ZCCACHE") != "1":
         env["SOLDR_RUSTC_WRAPPER"] = "none"
+    env.update(extra_env or {})
     run(["soldr", "cargo", *args], env=env)
+
+
+def toolchain_gcc_ld() -> str:
+    """The pinned toolchain's lld wrappers (rustlib/<host>/bin/gcc-ld)."""
+    def rustc(*a: str) -> str:
+        return subprocess.run(["soldr", "rustc", *a], cwd=ROOT, check=True, capture_output=True, text=True).stdout
+
+    sysroot = rustc("--print", "sysroot").strip().splitlines()[-1]
+    host = next(line.split()[1] for line in rustc("-vV").splitlines() if line.startswith("host:"))
+    return os.path.join(sysroot, "lib", "rustlib", host, "bin", "gcc-ld")
 
 
 def self_test() -> None:
@@ -171,7 +182,13 @@ def lane_rust_test(fix: bool) -> None:
     # The target is added here, not in rust-toolchain.toml: listing it there
     # made soldr on a Windows host build and run every test as windows-gnu.
     run(["soldr", "rustup", "target", "add", "x86_64-pc-windows-gnu"])
-    soldr_cargo(["test", "--workspace", "--locked", "--no-run", "--target", "x86_64-pc-windows-gnu"])
+    # Link through lld: GNU ld scans archives once, in order, and rustc can
+    # place the oracle's rlib before the crates that call into it.
+    gcc_ld = toolchain_gcc_ld()
+    soldr_cargo(
+        ["test", "--workspace", "--locked", "--no-run", "--target", "x86_64-pc-windows-gnu"],
+        {"CARGO_TARGET_X86_64_PC_WINDOWS_GNU_RUSTFLAGS": f"-C link-arg=-B{gcc_ld} -C link-arg=-fuse-ld=lld"},
+    )
 
 
 def lane_tier2_linux(fix: bool) -> None:
