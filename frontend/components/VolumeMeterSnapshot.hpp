@@ -3,6 +3,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <mutex>
 
 struct VolumeMeterChannelSnapshot {
 	float peak;
@@ -16,7 +17,7 @@ std::array<VolumeMeterChannelSnapshot, N>
 snapshotVolumeMeterChannels(Mutex &mutex, const float (&peak)[N], const float (&peakHold)[N],
 			    const float (&magnitude)[N], const float (&inputPeakHold)[N])
 {
-	(void)mutex;
+	std::lock_guard<Mutex> locker(mutex);
 	std::array<VolumeMeterChannelSnapshot, N> result;
 	for (std::size_t i = 0; i < N; i++) {
 		result[i] = {peak[i], peakHold[i], magnitude[i], inputPeakHold[i]};
@@ -27,7 +28,7 @@ snapshotVolumeMeterChannels(Mutex &mutex, const float (&peak)[N], const float (&
 template<typename Mutex, typename Reset>
 bool resetVolumeMeterIfIdle(Mutex &mutex, uint64_t &lastUpdate, uint64_t now, Reset reset)
 {
-	(void)mutex;
+	std::lock_guard<Mutex> locker(mutex);
 	double secondsSinceLastUpdate = (now - lastUpdate) * 0.000000001;
 	if (secondsSinceLastUpdate > 0.5) {
 		reset();
