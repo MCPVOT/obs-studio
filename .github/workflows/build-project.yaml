@@ -73,12 +73,12 @@ jobs:
           done
           echo "commitHash=${GITHUB_SHA:0:9}" >> $GITHUB_OUTPUT
 
-      # What this change needs (#436, ci/ci_scope.py): the Linux jobs always
-      # run; core code (libobs, rust/) adds the Rust-libobs OBS build; macOS
-      # or Windows code, or shared build/CI config, adds that platform's
-      # jobs. `full` (the release gate in release-rust.yaml, tags, release
-      # branches, schedule, workflow_dispatch, the ci-full label) runs
-      # everything, Flatpak included.
+      # What this change needs (#436, ci/ci_scope.py): the Linux Rust tests
+      # and Tier 2 always run; macOS or Windows code, or shared build/CI
+      # config, adds that platform's Rust tests and Tier 2. Every OBS app
+      # build (Ubuntu, macOS, Windows, Flatpak) is release-gating: `full`
+      # (the release gate in release-rust.yaml, tags, release branches,
+      # schedule, workflow_dispatch, the ci-full label).
       - name: Check Change Scope 🧭
         id: native
         env:
@@ -121,12 +121,13 @@ jobs:
     name: macOS 🍏
     runs-on: macos-26
     needs: check-event
-    if: fromJSON(needs.check-event.outputs.macos)
+    # OBS app builds are release-gating (#436): release gate, tags, schedule,
+    # dispatch and ci-full only.
+    if: fromJSON(needs.check-event.outputs.full)
     strategy:
       fail-fast: false
       matrix:
-        # One architecture in the dev cycle, both in the release gate (#436).
-        target: ${{ fromJSON(needs.check-event.outputs.full) && fromJSON('["arm64", "x86_64"]') || fromJSON('["arm64"]') }}
+        target: [arm64, x86_64]
     defaults:
       run:
         shell: zsh --no-rcs --errexit --pipefail {0}
@@ -252,11 +253,14 @@ jobs:
         os: [ubuntu-26.04]
         # ON builds the app with ENABLE_RUST_LIBOBS: the only CI job that runs
         # the Rust ports inside OBS itself (obs-rust/obs-studio#140).
-        # OFF always runs (the Linux app build, #436); ON when core code
-        # (libobs, rust/) changed, and in the release gate.
-        rust: ${{ fromJSON(needs.check-event.outputs.core) && fromJSON('["OFF", "ON"]') || fromJSON('["OFF"]') }}
+        rust: ['OFF', 'ON']
     runs-on: ${{ matrix.os }}
     needs: check-event
+    # The full OBS app build is release-gating, not dev-cycle CI: it runs in
+    # the release gate (release-rust.yaml), tags, schedule, dispatch and
+    # ci-full. PRs and pushes build and test the Rust workspace and Tier 2
+    # (libobs + cmocka) on Linux instead.
+    if: fromJSON(needs.check-event.outputs.full)
     defaults:
       run:
         shell: bash
@@ -540,11 +544,12 @@ jobs:
     name: Windows 🪟
     strategy:
       matrix:
-        # One architecture in the dev cycle, both in the release gate (#436).
-        architecture: ${{ fromJSON(needs.check-event.outputs.full) && fromJSON('["x64", "arm64"]') || fromJSON('["x64"]') }}
+        architecture: [x64, arm64]
     runs-on: windows-2025-vs2026
     needs: check-event
-    if: fromJSON(needs.check-event.outputs.windows)
+    # OBS app builds are release-gating (#436): release gate, tags, schedule,
+    # dispatch and ci-full only.
+    if: fromJSON(needs.check-event.outputs.full)
     defaults:
       run:
         shell: pwsh
