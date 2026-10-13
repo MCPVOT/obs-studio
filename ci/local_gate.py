@@ -187,6 +187,9 @@ def lane_cross(fix: bool) -> None:
         run(["soldr", "rustup", "target", "add", target])
         soldr_cargo(["clippy", *scope, "--locked", "--target", target, "--", "-D", "warnings"])
         soldr_cargo(["dylint", "--all", "--", *scope, "--target", target])
+        # Every test binary, C oracle included, must also build and link
+        # for the target (#516); nothing runs.
+        soldr_cargo(["test", "--workspace", "--locked", "--no-run", "--target", target])
 
 
 def lane_rust_test(fix: bool) -> None:
