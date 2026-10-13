@@ -102,19 +102,73 @@ impl Env for SystemEnv {
 
 /// The built-in search list for `lib` on `host`, without any override.
 pub fn default_candidates(lib: Library, host: Host) -> Vec<Candidate> {
-    let _ = (
-        lib,
-        host,
-        Candidate::new("", CandidateSource::SonameDefault),
+    match host {
+        Host::Linux => linux_candidates(lib),
+        Host::Windows { arm64 } => windows_candidates(lib, arm64),
+        Host::MacOs => Vec::new(),
+    }
+}
+
+/// Multiarch and distribution driver directories, in search order. NixOS
+/// keeps the driver in `/run/opengl-driver/lib`.
+const LINUX_DISTRO_DIRS: &[&str] = &[
+    "/usr/lib/x86_64-linux-gnu",
+    "/usr/lib/aarch64-linux-gnu",
+    "/usr/lib64",
+    "/usr/lib/nvidia",
+    "/run/opengl-driver/lib",
+];
+
+/// WSL exposes the Windows host's driver here.
+const LINUX_WSL_DIR: &str = "/usr/lib/wsl/lib";
+
+fn linux_candidates(lib: Library) -> Vec<Candidate> {
+    // The first name is exactly what the C plugin dlopens.
+    let (soname, unversioned) = match lib {
+        Library::CudaDriver => ("libcuda.so.1", "libcuda.so"),
+        Library::NvEncode => ("libnvidia-encode.so.1", "libnvidia-encode.so"),
+        Library::Nvml => ("libnvidia-ml.so.1", "libnvidia-ml.so"),
+    };
+    let mut out = vec![
+        Candidate::new(soname, CandidateSource::SonameDefault),
+        Candidate::new(unversioned, CandidateSource::SonameUnversioned),
+    ];
+    out.extend(
+        LINUX_DISTRO_DIRS
+            .iter()
+            .map(|dir| Candidate::new(format!("{dir}/{soname}"), CandidateSource::DistroPath)),
     );
-    todo!("default_candidates")
+    out.push(Candidate::new(
+        format!("{LINUX_WSL_DIR}/{soname}"),
+        CandidateSource::WslPath,
+    ));
+    out
+}
+
+fn windows_candidates(lib: Library, arm64: bool) -> Vec<Candidate> {
+    // Bare names: the platform loader restricts the search to System32.
+    let names: &[&str] = match lib {
+        Library::CudaDriver => &["nvcuda.dll"],
+        // nvenc-helpers.c: nvEncodeAPI.dll on _M_ARM64, else nvEncodeAPI64.dll.
+        Library::NvEncode if arm64 => &["nvEncodeAPI.dll", "nvEncodeAPI64.dll"],
+        Library::NvEncode => &["nvEncodeAPI64.dll", "nvEncodeAPI.dll"],
+        Library::Nvml => &["nvml.dll"],
+    };
+    names
+        .iter()
+        .map(|n| Candidate::new(*n, CandidateSource::SonameDefault))
+        .collect()
 }
 
 /// The full search list for `lib` on `host`: the env override (if set and
 /// non-empty) first, then [`default_candidates`].
 pub fn candidates_for(lib: Library, host: Host, env: &dyn Env) -> Vec<Candidate> {
-    let _ = (lib, host, env);
-    todo!("candidates_for")
+    let mut out = Vec::new();
+    if let Some(path) = env.var(lib.env_override()).filter(|p| !p.is_empty()) {
+        out.push(Candidate::new(path, CandidateSource::EnvOverride));
+    }
+    out.extend(default_candidates(lib, host));
+    out
 }
 
 /// [`candidates_for`] on the current host.

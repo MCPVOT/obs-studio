@@ -35,8 +35,40 @@ pub enum LoadError {
 
 impl fmt::Display for LoadError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let _ = f;
-        todo!("LoadError::fmt")
+        match self {
+            LoadError::NotFound { library, tried } => {
+                write!(f, "[NVENC] Test process failed: {}", library.c_error_tag())?;
+                if tried.is_empty() {
+                    return write!(f, " (no candidates on this platform)");
+                }
+                for (c, why) in tried {
+                    write!(
+                        f,
+                        "\n  tried {} ({:?}): {why}",
+                        c.name.to_string_lossy(),
+                        c.source
+                    )?;
+                }
+                Ok(())
+            }
+            LoadError::GlibcMismatch {
+                candidate,
+                required,
+            } => write!(
+                f,
+                "[NVENC] {} needs {required}, which this process's glibc does not provide",
+                candidate.name.to_string_lossy()
+            ),
+            LoadError::MissingSymbol { library, symbol } => write!(
+                f,
+                "[obs-nvenc] Could not load function: {symbol} ({})",
+                library.c_error_tag()
+            ),
+            LoadError::DriverTooOld { found, need } => write!(
+                f,
+                "[NVENC] CUDA driver {found} is too old; {need} or newer is required"
+            ),
+        }
     }
 }
 
@@ -68,6 +100,11 @@ impl std::error::Error for CudaError {}
 /// Extracts `GLIBC_x.y` from a dynamic loader message such as
 /// ``/usr/lib/libcuda.so.1: version `GLIBC_2.44' not found (required by ...)``.
 pub fn parse_glibc_requirement(dlerror: &str) -> Option<String> {
-    let _ = dlerror;
-    todo!("parse_glibc_requirement")
+    // glibc quotes the version as `GLIBC_x.y' (older) or 'GLIBC_x.y'.
+    let start = dlerror.find("version ")? + "version ".len();
+    let rest = dlerror[start..].strip_prefix(['`', '\''])?;
+    let end = rest.find('\'')?;
+    let version = &rest[..end];
+    (version.starts_with("GLIBC_") && rest[end..].starts_with("' not found"))
+        .then(|| version.to_owned())
 }

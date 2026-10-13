@@ -5,7 +5,10 @@ use std::ffi::c_void;
 use std::fmt;
 use std::ptr::NonNull;
 
-use crate::{Candidate, CudaError, Host, Library, LoadError, SystemEnv, SystemLoader, candidates};
+use crate::{
+    Candidate, CudaError, Host, Library, LoadError, SystemEnv, SystemLoader, candidates,
+    parse_glibc_requirement,
+};
 
 /// A resolved symbol address. Only the platform loader turns it back into a
 /// callable function.
@@ -62,8 +65,37 @@ pub const OPTIONAL_CUDA_SYMBOLS: &[&str] = &["cuDriverGetVersion"];
 /// The names in `cuda_functions[]` (`plugins/obs-nvenc/cuda-helpers.c`), in
 /// order, for `host`; the GL interop entries are absent on Windows.
 pub fn required_cuda_symbols(host: Host) -> Vec<&'static str> {
-    let _ = host;
-    todo!("required_cuda_symbols")
+    const COMMON: &[&str] = &[
+        "cuInit",
+        "cuDeviceGetCount",
+        "cuDeviceGet",
+        "cuDeviceGetAttribute",
+        "cuCtxCreate_v2",
+        "cuCtxDestroy_v2",
+        "cuCtxPushCurrent_v2",
+        "cuCtxPopCurrent_v2",
+        "cuArray3DCreate_v2",
+        "cuArrayDestroy",
+        "cuMemcpy2D_v2",
+        "cuGetErrorName",
+        "cuGetErrorString",
+        "cuMemHostRegister_v2",
+        "cuMemHostUnregister",
+    ];
+    // `#ifndef _WIN32` in cuda-helpers.c.
+    const GL_INTEROP: &[&str] = &[
+        "cuGLGetDevices_v2",
+        "cuGraphicsGLRegisterImage",
+        "cuGraphicsUnregisterResource",
+        "cuGraphicsMapResources",
+        "cuGraphicsUnmapResources",
+        "cuGraphicsSubResourceGetMappedArray",
+    ];
+    let mut out = COMMON.to_vec();
+    if !matches!(host, Host::Windows { .. }) {
+        out.extend_from_slice(GL_INTEROP);
+    }
+    out
 }
 
 /// Opens the first candidate that loads. When none does, a `GLIBC_x.y`
@@ -73,8 +105,23 @@ pub fn open_library(
     cands: &[Candidate],
     dl: &dyn DynLoader,
 ) -> Result<(Candidate, Box<dyn DynLib>), LoadError> {
-    let _ = (library, cands, dl);
-    todo!("open_library")
+    let mut tried = Vec::with_capacity(cands.len());
+    for c in cands {
+        match dl.open(c) {
+            Ok(lib) => return Ok((c.clone(), lib)),
+            Err(why) => tried.push((c.clone(), why)),
+        }
+    }
+    if let Some((candidate, required)) = tried
+        .iter()
+        .find_map(|(c, why)| parse_glibc_requirement(why).map(|r| (c.clone(), r)))
+    {
+        return Err(LoadError::GlibcMismatch {
+            candidate,
+            required,
+        });
+    }
+    Err(LoadError::NotFound { library, tried })
 }
 
 /// The loaded CUDA driver and its resolved function table.
@@ -111,8 +158,25 @@ impl CudaDriver {
         dl: &dyn DynLoader,
         host: Host,
     ) -> Result<Self, LoadError> {
-        let _ = (cands, dl, host);
-        todo!("CudaDriver::load_from_host")
+        let (candidate, lib) = open_library(Library::CudaDriver, cands, dl)?;
+        let mut symbols = HashMap::new();
+        for name in required_cuda_symbols(host) {
+            let sym = lib.symbol(name).ok_or(LoadError::MissingSymbol {
+                library: Library::CudaDriver,
+                symbol: name,
+            })?;
+            symbols.insert(name, sym);
+        }
+        for &name in OPTIONAL_CUDA_SYMBOLS {
+            if let Some(sym) = lib.symbol(name) {
+                symbols.insert(name, sym);
+            }
+        }
+        Ok(CudaDriver {
+            candidate,
+            symbols,
+            lib,
+        })
     }
 
     /// The candidate that loaded.
@@ -127,12 +191,30 @@ impl CudaDriver {
 
     /// `cuDriverGetVersion`.
     pub fn driver_version(&self) -> Result<CudaVersion, CudaError> {
-        todo!("driver_version {:p}", &self.lib)
+        const NAME: &str = "cuDriverGetVersion";
+        let sym = self
+            .symbol(NAME)
+            .ok_or(CudaError::SymbolUnavailable(NAME))?;
+        match self.lib.call_driver_get_version(sym) {
+            (0, version) => Ok(CudaVersion(version)),
+            (result, _) => Err(CudaError::Call {
+                function: NAME,
+                result,
+            }),
+        }
     }
 
     /// Fails with [`LoadError::DriverTooOld`] when the driver is older than `need`.
     pub fn require_version(&self, need: CudaVersion) -> Result<CudaVersion, LoadError> {
-        let _ = need;
-        todo!("require_version")
+        let found = self
+            .driver_version()
+            .map_err(|_| LoadError::MissingSymbol {
+                library: Library::CudaDriver,
+                symbol: "cuDriverGetVersion",
+            })?;
+        if found < need {
+            return Err(LoadError::DriverTooOld { found, need });
+        }
+        Ok(found)
     }
 }
