@@ -39,14 +39,14 @@
 #define SO_EXT "so"
 #endif
 
-static const char *startup_script_template = "\
+static const char startup_script_template[] = "\
 for val in pairs(package.preload) do\n\
 	package.preload[val] = nil\n\
 end\n\
 %s\
 require \"obslua\"\n";
 
-static const char *get_script_path_func = "\
+static const char get_script_path_func[] = "\
 function script_path()\n\
 	 return \"%s\"\n\
 end\n\
