@@ -64,6 +64,10 @@ if [ -d /usr/share/pipewire ]; then
     cp -a /usr/share/pipewire/. "$APPDIR/usr/share/pipewire/"
 fi
 
+# --- the modules the build installed, for test-appimage.sh -------------------
+mkdir -p "$APPDIR/usr/share/obs"
+find "$APPDIR/usr/lib/obs-modules" -name '*.so' -printf '%f\n' | sort >"$APPDIR/usr/share/obs/appimage-modules.txt"
+
 # --- bundle the shared-library closure of every ELF in the AppDir ------------
 export LD_LIBRARY_PATH="$LIBDIR"
 
