@@ -32,6 +32,7 @@
 #include <utility/BaseLexer.hpp>
 #include <utility/FFmpegCodec.hpp>
 #include <utility/FFmpegFormat.hpp>
+#include <utility/output-rescale.h>
 #include <utility/SettingsEventFilter.hpp>
 #ifdef YOUTUBE_ENABLED
 #include <utility/YoutubeApiWrappers.hpp>
@@ -337,6 +338,36 @@ void RestrictResetBitrates(initializer_list<QComboBox *> boxes, int maxbitrate);
 #define ADV_CHANGED     &OBSBasicSettings::AdvancedChanged
 #define ADV_RESTART     &OBSBasicSettings::AdvancedChangedRestart
 /* clang-format on */
+
+namespace {
+/* The "Rescale Output" filter and resolution boxes of one Output tab, driven
+ * through utility/output-rescale.h. */
+struct RescaleBoxes {
+	QComboBox *filter;
+	QComboBox *res;
+};
+
+output_rescale_ops RescaleOps(RescaleBoxes *boxes)
+{
+	output_rescale_ops ops = {};
+	ops.param = boxes;
+	ops.rescales = [](void *param) {
+		auto *b = static_cast<RescaleBoxes *>(param);
+		return b->filter->currentData() != OBS_SCALE_DISABLE;
+	};
+	ops.filter_enabled = [](void *param) {
+		/* The box's own state, not whether a parent is disabled. */
+		return !static_cast<RescaleBoxes *>(param)->filter->testAttribute(Qt::WA_ForceDisabled);
+	};
+	ops.set_filter_enabled = [](void *param, bool enabled) {
+		static_cast<RescaleBoxes *>(param)->filter->setEnabled(enabled);
+	};
+	ops.set_res_enabled = [](void *param, bool enabled) {
+		static_cast<RescaleBoxes *>(param)->res->setEnabled(enabled);
+	};
+	return ops;
+}
+} // namespace
 
 OBSBasicSettings::OBSBasicSettings(QWidget *parent)
 	: QDialog(parent),
@@ -821,8 +852,11 @@ OBSBasicSettings::OBSBasicSettings(QWidget *parent)
 	addScaleFilter("Basic.Settings.Video.DownscaleFilter.Lanczos", OBS_SCALE_LANCZOS);
 
 	auto connectScaleFilter = [&](QComboBox *filter, QComboBox *res) -> void {
-		connect(filter, &QComboBox::currentIndexChanged, this,
-			[this, res, filter](int) { res->setEnabled(filter->currentData() != OBS_SCALE_DISABLE); });
+		connect(filter, &QComboBox::currentIndexChanged, this, [res, filter](int) {
+			RescaleBoxes boxes{filter, res};
+			output_rescale_ops ops = RescaleOps(&boxes);
+			output_rescale_filter_changed(&ops);
+		});
 	};
 
 	connectScaleFilter(ui->advOutRescaleFilter, ui->advOutRescale);
@@ -6006,8 +6040,9 @@ void OBSBasicSettings::UpdateMultitrackVideo()
 		ui->advOutEncoder->setDisabled(disable_video);
 
 		ui->advOutUseRescale->setDisabled(disable_video);
-		ui->advOutRescale->setDisabled(disable_video);
-		ui->advOutRescaleFilter->setDisabled(disable_video);
+		RescaleBoxes rescaleBoxes{ui->advOutRescaleFilter, ui->advOutRescale};
+		output_rescale_ops rescaleOps = RescaleOps(&rescaleBoxes);
+		output_rescale_set_locked(&rescaleOps, disable_video);
 
 		if (streamEncoderProps) {
 			streamEncoderProps->SetDisabled(disable_video);
