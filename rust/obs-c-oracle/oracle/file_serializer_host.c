@@ -10,6 +10,7 @@
 #define _POSIX_C_SOURCE 200809L
 #endif
 
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -62,13 +63,15 @@ int64_t os_ftelli64(FILE *file)
 int os_unlink(const char *path)
 {
 	wchar_t *w_path;
-	BOOL success;
+	bool success;
 
 	os_utf8_to_wcs_ptr(path, 0, &w_path);
 	if (!w_path)
 		return -1;
-	success = DeleteFileW(w_path);
+
+	success = !!DeleteFileW(w_path);
 	bfree(w_path);
+
 	return success ? 0 : -1;
 }
 
@@ -78,11 +81,15 @@ int os_rename(const char *old_path, const char *new_path)
 	wchar_t *new_path_utf16 = NULL;
 	int code = -1;
 
-	if (!os_utf8_to_wcs_ptr(old_path, 0, &old_path_utf16))
+	if (!os_utf8_to_wcs_ptr(old_path, 0, &old_path_utf16)) {
 		return -1;
-	if (!os_utf8_to_wcs_ptr(new_path, 0, &new_path_utf16))
+	}
+	if (!os_utf8_to_wcs_ptr(new_path, 0, &new_path_utf16)) {
 		goto error;
+	}
+
 	code = MoveFileExW(old_path_utf16, new_path_utf16, MOVEFILE_REPLACE_EXISTING) ? 0 : -1;
+
 error:
 	bfree(old_path_utf16);
 	bfree(new_path_utf16);
@@ -104,10 +111,13 @@ int os_safe_replace(const char *target, const char *from, const char *backup)
 		goto fail;
 	if (backup && !os_utf8_to_wcs_ptr(backup, 0, &wbackup))
 		goto fail;
-	if (ReplaceFileW(wtarget, wfrom, wbackup, 0, NULL, NULL))
+
+	if (ReplaceFileW(wtarget, wfrom, wbackup, 0, NULL, NULL)) {
 		code = 0;
-	else if (GetLastError() == ERROR_FILE_NOT_FOUND)
+	} else if (GetLastError() == ERROR_FILE_NOT_FOUND) {
 		code = MoveFileExW(wfrom, wtarget, MOVEFILE_REPLACE_EXISTING) ? 0 : -1;
+	}
+
 fail:
 	bfree(wtarget);
 	bfree(wfrom);
