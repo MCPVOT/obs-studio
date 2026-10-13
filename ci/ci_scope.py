@@ -1,7 +1,7 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
 """Which CI jobs a change needs (obs-rust/obs-studio#436).
 
-    python3 ci/ci_scope.py <base-ref>        # writes core/macos/windows to $GITHUB_OUTPUT
+    uv run ci/ci_scope.py <base-ref>        # writes core/macos/windows to $GITHUB_OUTPUT
 
 The Linux Rust tests and Tier 2 always run. On top of them:
 - macos:   macOS code (or shared build/CI config) changed -> macOS Rust

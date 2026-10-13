@@ -34,6 +34,9 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
+      - name: Set Up uv 🐍
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+
       - name: Check Event Data ☑️
         id: setup
         env:
@@ -104,7 +107,7 @@ jobs:
             else
               base="HEAD^1"
             fi
-            eval "$(python3 ci/ci_scope.py "${base}")"
+            eval "$(uv run ci/ci_scope.py "${base}")"
           fi
           os=()
           [[ "${macos}" == true ]] && os+=('"macos-26"')
@@ -670,9 +673,12 @@ jobs:
           path: .ci-lint
           persist-credentials: false
           sparse-checkout: ci_lint
+      - name: Set Up uv 🐍
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+
       - name: Local Gate Attestation 🛂
         id: gate
-        run: PYTHONPATH=.ci-lint python3 -m ci_lint local-gate verify --repo . --trust --github-output
+        run: PYTHONPATH=.ci-lint uv run python -m ci_lint local-gate verify --repo . --trust --github-output
 
   rust-tests-linux:
     name: Rust Tests 🦀 (ubuntu-26.04)
@@ -709,7 +715,7 @@ jobs:
       # rust-test lanes (./lint, ./unittest), i.e. rustfmt, clippy -D warnings,
       # clang-format, gersemi and soldr cargo test --workspace --locked.
       - name: Local Gate (lint, rust-test) 🧪
-        run: python3 ci/local_gate.py --lane lint --lane rust-test
+        run: uv run ci/local_gate.py --lane lint --lane rust-test
 
   # Clippy and Dylint for Windows and both macOS targets, cross-checked on
   # Linux through soldr (#472). Every PR push runs it unless the head is
@@ -730,8 +736,11 @@ jobs:
         with:
           version: 0.9.31
 
+      - name: Set Up uv 🐍
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+
       - name: Local Gate (cross) 🧪
-        run: python3 ci/local_gate.py --lane cross
+        run: uv run ci/local_gate.py --lane cross
 
   rust-tests:
     name: Rust Tests 🦀
@@ -792,12 +801,15 @@ jobs:
           key: tier2-ccache-linux-${{ github.sha }}
           restore-keys: tier2-ccache-linux-
 
+      - name: Set Up uv 🐍
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+
       # GATE-001 mirror (local-gate.toml): the local gate's tier2-linux lane,
       # which runs rust/tools/linux-validate/run.sh.
       - name: Validate Tier 2 (ENABLE_RUST_LIBOBS OFF vs ON) ✅
         env:
           OBS_CCACHE_DIR: ${{ github.workspace }}/.tier2-ccache
-        run: python3 ci/local_gate.py --lane tier2-linux
+        run: uv run ci/local_gate.py --lane tier2-linux
 
       - name: Save Tier 2 ccache 💾
         uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5

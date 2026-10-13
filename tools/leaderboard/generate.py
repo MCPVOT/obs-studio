@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
 """Generate leaderboard.json for obs-rust/obs-studio.
 
 Usage: generate.py [--repo OWNER/REPO] [--out leaderboard.json]

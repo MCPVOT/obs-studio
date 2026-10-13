@@ -1,7 +1,7 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
 """Clippy and Dylint for every shipped Rust target, cross-checked from Linux (#472).
 
-    python3 -m unittest ci/test_cross_lane.py
+    uv run python -m unittest ci/test_cross_lane.py
 
 soldr cross-compiles from a Linux host to Windows and both macOS
 architectures, so one Linux lane lints every platform (zackees/ci.yml, the

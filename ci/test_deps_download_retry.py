@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
 """The obs-deps download retries before failing the configure.
 
 A single network timeout on one dependency zip dropped Windows from the
@@ -6,7 +6,7 @@ A single network timeout on one dependency zip dropped Windows from the
 _obs_download_dependency from cmake/common/buildspec_common.cmake with
 `cmake -P` against file:// URLs, so they need no network.
 
-    python3 -m unittest ci/test_deps_download_retry.py
+    uv run python -m unittest ci/test_deps_download_retry.py
 """
 
 from __future__ import annotations

@@ -1,7 +1,7 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
 """Unit tests for ci/local_gate.py.
 
-    python3 -m unittest ci/test_local_gate.py
+    uv run python -m unittest ci/test_local_gate.py
 """
 
 from __future__ import annotations

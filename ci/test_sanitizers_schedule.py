@@ -1,7 +1,7 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
 """The sanitizer workflow stays off PR and push CI (#491).
 
-    python3 -m unittest ci/test_sanitizers_schedule.py
+    uv run python -m unittest ci/test_sanitizers_schedule.py
 
 ASan, TSan and valgrind over the cmocka tests and a headless launch take
 about 20 minutes. Per zackees/ci.yml GATE-012 they run nightly (schedule)

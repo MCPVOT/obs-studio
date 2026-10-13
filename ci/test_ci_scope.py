@@ -1,8 +1,8 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
 """Which CI jobs a change needs (#436): Linux always; core code adds the
 Rust-libobs OBS build; macOS or Windows code adds that platform's jobs.
 
-    python3 -m unittest ci/test_ci_scope.py
+    uv run python -m unittest ci/test_ci_scope.py
 """
 
 from __future__ import annotations

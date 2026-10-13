@@ -1,7 +1,7 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
 """The C oracle's stand-ins for libobs functions match libobs (#145).
 
-    python3 -m unittest ci/test_oracle_standins.py
+    uv run python -m unittest ci/test_oracle_standins.py
 
 Tier 3 parity is only as good as the oracle. rust/obs-c-oracle/oracle/
 test_stubs.c and *_host.c re-implement libobs functions the oracle needs,

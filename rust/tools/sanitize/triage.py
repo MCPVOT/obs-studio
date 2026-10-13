@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
 """Summarize one sanitize.sh result directory as Markdown.
 
     triage.py <out>/<tool> [--tool=asan|tsan|valgrind] [--fail-on-findings]
