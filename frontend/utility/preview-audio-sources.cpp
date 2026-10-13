@@ -13,6 +13,13 @@ static bool collect_item(obs_scene_t *, obs_sceneitem_t *item, void *data)
 		return true;
 	}
 
+	/* Groups and nested scenes play their sources too. */
+	obs_scene_t *inner = obs_group_or_scene_from_source(source);
+	if (inner) {
+		obs_scene_enum_items(inner, collect_item, data);
+		return true;
+	}
+
 	uint32_t flags = obs_source_get_output_flags(source);
 	if ((flags & OBS_SOURCE_AUDIO) == 0) {
 		return true;
