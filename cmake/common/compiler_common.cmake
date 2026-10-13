@@ -62,7 +62,7 @@ set(
 )
 
 # clang options for C
-set(_obs_clang_c_options ${_obs_clang_common_options} -Wno-shadow -Wno-float-conversion)
+set(_obs_clang_c_options ${_obs_clang_common_options} -Wundef -Wno-shadow -Wno-float-conversion)
 
 # clang options for C++
 set(
