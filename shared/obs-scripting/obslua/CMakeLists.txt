@@ -30,6 +30,7 @@ target_compile_options(
     $<$<COMPILE_LANG_AND_ID:C,AppleClang,Clang>:-Wno-unreachable-code>
     $<$<COMPILE_LANG_AND_ID:C,GNU>:-Wno-maybe-uninitialized>
     $<$<COMPILE_LANG_AND_ID:C,AppleClang,Clang,GNU>:-Wno-undef>
+    $<$<COMPILE_LANG_AND_ID:C,AppleClang,Clang,GNU>:-Wno-double-promotion>
 )
 
 target_compile_definitions(

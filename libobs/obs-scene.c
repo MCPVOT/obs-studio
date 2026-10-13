@@ -472,8 +472,8 @@ static void calculate_bounds_data(struct obs_scene_item *item, struct vec2 *orig
 	add_alignment(origin, item->bounds_align, (int)-width_diff, (int)-height_diff);
 
 	/* Set cropping if enabled and large enough size difference exists */
-	if (crop_to_bounds(item) && (width_diff < -0.1 || height_diff < -0.1)) {
-		bool crop_width = width_diff < -0.1;
+	if (crop_to_bounds(item) && ((double)width_diff < -0.1 || (double)height_diff < -0.1)) {
+		bool crop_width = (double)width_diff < -0.1;
 		bool crop_flipped = crop_width ? width < 0.0f : height < 0.0f;
 
 		float crop_diff = crop_width ? width_diff : height_diff;

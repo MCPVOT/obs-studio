@@ -450,7 +450,7 @@ static void ss_update(void *data, obs_data_t *settings)
 		double new_aspect = (double)cx_in / (double)cy_in;
 
 		if (aspect_only) {
-			if (fabs(old_aspect - new_aspect) > EPSILON) {
+			if (fabs(old_aspect - new_aspect) > (double)EPSILON) {
 				if (new_aspect > old_aspect)
 					cx = (uint32_t)(cy_f * new_aspect);
 				else
