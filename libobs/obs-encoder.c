@@ -490,7 +490,7 @@ void obs_encoder_destroy(obs_encoder_t *encoder)
 		pthread_mutex_destroy(&encoder->roi_mutex);
 		obs_context_data_free(&encoder->context);
 		if (encoder->owns_info_id)
-			bfree((void *)encoder->info.id);
+			bfree((void *)(uintptr_t)encoder->info.id);
 		if (encoder->last_error_message)
 			bfree(encoder->last_error_message);
 		if (encoder->fps_override)

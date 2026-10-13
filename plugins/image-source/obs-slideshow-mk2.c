@@ -1112,8 +1112,9 @@ static obs_missing_files_t *ss_missingfiles(void *data)
 
 		if (*path != 0) {
 			if (!os_file_exists(path)) {
-				obs_missing_file_t *file = obs_missing_file_create(
-					path, missing_file_callback, OBS_MISSING_FILE_SOURCE, source, (void *)path);
+				obs_missing_file_t *file = obs_missing_file_create(path, missing_file_callback,
+										   OBS_MISSING_FILE_SOURCE, source,
+										   (void *)(uintptr_t)path);
 
 				obs_missing_files_add_file(missing_files, file);
 			}

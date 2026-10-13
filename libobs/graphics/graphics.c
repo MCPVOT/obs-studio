@@ -945,7 +945,7 @@ gs_texture_t *gs_texture_create_from_file(const char *file)
 	gs_texture_t *tex = NULL;
 
 	if (data) {
-		tex = gs_texture_create(cx, cy, format, 1, (const uint8_t **)&data, 0);
+		tex = gs_texture_create(cx, cy, format, 1, (const uint8_t **)(uintptr_t)&data, 0);
 		bfree(data);
 	}
 

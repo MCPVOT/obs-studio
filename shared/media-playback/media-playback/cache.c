@@ -556,7 +556,7 @@ static void fill_audio(void *data, struct obs_source_audio *audio)
 	size_t planes = get_audio_planes(dup.format, dup.speakers);
 	if (planes > 1) {
 		size = get_audio_bytes_per_channel(dup.format) * dup.frames;
-		uint8_t *out = (uint8_t *)dup.data[0];
+		uint8_t *out = (uint8_t *)(uintptr_t)dup.data[0];
 
 		for (size_t i = 0; i < planes; i++) {
 			if (i > 0)
@@ -566,7 +566,7 @@ static void fill_audio(void *data, struct obs_source_audio *audio)
 			out += size;
 		}
 	} else {
-		memcpy((uint8_t *)dup.data[0], audio->data[0], size);
+		memcpy((uint8_t *)(uintptr_t)dup.data[0], audio->data[0], size);
 	}
 
 	c->final_a_duration = c->m.a.last_duration;
@@ -676,7 +676,7 @@ void mp_cache_free(mp_cache_t *c)
 	}
 	for (size_t i = 0; i < c->audio_segments.num; i++) {
 		struct obs_source_audio *a = &c->audio_segments.array[i];
-		bfree((void *)a->data[0]);
+		bfree((void *)(uintptr_t)a->data[0]);
 	}
 	da_free(c->video_frames);
 	da_free(c->audio_segments);

@@ -67,6 +67,7 @@ set(
   ${_obs_clang_common_options}
   -Wundef
   -Wdouble-promotion
+  -Wcast-qual
   -Wno-shadow
   -Wno-float-conversion
 )
