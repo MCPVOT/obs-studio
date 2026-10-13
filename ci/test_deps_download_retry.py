@@ -58,5 +58,17 @@ class DepsDownloadRetryTest(unittest.TestCase):
             self.assertEqual((tmp / "out.zip").read_bytes(), b"obs-deps")
 
 
+    def test_wrong_hash_fails_without_installing(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = Path(d)
+            src = tmp / "dep.zip"
+            src.write_bytes(b"tampered")
+            res = self.run_download(tmp, src.as_uri(), hashlib.sha256(b"obs-deps").hexdigest())
+            out = res.stdout + res.stderr
+            self.assertNotEqual(res.returncode, 0, out)
+            self.assertIn("SHA256 mismatch", out)
+            self.assertFalse((tmp / "out.zip").exists())
+
+
 if __name__ == "__main__":
     unittest.main()
