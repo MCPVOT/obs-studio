@@ -4,7 +4,7 @@ use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, TcpListener, TcpStream};
 use std::thread;
 use std::time::Duration;
 
-use obs_stream_rust::{Client, Error, SUBPROTOCOL};
+use obs_studio_rust::{Client, Error, SUBPROTOCOL};
 use serde_json::{Value, json};
 use tungstenite::handshake::server::{Request, Response};
 use tungstenite::{Message, WebSocket};

@@ -33,6 +33,9 @@ before coding, search open PRs first, target master, RED then GREEN commits.
 - Use `soldr cargo ...`, never bare `cargo`.
 - Pin `rust-toolchain.toml` to the latest Rust the CI soldr version supports natively, never beyond; bump it only after a soldr bump (see the testing policy).
 - Never edit existing C tests or public C headers to make a port pass.
+- Name crates, binaries and tags per
+  [docs/rust-port/naming.md](docs/rust-port/naming.md) (`ci/test_naming.py`
+  checks crates): `obs-<area>` ports, product slug `obs-studio-rust`.
 - Host-specific code (`#[cfg(windows|unix|target_os..)]`, `cfg!()`, `std::os::*`,
   `libc::`, Win32) goes only in the crate's `src/platform/` (single
   `cfg_select!` in `platform/mod.rs`) or `src/ffi/`. A pre-expansion Dylint

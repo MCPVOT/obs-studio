@@ -1,13 +1,13 @@
-//! `obs-stream-rust`: control OBS streaming from the command line.
+//! `obs-studio-rust`: control OBS streaming from the command line.
 
 #![forbid(unsafe_code)]
 
 use std::process::ExitCode;
 
-use obs_stream_rust::{Client, DEFAULT_PORT, describe_stream_status};
+use obs_studio_rust::{Client, DEFAULT_PORT, describe_stream_status};
 
 const USAGE: &str = "\
-Usage: obs-stream-rust [OPTIONS] <COMMAND>
+Usage: obs-studio-rust [OPTIONS] <COMMAND>
 
 Control OBS Studio streaming over obs-websocket v5.
 
@@ -52,7 +52,7 @@ fn parse_args() -> Result<Option<Args>, String> {
                 return Ok(None);
             }
             "-V" | "--version" => {
-                println!("obs-stream-rust {}", env!("CARGO_PKG_VERSION"));
+                println!("obs-studio-rust {}", env!("CARGO_PKG_VERSION"));
                 return Ok(None);
             }
             "--host" => host = value("--host")?,

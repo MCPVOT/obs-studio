@@ -327,7 +327,7 @@ directory (`obs-util`, `obs-graphics`, `obs-media-io`, ...).
   (the `ffi` module) and on the platform modules that must call the OS
   directly (`obs_util::platform::windows`, `obs-media-io`'s `platform::unix`,
   each saying why). Crates with no C boundary (`libobs-rust`,
-  `obs-stream-rust`) `forbid` it outright. Keep it that way when adding a
+  `obs-studio-rust`) `forbid` it outright. Keep it that way when adding a
   crate.
 - **Platform boundary** (#323). Host-specific code lives only in the crate's
   `src/platform/` module and in `src/ffi/` (the exported symbol set itself

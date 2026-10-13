@@ -3,7 +3,7 @@
 use std::net::{TcpListener, TcpStream};
 use std::thread;
 
-use obs_stream_rust::{Client, Error, SUBPROTOCOL, authentication, describe_stream_status};
+use obs_studio_rust::{Client, Error, SUBPROTOCOL, authentication, describe_stream_status};
 use serde_json::{Value, json};
 use tungstenite::handshake::server::{Request, Response};
 use tungstenite::protocol::CloseFrame;

@@ -5,17 +5,17 @@ use std::process::{Command, Output};
 use std::thread;
 use std::time::Duration;
 
-use obs_stream_rust::SUBPROTOCOL;
+use obs_studio_rust::SUBPROTOCOL;
 use serde_json::{Value, json};
 use tungstenite::handshake::server::{Request, Response};
 use tungstenite::{Message, WebSocket};
 
 fn cli(args: &[&str]) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_obs-stream-rust"))
+    Command::new(env!("CARGO_BIN_EXE_obs-studio-rust"))
         .args(args)
         .env_remove("OBS_WEBSOCKET_PASSWORD")
         .output()
-        .expect("run obs-stream-rust")
+        .expect("run obs-studio-rust")
 }
 
 fn send(ws: &mut WebSocket<TcpStream>, op: u64, data: Value) -> Result<(), String> {
@@ -102,7 +102,7 @@ fn run_request(
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let port = listener.local_addr().unwrap().port();
     let server = thread::spawn(move || serve(listener, request_type, response_data, failure));
-    let output = Command::new(env!("CARGO_BIN_EXE_obs-stream-rust"))
+    let output = Command::new(env!("CARGO_BIN_EXE_obs-studio-rust"))
         .args(["--host", "127.0.0.1", "--port", &port.to_string()])
         .args(args)
         .env_remove("OBS_WEBSOCKET_PASSWORD")
@@ -111,7 +111,7 @@ fn run_request(
     // that path; dropping this stream also releases the bounded handshake.
     drop(TcpStream::connect(("127.0.0.1", port)));
     let server_result = server.join().expect("server thread");
-    (output.expect("run obs-stream-rust"), server_result)
+    (output.expect("run obs-studio-rust"), server_result)
 }
 
 fn assert_json(args: &[&str], request_type: &'static str, data: Option<Value>) {
@@ -240,7 +240,7 @@ fn json_does_not_change_local_help_or_version() {
         assert!(output.status.success());
         assert!(output.stderr.is_empty());
         let text = String::from_utf8(output.stdout).unwrap();
-        assert!(text.starts_with("Usage: obs-stream-rust"));
+        assert!(text.starts_with("Usage: obs-studio-rust"));
         assert!(text.contains("--json"));
     }
     for option in ["-V", "--version"] {
@@ -249,7 +249,7 @@ fn json_does_not_change_local_help_or_version() {
         assert!(output.stderr.is_empty());
         assert_eq!(
             output.stdout,
-            format!("obs-stream-rust {}\n", env!("CARGO_PKG_VERSION")).as_bytes()
+            format!("obs-studio-rust {}\n", env!("CARGO_PKG_VERSION")).as_bytes()
         );
     }
 }

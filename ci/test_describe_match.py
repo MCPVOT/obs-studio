@@ -4,7 +4,7 @@ OBS version tags.
 
     python3 -m unittest ci/test_describe_match.py
 
-The repository also carries obs-studio-rust-v* and obs-stream-rust-v* tags.
+The repository also carries obs-studio-rust-v* tags (and the retired obs-stream-rust-v0.1.0).
 #220 filtered cmake/common/versionconfig.cmake; the packaging scripts kept
 plain `git describe --tags --long`, so macOS disk images were named
 obs-studio-obs-studio-rust-v0.1.0-beta...
