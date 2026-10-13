@@ -1299,7 +1299,7 @@ static inline bool query_hotkey(void *data, size_t idx, obs_hotkey_binding_t *bi
 	return true;
 }
 
-static inline void query_hotkeys()
+static inline void query_hotkeys(void)
 {
 	uint32_t modifiers = 0;
 	if (is_pressed(OBS_KEY_SHIFT))
