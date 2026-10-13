@@ -480,6 +480,9 @@ static inline bool mp_cache_thread(mp_cache_t *c)
 		if (seek) {
 			c->seek_next_ts = true;
 			seek_to(c, seek_pos);
+			/* As in media.c, publish the seek frame only while paused. */
+			if (pause && c->has_video && c->v_seek_cb)
+				mp_cache_next_video(c, true);
 			continue;
 		}
 
