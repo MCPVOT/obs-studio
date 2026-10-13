@@ -44,7 +44,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #define FALLBACK_FRAMERATE 30
 
-#if HAVE_UDEV
+#ifdef HAVE_UDEV
 #include "v4l2-udev.h"
 #endif
 
@@ -797,7 +797,7 @@ static bool resolution_selected(obs_properties_t *props, obs_property_t *p, obs_
 	return true;
 }
 
-#if HAVE_UDEV
+#ifdef HAVE_UDEV
 /**
  * Device added callback
  *
@@ -938,7 +938,7 @@ static void v4l2_destroy(void *vptr)
 	dstr_free(&data->dev_identity);
 	pthread_mutex_destroy(&data->controls_mutex);
 
-#if HAVE_UDEV
+#ifdef HAVE_UDEV
 	signal_handler_t *sh = v4l2_get_udev_signalhandler();
 
 	signal_handler_disconnect(sh, "device_added", device_added, data);
@@ -1223,7 +1223,7 @@ static void *v4l2_create(obs_data_t *settings, obs_source_t *source)
 
 	v4l2_update(data, settings);
 
-#if HAVE_UDEV
+#ifdef HAVE_UDEV
 	v4l2_init_udev();
 	signal_handler_t *sh = v4l2_get_udev_signalhandler();
 

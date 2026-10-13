@@ -510,7 +510,7 @@ error:
 
 #ifdef _WIN32
 #define DEFAULT_FACE "Arial"
-#elif __APPLE__
+#elif defined(__APPLE__)
 #define DEFAULT_FACE "Helvetica"
 #else
 #define DEFAULT_FACE "Sans Serif"

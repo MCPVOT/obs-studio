@@ -268,7 +268,7 @@ static inline bool init_streams(struct ffmpeg_output *stream, struct ffmpeg_data
 
 int ff_network_init(void)
 {
-#if HAVE_WINSOCK2_H
+#if defined(HAVE_WINSOCK2_H) && HAVE_WINSOCK2_H
 	WSADATA wsaData;
 
 	if (WSAStartup(MAKEWORD(1, 1), &wsaData))
@@ -365,7 +365,7 @@ fail:
 	}
 
 	av_freep(&uc);
-#if HAVE_WINSOCK2_H
+#if defined(HAVE_WINSOCK2_H) && HAVE_WINSOCK2_H
 	WSACleanup();
 #endif
 	return err;

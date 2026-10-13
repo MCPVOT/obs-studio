@@ -32,7 +32,7 @@
 
 #ifdef __APPLE__
 #define SO_EXT "so"
-#elif _WIN32
+#elif defined(_WIN32)
 #include <windows.h>
 #define SO_EXT "dll"
 #else
@@ -1324,7 +1324,7 @@ void obs_lua_load(void)
 	/* ---------------------------------------------- */
 	/* Initialize Lua startup script                  */
 
-#if _WIN32
+#if defined(_WIN32)
 #define PATH_MAX MAX_PATH
 #endif
 
