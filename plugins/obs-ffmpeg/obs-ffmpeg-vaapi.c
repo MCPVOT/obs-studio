@@ -860,7 +860,7 @@ static inline VAProfile vaapi_profile(enum codec_type codec)
 		return VAProfileH264ConstrainedBaseline;
 	} else if (codec == CODEC_AV1) {
 		return VAProfileAV1Profile0;
-#if ENABLE_HEVC
+#ifdef ENABLE_HEVC
 	} else if (codec == CODEC_HEVC) {
 		return VAProfileHEVCMain;
 #endif
@@ -874,7 +874,7 @@ static inline const char *vaapi_default_device(enum codec_type codec)
 		return vaapi_get_h264_default_device();
 	} else if (codec == CODEC_AV1) {
 		return vaapi_get_av1_default_device();
-#if ENABLE_HEVC
+#ifdef ENABLE_HEVC
 	} else if (codec == CODEC_HEVC) {
 		return vaapi_get_hevc_default_device();
 #endif

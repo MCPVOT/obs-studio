@@ -3040,7 +3040,7 @@ gs_texture_t *gs_texture_open_shared(uint32_t handle)
 	return NULL;
 }
 
-#elif _WIN32
+#elif defined(_WIN32)
 
 bool gs_gdi_texture_available(void)
 {

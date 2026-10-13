@@ -1565,7 +1565,7 @@ static void source_output_audio_place(obs_source_t *source, const struct audio_d
 
 	buf_placement = get_buf_placement(audio, in->timestamp - source->audio_ts) * sizeof(float);
 
-#if DEBUG_AUDIO == 1
+#if defined(DEBUG_AUDIO) && DEBUG_AUDIO == 1
 	blog(LOG_DEBUG, "frames: %lu, size: %lu, placement: %lu, base_ts: %llu, ts: %llu", (unsigned long)in->frames,
 	     (unsigned long)source->audio_input_buf[0].size, (unsigned long)buf_placement, source->audio_ts,
 	     in->timestamp);
@@ -4172,7 +4172,7 @@ void remove_async_frame(obs_source_t *source, struct obs_source_frame *frame)
 	}
 }
 
-/* #define DEBUG_ASYNC_FRAMES 1 */
+#define DEBUG_ASYNC_FRAMES 0
 
 static bool ready_async_frame(obs_source_t *source, uint64_t sys_time)
 {

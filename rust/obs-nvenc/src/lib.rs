@@ -1,6 +1,6 @@
 //! Rust port of the CUDA/NVENC driver loader in `plugins/obs-nvenc`
-//! (`load_cuda_lib` and `cuda_functions[]` in `cuda-helpers.c`,
-//! `load_nvenc_lib` in `nvenc-helpers.c`; obs-rust/obs-studio#520).
+//! (`load_cuda_lib` and `cuda_functions[]` in `cuda-load.c`,
+//! `load_nvenc_lib` in `nvenc-load.c`; obs-rust/obs-studio#520).
 //!
 //! OBS never links or ships CUDA: it opens the user-mode driver libraries at
 //! run time. This crate replaces the C's single hard-coded name with an
@@ -10,13 +10,15 @@
 //! ([`SystemLoader`]) and the host's candidate lists are chosen in
 //! `platform`, the crate's only host-specific module.
 //!
-//! No C symbol is replaced yet: the C shim behind `ENABLE_RUST_LIBOBS` is a
-//! follow-up.
+//! [`ffi`] is the C shim behind `ENABLE_RUST_LIBOBS` that fills the plugin's
+//! `CudaFunctions` from the loaded driver.
 
 #![deny(unsafe_code)]
 
 mod candidates;
 mod error;
+#[allow(unsafe_code)] // the C ABI shim
+pub mod ffi;
 mod loader;
 mod platform;
 
