@@ -379,6 +379,16 @@ jobs:
           df -h
           echo ::endgroup::
 
+          # The build peaks at about 16 GiB (measured in #428 on a runner with
+          # 84 GiB free). Deleting the runner's preinstalled tools takes 1-2
+          # minutes, so do it only when free space is short of that with a margin.
+          required_gib=40
+          avail_gib=$(df --output=avail -BG /__w | tail -1 | tr -dc 0-9)
+          if (( avail_gib >= required_gib )); then
+            echo "${avail_gib} GiB free, ${required_gib} GiB needed: skipping cleanup"
+            exit 0
+          fi
+
           echo ::group::Remove Android stuff
           rm -rf /to_clean/android/*
           echo ::endgroup::
