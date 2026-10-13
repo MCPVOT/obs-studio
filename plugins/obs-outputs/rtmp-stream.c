@@ -1426,7 +1426,7 @@ static bool init_connect(struct rtmp_stream *stream)
 		overall_video_bitrate += bitrate;
 		dbr_point->bitrates[i] = (long)bitrate;
 		stream->dbr_enc_bitrates[i] = (long)bitrate;
-		obs_data_release(settings);
+		obs_data_release(enc_settings);
 	}
 
 	deque_free(&stream->dbr_frames);

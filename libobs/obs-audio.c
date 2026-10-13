@@ -608,7 +608,7 @@ bool audio_callback(void *param, uint64_t start_ts_in, uint64_t end_ts_in, uint6
 			obs_source_enum_active_tree(channel_source, push_audio_tree2, audio);
 
 			/* add top-level sources to audio tree */
-			push_audio_tree(NULL, source, audio);
+			push_audio_tree(NULL, channel_source, audio);
 		}
 		pthread_mutex_unlock(&view->channels_mutex);
 	}
@@ -693,7 +693,7 @@ bool audio_callback(void *param, uint64_t start_ts_in, uint64_t end_ts_in, uint6
 			if (root_source->audio_output_buf[0][0] && root_source->audio_ts)
 				mix_audio(mixes, root_source, channels, sample_rate, &ts);
 
-			pthread_mutex_unlock(&source->audio_buf_mutex);
+			pthread_mutex_unlock(&root_source->audio_buf_mutex);
 		}
 	}
 
