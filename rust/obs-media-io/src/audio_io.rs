@@ -1,5 +1,6 @@
 //! Types and `static inline` helpers from `libobs/media-io/audio-io.h`,
-//! plus the `audio-io.c` port in [`port`] (Unix only, see
+//! plus a re-export of the `audio-io.c` engine from
+//! `crate::ffi::audio_output` (Unix only, see
 //! `crate::platform::with_audio_thread_port!`; re-exported flat).
 
 use core::ffi::c_int;
@@ -237,7 +238,9 @@ pub fn ns_to_audio_frames(sample_rate: usize, ns: u64) -> u64 {
     mul_div64(ns, rate_u64(sample_rate), NS_PER_SEC)
 }
 
+// The `audio-io.c` engine drives C callbacks, resamplers and libobs symbols
+// through raw pointers, so it lives with the C boundary in
+// `crate::ffi::audio_output` (#294); re-exported here for its Rust callers.
 crate::platform::with_audio_thread_port! {
-    mod port;
-    pub use port::*;
+    pub use crate::ffi::audio_output::*;
 }
