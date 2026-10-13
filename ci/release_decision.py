@@ -29,6 +29,7 @@ def required_assets(version: str) -> list[str]:
         f"{p}-macos-arm64.dmg",
         f"{p}-macos-x86_64.dmg",
         f"{p}-windows-x64.zip",
+        f"{p}-windows-arm64.zip",
     ]
 
 

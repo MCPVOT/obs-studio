@@ -93,6 +93,9 @@ jobs:
           - os: windows
             runner: windows-2025-vs2026
             target: x64
+          - os: windows
+            runner: windows-2025-vs2026
+            target: arm64
     runs-on: ${{ matrix.runner }}
     env:
       # The full release string: the build embeds it (log banner, About, bundle,
@@ -168,7 +171,7 @@ jobs:
             linux) found=(build_ubuntu/obs-studio-*-x86_64-ubuntu-gnu.deb) ;;
             macos) [ "$TARGET" = x86_64 ] && kind=intel || kind=apple
               found=(build_macos/obs-studio-*-macos-$kind.dmg) ;;
-            windows) found=(build_x64/obs-studio-*-windows-x64.zip) ;;
+            windows) found=(build_${TARGET}/obs-studio-*-windows-${TARGET}.zip) ;;
           esac
           src=${found[0]}
           [ -f "$src" ] || { echo "::error::no $OS package found"; exit 1; }
