@@ -15,6 +15,9 @@ if(TARGET Qt6::Core)
     PRIVATE ${CMOCKA_INCLUDE_DIR} "${CMAKE_SOURCE_DIR}/frontend/utility"
   )
   target_link_libraries(test_preview_audio_sources PRIVATE OBS::libobs Qt6::Core ${CMOCKA_LIBRARIES})
+  # cmocka.h defines inline for MSVC, which its C++ standard library refuses
+  # unless keyword macros are allowed (C1189 in xkeycheck.h).
+  target_compile_definitions(test_preview_audio_sources PRIVATE $<$<CXX_COMPILER_ID:MSVC>:_ALLOW_KEYWORD_MACROS>)
   add_dependencies(cmocka-tests test_preview_audio_sources)
   add_test(test_preview_audio_sources ${CMAKE_CURRENT_BINARY_DIR}/test_preview_audio_sources)
 endif()

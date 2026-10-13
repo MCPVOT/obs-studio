@@ -14,6 +14,9 @@ if(TARGET Qt6::Core)
     PRIVATE ${CMOCKA_INCLUDE_DIR} "${CMAKE_SOURCE_DIR}/frontend/utility"
   )
   target_link_libraries(test_source_select_list PRIVATE OBS::libobs Qt6::Core ${CMOCKA_LIBRARIES})
+  # cmocka.h defines inline for MSVC, which its C++ standard library refuses
+  # unless keyword macros are allowed (C1189 in xkeycheck.h).
+  target_compile_definitions(test_source_select_list PRIVATE $<$<CXX_COMPILER_ID:MSVC>:_ALLOW_KEYWORD_MACROS>)
   add_dependencies(cmocka-tests test_source_select_list)
   add_test(test_source_select_list ${CMAKE_CURRENT_BINARY_DIR}/test_source_select_list)
 endif()
