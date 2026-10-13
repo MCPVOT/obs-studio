@@ -280,7 +280,7 @@ bool matrix4_inv(struct matrix4 *dst, const struct matrix4 *m)
 	dstv = (struct vec4 *)dst;
 	det = matrix4_determinant(m);
 
-	if (fabs(det) < 0.0005f)
+	if (fabsf(det) < 0.0005f)
 		return false;
 
 	for (i = 0; i < 4; i++) {
