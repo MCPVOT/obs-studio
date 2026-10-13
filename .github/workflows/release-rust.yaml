@@ -2,7 +2,7 @@ name: Release OBS-Studio-Rust
 run-name: Daily OBS-Studio-Rust beta 🦀
 # Daily beta: builds OBS-Studio-Rust (ENABLE_RUST_LIBOBS=ON) for Linux, macOS
 # and Windows from master, plus the Linux AppImage (appimage.yaml), and
-# publishes an unsigned GitHub pre-release tagged
+# publishes a GitHub pre-release (macOS signed/notarized when credentials exist) tagged
 # obs-studio-rust-v<rust/libobs-rust version>-beta.<YYYYMMDD>.
 #   gh workflow run release-rust.yaml      # today's release now
 #   gh workflow run release-rust.yaml --ref <branch> -f verify_only=true
@@ -140,6 +140,19 @@ jobs:
           mkdir -p "$cas"
           echo "XCODE_CAS_PATH=$cas" >>"$GITHUB_ENV"
 
+      - name: Set Up Code Signing 🔑
+        if: matrix.os == 'macos'
+        id: codesign
+        uses: ./.github/actions/setup-macos-codesigning
+        with:
+          codesignIdentity: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+          codesignCertificate: ${{ secrets.MACOS_SIGNING_CERT }}
+          certificatePassword: ${{ secrets.MACOS_SIGNING_CERT_PASSWORD }}
+          keychainPassword: ${{ secrets.MACOS_KEYCHAIN_PASSWORD }}
+          provisioningProfile: ${{ secrets.MACOS_SIGNING_PROVISIONING_PROFILE }}
+          notarizationUser: ${{ secrets.MACOS_NOTARIZATION_USERNAME }}
+          notarizationPassword: ${{ secrets.MACOS_NOTARIZATION_PASSWORD }}
+
       # Corrosion runs cargo inside the CMake build; same soldr as build-project.yaml.
       - name: Set up soldr 🦀
         uses: zackees/setup-soldr@0f223ac68e97fccaaeab026ef1861e5bf73639ac # v0.9.85
@@ -165,6 +178,10 @@ jobs:
         with:
           target: ${{ matrix.target }}
           config: RelWithDebInfo
+          codesign: ${{ matrix.os == 'macos' && steps.codesign.outputs.haveCodesignIdent == 'true' }}
+          codesignIdent: ${{ steps.codesign.outputs.codesignIdent || '-' }}
+          codesignTeam: ${{ steps.codesign.outputs.codesignTeam }}
+          provisioningProfileUUID: ${{ steps.codesign.outputs.provisioningProfileUUID }}
 
       - name: Package OBS-Studio-Rust 📀
         uses: ./.github/actions/package-obs
@@ -172,6 +189,11 @@ jobs:
           target: ${{ matrix.target }}
           config: RelWithDebInfo
           package: ${{ matrix.os != 'windows' }}
+          codesign: ${{ matrix.os == 'macos' && steps.codesign.outputs.haveCodesignIdent == 'true' }}
+          codesignIdent: ${{ steps.codesign.outputs.codesignIdent || '-' }}
+          notarize: ${{ matrix.os == 'macos' && steps.codesign.outputs.haveCodesignIdent == 'true' && steps.codesign.outputs.haveNotarizationUser == 'true' }}
+          codesignUser: ${{ secrets.MACOS_NOTARIZATION_USERNAME }}
+          codesignPass: ${{ secrets.MACOS_NOTARIZATION_PASSWORD }}
 
       - name: Collect and verify 🔎
         shell: bash
@@ -383,7 +405,9 @@ jobs:
           cat >notes.md <<EOF
           Daily beta of OBS-Studio-Rust $VERSION: OBS Studio built with \`ENABLE_RUST_LIBOBS=ON\`, so the ported libobs internals run from Rust. Built from [\`${SHA:0:9}\`](https://github.com/$GITHUB_REPOSITORY/commit/$SHA).
 
-          **Pre-release, unsigned.** macOS: right-click → Open the first time. Windows: SmartScreen will warn. Linux: \`sudo apt install ./OBS-Studio-Rust-$VERSION-linux-x86_64.deb\` (Ubuntu 26.04), or the AppImage for any distribution: \`chmod +x OBS-Studio-Rust-$VERSION-linux-x86_64.AppImage\` and run it.
+          **Pre-release.** macOS packages are signed and notarized when the project's release credentials are configured. For an unnotarized download, copy OBS.app to Applications and try opening it, then choose **System Settings → Privacy & Security → Open Anyway**. For a download you trust, the Terminal alternative is \`xattr -dr com.apple.quarantine /Applications/OBS.app\`; it removes quarantine from that app only. See [Apple's guidance](https://support.apple.com/102445).
+
+          Windows: SmartScreen will warn. Linux: \`sudo apt install ./OBS-Studio-Rust-$VERSION-linux-x86_64.deb\` (Ubuntu 26.04), or the AppImage for any distribution: \`chmod +x OBS-Studio-Rust-$VERSION-linux-x86_64.AppImage\` and run it.
 
           Checksums: \`SHA256SUMS\`.
           EOF
@@ -420,7 +444,7 @@ jobs:
           cat >notes.md <<EOF
           Rolling build of OBS-Studio-Rust from \`master\`, currently [\`${SHA:0:9}\`](https://github.com/$GITHUB_REPOSITORY/commit/$SHA). Replaced daily by the release build, once the release gate passes and the AppImage passes its tests on Debian, Ubuntu and Fedora, including a saved profile that records a PipeWire screen capture, camera and microphone.
 
-          **Pre-release, unsigned.** \`chmod +x OBS_Studio-*-x86_64.AppImage && ./OBS_Studio-*-x86_64.AppImage\`. Everything down to glibc is inside; only the GPU driver comes from the host. The \`.zsync\` file lets AppImageUpdate fetch the next build as a delta. Limits and troubleshooting: \`build-aux/appimage/README.md\`.
+          **Pre-release.** \`chmod +x OBS_Studio-*-x86_64.AppImage && ./OBS_Studio-*-x86_64.AppImage\`. AppRun selects the host runtime on newer systems and uses the bundled runtime on older systems; GPU drivers come from the host. The \`.zsync\` file lets AppImageUpdate fetch the next build as a delta. Limits and troubleshooting: \`build-aux/appimage/README.md\`.
           EOF
           if gh release view continuous --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload continuous --repo "$GITHUB_REPOSITORY" --clobber \

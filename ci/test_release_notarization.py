@@ -82,8 +82,10 @@ class ReleaseNotarizationTest(unittest.TestCase):
                 for notarized in (False, True):
                     with self.subTest(os=os_, signed=signed, notarized=notarized):
                         want_signing = os_ == "macos" and signed
-                        self.assertEqual(enabled(input_value(self.build, "codesign"), os_, signed, notarized), want_signing)
-                        self.assertEqual(enabled(input_value(self.package, "codesign"), os_, signed, notarized), want_signing)
+                        for block in (self.build, self.package):
+                            self.assertEqual(
+                                enabled(input_value(block, "codesign"), os_, signed, notarized), want_signing
+                            )
                         self.assertEqual(
                             enabled(input_value(self.package, "notarize"), os_, signed, notarized),
                             want_signing and notarized,
@@ -97,11 +99,10 @@ class ReleaseNotarizationTest(unittest.TestCase):
         self.assertIn("secrets.MACOS_NOTARIZATION_PASSWORD", input_value(self.package, "codesignPass"))
 
     def test_unsigned_download_instructions_use_current_gatekeeper_controls(self):
-        self.assertIn("Privacy & Security", self.workflow)
-        self.assertIn("Open Anyway", self.workflow)
-        self.assertIn("xattr -dr com.apple.quarantine", self.workflow)
-        self.assertNotIn("right-click → Open", self.workflow)
-        self.assertNotIn("**Pre-release, unsigned.**", self.workflow)
+        for instruction in ("Privacy & Security", "Open Anyway", "xattr -dr com.apple.quarantine"):
+            self.assertTrue(instruction in self.workflow, f"release notes omit {instruction}")
+        self.assertFalse("right-click → Open" in self.workflow, "release notes still rely on the old shortcut")
+        self.assertFalse("**Pre-release, unsigned.**" in self.workflow, "release notes mislabel signed builds")
 
 
 if __name__ == "__main__":
