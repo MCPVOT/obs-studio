@@ -16,6 +16,7 @@
 ******************************************************************************/
 
 #include "CrashHandler.hpp"
+#include "crash-sentinel-dir.hpp"
 #include <OBSApp.hpp>
 #include <qt-wrappers.hpp>
 
@@ -189,15 +190,8 @@ void CrashHandler::checkCrashState()
 
 	std::filesystem::path crashSentinelPath = crashSentinelFile_.parent_path();
 
-	if (!std::filesystem::exists(crashSentinelPath)) {
-		try {
-			std::filesystem::create_directory(crashSentinelPath);
-		} catch (const std::filesystem::filesystem_error &error) {
-			blog(LOG_ERROR,
-			     "Crash sentinel location '%s' does not exist and unable to create directory:\n%s.",
-			     crashSentinelPath.u8string().c_str(), error.what());
-			return;
-		}
+	if (!ensure_crash_sentinel_dir(crashSentinelPath)) {
+		return;
 	}
 
 	for (const auto &entry : std::filesystem::directory_iterator(crashSentinelPath)) {
