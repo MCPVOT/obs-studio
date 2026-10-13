@@ -1016,6 +1016,10 @@ static obs_properties_t *ss_properties(void *data)
 	snprintf(str, sizeof(str), "%dx%d", cx, cy);
 	obs_property_list_add_string(p, str, str);
 
+	static const char *aspects[] = {"16:9", "16:10", "4:3", "1:1"};
+	for (size_t i = 0; i < sizeof(aspects) / sizeof(aspects[0]); i++)
+		obs_property_list_add_string(p, aspects[i], aspects[i]);
+
 	if (ss) {
 		if (ss->data.files.num) {
 			struct image_file_data *last = da_end(ss->data.files);
