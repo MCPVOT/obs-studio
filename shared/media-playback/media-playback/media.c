@@ -642,8 +642,15 @@ bool mp_media_reset(mp_media_t *m)
 	if (start_time == AV_NOPTS_VALUE)
 		start_time = 0;
 
+	/* The time stamps sent so far are counted from start_ts, so they end
+	 * at base_ts + next_ts - start_ts: go on from there. Adding next_ts
+	 * alone started every loop late by the start time of the file (the
+	 * decoder delay of an .mp3, or more). start_ts is INT64_MAX when no
+	 * frame was ready. */
+	int64_t played_from = m->start_ts <= next_ts ? m->start_ts : 0;
+
 	m->eof = false;
-	m->base_ts += next_ts;
+	m->base_ts += next_ts - played_from;
 	m->seek_next_ts = false;
 
 	seek_to(m, start_time, false);
