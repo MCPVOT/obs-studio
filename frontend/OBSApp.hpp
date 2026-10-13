@@ -71,6 +71,7 @@ class OBSApp : public QApplication {
 private:
 	QUuid appLaunchUUID_;
 	std::unique_ptr<OBS::CrashHandler> crashHandler_;
+	std::unique_ptr<OBS::NativeEventFilter> nativeEventFilter_;
 
 	std::string locale;
 
@@ -299,4 +300,5 @@ std::string GetFormatExt(const char *container);
  * (see output-filename-reserve.h); *reserved tells whether it did. */
 std::string GetOutputFilename(const char *path, const char *container, bool noSpace, bool overwrite, const char *format,
 			      bool *reserved = nullptr);
-QObject *CreateShortcutFilter();
+/* The filter is deleted with parent (pass the widget it is installed on). */
+QObject *CreateShortcutFilter(QObject *parent = nullptr);
