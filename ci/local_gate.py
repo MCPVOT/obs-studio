@@ -187,6 +187,12 @@ def lane_cross(fix: bool) -> None:
         run(["soldr", "rustup", "target", "add", target])
         soldr_cargo(["clippy", *scope, "--locked", "--target", target, "--", "-D", "warnings"])
         soldr_cargo(["dylint", "--all", "--", *scope, "--target", target])
+        # Every test target, C oracle included, must also compile for the
+        # target (#516): check runs the build scripts, so cc compiles all the
+        # oracle's C. Not linked: soldr's LLVM bundle links lld-link/ld64.lld
+        # against the host's libxml2.so.2, which ubuntu-26.04 doesn't have.
+        # Linking is covered for x86_64-pc-windows-gnu in rust-test.
+        soldr_cargo(["check", "--workspace", "--tests", "--locked", "--target", target])
 
 
 def lane_rust_test(fix: bool) -> None:
