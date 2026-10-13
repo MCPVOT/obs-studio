@@ -20,6 +20,39 @@
 #include <stdint.h>
 #include <string.h>
 
+/* On x86 a system header may already declare the real SSE types and
+ * intrinsics (macOS does), so the scalar stand-ins take private names
+ * there (#516). */
+#if defined(__x86_64__) || defined(__i386__)
+#define __m128 oracle_scalar_m128
+#define __m128i oracle_scalar_m128i
+#define _mm_add_epi64 oracle_scalar_mm_add_epi64
+#define _mm_add_ps oracle_scalar_mm_add_ps
+#define _mm_and_si128 oracle_scalar_mm_and_si128
+#define _mm_div_ps oracle_scalar_mm_div_ps
+#define _mm_load_si128 oracle_scalar_mm_load_si128
+#define _mm_max_ps oracle_scalar_mm_max_ps
+#define _mm_min_ps oracle_scalar_mm_min_ps
+#define _mm_movehl_ps oracle_scalar_mm_movehl_ps
+#define _mm_movelh_ps oracle_scalar_mm_movelh_ps
+#define _mm_mul_ps oracle_scalar_mm_mul_ps
+#define _mm_packs_epi32 oracle_scalar_mm_packs_epi32
+#define _mm_packus_epi16 oracle_scalar_mm_packus_epi16
+#define _mm_set1_epi16 oracle_scalar_mm_set1_epi16
+#define _mm_set1_epi32 oracle_scalar_mm_set1_epi32
+#define _mm_set1_ps oracle_scalar_mm_set1_ps
+#define _mm_set_ps oracle_scalar_mm_set_ps
+#define _mm_setzero_ps oracle_scalar_mm_setzero_ps
+#define _mm_shuffle_epi32 oracle_scalar_mm_shuffle_epi32
+#define _mm_shuffle_ps oracle_scalar_mm_shuffle_ps
+#define _mm_shufflelo_epi16 oracle_scalar_mm_shufflelo_epi16
+#define _mm_srai_epi16 oracle_scalar_mm_srai_epi16
+#define _mm_srli_si128 oracle_scalar_mm_srli_si128
+#define _mm_sub_ps oracle_scalar_mm_sub_ps
+#define _mm_unpackhi_ps oracle_scalar_mm_unpackhi_ps
+#define _mm_unpacklo_ps oracle_scalar_mm_unpacklo_ps
+#endif
+
 typedef struct {
 	_Alignas(16) float f[4];
 } __m128;
