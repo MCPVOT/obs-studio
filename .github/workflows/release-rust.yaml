@@ -250,6 +250,7 @@ jobs:
       ref: ${{ needs.check.outputs.sha }}
       publish_continuous: true
       rust_version: ${{ needs.check.outputs.version }}
+      rust_libobs: true
     # A called workflow may not ask for more than its caller grants, and
     # appimage.yaml's release job asks for contents: write (it only runs on a
     # push, never from here). Granting less made GitHub refuse to start this
