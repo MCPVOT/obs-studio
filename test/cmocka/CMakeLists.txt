@@ -10,6 +10,28 @@ endif()
 # new test cannot go unbuilt (and show up in ctest as "Not Run").
 add_custom_target(cmocka-tests)
 
+# Per-test sanitizers (obs-rust/obs-studio#159). Some tests compile the code
+# they check with ASan/UBSan so a bug fails the test. Those flags are added
+# only here: never on MSVC, never when the whole build is already sanitized
+# (mixing -fsanitize=thread with address does not build, and valgrind can't
+# run ASan binaries), and not when OBS_TEST_SANITIZE_PER_TARGET is OFF.
+# ci/test_cmocka_sanitize.py rejects raw -fsanitize flags anywhere else.
+option(OBS_TEST_SANITIZE_PER_TARGET "Build selected cmocka tests with their own ASan/UBSan" ON)
+function(obs_test_sanitize target sanitizers)
+  if(MSVC OR NOT OBS_TEST_SANITIZE_PER_TARGET)
+    return()
+  endif()
+  if("${CMAKE_C_FLAGS} ${CMAKE_CXX_FLAGS} ${CMAKE_EXE_LINKER_FLAGS}" MATCHES "-fsanitize=")
+    return()
+  endif()
+  set(compile_options -fsanitize=${sanitizers} -fno-omit-frame-pointer)
+  if(sanitizers MATCHES "undefined")
+    list(APPEND compile_options -fno-sanitize-recover=undefined)
+  endif()
+  target_compile_options(${target} PRIVATE ${compile_options})
+  target_link_options(${target} PRIVATE -fsanitize=${sanitizers})
+endfunction()
+
 # Serializer test
 add_executable(test_serializer test_serializer.c)
 target_include_directories(test_serializer PRIVATE ${CMOCKA_INCLUDE_DIR})
@@ -102,8 +124,7 @@ target_include_directories(test_avc PRIVATE ${CMOCKA_INCLUDE_DIR})
 target_link_libraries(test_avc PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
 if(NOT MSVC)
   target_sources(test_avc PRIVATE "${CMAKE_SOURCE_DIR}/libobs/obs-avc.c")
-  target_compile_options(test_avc PRIVATE -fsanitize=undefined -fno-sanitize-recover=undefined)
-  target_link_options(test_avc PRIVATE -fsanitize=undefined)
+  obs_test_sanitize(test_avc undefined)
 endif()
 
 add_dependencies(cmocka-tests test_avc)
@@ -141,8 +162,7 @@ if(NOT MSVC)
   )
   target_include_directories(test_formatted_filename PRIVATE ${CMOCKA_INCLUDE_DIR})
   target_link_libraries(test_formatted_filename PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
-  target_compile_options(test_formatted_filename PRIVATE -fsanitize=address,undefined -fno-sanitize-recover=undefined)
-  target_link_options(test_formatted_filename PRIVATE -fsanitize=address,undefined)
+  obs_test_sanitize(test_formatted_filename address,undefined)
 
   add_dependencies(cmocka-tests test_formatted_filename)
   add_test(test_formatted_filename ${CMAKE_CURRENT_BINARY_DIR}/test_formatted_filename)
@@ -162,8 +182,7 @@ if(NOT MSVC)
   add_executable(test_utf8 test_utf8.c "${CMAKE_SOURCE_DIR}/libobs/util/utf8.c")
   target_include_directories(test_utf8 PRIVATE ${CMOCKA_INCLUDE_DIR})
   target_link_libraries(test_utf8 PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
-  target_compile_options(test_utf8 PRIVATE -fsanitize=address,undefined -fno-sanitize-recover=undefined)
-  target_link_options(test_utf8 PRIVATE -fsanitize=address,undefined)
+  obs_test_sanitize(test_utf8 address,undefined)
 
   add_dependencies(cmocka-tests test_utf8)
   add_test(test_utf8 ${CMAKE_CURRENT_BINARY_DIR}/test_utf8)
@@ -446,8 +465,8 @@ if(TARGET OBS::outputs)
   endforeach()
 
   if(NOT MSVC)
-    target_compile_options(test_amf_decode PRIVATE -fsigned-char -fsanitize=undefined -fno-sanitize-recover=undefined)
-    target_link_options(test_amf_decode PRIVATE -fsanitize=undefined)
+    target_compile_options(test_amf_decode PRIVATE -fsigned-char)
+    obs_test_sanitize(test_amf_decode undefined)
   endif()
 endif()
 
