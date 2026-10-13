@@ -13,6 +13,11 @@ void migrate_basic_scene_collection(const std::filesystem::path &basicPath,
 		return;
 	}
 
+	const std::filesystem::path sourceFile = basicPath / std::filesystem::u8path("scenes.json");
+	if (!std::filesystem::exists(sourceFile)) {
+		return; // A fresh profile: nothing to migrate.
+	}
+
 	try {
 		std::filesystem::create_directories(sceneCollectionPath);
 	} catch (const std::filesystem::filesystem_error &error) {
@@ -22,7 +27,6 @@ void migrate_basic_scene_collection(const std::filesystem::path &basicPath,
 		return;
 	}
 
-	const std::filesystem::path sourceFile = basicPath / std::filesystem::u8path("scenes.json");
 	const std::filesystem::path destinationFile =
 		(sceneCollectionPath / std::filesystem::u8path(untitledName)).replace_extension(".json");
 

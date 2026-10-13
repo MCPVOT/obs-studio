@@ -8,7 +8,7 @@
  * unit tested. */
 
 /* Moves basicPath/scenes.json to sceneCollectionPath/<untitledName>.json.
- * Does nothing if basicPath or sceneCollectionPath doesn't exist or already
- * exists, respectively. Failures are logged. */
+ * Does nothing if basicPath or scenes.json doesn't exist (a fresh profile) or
+ * sceneCollectionPath already exists. Failures are logged. */
 void migrate_basic_scene_collection(const std::filesystem::path &basicPath,
 				    const std::filesystem::path &sceneCollectionPath, const std::string &untitledName);
