@@ -17,6 +17,12 @@ void replay_buffer_naming_set(obs_data_t *settings, const struct replay_buffer_n
 
 void replay_buffer_naming_refresh(obs_output_t *replay_buffer, const struct replay_buffer_naming *naming)
 {
-	(void)replay_buffer;
-	(void)naming;
+	if (!replay_buffer)
+		return;
+
+	/* obs_output_update() merges these into the output's settings. */
+	obs_data_t *settings = obs_data_create();
+	replay_buffer_naming_set(settings, naming);
+	obs_output_update(replay_buffer, settings);
+	obs_data_release(settings);
 }
