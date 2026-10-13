@@ -72,6 +72,10 @@ public:
 
 private:
 	QPointer<QObject> shortcutFilter;
+	// obs-rust/obs-studio#156: the callback is removed on EXIT, after which
+	// the frontend API is torn down; removing it again then logs an error.
+	bool frontendEventCallbackAdded = false;
+	void removeFrontendEventCallback();
 
 private slots:
 	void RecordingTimeLeft();

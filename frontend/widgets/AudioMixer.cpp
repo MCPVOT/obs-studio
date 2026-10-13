@@ -218,6 +218,7 @@ AudioMixer::AudioMixer(QWidget *parent) : QFrame(parent)
 				    AudioMixer::obsSourceAudioDeactivated, this);
 
 	obs_frontend_add_event_callback(AudioMixer::onFrontendEvent, this);
+	frontendEventCallbackAdded = true;
 
 	// Connect to Qt signals
 	connect(hMixerScrollArea, &QScrollArea::customContextMenuRequested, this,
@@ -275,7 +276,17 @@ AudioMixer::~AudioMixer()
 
 	clearVolumeControls();
 
+	removeFrontendEventCallback();
+}
+
+void AudioMixer::removeFrontendEventCallback()
+{
+	if (!frontendEventCallbackAdded) {
+		return;
+	}
+
 	obs_frontend_remove_event_callback(AudioMixer::onFrontendEvent, this);
+	frontendEventCallbackAdded = false;
 }
 
 void AudioMixer::updateLayout()
@@ -917,7 +928,7 @@ void AudioMixer::handleFrontendEvent(obs_frontend_event event)
 		queueLayoutUpdate();
 		break;
 	case OBS_FRONTEND_EVENT_EXIT:
-		obs_frontend_remove_event_callback(AudioMixer::onFrontendEvent, this);
+		removeFrontendEventCallback();
 		break;
 	default:
 		break;

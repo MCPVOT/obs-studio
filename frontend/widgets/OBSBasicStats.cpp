@@ -30,7 +30,7 @@ void OBSBasicStats::OBSFrontendEvent(enum obs_frontend_event event, void *ptr)
 		// This is only reached when the non-closable (dock) stats
 		// window is being cleaned up. The closable stats window is
 		// already gone by this point as it's deleted on close.
-		obs_frontend_remove_event_callback(OBSFrontendEvent, stats);
+		stats->removeFrontendEventCallback();
 		break;
 	default:
 		break;
@@ -206,6 +206,7 @@ OBSBasicStats::OBSBasicStats(QWidget *parent, bool closable)
 	}
 
 	obs_frontend_add_event_callback(OBSFrontendEvent, this);
+	frontendEventCallbackAdded = true;
 
 	if (obs_frontend_recording_active()) {
 		StartRecTimeLeft();
@@ -222,9 +223,19 @@ void OBSBasicStats::closeEvent(QCloseEvent *event)
 
 	// This code is only reached when the non-dockable stats window is
 	// manually closed or OBS is exiting.
-	obs_frontend_remove_event_callback(OBSFrontendEvent, this);
+	removeFrontendEventCallback();
 
 	QWidget::closeEvent(event);
+}
+
+void OBSBasicStats::removeFrontendEventCallback()
+{
+	if (!frontendEventCallbackAdded) {
+		return;
+	}
+
+	obs_frontend_remove_event_callback(OBSFrontendEvent, this);
+	frontendEventCallbackAdded = false;
 }
 
 OBSBasicStats::~OBSBasicStats()
