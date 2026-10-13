@@ -7,6 +7,8 @@
 from __future__ import annotations
 
 import sys
+import contextlib
+import io
 import tempfile
 import unittest
 from pathlib import Path
@@ -63,6 +65,33 @@ class Decision(unittest.TestCase):
         with self.assertRaises(ValueError):
             rd.check("schedule", M, True, True, d, d)
 
+    def test_verification_builds_a_branch_without_repairing_a_release(self):
+        d = "20261013"
+        self.assertEqual(
+            rd.check("workflow_dispatch", "refs/heads/fix/629", False, True, d, d, verify_only=True),
+            (False, False),
+        )
+        for event, repair, date in (("schedule", False, d), ("workflow_dispatch", True, d),
+                                    ("workflow_dispatch", False, "20261012")):
+            with self.subTest(event=event, repair=repair, date=date), self.assertRaises(ValueError):
+                rd.check(event, M, repair, True, date, d, verify_only=True)
+
+    def test_verification_cannot_publish_even_when_every_build_passes(self):
+        self.assertFalse(rd.may_publish("success", "success", "success", verify_only=True))
+        with contextlib.redirect_stdout(io.StringIO()):
+            result = rd.main(["publish", "--gate", "success", "--build", "success",
+                              "--appimage", "success", "--verify-only", "true"])
+        self.assertEqual(result, 1)
+
+    def test_verification_cli_exposes_its_nonpublishing_mode(self):
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            result = rd.main(["check", "--event", "workflow_dispatch", "--ref", "refs/heads/fix/629",
+                              "--tag-exists", "true", "--tag-date", "20261013", "--today", "20261013",
+                              "--verify-only", "true"])
+        self.assertEqual(result, 0)
+        self.assertEqual(set(output.getvalue().splitlines()), {"skip=false", "repair=false", "verify_only=true"})
+
 
 class Workflow(unittest.TestCase):
     def release_job(self) -> str:
@@ -88,6 +117,11 @@ class Workflow(unittest.TestCase):
         self.assertIn("--clobber", job)
         self.assertNotIn("gh release delete continuous", APPIMAGE)
         self.assertNotIn("gh release delete continuous", WF)
+
+    def test_verification_cannot_enter_the_release_job(self):
+        job = self.release_job()
+        self.assertTrue("needs.check.outputs.verify_only != 'true'" in job, "verification can enter publishing")
+        self.assertTrue('--verify-only "$VERIFY_ONLY"' in job, "publisher lacks the verification safety check")
 
 
 if __name__ == "__main__":
