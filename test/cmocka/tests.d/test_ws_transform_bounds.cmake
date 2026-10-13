@@ -10,7 +10,10 @@ if(OS_LINUX AND EXISTS "${_ws}/src/requesthandler/RequestHandler_SceneItems.cpp"
     # plugin-macros.generated.h, as the plugin's own CMakeLists makes it.
     set(obs-websocket_VERSION "0.0.0")
     set(OBS_WEBSOCKET_RPC_VERSION 1)
-    configure_file("${_ws}/src/plugin-macros.h.in" "${CMAKE_CURRENT_BINARY_DIR}/ws_transform_bounds/plugin-macros.generated.h")
+    configure_file(
+      "${_ws}/src/plugin-macros.h.in"
+      "${CMAKE_CURRENT_BINARY_DIR}/ws_transform_bounds/plugin-macros.generated.h"
+    )
     add_executable(
       test_ws_transform_bounds
       test_ws_transform_bounds.cpp
@@ -40,7 +43,10 @@ if(OS_LINUX AND EXISTS "${_ws}/src/requesthandler/RequestHandler_SceneItems.cpp"
     # obs_startup() needs a display on Linux; the cases skip without one.
     find_program(XVFB_RUN xvfb-run)
     if(XVFB_RUN)
-      add_test(NAME test_ws_transform_bounds COMMAND ${XVFB_RUN} -a ${CMAKE_CURRENT_BINARY_DIR}/test_ws_transform_bounds)
+      add_test(
+        NAME test_ws_transform_bounds
+        COMMAND ${XVFB_RUN} -a ${CMAKE_CURRENT_BINARY_DIR}/test_ws_transform_bounds
+      )
     else()
       add_test(test_ws_transform_bounds ${CMAKE_CURRENT_BINARY_DIR}/test_ws_transform_bounds)
     endif()

@@ -122,16 +122,18 @@ static int setup(void **)
 
 static int teardown(void **)
 {
-	if (obs_up)
+	if (obs_up) {
 		obs_shutdown();
+	}
 	return 0;
 }
 
 /* A fresh item each case: libobs defaults, bounds 0 x 0 and OBS_BOUNDS_NONE. */
 static int case_setup(void **)
 {
-	if (!obs_up)
+	if (!obs_up) {
 		return 0;
+	}
 	scene = obs_scene_create("ws transform bounds scene");
 	source = obs_source_create("ws_transform_bounds_test_source", "box", nullptr, nullptr);
 	item = obs_scene_add(scene, source);
@@ -142,8 +144,9 @@ static int case_setup(void **)
 
 static int case_teardown(void **)
 {
-	if (!obs_up)
+	if (!obs_up) {
 		return 0;
+	}
 	obs_source_remove(obs_scene_get_source(scene));
 	obs_source_release(source);
 	obs_scene_release(scene);
@@ -167,20 +170,23 @@ static json get_transform()
  * fields, send the rest back. */
 static void get_modify_set_applies(void **)
 {
-	if (!obs_up)
+	if (!obs_up) {
 		skip();
+	}
 	json t = get_transform();
 	assert_string_equal(t["boundsType"].get<std::string>().c_str(), "OBS_BOUNDS_NONE");
 	assert_true(t["boundsWidth"].get<float>() == 0.0f);
 	assert_true(t["boundsHeight"].get<float>() == 0.0f);
 
-	for (const char *ro : {"width", "height", "sourceWidth", "sourceHeight"})
+	for (const char *ro : {"width", "height", "sourceWidth", "sourceHeight"}) {
 		t.erase(ro);
+	}
 	t["positionX"] = 100.0;
 
 	RequestResult r = set_transform(t);
-	if (r.StatusCode != RequestStatus::Success)
+	if (r.StatusCode != RequestStatus::Success) {
 		fprintf(stderr, "status %d: %s\n", (int)r.StatusCode, r.Comment.c_str());
+	}
 	assert_int_equal(r.StatusCode, RequestStatus::Success);
 
 	struct obs_transform_info info;
@@ -190,20 +196,25 @@ static void get_modify_set_applies(void **)
 
 static void zero_bounds_with_explicit_none(void **)
 {
-	if (!obs_up)
+	if (!obs_up) {
 		skip();
-	RequestResult r = set_transform({{"boundsType", "OBS_BOUNDS_NONE"}, {"boundsWidth", 0.0}, {"boundsHeight", 0.0}});
-	if (r.StatusCode != RequestStatus::Success)
+	}
+	RequestResult r =
+		set_transform({{"boundsType", "OBS_BOUNDS_NONE"}, {"boundsWidth", 0.0}, {"boundsHeight", 0.0}});
+	if (r.StatusCode != RequestStatus::Success) {
 		fprintf(stderr, "status %d: %s\n", (int)r.StatusCode, r.Comment.c_str());
+	}
 	assert_int_equal(r.StatusCode, RequestStatus::Success);
 }
 
 /* Guard: bounds in use still need at least 1. */
 static void zero_bounds_with_scale_inner_refused(void **)
 {
-	if (!obs_up)
+	if (!obs_up) {
 		skip();
-	RequestResult r = set_transform({{"boundsType", "OBS_BOUNDS_SCALE_INNER"}, {"boundsWidth", 0.0}, {"boundsHeight", 0.0}});
+	}
+	RequestResult r =
+		set_transform({{"boundsType", "OBS_BOUNDS_SCALE_INNER"}, {"boundsWidth", 0.0}, {"boundsHeight", 0.0}});
 	assert_int_equal(r.StatusCode, RequestStatus::RequestFieldOutOfRange);
 	assert_int_equal(r.StatusCode, 402);
 
@@ -214,10 +225,11 @@ static void zero_bounds_with_scale_inner_refused(void **)
 
 static void real_bounds_with_scale_inner_applied(void **)
 {
-	if (!obs_up)
+	if (!obs_up) {
 		skip();
-	RequestResult r =
-		set_transform({{"boundsType", "OBS_BOUNDS_SCALE_INNER"}, {"boundsWidth", 100.0}, {"boundsHeight", 80.0}});
+	}
+	RequestResult r = set_transform(
+		{{"boundsType", "OBS_BOUNDS_SCALE_INNER"}, {"boundsWidth", 100.0}, {"boundsHeight", 80.0}});
 	assert_int_equal(r.StatusCode, RequestStatus::Success);
 
 	struct obs_transform_info info;
