@@ -14,7 +14,7 @@ add_custom_target(cmocka-tests)
 # float to double varargs and math freely (as does the SWIG-generated code some
 # of them compile), so -Wdouble-promotion (obs-rust/obs-studio#516) covers the
 # product code, not the tests.
-add_compile_options(-Wno-double-promotion)
+add_compile_options($<$<COMPILE_LANG_AND_ID:C,AppleClang,Clang,GNU>:-Wno-double-promotion>)
 
 # Per-test sanitizers (obs-rust/obs-studio#159). Some tests compile the code
 # they check with ASan/UBSan so a bug fails the test. Those flags are added
