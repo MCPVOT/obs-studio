@@ -8,6 +8,8 @@ target_sources(
     utility/BasicOutputHandler.hpp
     utility/CrashHandler.cpp
     utility/CrashHandler.hpp
+    utility/crash-sentinel-dir.cpp
+    utility/crash-sentinel-dir.hpp
     utility/FFmpegCodec.cpp
     utility/FFmpegCodec.hpp
     utility/FFmpegFormat.cpp
