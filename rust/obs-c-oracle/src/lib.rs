@@ -3,6 +3,11 @@
 //! differential tests (`docs/rust-port/testing-policy.md`). Delete each
 //! oracle together with the C source it wraps.
 //!
+//! Exempt from the port crates' `deny(unsafe_code)` and from the platform
+//! boundary Dylint (#297, #323): every item here is a raw `extern "C"`
+//! binding to the original C, so `unsafe` and per-OS `cfg` are the crate's
+//! purpose. It is a dev-dependency only and never links into libobs.
+//!
 //! Also provides test-only stand-ins for libobs base/platform symbols
 //! (`os_breakpoint` and `os_oom` are weak on Unix in `oracle/test_stubs.c`,
 //! so the Rust shims win; `os_fread_utf8` is in that file too;

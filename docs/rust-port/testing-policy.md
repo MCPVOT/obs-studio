@@ -326,7 +326,9 @@ directory (`obs-util`, `obs-graphics`, `obs-media-io`, ...).
   safe core cannot use it: `allow` is written only where the C boundary is
   (the `ffi` module) and on the platform modules that must call the OS
   directly (`obs_util::platform::windows`, `obs-media-io`'s `platform::unix`,
-  each saying why). Keep it that way when adding a port.
+  each saying why). Crates with no C boundary (`libobs-rust`,
+  `obs-stream-rust`) `forbid` it outright. Keep it that way when adding a
+  crate.
 - **Platform boundary** (#323). Host-specific code lives only in the crate's
   `src/platform/` module and in `src/ffi/` (the exported symbol set itself
   differs per OS). `src/platform/mod.rs` is the crate's single host-selection

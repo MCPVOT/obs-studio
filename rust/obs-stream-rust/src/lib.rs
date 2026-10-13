@@ -5,6 +5,8 @@
 //! (op 7). Events (op 5) are not subscribed to and are skipped if they arrive.
 //! Protocol reference: `docs/generated/protocol.md` in obs-websocket.
 
+#![forbid(unsafe_code)]
+
 use std::fmt;
 use std::io::{Read, Write};
 use std::net::TcpStream;

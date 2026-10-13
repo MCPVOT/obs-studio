@@ -1,5 +1,7 @@
 //! `obs-stream-rust`: control OBS streaming from the command line.
 
+#![forbid(unsafe_code)]
+
 use std::process::ExitCode;
 
 use obs_stream_rust::{Client, DEFAULT_PORT, describe_stream_status};
