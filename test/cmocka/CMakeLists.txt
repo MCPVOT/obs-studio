@@ -13,7 +13,7 @@ add_custom_target(cmocka-tests)
 # Existing C tests are never edited to satisfy a new warning, and they cast
 # const away freely, so -Wcast-qual (obs-rust/obs-studio#516) covers the
 # product code, not the tests.
-add_compile_options(-Wno-cast-qual)
+add_compile_options($<$<COMPILE_LANG_AND_ID:C,AppleClang,Clang,GNU>:-Wno-cast-qual>)
 
 # Per-test sanitizers (obs-rust/obs-studio#159). Some tests compile the code
 # they check with ASan/UBSan so a bug fails the test. Those flags are added
