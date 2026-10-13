@@ -101,6 +101,16 @@ class ReleasePlatformsTest(unittest.TestCase):
         present = [name for name in release_decision.required_assets(version) if name != arm64]
         self.assertEqual(release_decision.missing_assets(version, present), [arm64])
 
+    def test_windows_arm64_rust_target_is_installed_before_build(self):
+        steps = self.text.split("      - name: ")
+        provision = next(
+            (step for step in steps if "run: rustup target add aarch64-pc-windows-msvc" in step), None
+        )
+        self.assertIsNotNone(provision, "the x64 runner needs Rust's Windows arm64 standard library")
+        self.assertIn("matrix.os == 'windows'", provision)
+        self.assertIn("matrix.target == 'arm64'", provision)
+        self.assertLess(steps.index(provision), next(i for i, step in enumerate(steps) if step.startswith("Build OBS-Studio-Rust")))
+
     def test_release_requires_every_built_package(self):
         # The release refuses to publish without these (#622); a leg the
         # matrix builds must be on the list, or it can silently go missing.
