@@ -1,9 +1,8 @@
 /* Test-only oracle for libobs/media-io/video-io.c. The exported names are
  * renamed oracle_* around the include so they do not collide with the Rust
  * shims. profile_store_name and obs_get_profiler_name_store stay public
- * after the include: weak everywhere but MSVC, where the audio oracle is
- * not built and a strong stub is the only copy. On Unix the audio oracle's
- * strong copies win.
+ * after the include: weak on Unix, where the audio oracle's strong copies
+ * win, and strong on Windows, where the audio oracle is not built.
  *
  * video_scaler_* is one stub for this file and for the Rust shim. libobs
  * still calls the real FFmpeg scaler; this stand-in is cargo-test only.
@@ -80,7 +79,10 @@ profiler_name_store_t *oracle_vio_obs_get_profiler_name_store(void)
 	return NULL;
 }
 
-#if defined(_MSC_VER)
+/* Strong on every Windows target: the audio oracle (the Unix copy) is not
+ * built there, and MinGW drops weak-only definitions from static archives
+ * (#291). */
+#if defined(_WIN32)
 #define VIO_STUB
 #else
 #define VIO_STUB __attribute__((weak))
