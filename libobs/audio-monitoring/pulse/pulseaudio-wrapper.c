@@ -50,9 +50,9 @@ void get_default_id(char **id)
 	} else {
 		*id = bzalloc(strlen(pdo->default_sink_name) + 9);
 		strcat(*id, pdo->default_sink_name);
-		bfree(pdo->default_sink_name);
 	}
 
+	bfree(pdo->default_sink_name);
 	bfree(pdo);
 	pulseaudio_unref();
 }
