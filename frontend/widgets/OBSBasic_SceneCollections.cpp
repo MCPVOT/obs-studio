@@ -908,6 +908,7 @@ void OBSBasic::Save(SceneCollection &collection)
 	OBSDataArrayAutoRelease quickTransitionData = SaveQuickTransitions();
 
 	obs_data_set_string(saveData, "current_transition", obs_source_get_name(transition));
+	obs_data_set_string(saveData, "current_transition_id", obs_source_get_id(transition));
 	obs_data_set_int(saveData, "transition_duration", transitionDuration);
 	obs_data_set_array(saveData, "transitions", transitionsData);
 	obs_data_set_array(saveData, "quick_transitions", quickTransitionData);
@@ -1336,10 +1337,7 @@ void OBSBasic::LoadData(obs_data_t *data, SceneCollection &collection)
 		LoadSceneListOrder(sceneOrder);
 	}
 
-	curTransition = FindTransition(transitionName);
-	if (!curTransition) {
-		curTransition = fadeTransition;
-	}
+	curTransition = FindSavedTransition(transitionName, obs_data_get_string(data, "current_transition_id"));
 
 	SetTransitionDuration(newDuration);
 	SetTransition(curTransition);

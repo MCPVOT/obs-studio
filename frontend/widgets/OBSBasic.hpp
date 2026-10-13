@@ -1538,6 +1538,7 @@ private:
 	void InitDefaultTransitions();
 	void InitTransition(obs_source_t *transition);
 	obs_source_t *FindTransition(const char *name);
+	obs_source_t *FindSavedTransition(const char *name, const char *id);
 	OBSSource GetCurrentTransition();
 	obs_data_array_t *SaveTransitions();
 	void LoadTransitions(obs_data_array_t *transitions, obs_load_source_cb cb, void *private_data);
