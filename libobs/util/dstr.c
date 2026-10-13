@@ -109,7 +109,7 @@ char *astrstri(const char *str, const char *find)
 
 	do {
 		if (astrcmpi_n(str, find, len) == 0)
-			return (char *)str;
+			return (char *)(uintptr_t)str; /* strstr-style */
 	} while (*str++);
 
 	return NULL;

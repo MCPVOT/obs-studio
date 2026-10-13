@@ -32,7 +32,7 @@ static size_t array_output_write(void *param, const void *data, size_t size)
 		memcpy(output->bytes.array + output->cur_pos, data, size);
 		output->cur_pos += size;
 	} else {
-		da_push_back_array(output->bytes, (uint8_t *)data, size);
+		da_push_back_array(output->bytes, (const uint8_t *)data, size);
 		output->cur_pos += size;
 	}
 

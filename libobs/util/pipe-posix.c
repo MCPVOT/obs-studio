@@ -130,7 +130,8 @@ os_process_pipe_t *os_process_pipe_create(const char *cmd_line, const char *type
 	if (!cmd_line)
 		return NULL;
 
-	char *argv[4] = {"sh", "-c", (char *)cmd_line, NULL};
+	/* posix_spawn takes char *const argv[] but does not modify it. */
+	char *argv[4] = {"sh", "-c", (char *)(uintptr_t)cmd_line, NULL};
 	return os_process_pipe_create_internal("/bin/sh", argv, type);
 }
 
