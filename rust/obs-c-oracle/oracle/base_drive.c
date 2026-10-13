@@ -25,9 +25,9 @@ void base_test_record(int log_level, const char *format, va_list args, void *par
 	vsnprintf(rec->message, sizeof(rec->message), format, args);
 }
 
-void *base_test_record_ptr(void)
+log_handler_t base_test_record_ptr(void)
 {
-	return (void *)base_test_record;
+	return base_test_record;
 }
 
 void base_test_flush(void)

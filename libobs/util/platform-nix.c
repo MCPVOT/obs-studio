@@ -870,7 +870,7 @@ static inline bool os_get_proc_memory_usage_internal(statm_t *statm)
 
 bool os_get_proc_memory_usage(os_proc_memory_usage_t *usage)
 {
-	statm_t statm = {};
+	statm_t statm = {0};
 	if (!os_get_proc_memory_usage_internal(&statm))
 		return false;
 
@@ -881,7 +881,7 @@ bool os_get_proc_memory_usage(os_proc_memory_usage_t *usage)
 
 uint64_t os_get_proc_resident_size(void)
 {
-	statm_t statm = {};
+	statm_t statm = {0};
 	if (!os_get_proc_memory_usage_internal(&statm))
 		return 0;
 	return (uint64_t)statm.resident_size * sysconf(_SC_PAGESIZE);
@@ -889,7 +889,7 @@ uint64_t os_get_proc_resident_size(void)
 
 uint64_t os_get_proc_virtual_size(void)
 {
-	statm_t statm = {};
+	statm_t statm = {0};
 	if (!os_get_proc_memory_usage_internal(&statm))
 		return 0;
 	return (uint64_t)statm.virtual_size;
