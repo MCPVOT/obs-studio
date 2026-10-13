@@ -1336,10 +1336,7 @@ void OBSBasic::LoadData(obs_data_t *data, SceneCollection &collection)
 		LoadSceneListOrder(sceneOrder);
 	}
 
-	curTransition = FindTransition(transitionName);
-	if (!curTransition) {
-		curTransition = fadeTransition;
-	}
+	curTransition = FindSavedTransition(transitionName, obs_data_get_string(data, "current_transition_id"));
 
 	SetTransitionDuration(newDuration);
 	SetTransition(curTransition);

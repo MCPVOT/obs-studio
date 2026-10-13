@@ -24,6 +24,7 @@
 #include <utility/display-helpers.hpp>
 #include <utility/studio-mode-swap.h>
 #include <utility/QuickTransition.hpp>
+#include <utility/saved-transition.h>
 #include <utility/tbar-position.h>
 
 #include <qt-wrappers.hpp>
@@ -242,6 +243,26 @@ obs_source_t *OBSBasic::FindTransition(const char *name)
 	}
 
 	return nullptr;
+}
+
+obs_source_t *OBSBasic::FindSavedTransition(const char *name, const char *id)
+{
+	saved_transition_ops ops = {};
+	ops.param = this;
+	ops.find_by_name = [](void *param, const char *name) -> void * {
+		return static_cast<OBSBasic *>(param)->FindTransition(name);
+	};
+	ops.find_builtin_by_id = [](void *param, const char *id) -> void * {
+		for (const auto &[uuid, transition] : static_cast<OBSBasic *>(param)->transitions) {
+			if (strcmp(obs_source_get_id(transition), id) == 0 && !obs_is_source_configurable(id)) {
+				return transition.Get();
+			}
+		}
+		return nullptr;
+	};
+	ops.fallback = fadeTransition;
+
+	return static_cast<obs_source_t *>(saved_transition_find(&ops, name, id));
 }
 
 void OBSBasic::TransitionToScene(OBSScene scene, bool force)
