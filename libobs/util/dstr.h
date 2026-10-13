@@ -111,7 +111,9 @@ EXPORT void dstr_printf(struct dstr *dst, const char *format, ...);
 PRINTFATTR(2, 3)
 EXPORT void dstr_catf(struct dstr *dst, const char *format, ...);
 
+PRINTFATTR(2, 0)
 EXPORT void dstr_vprintf(struct dstr *dst, const char *format, va_list args);
+PRINTFATTR(2, 0)
 EXPORT void dstr_vcatf(struct dstr *dst, const char *format, va_list args);
 
 EXPORT void dstr_safe_printf(struct dstr *dst, const char *format, const char *val1, const char *val2, const char *val3,
