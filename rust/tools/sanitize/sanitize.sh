@@ -132,7 +132,8 @@ cd "$inst/bin" || exit 1
 dbus-run-session -- "${cmd[@]}" >"$out/app.log" 2>&1 &
 spid=$!
 sleep 1
-app=$(pgrep -P $spid | head -1) # OBS (or valgrind running it), not dbus-run-session
+# OBS, or valgrind running it; dbus-run-session's other child is dbus-daemon.
+app=$(pgrep -P $spid -f "$inst/bin/obs" | head -1)
 for _ in $(seq "$secs"); do kill -0 $spid 2>/dev/null || break; sleep 1; done
 [ -n "$app" ] && kill -INT "$app" 2>/dev/null
 status=closed
