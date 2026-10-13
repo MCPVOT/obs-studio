@@ -1,11 +1,12 @@
 #!/usr/bin/env -S uv run --script
-"""The daily beta builds a package for every platform we ship (#628).
+"""The daily beta builds a package for every platform we ship (#628, #629).
 
     uv run python -m unittest ci/test_release_platforms.py
 
 release-rust.yaml's build matrix decides which packages a beta has. Intel
 Macs got nothing: the matrix had only macos/arm64, although the release gate
-already builds macOS x86_64.
+already builds macOS x86_64. Windows arm64 also needs its own package and
+Rust cross target on the x64 build runner.
 """
 
 from __future__ import annotations
@@ -109,7 +110,8 @@ class ReleasePlatformsTest(unittest.TestCase):
         self.assertIsNotNone(provision, "the x64 runner needs Rust's Windows arm64 standard library")
         self.assertIn("matrix.os == 'windows'", provision)
         self.assertIn("matrix.target == 'arm64'", provision)
-        self.assertLess(steps.index(provision), next(i for i, step in enumerate(steps) if step.startswith("Build OBS-Studio-Rust")))
+        build_index = next(i for i, step in enumerate(steps) if step.startswith("Build OBS-Studio-Rust"))
+        self.assertLess(steps.index(provision), build_index)
 
     def test_release_requires_every_built_package(self):
         # The release refuses to publish without these (#622); a leg the

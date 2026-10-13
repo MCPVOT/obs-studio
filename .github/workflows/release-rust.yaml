@@ -145,6 +145,12 @@ jobs:
         if: matrix.os == 'macos' && matrix.target == 'x86_64'
         run: rustup target add x86_64-apple-darwin
 
+      # Corrosion infers aarch64-pc-windows-msvc from the ARM64 Visual Studio
+      # preset, but the x64 runner still needs its standard library installed.
+      - name: Add the Rust Windows arm64 target 🦀
+        if: matrix.os == 'windows' && matrix.target == 'arm64'
+        run: rustup target add aarch64-pc-windows-msvc
+
       - name: Build OBS-Studio-Rust 🧱
         uses: ./.github/actions/build-obs
         with:
