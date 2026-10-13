@@ -11,7 +11,10 @@ already builds macOS x86_64.
 from __future__ import annotations
 
 import re
+import os
+import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -26,6 +29,7 @@ REQUIRED = {
     ("macos", "arm64"),
     ("macos", "x86_64"),
     ("windows", "x64"),
+    ("windows", "arm64"),
 }
 
 
@@ -64,6 +68,38 @@ class ReleasePlatformsTest(unittest.TestCase):
     def test_collect_finds_the_intel_dmg(self):
         # package-obs names the x86_64 DMG *-macos-intel.dmg, not -apple.
         self.assertIn("kind=intel", self.text, "Collect and verify looks only for -apple.dmg")
+
+    def test_collect_selects_each_windows_architecture(self):
+        # Execute the workflow's selector with both packages present. An
+        # arm64 leg must never silently collect the x64 zip (#629).
+        case = re.search(r'case "\$OS" in\n(.*?)\n\s+esac', self.text, re.S)
+        self.assertIsNotNone(case, "no package selector in the build job")
+        script = case.group(0) + '\nprintf "%s\\n" "${found[@]}"\n'
+        with tempfile.TemporaryDirectory() as clean:
+            for target in ("x64", "arm64"):
+                directory = Path(clean) / f"build_{target}"
+                directory.mkdir()
+                (directory / f"obs-studio-33.0.0-windows-{target}.zip").touch()
+            for target in ("x64", "arm64"):
+                with self.subTest(target=target):
+                    result = subprocess.run(
+                        ["bash", "-euc", script],
+                        cwd=clean,
+                        env={**os.environ, "OS": "windows", "TARGET": target},
+                        check=True,
+                        capture_output=True,
+                        text=True,
+                    )
+                    self.assertEqual(
+                        result.stdout.strip(),
+                        f"build_{target}/obs-studio-33.0.0-windows-{target}.zip",
+                    )
+
+    def test_release_refuses_missing_windows_arm64_zip(self):
+        version = "0.1.0-beta.20261013"
+        arm64 = f"OBS-Studio-Rust-{version}-windows-arm64.zip"
+        present = [name for name in release_decision.required_assets(version) if name != arm64]
+        self.assertEqual(release_decision.missing_assets(version, present), [arm64])
 
     def test_release_requires_every_built_package(self):
         # The release refuses to publish without these (#622); a leg the
