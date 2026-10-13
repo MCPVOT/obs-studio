@@ -54,7 +54,7 @@ target_link_libraries(
 )
 
 if(ENABLE_RUST_LIBOBS)
-  # The CUDA driver loader (rust/obs-nvenc) is linked into the plugin, not
+  # The CUDA driver loader (rust/obs-nvenc, via rust/obs-nvenc-plugin) is linked into the plugin, not
   # re-exported through libobs-rust: libobs links exactly one Rust staticlib
   # and its exported symbols must stay the C build's set (libobs/cmake/rust.cmake),
   # and nothing but this plugin calls obs_nvenc_cuda_fill. Each module carries its
@@ -62,11 +62,11 @@ if(ENABLE_RUST_LIBOBS)
   # Corrosion is fetched by libobs/cmake/rust.cmake.
   corrosion_import_crate(
     MANIFEST_PATH "${CMAKE_SOURCE_DIR}/Cargo.toml"
-    CRATES obs-nvenc
+    CRATES obs-nvenc-plugin
     CRATE_TYPES staticlib
     PROFILE release
   )
-  target_link_libraries(obs-nvenc PRIVATE obs_nvenc-static)
+  target_link_libraries(obs-nvenc PRIVATE obs_nvenc_plugin-static)
   if(OS_LINUX)
     target_link_options(obs-nvenc PRIVATE "LINKER:--exclude-libs,ALL")
   endif()

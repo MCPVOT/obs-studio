@@ -7,11 +7,6 @@ rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
 
-[lib]
-# staticlib: plugins/obs-nvenc links it (not libobs-rust); see
-# plugins/obs-nvenc/CMakeLists.txt.
-crate-type = ["rlib", "staticlib"]
-
 [dependencies]
 libloading = { workspace = true }
 

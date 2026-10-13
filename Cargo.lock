@@ -299,6 +299,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "obs-nvenc-plugin"
+version = "0.1.0"
+dependencies = [
+ "obs-nvenc",
+]
+
+[[package]]
 name = "obs-studio-rust"
 version = "0.1.0"
 dependencies = [
