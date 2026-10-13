@@ -84,7 +84,10 @@ fn main() {
     // -Wall -Wextra -Werror, or /W4 /WX for MSVC and clang-cl. STRICT_FLAGS
     // is the ratchet toward the full strict set: a flag joins once every
     // target is clean under it (#516 lists the remaining ones).
-    oracle.warnings(true).extra_warnings(true).warnings_into_errors(true);
+    oracle
+        .warnings(true)
+        .extra_warnings(true)
+        .warnings_into_errors(true);
     flags.extend(["-Wall", "-Wextra", "-Werror"]);
     if !oracle.get_compiler().is_like_msvc() {
         for flag in STRICT_FLAGS {
@@ -177,7 +180,9 @@ fn main() {
     // (obs-rust/obs-studio#291).
     if windows {
         let deps = libobs.with_file_name("deps");
-        oracle.include(deps.join("w32-pthreads")).define("PTW32_STATIC_LIB", None);
+        oracle
+            .include(deps.join("w32-pthreads"))
+            .define("PTW32_STATIC_LIB", None);
         flags.push("-DPTW32_STATIC_LIB");
         // Vendored third-party code: its own library, warnings off (#516).
         cc::Build::new()
