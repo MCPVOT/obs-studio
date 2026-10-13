@@ -10,13 +10,15 @@
 //! ([`SystemLoader`]) and the host's candidate lists are chosen in
 //! `platform`, the crate's only host-specific module.
 //!
-//! No C symbol is replaced yet: the C shim behind `ENABLE_RUST_LIBOBS` is a
-//! follow-up.
+//! [`ffi`] is the C shim behind `ENABLE_RUST_LIBOBS` that fills the plugin's
+//! `CudaFunctions` from the loaded driver.
 
 #![deny(unsafe_code)]
 
 mod candidates;
 mod error;
+#[allow(unsafe_code)] // the C ABI shim
+pub mod ffi;
 mod loader;
 mod platform;
 
