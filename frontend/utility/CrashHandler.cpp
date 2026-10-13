@@ -74,7 +74,12 @@ std::pair<OBS::TimePoint, std::string> buildCrashLogUploadContent(OBS::PlatformT
 {
 	OBS::TimePoint uploadTimePoint = OBS::Clock::now();
 	std::time_t uploadTimePoint_c = OBS::Clock::to_time_t(uploadTimePoint);
-	std::tm uploadTimeLocal = *std::localtime(&uploadTimePoint_c);
+	std::tm uploadTimeLocal;
+#ifdef _WIN32
+	localtime_s(&uploadTimeLocal, &uploadTimePoint_c);
+#else
+	localtime_r(&uploadTimePoint_c, &uploadTimeLocal);
+#endif
 
 	std::stringstream uploadLogMessage;
 
