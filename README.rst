@@ -1,3 +1,5 @@
+# obs-studio-rust
+
 .. image:: https://github.com/obs-rust/obs-studio/actions/workflows/leaderboard.yml/badge.svg?branch=master
    :alt: Contributor leaderboard workflow status
    :target: https://github.com/obs-rust/obs-studio/actions/workflows/leaderboard.yml
