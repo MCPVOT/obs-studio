@@ -1,14 +1,13 @@
 name: AppImage
 run-name: AppImage build and portability test (${{ github.ref_name }}) 📦
 # Builds the AppImage, proves it runs in stock containers, and then:
-#   push to master  -> the rolling "continuous" pre-release carries it
 #   push of a tag   -> that tag's release carries it (created if missing)
-#   workflow_call   -> release-rust.yaml builds it for the daily beta
+#   workflow_call   -> release-rust.yaml builds it for the daily beta and, with
+#                      publish_continuous, refreshes the rolling "continuous"
+#                      pre-release (daily, not per master push: #436)
 #   PR / dispatch   -> artifact only
 on:
   push:
-    branches:
-      - master
     tags:
       - '*'
     paths-ignore:
@@ -20,6 +19,11 @@ on:
         type: string
         required: false
         default: ''
+      publish_continuous:
+        description: Publish the build as the rolling "continuous" pre-release
+        type: boolean
+        required: false
+        default: false
   pull_request:
     paths:
       - 'build-aux/appimage/**'
@@ -198,11 +202,11 @@ jobs:
           chmod +x appimagetool
           # Runners have no /dev/fuse: extract appimagetool instead of running it.
           ./appimagetool --appimage-extract >/dev/null
-          # A master build is published as the "continuous" pre-release (release job),
-          # so it carries update information: AppImageUpdate and friends can then
-          # fetch the next continuous build as a delta against this one (.zsync).
+          # A build published as the "continuous" pre-release (release job) carries
+          # update information: AppImageUpdate and friends can then fetch the next
+          # continuous build as a delta against this one (.zsync).
           update=()
-          if [ "$GITHUB_EVENT_NAME" = push ] && [ "$GITHUB_REF" = refs/heads/master ]; then
+          if [ "${{ inputs.publish_continuous }}" = true ]; then
             update=(-u "gh-releases-zsync|${GITHUB_REPOSITORY%/*}|${GITHUB_REPOSITORY#*/}|continuous|OBS_Studio-*-x86_64.AppImage.zsync")
           fi
           ARCH=x86_64 squashfs-root/AppRun --no-appstream "${update[@]}" AppDir "OBS_Studio-${OBS_VERSION}-x86_64.AppImage"
@@ -322,11 +326,11 @@ jobs:
     needs: [build, test]
     # Only after the AppImage has run on every distribution in the matrix
     # (test-appimage.sh: bundle check, first start, runtime probes, and a saved
-    # profile with PipeWire screen capture, camera and microphone recording), and
-    # only for pushes: a master push feeds the rolling "continuous" pre-release,
-    # a tag push the release of that tag. (release-rust.yaml publishes the
-    # daily beta itself; its call of this workflow is not a push.)
-    if: github.event_name == 'push'
+    # profile with PipeWire screen capture, camera and microphone recording): a
+    # tag push feeds the release of that tag, and release-rust.yaml's daily call
+    # (publish_continuous) the rolling "continuous" pre-release (#436). (The
+    # daily beta itself is published by release-rust.yaml.)
+    if: github.event_name == 'push' || inputs.publish_continuous
     runs-on: ubuntu-26.04
     permissions:
       contents: write
@@ -336,14 +340,14 @@ jobs:
           name: obs-studio-appimage
 
       - name: Publish the continuous build 🔄
-        if: github.ref == 'refs/heads/master'
+        if: inputs.publish_continuous
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           ls -l OBS_Studio-*
           cat >notes.md <<EOF
-          Rolling build of OBS-Studio-Rust from the latest \`master\`, currently [\`${GITHUB_SHA:0:9}\`](https://github.com/$GITHUB_REPOSITORY/commit/$GITHUB_SHA). Replaced on every push that builds and passes the AppImage tests on Debian, Ubuntu and Fedora, including a saved profile that records a PipeWire screen capture, camera and microphone.
+          Rolling build of OBS-Studio-Rust from the latest \`master\`, currently [\`${GITHUB_SHA:0:9}\`](https://github.com/$GITHUB_REPOSITORY/commit/$GITHUB_SHA). Replaced daily by the release build, once it passes the AppImage tests on Debian, Ubuntu and Fedora, including a saved profile that records a PipeWire screen capture, camera and microphone.
 
           **Pre-release, unsigned.** \`chmod +x OBS_Studio-*-x86_64.AppImage && ./OBS_Studio-*-x86_64.AppImage\`. Everything down to glibc is inside; only the GPU driver comes from the host. The \`.zsync\` file lets AppImageUpdate fetch the next build as a delta. Limits and troubleshooting: \`build-aux/appimage/README.md\`.
           EOF

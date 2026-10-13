@@ -5,8 +5,12 @@ run-name: Daily OBS-Studio-Rust beta 🦀
 # publishes an unsigned GitHub pre-release tagged
 # obs-studio-rust-v<rust/libobs-rust version>-beta.<YYYYMMDD>.
 #   gh workflow run release-rust.yaml      # today's release now
-# Relaxed on purpose: a platform that fails to build or verify is left out and
-# the rest still ship; a day that already has a release is skipped. The release
+# Release gate (obs-rust/obs-studio#436): the full CI run (Flatpak, every OBS
+# build, Tier 2 on all OSes) moved out of PRs and master pushes and runs here
+# at the candidate SHA; nothing is published unless it passes. The release's
+# own artifact builds stay relaxed: a platform that fails to build or verify
+# is left out and the rest still ship. A day that already has a release is
+# skipped. The release
 # creates the tag itself, so push.yaml's upstream OBS tag pipeline doesn't run.
 on:
   schedule:
@@ -169,6 +173,7 @@ jobs:
     uses: ./.github/workflows/appimage.yaml
     with:
       ref: ${{ needs.check.outputs.sha }}
+      publish_continuous: true
     # A called workflow may not ask for more than its caller grants, and
     # appimage.yaml's release job asks for contents: write (it only runs on a
     # push, never from here). Granting less made GitHub refuse to start this
@@ -176,11 +181,23 @@ jobs:
     permissions:
       contents: write
 
+  # The release gate: every job the dev cycle skips (#436), at this commit.
+  gate:
+    name: Release gate 🚦
+    needs: check
+    if: needs.check.outputs.skip != 'true'
+    uses: ./.github/workflows/build-project.yaml
+    with:
+      full: true
+    secrets: inherit
+    permissions:
+      contents: read
+
   release:
     name: Publish pre-release 🚀
-    needs: [check, build, appimage]
-    # Ship whatever platforms built.
-    if: always() && needs.check.result == 'success' && needs.check.outputs.skip != 'true'
+    needs: [check, gate, build, appimage]
+    # Ship whatever platforms built, but only once the full gate is green.
+    if: always() && needs.check.result == 'success' && needs.check.outputs.skip != 'true' && needs.gate.result == 'success'
     runs-on: ubuntu-26.04
     permissions:
       contents: write

@@ -1,6 +1,17 @@
 name: Build Project
 on:
   workflow_call:
+    inputs:
+      full:
+        # obs-rust/obs-studio#436: the release gate. PRs and master pushes (the
+        # dev cycle) skip Flatpak, the macOS/Windows OBS builds, Ubuntu with
+        # Rust libobs and Tier 2 macOS/Windows; release-rust.yaml runs them all
+        # with full: true and won't publish unless they pass. Tags, schedule,
+        # workflow_dispatch and the ci-full label are full too.
+        description: Run every build, including the release-gating ones
+        type: boolean
+        required: false
+        default: false
 jobs:
   check-event:
     name: Event Data 🔎
@@ -15,6 +26,7 @@ jobs:
       config: ${{ steps.setup.outputs.config }}
       commitHash: ${{ steps.setup.outputs.commitHash }}
       native: ${{ steps.native.outputs.native }}
+      full: ${{ steps.native.outputs.full }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -58,11 +70,12 @@ jobs:
           done
           echo "commitHash=${GITHUB_SHA:0:9}" >> $GITHUB_OUTPUT
 
-      # Quick gate: the full OBS builds below (ENABLE_RUST_LIBOBS and
+      # Quick gate: the Ubuntu OBS build (ENABLE_RUST_LIBOBS and
       # ENABLE_UNIT_TESTS default OFF) cannot be affected by a PR that only
       # touches the Rust workspace, the C unit tests, the local gate, or docs,
-      # so those PRs skip them. Pushes, workflow edits, any other path, and the
-      # `ci-full` label always run them. Lint and unit tests always run.
+      # so those PRs skip it. Pushes, workflow edits, any other path, and the
+      # `ci-full` label run it. Lint and unit tests always run. The other OBS
+      # builds and Flatpak are release-gating (`full`, below; #436).
       - name: Check for Native Changes 🧭
         id: native
         env:
@@ -84,13 +97,27 @@ jobs:
             done < <(git diff --name-only "origin/${GITHUB_BASE_REF}...HEAD")
           fi
           echo "native=${native}" >> "${GITHUB_OUTPUT}"
-          echo "Full OBS builds: ${native}"
+          echo "Ubuntu OBS build: ${native}"
+
+          # Release-gating builds (#436): only for the release gate (input),
+          # tags and release branches, schedule, workflow_dispatch, or ci-full.
+          full=false
+          if [[ "${{ inputs.full }}" == true ]] \
+            || [[ "${GITHUB_EVENT_NAME}" == schedule || "${GITHUB_EVENT_NAME}" == workflow_dispatch ]] \
+            || [[ "${GITHUB_REF_TYPE}" == tag || "${GITHUB_REF_NAME}" == release/* ]]; then
+            full=true
+          elif [[ "${GITHUB_EVENT_NAME}" == pull_request ]] \
+            && gh pr view ${{ github.event.number }} --json labels | jq -e '.labels[] | select(.name == "ci-full")' > /dev/null; then
+            full=true
+          fi
+          echo "full=${full}" >> "${GITHUB_OUTPUT}"
+          echo "Release-gating builds: ${full}"
 
   macos-build:
     name: macOS 🍏
     runs-on: macos-26
     needs: check-event
-    if: fromJSON(needs.check-event.outputs.native)
+    if: fromJSON(needs.check-event.outputs.full)
     strategy:
       fail-fast: false
       matrix:
@@ -207,7 +234,7 @@ jobs:
           path: ${{ github.workspace }}/build_macos/obs-studio-*-macos-${{ steps.setup.outputs.cpuName }}-dSYMs.tar.xz
 
       - uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
         with:
           path: ${{ steps.setup.outputs.xcodeCasPath }}
           key: ${{ runner.os }}-xcode-${{ matrix.target }}-${{ needs.check-event.outputs.config }}-${{ github.sha }}
@@ -220,7 +247,9 @@ jobs:
         os: [ubuntu-26.04]
         # ON builds the app with ENABLE_RUST_LIBOBS: the only CI job that runs
         # the Rust ports inside OBS itself (obs-rust/obs-studio#140).
-        rust: ['OFF', 'ON']
+        # The ON leg is release-gating (#436); the dev cycle keeps OFF as the
+        # app's compile check.
+        rust: ${{ fromJSON(needs.check-event.outputs.full) && fromJSON('["OFF", "ON"]') || fromJSON('["OFF"]') }}
     runs-on: ${{ matrix.os }}
     needs: check-event
     if: fromJSON(needs.check-event.outputs.native)
@@ -305,13 +334,13 @@ jobs:
       # Drop entries this build did not use so the saved cache stays the size
       # of one build.
       - name: Prune ccache 🧹
-        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
         run: |
           ccache --evict-older-than "$(( $(date +%s) - ${{ steps.start.outputs.epoch }} + 60 ))s"
           ccache --show-stats
 
       - uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
         with:
           path: ${{ github.workspace }}/.ccache
           key: ${{ runner.os }}-${{ matrix.os }}-ccache-x86_64-rust${{ matrix.rust }}-${{ needs.check-event.outputs.config }}-${{ github.sha }}
@@ -320,7 +349,7 @@ jobs:
     name: Flatpak 📦
     runs-on: ubuntu-26.04
     needs: check-event
-    if: fromJSON(needs.check-event.outputs.native)
+    if: fromJSON(needs.check-event.outputs.full)
     defaults:
       run:
         shell: bash
@@ -431,7 +460,7 @@ jobs:
           build-bundle: ${{ fromJSON(needs.check-event.outputs.package) }}
           bundle: obs-studio-flatpak-${{ needs.check-event.outputs.commitHash }}.flatpak
           manifest-path: ${{ github.workspace }}/build-aux/com.obsproject.Studio.json
-          cache: ${{ fromJSON(steps.setup.outputs.cacheHit) || (github.event_name == 'push' && github.ref_name == 'master')}}
+          cache: ${{ fromJSON(steps.setup.outputs.cacheHit) || (github.event_name != 'pull_request' && github.ref_name == 'master')}}
           restore-cache: ${{ fromJSON(steps.setup.outputs.cacheHit) }}
           cache-key: ${{ steps.setup.outputs.cacheKey }}
           mirror-screenshots-url: https://dl.flathub.org/media
@@ -443,7 +472,7 @@ jobs:
         id: ccache-stats
         continue-on-error: true
         env:
-          PRUNE: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+          PRUNE: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/master' }}
         run: |
           : Ccache Stats 📊
           ccache_dir="${PWD}/.flatpak-builder/ccache"
@@ -463,7 +492,7 @@ jobs:
           du -sh "${ccache_dir}"
 
       - uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        if: github.event_name == 'push' && github.ref == 'refs/heads/master' && steps.ccache-stats.outcome == 'success'
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master' && steps.ccache-stats.outcome == 'success'
         with:
           path: .flatpak-builder/ccache
           key: flatpak-ccache-x86_64-${{ github.sha }}
@@ -500,7 +529,7 @@ jobs:
         architecture: [x64, arm64]
     runs-on: windows-2025-vs2026
     needs: check-event
-    if: fromJSON(needs.check-event.outputs.native)
+    if: fromJSON(needs.check-event.outputs.full)
     defaults:
       run:
         shell: pwsh
@@ -568,7 +597,7 @@ jobs:
       # Drop entries this build did not use so the saved cache stays the size
       # of one build.
       - name: Prune ccache 🧹
-        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
         run: |
           # Prune ccache 🧹
           $Age = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds() - ${{ steps.ccache.outputs.epoch }} + 60
@@ -576,7 +605,7 @@ jobs:
           ccache --show-stats
 
       - uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
         with:
           path: ${{ github.workspace }}/.ccache
           key: windows-ccache-${{ matrix.architecture }}-${{ needs.check-event.outputs.config }}-${{ github.sha }}
@@ -727,7 +756,7 @@ jobs:
 
       - name: Save Tier 2 ccache 💾
         uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
         with:
           path: ${{ github.workspace }}/.tier2-ccache
           key: tier2-ccache-linux-${{ github.sha }}
@@ -740,6 +769,9 @@ jobs:
         os: [macos-26, windows-2025-vs2026]
     runs-on: ${{ matrix.os }}
     needs: check-event
+    # macOS/Windows Tier 2 are release-gating (#436); Linux Tier 2 runs on
+    # every PR (rust-linux-tier2).
+    if: fromJSON(needs.check-event.outputs.full)
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
