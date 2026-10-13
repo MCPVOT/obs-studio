@@ -879,7 +879,8 @@ static inline void obs_encoder_start_internal(obs_encoder_t *encoder, encoded_ca
 	first = (encoder->callbacks.num == 0);
 
 	size_t idx = get_callback_idx(encoder, new_packet, param);
-	if (idx == DARRAY_INVALID)
+	bool added = idx == DARRAY_INVALID;
+	if (added)
 		da_push_back(encoder->callbacks, &cb);
 
 	pthread_mutex_unlock(&encoder->callbacks_mutex);
@@ -890,6 +891,11 @@ static inline void obs_encoder_start_internal(obs_encoder_t *encoder, encoded_ca
 
 		encoder->cur_pts = 0;
 		add_connection(encoder);
+	} else if (added && encoder->info.type == OBS_ENCODER_VIDEO && encoder->info.request_keyframe) {
+		/* The new output gets no packet before a keyframe (see
+		 * send_first_video_packet), and the running encoder's next
+		 * scheduled one can be many seconds away. */
+		encoder->info.request_keyframe(encoder->context.data);
 	}
 }
 
