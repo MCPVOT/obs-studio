@@ -157,7 +157,7 @@ int os_process_pipe_destroy(os_process_pipe_t *pp)
 			ret = waitpid(pp->pid, &status, 0);
 		} while (ret == -1 && errno == EINTR);
 
-		if (WIFEXITED(status))
+		if (ret != -1 && WIFEXITED(status))
 			ret = (int)(char)WEXITSTATUS(status);
 		bfree(pp);
 	}
