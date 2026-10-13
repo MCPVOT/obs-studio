@@ -25,8 +25,11 @@ jobs:
       notarize: ${{ steps.setup.outputs.notarize }}
       config: ${{ steps.setup.outputs.config }}
       commitHash: ${{ steps.setup.outputs.commitHash }}
-      native: ${{ steps.native.outputs.native }}
       full: ${{ steps.native.outputs.full }}
+      core: ${{ steps.native.outputs.core }}
+      macos: ${{ steps.native.outputs.macos }}
+      windows: ${{ steps.native.outputs.windows }}
+      platform_os: ${{ steps.native.outputs.platform_os }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -70,37 +73,18 @@ jobs:
           done
           echo "commitHash=${GITHUB_SHA:0:9}" >> $GITHUB_OUTPUT
 
-      # Quick gate: the Ubuntu OBS build (ENABLE_RUST_LIBOBS and
-      # ENABLE_UNIT_TESTS default OFF) cannot be affected by a PR that only
-      # touches the Rust workspace, the C unit tests, the local gate, or docs,
-      # so those PRs skip it. Pushes, workflow edits, any other path, and the
-      # `ci-full` label run it. Lint and unit tests always run. The other OBS
-      # builds and Flatpak are release-gating (`full`, below; #436).
-      - name: Check for Native Changes 🧭
+      # What this change needs (#436, ci/ci_scope.py): the Linux jobs always
+      # run; core code (libobs, rust/) adds the Rust-libobs OBS build; macOS
+      # or Windows code, or shared build/CI config, adds that platform's
+      # jobs. `full` (the release gate in release-rust.yaml, tags, release
+      # branches, schedule, workflow_dispatch, the ci-full label) runs
+      # everything, Flatpak included.
+      - name: Check Change Scope 🧭
         id: native
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          : Check for Native Changes 🧭
-          native=true
-          if [[ "${GITHUB_EVENT_NAME}" == pull_request ]] \
-            && ! gh pr view ${{ github.event.number }} --json labels | jq -e '.labels[] | select(.name == "ci-full")' > /dev/null; then
-            native=false
-            while IFS= read -r file; do
-              case "${file}" in
-                rust/*|Cargo.toml|Cargo.lock|rust-toolchain.toml) ;;
-                libobs/cmake/rust*|test/cmocka/*) ;;
-                ci/*|lint|unittest|local-gate.toml|ci-attestations.yml) ;;
-                docs/*|*.md) ;;
-                *) native=true; echo "native change: ${file}"; break ;;
-              esac
-            done < <(git diff --name-only "origin/${GITHUB_BASE_REF}...HEAD")
-          fi
-          echo "native=${native}" >> "${GITHUB_OUTPUT}"
-          echo "Ubuntu OBS build: ${native}"
-
-          # Release-gating builds (#436): only for the release gate (input),
-          # tags and release branches, schedule, workflow_dispatch, or ci-full.
+          : Check Change Scope 🧭
           full=false
           if [[ "${{ inputs.full }}" == true ]] \
             || [[ "${GITHUB_EVENT_NAME}" == schedule || "${GITHUB_EVENT_NAME}" == workflow_dispatch ]] \
@@ -111,17 +95,38 @@ jobs:
             full=true
           fi
           echo "full=${full}" >> "${GITHUB_OUTPUT}"
-          echo "Release-gating builds: ${full}"
+
+          if [[ "${full}" == true ]]; then
+            core=true macos=true windows=true
+          else
+            if [[ "${GITHUB_EVENT_NAME}" == pull_request ]]; then
+              base="origin/${GITHUB_BASE_REF}"
+            else
+              base="HEAD^1"
+            fi
+            eval "$(python3 ci/ci_scope.py "${base}")"
+          fi
+          os=()
+          [[ "${macos}" == true ]] && os+=('"macos-26"')
+          [[ "${windows}" == true ]] && os+=('"windows-2025-vs2026"')
+          {
+            echo "core=${core}"
+            echo "macos=${macos}"
+            echo "windows=${windows}"
+            echo "platform_os=[$(IFS=,; echo "${os[*]}")]"
+          } >> "${GITHUB_OUTPUT}"
+          echo "full=${full} core=${core} macos=${macos} windows=${windows}"
 
   macos-build:
     name: macOS 🍏
     runs-on: macos-26
     needs: check-event
-    if: fromJSON(needs.check-event.outputs.full)
+    if: fromJSON(needs.check-event.outputs.macos)
     strategy:
       fail-fast: false
       matrix:
-        target: [arm64, x86_64]
+        # One architecture in the dev cycle, both in the release gate (#436).
+        target: ${{ fromJSON(needs.check-event.outputs.full) && fromJSON('["arm64", "x86_64"]') || fromJSON('["arm64"]') }}
     defaults:
       run:
         shell: zsh --no-rcs --errexit --pipefail {0}
@@ -247,12 +252,11 @@ jobs:
         os: [ubuntu-26.04]
         # ON builds the app with ENABLE_RUST_LIBOBS: the only CI job that runs
         # the Rust ports inside OBS itself (obs-rust/obs-studio#140).
-        # The ON leg is release-gating (#436); the dev cycle keeps OFF as the
-        # app's compile check.
-        rust: ${{ fromJSON(needs.check-event.outputs.full) && fromJSON('["OFF", "ON"]') || fromJSON('["OFF"]') }}
+        # OFF always runs (the Linux app build, #436); ON when core code
+        # (libobs, rust/) changed, and in the release gate.
+        rust: ${{ fromJSON(needs.check-event.outputs.core) && fromJSON('["OFF", "ON"]') || fromJSON('["OFF"]') }}
     runs-on: ${{ matrix.os }}
     needs: check-event
-    if: fromJSON(needs.check-event.outputs.native)
     defaults:
       run:
         shell: bash
@@ -526,10 +530,11 @@ jobs:
     name: Windows 🪟
     strategy:
       matrix:
-        architecture: [x64, arm64]
+        # One architecture in the dev cycle, both in the release gate (#436).
+        architecture: ${{ fromJSON(needs.check-event.outputs.full) && fromJSON('["x64", "arm64"]') || fromJSON('["x64"]') }}
     runs-on: windows-2025-vs2026
     needs: check-event
-    if: fromJSON(needs.check-event.outputs.full)
+    if: fromJSON(needs.check-event.outputs.windows)
     defaults:
       run:
         shell: pwsh
@@ -692,10 +697,12 @@ jobs:
 
   rust-tests:
     name: Rust Tests 🦀
+    # Only the platforms the change touches (#436); Linux is rust-tests-linux.
+    if: needs.check-event.outputs.platform_os != '[]'
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-26, windows-2025-vs2026]
+        os: ${{ fromJSON(needs.check-event.outputs.platform_os) }}
     runs-on: ${{ matrix.os }}
     needs: check-event
     defaults:
@@ -766,12 +773,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-26, windows-2025-vs2026]
+        os: ${{ fromJSON(needs.check-event.outputs.platform_os) }}
     runs-on: ${{ matrix.os }}
     needs: check-event
-    # macOS/Windows Tier 2 are release-gating (#436); Linux Tier 2 runs on
-    # every PR (rust-linux-tier2).
-    if: fromJSON(needs.check-event.outputs.full)
+    # Only the platforms the change touches (#436); Linux Tier 2 always runs
+    # (rust-linux-tier2).
+    if: needs.check-event.outputs.platform_os != '[]'
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
