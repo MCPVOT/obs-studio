@@ -27,6 +27,7 @@
 #include <utility/OBSEventFilter.hpp>
 #include <utility/OBSProxyStyle.hpp>
 #include <utility/product-name.h>
+#include <utility/scene-collection-migration.hpp>
 #if defined(_WIN32) || defined(ENABLE_SPARKLE_UPDATER)
 #include <utility/models/branches.hpp>
 #endif
@@ -1093,38 +1094,9 @@ static void move_basic_to_scene_collections(void)
 		return;
 	}
 
-	const std::filesystem::path basicPath = std::filesystem::u8path(path);
-
-	if (!std::filesystem::exists(basicPath)) {
-		return;
-	}
-
-	const std::filesystem::path sceneCollectionPath =
-		App()->userScenesLocation / std::filesystem::u8path("obs-studio/basic/scenes");
-
-	if (std::filesystem::exists(sceneCollectionPath)) {
-		return;
-	}
-
-	try {
-		std::filesystem::create_directories(sceneCollectionPath);
-	} catch (const std::filesystem::filesystem_error &error) {
-		blog(LOG_ERROR,
-		     "Failed to create scene collection directory for migration from basic scene collection\n%s",
-		     error.what());
-		return;
-	}
-
-	const std::filesystem::path sourceFile = basicPath / std::filesystem::u8path("scenes.json");
-	const std::filesystem::path destinationFile =
-		(sceneCollectionPath / std::filesystem::u8path(Str("Untitled"))).replace_extension(".json");
-
-	try {
-		std::filesystem::rename(sourceFile, destinationFile);
-	} catch (const std::filesystem::filesystem_error &error) {
-		blog(LOG_ERROR, "Failed to rename basic scene collection file:\n%s", error.what());
-		return;
-	}
+	migrate_basic_scene_collection(std::filesystem::u8path(path),
+				       App()->userScenesLocation / std::filesystem::u8path("obs-studio/basic/scenes"),
+				       Str("Untitled"));
 }
 
 void OBSApp::AppInit()
