@@ -195,7 +195,7 @@ static void *v4l2_thread(void *vptr)
 	/* Get framerate and calculate appropriate select timeout value. */
 	v4l2_unpack_tuple(&fps_num, &fps_denom, data->framerate);
 	ffps = (float)fps_denom / fps_num;
-	blog(LOG_DEBUG, "%s: framerate: %.2f fps", data->device_id, ffps);
+	blog(LOG_DEBUG, "%s: framerate: %.2f fps", data->device_id, (double)ffps);
 	/* Timeout set to 5 frame periods. */
 	timeout_usec = (1000000 * data->timeout_frames) / ffps;
 	blog(LOG_INFO, "%s: select timeout set to %" PRIu64 " (%dx frame periods)", data->device_id, timeout_usec,
@@ -638,7 +638,7 @@ static void v4l2_framerate_list(int dev, uint_fast32_t pixelformat, uint_fast32_
 			int denom;
 			v4l2_unpack_tuple(&num, &denom, *packed);
 			float fps = (float)denom / num;
-			dstr_printf(&buffer, "%.2f", fps);
+			dstr_printf(&buffer, "%.2f", (double)fps);
 			obs_property_list_add_int(prop, buffer.array, *packed);
 		}
 		break;
@@ -1063,7 +1063,7 @@ static void v4l2_init(struct v4l2_data *data)
 		data->framerate = v4l2_pack_tuple(1, FALLBACK_FRAMERATE);
 	}
 	v4l2_unpack_tuple(&fps_num, &fps_denom, data->framerate);
-	blog(LOG_INFO, "Framerate: %.2f fps", (float)fps_denom / fps_num);
+	blog(LOG_INFO, "Framerate: %.2f fps", (double)((float)fps_denom / fps_num));
 
 	/* The camera starts on the driver's values when it is plugged in, and
 	 * other programs can change them: write the saved controls, unless the

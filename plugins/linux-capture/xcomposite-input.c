@@ -617,7 +617,7 @@ static void xcompcap_video_tick(void *data, float seconds)
 	// Reacquire window after interval or immediately if reconfigured.
 	s->window_check_time += seconds;
 	bool window_lost = !xcomp_window_exists(conn, s->win) || !s->gltex;
-	if ((window_lost && s->window_check_time > FIND_WINDOW_INTERVAL) || s->window_changed) {
+	if ((window_lost && (double)s->window_check_time > FIND_WINDOW_INTERVAL) || s->window_changed) {
 		watcher_unregister(conn, s);
 
 		s->window_changed = false;

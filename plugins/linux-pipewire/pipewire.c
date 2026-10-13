@@ -283,7 +283,7 @@ static bool push_rotation(obs_pipewire_stream *obs_pw_stream)
 
 	if (rotation != 0) {
 		gs_matrix_push();
-		gs_matrix_rotaa4f(0.0f, 0.0f, 1.0f, RAD(rotation));
+		gs_matrix_rotaa4f(0.0f, 0.0f, 1.0f, RAD((float)rotation));
 		gs_matrix_translate3f(-offset_x, -offset_y, 0.0f);
 	}
 

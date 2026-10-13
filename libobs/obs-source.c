@@ -4046,8 +4046,8 @@ static void process_audio_balancing(struct obs_source *source, uint32_t frames, 
 	switch (type) {
 	case OBS_BALANCE_TYPE_SINE_LAW:
 		for (uint32_t frame = 0; frame < frames; frame++) {
-			data[0][frame] = data[0][frame] * sinf((1.0f - balance) * (M_PI / 2.0f));
-			data[1][frame] = data[1][frame] * sinf(balance * (M_PI / 2.0f));
+			data[0][frame] = data[0][frame] * sinf((float)((double)(1.0f - balance) * (M_PI / 2.0)));
+			data[1][frame] = data[1][frame] * sinf((float)((double)balance * (M_PI / 2.0)));
 		}
 		break;
 	case OBS_BALANCE_TYPE_SQUARE_LAW:

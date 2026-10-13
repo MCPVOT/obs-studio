@@ -10,6 +10,11 @@ endif()
 # new test cannot go unbuilt (and show up in ctest as "Not Run").
 add_custom_target(cmocka-tests)
 
+# Existing C tests are never edited to satisfy a new warning, and they pass
+# float to double varargs and math freely (as does the SWIG-generated code some
+# of them compile), so -Wdouble-promotion (obs-rust/obs-studio#516) covers the
+# product code, not the tests.
+add_compile_options($<$<COMPILE_LANG_AND_ID:C,AppleClang,Clang,GNU>:-Wno-double-promotion>)
 # Existing C tests are never edited to satisfy a new warning, and they cast
 # const away freely, so -Wcast-qual (obs-rust/obs-studio#516) covers the
 # product code, not the tests.

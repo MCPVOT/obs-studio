@@ -480,7 +480,7 @@ static bool control_changed(void *data, obs_properties_t *props, obs_property_t 
 	}
 	case OBS_PROPERTY_FLOAT: {
 		float val = obs_data_get_double(settings, obs_property_name(prop));
-		spa_pod_builder_add(&b, id, SPA_POD_Float(val), 0);
+		spa_pod_builder_add(&b, id, SPA_POD_Float((double)val), 0);
 		break;
 	}
 	case OBS_PROPERTY_INT:
