@@ -1,5 +1,10 @@
 /* Drivers for the base parity test. They build a real va_list in C and call
  * either the Rust-backed adapter (blog / blogva) or the original oracle. */
+/* The parity tests choose the format string at run time (they drive blog
+ * with arbitrary formats), so these test entry points forward non-literal
+ * formats by design (obs-rust/obs-studio#516). */
+#pragma GCC diagnostic ignored "-Wformat-nonliteral"
+
 #include <stdarg.h>
 #include <stdio.h>
 

@@ -28,6 +28,16 @@
 
 #include "base.h"
 
+/* printf-style checking at the callers of the va_list forwarders below
+ * (obs-rust/obs-studio#516). */
+#if defined(__MINGW32__)
+#define VPRINTFATTR(f) __attribute__((__format__(__gnu_printf__, f, 0)))
+#elif !defined(_MSC_VER)
+#define VPRINTFATTR(f) __attribute__((__format__(__printf__, f, 0)))
+#else
+#define VPRINTFATTR(f)
+#endif
+
 #if !defined(_MSC_VER) && !defined(_WIN32)
 /* Windows (MinGW included) has no ELF visibility. */
 #define BASE_HIDDEN __attribute__((visibility("hidden")))
@@ -39,6 +49,9 @@ typedef void (*crash_handler_t)(const char *, va_list, void *);
 
 extern void base_get_log_handler(log_handler_t *handler, void **param);
 extern int base_begin_crash(void **handler, void **param, int *use_default);
+
+VPRINTFATTR(2)
+static void def_log_handler(int log_level, const char *format, va_list args, void *param);
 
 static void def_log_handler(int log_level, const char *format, va_list args, void *param)
 {
@@ -68,6 +81,9 @@ static void def_log_handler(int log_level, const char *format, va_list args, voi
 
 	UNUSED_PARAMETER(param);
 }
+
+VPRINTFATTR(1)
+OBS_NORETURN static void def_crash_handler(const char *format, va_list args, void *param);
 
 OBS_NORETURN static void def_crash_handler(const char *format, va_list args, void *param)
 {
