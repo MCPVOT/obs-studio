@@ -130,5 +130,7 @@ runs:
       run: |
         $Zip = Get-ChildItem "build_${{ inputs.target }}/obs-studio-*-windows-${{ inputs.target }}.zip" | Select-Object -First 1
         $Run = if ( '${{ inputs.target }}' -eq 'x64' ) { @('--run') } else { @() }
-        uv run --no-project ci/windows_zip_check.py check $Zip.FullName @Run
+        # The release build embeds its full version; the zip must report it (#631).
+        $Expect = if ( $Env:OBS_RUST_VERSION ) { @('--expect-version', $Env:OBS_RUST_VERSION) } else { @() }
+        uv run --no-project ci/windows_zip_check.py check $Zip.FullName @Run @Expect
         if ( $LASTEXITCODE -ne 0 ) { exit $LASTEXITCODE }

@@ -94,6 +94,10 @@ jobs:
             runner: windows-2025-vs2026
             target: x64
     runs-on: ${{ matrix.runner }}
+    env:
+      # The full release string: the build embeds it (log banner, About, bundle,
+      # VERSIONINFO) and "Collect and verify" checks the package for it (#631).
+      OBS_RUST_VERSION: ${{ needs.check.outputs.version }}
     steps:
       # fetch-depth 0: versionconfig.cmake derives the base OBS version from tags.
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -157,7 +161,6 @@ jobs:
           OS: ${{ matrix.os }}
           TARGET: ${{ matrix.target }}
           VERSION: ${{ needs.check.outputs.version }}
-          CRATE: ${{ needs.check.outputs.crate }}
         run: |
           set -euo pipefail
           mkdir -p pkg
@@ -177,12 +180,36 @@ jobs:
           echo "libobs: $lib"
           grep -a -q '/rustc/' "$lib" || { echo "::error::no Rust code in $lib"; exit 1; }
 
-          # The Linux build must name itself OBS-Studio-Rust <version> (#112).
+          # The build must name itself OBS-Studio-Rust <full release version> (#112, #631).
+          want="OBS-Studio-Rust $VERSION (based on OBS "
           if [ "$OS" = linux ]; then
             prefix=build_ubuntu/install/RelWithDebInfo
             v=$(LD_LIBRARY_PATH="$prefix/lib:$prefix/lib/x86_64-linux-gnu" "$prefix/bin/obs" --version)
             echo "$v"
-            [[ "$v" == "OBS-Studio-Rust $CRATE"* ]] || { echo "::error::unexpected --version: $v"; exit 1; }
+            [[ "$v" == "$want"* ]] || { echo "::error::unexpected --version: $v (want $want...)"; exit 1; }
+          fi
+
+          # macOS: open the DMG as a user would and check the app's version
+          # strings, the volume name and --version. The x86_64 app cannot run
+          # on the arm64 runner, so it gets the bundle checks only.
+          if [ "$OS" = macos ]; then
+            mnt=$(mktemp -d)
+            hdiutil attach -nobrowse -readonly -mountpoint "$mnt" "$src"
+            trap 'hdiutil detach "$mnt" -force >/dev/null 2>&1 || true' EXIT
+            app="$mnt/OBS.app"
+            for key in CFBundleShortVersionString CFBundleVersion; do
+              got=$(/usr/libexec/PlistBuddy -c "Print :$key" "$app/Contents/Info.plist")
+              echo "$key=$got"
+              [ "$got" = "$VERSION" ] || { echo "::error::$key is '$got', want '$VERSION'"; exit 1; }
+            done
+            vol=$(diskutil info -plist "$mnt" | /usr/libexec/PlistBuddy -c "Print :VolumeName" /dev/stdin)
+            echo "volume: $vol"
+            [[ "$vol" == "OBS-Studio-Rust $VERSION "* ]] || { echo "::error::DMG volume is '$vol'"; exit 1; }
+            if [ "$TARGET" = arm64 ]; then
+              v=$("$app/Contents/MacOS/OBS" --version)
+              echo "$v"
+              [[ "$v" == "$want"* ]] || { echo "::error::unexpected --version: $v (want $want...)"; exit 1; }
+            fi
           fi
           ls -la pkg
 
@@ -203,6 +230,7 @@ jobs:
     with:
       ref: ${{ needs.check.outputs.sha }}
       publish_continuous: true
+      rust_version: ${{ needs.check.outputs.version }}
     # A called workflow may not ask for more than its caller grants, and
     # appimage.yaml's release job asks for contents: write (it only runs on a
     # push, never from here). Granting less made GitHub refuse to start this

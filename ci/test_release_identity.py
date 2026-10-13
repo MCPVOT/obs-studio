@@ -71,7 +71,7 @@ class Wiring(unittest.TestCase):
         self.assertIn("OBS_RUST_VERSION: ${{ needs.check.outputs.version }}", self.release)
 
     def test_linux_checks_the_full_string(self):
-        self.assertIn('"OBS-Studio-Rust $VERSION (based on OBS "*', self.release)
+        self.assertIn('want="OBS-Studio-Rust $VERSION (based on OBS "', self.release)
 
     def test_macos_checks_the_dmg(self):
         self.assertIn("CFBundleShortVersionString", self.release)
@@ -91,7 +91,7 @@ class Wiring(unittest.TestCase):
     def test_resources_use_the_release_version(self):
         self.assertIn("OBS_RUST_RELEASE_VERSION", text("cmake/macos/helpers.cmake"))
         self.assertIn("OBS_RC_PRODUCT_VERSION", text("frontend/cmake/windows/obs.rc.in"))
-        self.assertIn("OBS_METAINFO_VERSION", text("frontend/cmake/linux/com.obsproject.Studio.metainfo.xml.in"))
+        self.assertIn("OBS_RUST_VERSION", text("frontend/cmake/os-linux.cmake"))
         self.assertIn("OBS_RUST_VERSION", text(".github/scripts/.package.zsh"))
 
 
