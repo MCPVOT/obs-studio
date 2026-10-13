@@ -58,7 +58,13 @@ fn collect_c_sources(dir: &Path, out: &mut Vec<PathBuf>) {
 
 /// The strict GCC/Clang warnings enabled so far (obs-rust/obs-studio#516).
 /// Add a flag once every target builds clean under it.
-const STRICT_FLAGS: &[&str] = &["-Wvla", "-Wshadow", "-Wundef", "-Wdouble-promotion", "-Wstrict-prototypes"];
+const STRICT_FLAGS: &[&str] = &[
+    "-Wvla",
+    "-Wshadow",
+    "-Wundef",
+    "-Wdouble-promotion",
+    "-Wstrict-prototypes",
+];
 
 fn main() {
     let manifest = PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").unwrap());
