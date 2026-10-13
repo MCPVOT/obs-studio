@@ -72,24 +72,24 @@ struct pw_portal_connection {
 
 struct pw_portal_connection *connection = NULL;
 
-static void pw_portal_connection_free(struct pw_portal_connection *connection)
+static void pw_portal_connection_free(struct pw_portal_connection *conn)
 {
-	if (!connection)
+	if (!conn)
 		return;
 
-	g_cancellable_cancel(connection->cancellable);
+	g_cancellable_cancel(conn->cancellable);
 
 	/* The device proxies live on the PipeWire thread, which still runs
 	 * here: destroy them with its loop locked. */
-	if (connection->obs_pw)
-		obs_pipewire_lock(connection->obs_pw);
-	g_clear_pointer(&connection->devices, g_hash_table_destroy);
-	if (connection->obs_pw)
-		obs_pipewire_unlock(connection->obs_pw);
-	g_clear_pointer(&connection->obs_pw, obs_pipewire_destroy);
-	g_clear_pointer(&connection->sources, g_ptr_array_unref);
-	g_clear_object(&connection->cancellable);
-	bfree(connection);
+	if (conn->obs_pw)
+		obs_pipewire_lock(conn->obs_pw);
+	g_clear_pointer(&conn->devices, g_hash_table_destroy);
+	if (conn->obs_pw)
+		obs_pipewire_unlock(conn->obs_pw);
+	g_clear_pointer(&conn->obs_pw, obs_pipewire_destroy);
+	g_clear_pointer(&conn->sources, g_ptr_array_unref);
+	g_clear_object(&conn->cancellable);
+	bfree(conn);
 }
 
 static GDBusProxy *camera_proxy = NULL;
@@ -541,11 +541,12 @@ static inline void add_control_property(obs_properties_t *props, obs_data_t *set
 				return;
 
 			while (1) {
-				int32_t id;
+				int32_t enum_id;
 				const char *desc;
-				if (spa_pod_parser_get_int(&prs, &id) < 0 || spa_pod_parser_get_string(&prs, &desc) < 0)
+				if (spa_pod_parser_get_int(&prs, &enum_id) < 0 ||
+				    spa_pod_parser_get_string(&prs, &desc) < 0)
 					break;
-				obs_property_list_add_int(prop, desc, id);
+				obs_property_list_add_int(prop, desc, enum_id);
 			}
 		} else {
 			min = n_vals > 1 ? vals[1] : def;
@@ -655,7 +656,7 @@ static bool framerate_list(struct camera_device *dev, uint32_t pixelformat, cons
 	{
 		const struct spa_fraction *framerate_values;
 		enum spa_choice_type choice;
-		const struct spa_pod_prop *prop;
+		const struct spa_pod_prop *fr_prop;
 		struct spa_rectangle this_resolution;
 		struct spa_pod *framerate_pod;
 		uint32_t media_subtype;
@@ -688,11 +689,11 @@ static bool framerate_list(struct camera_device *dev, uint32_t pixelformat, cons
 		if (this_resolution.width != resolution->width || this_resolution.height != resolution->height)
 			continue;
 
-		prop = spa_pod_find_prop(p->param, NULL, SPA_FORMAT_VIDEO_framerate);
-		if (!prop)
+		fr_prop = spa_pod_find_prop(p->param, NULL, SPA_FORMAT_VIDEO_framerate);
+		if (!fr_prop)
 			continue;
 
-		framerate_pod = spa_pod_get_values(&prop->value, &n_framerates, &choice);
+		framerate_pod = spa_pod_get_values(&fr_prop->value, &n_framerates, &choice);
 		if (framerate_pod->type != SPA_TYPE_Fraction) {
 			blog(LOG_WARNING, "Framerate is not a fraction - something is wrong");
 			continue;

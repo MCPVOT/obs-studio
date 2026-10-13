@@ -684,8 +684,8 @@ obs_source_t *obs_source_duplicate(obs_source_t *source, const char *new_name, b
 
 		obs_scene_t *new_scene = obs_scene_duplicate(
 			scene, new_name, create_private ? OBS_SCENE_DUP_PRIVATE_COPY : OBS_SCENE_DUP_COPY);
-		obs_source_t *new_source = obs_scene_get_source(new_scene);
-		return new_source;
+		obs_source_t *dup_source = obs_scene_get_source(new_scene);
+		return dup_source;
 	}
 
 	if ((source->info.output_flags & OBS_SOURCE_DO_NOT_DUPLICATE) != 0) {

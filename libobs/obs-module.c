@@ -1017,14 +1017,14 @@ cleanup:
 
 #define HANDLE_ERROR(size_var, structure, info)                                         \
 	do {                                                                            \
-		struct structure data = {0};                                            \
+		struct structure err_data = {0};                                            \
 		if (!size_var)                                                          \
 			return;                                                         \
                                                                                         \
-		memcpy(&data, info, sizeof(data) < size_var ? sizeof(data) : size_var); \
+		memcpy(&err_data, info, sizeof(err_data) < size_var ? sizeof(err_data) : size_var); \
                                                                                         \
-		if (data.type_data && data.free_type_data)                              \
-			data.free_type_data(data.type_data);                            \
+		if (err_data.type_data && err_data.free_type_data)                              \
+			err_data.free_type_data(err_data.type_data);                            \
 	} while (false)
 
 #define source_warn(format, ...) blog(LOG_WARNING, "obs_register_source: " format, ##__VA_ARGS__)

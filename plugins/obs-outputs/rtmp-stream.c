@@ -853,10 +853,10 @@ static bool send_video_metadata(struct rtmp_stream *stream, size_t idx)
 		uint8_t *data;
 		size_t size;
 
-		video_t *video = obs_get_video();
-		const struct video_output_info *info = video_output_get_info(video);
-		enum video_format format = info->format;
-		enum video_colorspace colorspace = info->colorspace;
+		video_t *global_video = obs_get_video();
+		const struct video_output_info *global_info = video_output_get_info(global_video);
+		enum video_format format = global_info->format;
+		enum video_colorspace global_colorspace = global_info->colorspace;
 
 		int bits_per_raw_sample;
 		switch (format) {
@@ -874,7 +874,7 @@ static bool send_video_metadata(struct rtmp_stream *stream, size_t idx)
 		}
 
 		int pri = 0, trc = 0, spc = 0;
-		switch (colorspace) {
+		switch (global_colorspace) {
 		case VIDEO_CS_601:
 			pri = OBSCOL_PRI_SMPTE170M;
 			trc = OBSCOL_PRI_SMPTE170M;
@@ -1373,9 +1373,9 @@ static bool init_connect(struct rtmp_stream *stream)
 		const char *codec = obs_encoder_get_codec(enc);
 		stream->audio_codec[i] = to_audio_type(codec);
 
-		obs_data_t *settings = obs_encoder_get_settings(enc);
-		overall_audio_bitrate += obs_data_get_int(settings, "bitrate");
-		obs_data_release(settings);
+		obs_data_t *enc_settings = obs_encoder_get_settings(enc);
+		overall_audio_bitrate += obs_data_get_int(enc_settings, "bitrate");
+		obs_data_release(enc_settings);
 	}
 
 	da_reserve(stream->dbr_interpolation_table, 2);
@@ -1421,12 +1421,12 @@ static bool init_connect(struct rtmp_stream *stream)
 			}
 		}
 
-		obs_data_t *settings = obs_encoder_get_settings(enc);
-		long long bitrate = obs_data_get_int(settings, "bitrate");
+		obs_data_t *enc_settings = obs_encoder_get_settings(enc);
+		long long bitrate = obs_data_get_int(enc_settings, "bitrate");
 		overall_video_bitrate += bitrate;
 		dbr_point->bitrates[i] = (long)bitrate;
 		stream->dbr_enc_bitrates[i] = (long)bitrate;
-		obs_data_release(settings);
+		obs_data_release(enc_settings);
 	}
 
 	deque_free(&stream->dbr_frames);

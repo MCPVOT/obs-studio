@@ -936,14 +936,14 @@ static inline void render_item(struct obs_scene_item *item)
 					      -(float)(item->crop.top + item->bounds_crop.top), 0.0f);
 
 			if (item->user_visible && transition_active(item->show_transition)) {
-				const int cx = obs_source_get_width(item->source);
-				const int cy = obs_source_get_height(item->source);
-				obs_transition_set_size(item->show_transition, cx, cy);
+				const int show_cx = obs_source_get_width(item->source);
+				const int show_cy = obs_source_get_height(item->source);
+				obs_transition_set_size(item->show_transition, show_cx, show_cy);
 				obs_source_video_render(item->show_transition);
 			} else if (!item->user_visible && transition_active(item->hide_transition)) {
-				const int cx = obs_source_get_width(item->source);
-				const int cy = obs_source_get_height(item->source);
-				obs_transition_set_size(item->hide_transition, cx, cy);
+				const int hide_cx = obs_source_get_width(item->source);
+				const int hide_cy = obs_source_get_height(item->source);
+				obs_transition_set_size(item->hide_transition, hide_cx, hide_cy);
 				obs_source_video_render(item->hide_transition);
 			} else {
 				obs_source_set_texcoords_centered(item->source, true);

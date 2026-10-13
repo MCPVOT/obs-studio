@@ -174,9 +174,9 @@ static inline obs_hotkey_id obs_hotkey_register_internal(obs_hotkey_registerer_t
 	HASH_ADD_HKEY(obs->hotkeys.hotkeys, id, hotkey);
 
 	if (context) {
-		obs_data_array_t *data = obs_data_get_array(context->hotkey_data, name);
-		load_bindings(hotkey, data);
-		obs_data_array_release(data);
+		obs_data_array_t *binding_data = obs_data_get_array(context->hotkey_data, name);
+		load_bindings(hotkey, binding_data);
+		obs_data_array_release(binding_data);
 
 		context_add_hotkey(context, result);
 	}
