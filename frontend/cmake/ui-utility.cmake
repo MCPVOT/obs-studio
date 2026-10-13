@@ -44,6 +44,8 @@ target_sources(
     utility/replay-buffer-naming.h
     utility/output-filename-reserve.c
     utility/output-filename-reserve.h
+    utility/output-rescale.c
+    utility/output-rescale.h
     utility/multitrack-ladder.c
     utility/multitrack-ladder.h
     utility/product-name.c
