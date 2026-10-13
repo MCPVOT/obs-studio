@@ -8,6 +8,8 @@
 
 #include <inttypes.h>
 
+#include "slideshow-size.h"
+
 #define do_log(level, format, ...) \
 	blog(level, "[slideshow: '%s'] " format, obs_source_get_name(ss->source), ##__VA_ARGS__)
 
@@ -532,16 +534,9 @@ static void ss_update(void *data, obs_data_t *settings)
 	/* ------------------------------------- */
 	/* get new size                          */
 
-	const char *res_str = obs_data_get_string(settings, S_CUSTOM_SIZE);
-	bool valid = false;
-
-	int ret = sscanf(res_str, "%" PRIu32 "x%" PRIu32, &cx, &cy);
-	if (ret == 2) {
-		valid = true;
-	} else {
-		cx = 0;
-		cy = 0;
-	}
+	struct obs_video_info ovi = {0};
+	obs_get_video_info(&ovi);
+	slideshow_parse_size(obs_data_get_string(settings, S_CUSTOM_SIZE), ovi.base_width, ovi.base_height, &cx, &cy);
 
 	/* ------------------------------------- */
 	/* update settings data                  */
