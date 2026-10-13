@@ -56,6 +56,10 @@ fn collect_c_sources(dir: &Path, out: &mut Vec<PathBuf>) {
     }
 }
 
+/// The strict GCC/Clang warnings enabled so far (obs-rust/obs-studio#516).
+/// Add a flag once every target builds clean under it.
+const STRICT_FLAGS: &[&str] = &["-Wvla"];
+
 fn main() {
     let manifest = PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").unwrap());
     // No canonicalize(): on Windows it yields a verbatim `\\?\` path, and
@@ -67,6 +71,8 @@ fn main() {
         .expect("rust/obs-c-oracle has a repo root two levels up")
         .join("libobs");
 
+    let unix = std::env::var_os("CARGO_CFG_UNIX").is_some();
+    let windows = std::env::var_os("CARGO_CFG_WINDOWS").is_some();
     let mut oracle = cc::Build::new();
     // Rust never fuses `a * b + c` into an FMA, but GCC/Clang may (clang's
     // default -ffp-contract=on does so on aarch64), which would make float
@@ -74,6 +80,43 @@ fn main() {
     // Rust port. Pin the C oracle to unfused IEEE operations. MSVC does not
     // contract under its default /fp:precise.
     let mut flags: Vec<&str> = Vec::new();
+    // Warnings are errors (obs-rust/obs-studio#516): cc maps these to
+    // -Wall -Wextra -Werror, or /W4 /WX for MSVC and clang-cl. STRICT_FLAGS
+    // is the ratchet toward the full strict set: a flag joins once every
+    // target is clean under it (#516 lists the remaining ones).
+    oracle
+        .warnings(true)
+        .extra_warnings(true)
+        .warnings_into_errors(true);
+    flags.extend(["-Wall", "-Wextra", "-Werror"]);
+    if !oracle.get_compiler().is_like_msvc() {
+        for flag in STRICT_FLAGS {
+            oracle.flag(flag);
+            flags.push(flag);
+        }
+    }
+    if oracle.get_compiler().is_like_msvc() {
+        // As the shipped libobs build (cmake/windows/compilerconfig.cmake).
+        oracle.define("_CRT_SECURE_NO_WARNINGS", None);
+        flags.push("-D_CRT_SECURE_NO_WARNINGS");
+        // /W4 is stricter than the shipped /W3. C4702 (unreachable code)
+        // only fires inside the vendored uthash HASH_* macros, whose
+        // uthash_fatal path does not return.
+        oracle.flag("/wd4702");
+        flags.push("/wd4702");
+    }
+    if oracle.get_compiler().is_like_clang() {
+        // soldr's Apple toolchains pass -fuse-ld=lld in CFLAGS, unused by a
+        // compile-only invocation; keep the warning, not the error.
+        oracle.flag("-Wno-error=unused-command-line-argument");
+        flags.push("-Wno-error=unused-command-line-argument");
+    }
+    if windows && std::env::var("CARGO_CFG_TARGET_ENV").ok().as_deref() == Some("gnu") {
+        // C99 printf (%zu) from MinGW's stdio, matching PRINTFATTR's
+        // __gnu_printf__ archetype there.
+        oracle.define("__USE_MINGW_ANSI_STDIO", Some("1"));
+        flags.push("-D__USE_MINGW_ANSI_STDIO=1");
+    }
     if !oracle.get_compiler().is_like_msvc() {
         oracle.flag("-ffp-contract=off");
         flags.push("-ffp-contract=off");
@@ -89,8 +132,6 @@ fn main() {
     // wrapper file, not a line here. `*_posix.c` wrappers are Unix-only
     // (pipe-posix.c needs <spawn.h>) and `*_windows.c` wrappers are
     // Windows-only (pipe-windows.c needs <windows.h>).
-    let unix = std::env::var_os("CARGO_CFG_UNIX").is_some();
-    let windows = std::env::var_os("CARGO_CFG_WINDOWS").is_some();
     let mut sources: Vec<PathBuf> = std::fs::read_dir(manifest.join("oracle"))
         .expect("read oracle/")
         .map(|e| e.expect("dir entry").path())
@@ -146,9 +187,16 @@ fn main() {
         let deps = libobs.with_file_name("deps");
         oracle
             .include(deps.join("w32-pthreads"))
-            .define("PTW32_STATIC_LIB", None)
-            .file(deps.join("w32-pthreads/pthread.c"));
+            .define("PTW32_STATIC_LIB", None);
         flags.push("-DPTW32_STATIC_LIB");
+        // Vendored third-party code: its own library, warnings off (#516).
+        cc::Build::new()
+            .include(deps.join("w32-pthreads"))
+            .define("PTW32_STATIC_LIB", None)
+            .file(deps.join("w32-pthreads/pthread.c"))
+            .warnings(false)
+            .std("c11")
+            .compile("obs_c_oracle_w32_pthreads");
     }
     // Every directory the oracle can read C/headers from. libobs is the
     // important one: wrappers include its sources directly, so a libobs-only

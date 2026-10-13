@@ -40,7 +40,12 @@ struct dstr {
 };
 
 #ifndef _MSC_VER
+#if defined(__MINGW32__)
+/* MinGW's printf archetype is the MS one; libobs formats are C99 (%zu). */
+#define PRINTFATTR(f, a) __attribute__((__format__(__gnu_printf__, f, a)))
+#else
 #define PRINTFATTR(f, a) __attribute__((__format__(__printf__, f, a)))
+#endif
 #else
 #define PRINTFATTR(f, a)
 #endif

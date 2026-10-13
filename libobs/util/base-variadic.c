@@ -28,7 +28,8 @@
 
 #include "base.h"
 
-#ifndef _MSC_VER
+#if !defined(_MSC_VER) && !defined(_WIN32)
+/* Windows (MinGW included) has no ELF visibility. */
 #define BASE_HIDDEN __attribute__((visibility("hidden")))
 #else
 #define BASE_HIDDEN
