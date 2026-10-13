@@ -24,10 +24,12 @@ struct output_rescale_ops {
 	void (*set_res_enabled)(void *param, bool enabled);
 };
 
-/* The filter box changed (or was loaded). */
+/* The filter box changed (or was loaded). The resolution box is enabled
+ * when a filter is selected and the filter box is not locked. */
 void output_rescale_filter_changed(const struct output_rescale_ops *ops);
 
-/* Multitrack video locked (or unlocked) the stream encoder settings. */
+/* Multitrack video locked (or unlocked) the stream encoder settings: locks
+ * the filter box, and the resolution box follows both. */
 void output_rescale_set_locked(const struct output_rescale_ops *ops, bool locked);
 
 #ifdef __cplusplus

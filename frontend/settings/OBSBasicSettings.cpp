@@ -1916,13 +1916,16 @@ void OBSBasicSettings::LoadAdvOutputStreamingSettings()
 	int rescaleFilter = config_get_int(main->Config(), "AdvOut", "RescaleFilter");
 	int trackIndex = config_get_int(main->Config(), "AdvOut", "TrackIndex");
 	int audioMixes = config_get_int(main->Config(), "AdvOut", "StreamMultiTrackAudioMixes");
-	ui->advOutRescale->setEnabled(rescaleFilter != OBS_SCALE_DISABLE);
 	ui->advOutRescale->setCurrentText(rescaleRes);
 
 	int idx = ui->advOutRescaleFilter->findData(rescaleFilter);
 	if (idx != -1) {
 		ui->advOutRescaleFilter->setCurrentIndex(idx);
 	}
+
+	RescaleBoxes rescaleBoxes{ui->advOutRescaleFilter, ui->advOutRescale};
+	output_rescale_ops rescaleOps = RescaleOps(&rescaleBoxes);
+	output_rescale_filter_changed(&rescaleOps);
 
 	QStringList specList = QTStr("FilenameFormatting.completer").split(QRegularExpression("\n"));
 	QCompleter *specCompleter = new QCompleter(specList);
