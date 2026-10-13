@@ -48,6 +48,7 @@ pub mod graphics_math;
 pub mod hevc;
 pub mod lexer;
 pub mod nal;
+pub mod obs_nvenc;
 pub mod path_extension;
 pub mod pipe;
 #[cfg(unix)]

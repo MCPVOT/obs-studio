@@ -56,6 +56,35 @@ fn collect_c_sources(dir: &Path, out: &mut Vec<PathBuf>) {
     }
 }
 
+/// Copies `[start line, end line]` (inclusive, matched by prefix) out of an
+/// original plugin source, verbatim. Used where the whole file cannot be
+/// compiled without a GPU SDK (plugins/obs-nvenc needs nv-codec-headers): the
+/// oracle compiles exactly the original lines it needs. Panics if the markers
+/// move, so a C change that breaks the extraction fails the build.
+fn extract_c(src: &Path, start: &str, end: &str) -> String {
+    let text =
+        std::fs::read_to_string(src).unwrap_or_else(|e| panic!("read {}: {e}", src.display()));
+    let lines: Vec<&str> = text.lines().collect();
+    let first = lines
+        .iter()
+        .position(|l| l.starts_with(start))
+        .unwrap_or_else(|| panic!("{}: no line starting with {start:?}", src.display()));
+    let last = lines[first..]
+        .iter()
+        .position(|l| l.starts_with(end))
+        .map(|i| first + i)
+        .unwrap_or_else(|| panic!("{}: no {end:?} after {start:?}", src.display()));
+    let mut out = format!(
+        "#line {} \"{}\"\n",
+        first + 1,
+        src.display().to_string().replace('\\', "/")
+    );
+    for l in &lines[first..=last] {
+        out.push_str(l);
+        out.push('\n');
+    }
+    out
+}
 /// The strict GCC/Clang warnings enabled so far (obs-rust/obs-studio#516).
 /// Add a flag once every target builds clean under it.
 const STRICT_FLAGS: &[&str] = &[
@@ -177,6 +206,38 @@ fn main() {
     }
     // base.c's variadic entry points stay C in libobs; the oracle needs them too.
     oracle.file(libobs.join("util/base-variadic.c"));
+    // plugins/obs-nvenc loader parity (obs-rust/obs-studio#520): the
+    // original load_cuda_lib(), cuda_functions[] and load_nvenc_lib(),
+    // extracted verbatim for oracle/obs_nvenc_loader.c.
+    let nvenc_dir = libobs.with_file_name("plugins").join("obs-nvenc");
+    let extract_dir = PathBuf::from(std::env::var_os("OUT_DIR").unwrap()).join("obs-nvenc-extract");
+    std::fs::create_dir_all(&extract_dir).expect("create obs-nvenc-extract");
+    let cuda_helpers = nvenc_dir.join("cuda-helpers.c");
+    let nvenc_helpers = nvenc_dir.join("nvenc-helpers.c");
+    for (name, src, start, end) in [
+        (
+            "load_cuda_lib.inc",
+            &cuda_helpers,
+            "bool load_cuda_lib(void)",
+            "}",
+        ),
+        (
+            "cuda_functions.inc",
+            &cuda_helpers,
+            "typedef struct cuda_function {",
+            "static const size_t num_cuda_funcs",
+        ),
+        (
+            "load_nvenc_lib.inc",
+            &nvenc_helpers,
+            "bool load_nvenc_lib(void)",
+            "}",
+        ),
+    ] {
+        std::fs::write(extract_dir.join(name), extract_c(src, start, end)).expect("write extract");
+    }
+    oracle.include(&extract_dir);
+
     oracle
         .include(&libobs)
         // obs.h (for obs-hevc.c, obs-av1.c and obs-avc.c) needs the CMake-generated obsconfig.h.
@@ -218,6 +279,7 @@ fn main() {
         manifest.join("vendor"),
         libobs.clone(),
         libobs.with_file_name("deps").join("w32-pthreads"),
+        nvenc_dir.clone(),
     ];
     println!(
         "cargo:rustc-env=OBS_ORACLE_INPUT_HASH={:016x}",
@@ -244,4 +306,6 @@ fn main() {
     // Cargo scans a watched directory recursively, so any libobs source or
     // header an oracle includes reruns this script.
     println!("cargo:rerun-if-changed={}", libobs.display());
+    println!("cargo:rerun-if-changed={}", cuda_helpers.display());
+    println!("cargo:rerun-if-changed={}", nvenc_helpers.display());
 }
