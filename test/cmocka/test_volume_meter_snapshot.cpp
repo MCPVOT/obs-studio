@@ -21,10 +21,11 @@ int main()
 			std::lock_guard lock(data.mutex);
 			data.lastUpdate = 1000000000;
 			for (int channel = 0; channel < 4; channel++) {
-				data.peak[channel] = i;
-				data.peakHold[channel] = i;
-				data.magnitude[channel] = i;
-				data.inputPeakHold[channel] = i;
+				const float value = static_cast<float>(i);
+				data.peak[channel] = value;
+				data.peakHold[channel] = value;
+				data.magnitude[channel] = value;
+				data.inputPeakHold[channel] = value;
 			}
 		}
 	});
