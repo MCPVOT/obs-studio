@@ -82,7 +82,7 @@ def main(argv: list[str]) -> int:
         try:
             skip, repair = check(args.event, args.ref, _bool(args.repair), _bool(args.tag_exists), args.tag_date, args.today)
         except ValueError as e:
-            print(f"::error::{e}")
+            print(f"::error::{e}", file=sys.stderr)
             return 1
         print(f"skip={str(skip).lower()}")
         print(f"repair={str(repair).lower()}")
