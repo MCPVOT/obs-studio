@@ -3211,8 +3211,8 @@ void obs_output_caption(obs_output_t *output, const struct obs_source_cea_708 *c
 			continue;
 		}
 		pthread_mutex_lock(&ctrack->caption_mutex);
-		for (size_t i = 0; i < captions->packets; i++) {
-			deque_push_back(&ctrack->caption_data, captions->data + (i * 3), 3 * sizeof(uint8_t));
+		for (size_t pkt = 0; pkt < captions->packets; pkt++) {
+			deque_push_back(&ctrack->caption_data, captions->data + (pkt * 3), 3 * sizeof(uint8_t));
 		}
 		pthread_mutex_unlock(&ctrack->caption_mutex);
 	}

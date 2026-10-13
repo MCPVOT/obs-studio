@@ -592,20 +592,20 @@ bool audio_callback(void *param, uint64_t start_ts_in, uint64_t end_ts_in, uint6
 
 		/* NOTE: these are source channels, not audio channels */
 		for (uint32_t i = 0; i < MAX_CHANNELS; i++) {
-			obs_source_t *source = view->channels[i];
-			if (!source)
+			obs_source_t *channel_source = view->channels[i];
+			if (!channel_source)
 				continue;
-			if (!obs_source_active(source))
+			if (!obs_source_active(channel_source))
 				continue;
-			if (obs_source_removed(source))
+			if (obs_source_removed(channel_source))
 				continue;
 
 			/* first, add top-level sources as root_nodes */
 			if (mix->mix_audio)
-				da_push_back(audio->root_nodes, &source);
+				da_push_back(audio->root_nodes, &channel_source);
 
 			/* Build audio tree, tag duplicate individual sources */
-			obs_source_enum_active_tree(source, push_audio_tree2, audio);
+			obs_source_enum_active_tree(channel_source, push_audio_tree2, audio);
 
 			/* add top-level sources to audio tree */
 			push_audio_tree(NULL, source, audio);
@@ -629,34 +629,36 @@ bool audio_callback(void *param, uint64_t start_ts_in, uint64_t end_ts_in, uint6
 	/* ------------------------------------------------ */
 	/* render audio data */
 	for (size_t i = 0; i < audio->render_order.num; i++) {
-		obs_source_t *source = audio->render_order.array[i];
-		obs_source_audio_render(source, mixers, channels, sample_rate, audio_size);
-		if (should_silence_monitored_source(source, audio))
-			clear_audio_output_buf(source, audio);
+		obs_source_t *render_source = audio->render_order.array[i];
+		obs_source_audio_render(render_source, mixers, channels, sample_rate, audio_size);
+		if (should_silence_monitored_source(render_source, audio))
+			clear_audio_output_buf(render_source, audio);
 
 		/* if a source has gone backward in time and we can no
 		 * longer buffer, drop some or all of its audio */
-		if (audio_buffering_maxed(audio) && source->audio_ts != 0 && source->audio_ts < ts.start) {
-			if (source->info.audio_render) {
+		if (audio_buffering_maxed(audio) && render_source->audio_ts != 0 &&
+		    render_source->audio_ts < ts.start) {
+			if (render_source->info.audio_render) {
 				blog(LOG_DEBUG,
 				     "render audio source %s timestamp has "
 				     "gone backwards",
-				     obs_source_get_name(source));
+				     obs_source_get_name(render_source));
 
 				/* just avoid further damage */
-				source->audio_pending = true;
+				render_source->audio_pending = true;
 #if DEBUG_AUDIO == 1
 				/* this should really be fixed */
 				assert(false);
 #endif
 			} else {
-				pthread_mutex_lock(&source->audio_buf_mutex);
-				bool rerender = ignore_audio(source, channels, sample_rate, ts.start);
-				pthread_mutex_unlock(&source->audio_buf_mutex);
+				pthread_mutex_lock(&render_source->audio_buf_mutex);
+				bool rerender = ignore_audio(render_source, channels, sample_rate, ts.start);
+				pthread_mutex_unlock(&render_source->audio_buf_mutex);
 
 				/* if we (potentially) recovered, re-render */
 				if (rerender)
-					obs_source_audio_render(source, mixers, channels, sample_rate, audio_size);
+					obs_source_audio_render(render_source, mixers, channels, sample_rate,
+								audio_size);
 			}
 		}
 	}
@@ -681,15 +683,15 @@ bool audio_callback(void *param, uint64_t start_ts_in, uint64_t end_ts_in, uint6
 	/* mix audio */
 	if (!audio->buffering_wait_ticks) {
 		for (size_t i = 0; i < audio->root_nodes.num; i++) {
-			obs_source_t *source = audio->root_nodes.array[i];
+			obs_source_t *root_source = audio->root_nodes.array[i];
 
-			if (source->audio_pending)
+			if (root_source->audio_pending)
 				continue;
 
-			pthread_mutex_lock(&source->audio_buf_mutex);
+			pthread_mutex_lock(&root_source->audio_buf_mutex);
 
-			if (source->audio_output_buf[0][0] && source->audio_ts)
-				mix_audio(mixes, source, channels, sample_rate, &ts);
+			if (root_source->audio_output_buf[0][0] && root_source->audio_ts)
+				mix_audio(mixes, root_source, channels, sample_rate, &ts);
 
 			pthread_mutex_unlock(&source->audio_buf_mutex);
 		}

@@ -853,14 +853,14 @@ static inline void video_sleep(struct obs_core_video *video, uint64_t *p_time, u
 
 	pthread_mutex_lock(&obs->video.mixes_mutex);
 	for (size_t i = 0, num = obs->video.mixes.num; i < num; i++) {
-		struct obs_core_video_mix *video = obs->video.mixes.array[i];
-		bool raw_active = video->raw_was_active;
-		bool gpu_active = video->gpu_was_active;
+		struct obs_core_video_mix *mix = obs->video.mixes.array[i];
+		bool raw_active = mix->raw_was_active;
+		bool gpu_active = mix->gpu_was_active;
 
 		if (raw_active)
-			deque_push_back(&video->vframe_info_buffer, &vframe_info, sizeof(vframe_info));
+			deque_push_back(&mix->vframe_info_buffer, &vframe_info, sizeof(vframe_info));
 		if (gpu_active)
-			deque_push_back(&video->vframe_info_buffer_gpu, &vframe_info, sizeof(vframe_info));
+			deque_push_back(&mix->vframe_info_buffer_gpu, &vframe_info, sizeof(vframe_info));
 	}
 	pthread_mutex_unlock(&obs->video.mixes_mutex);
 }
@@ -1149,8 +1149,8 @@ bool obs_graphics_thread_loop(struct obs_graphics_context *context)
 
 	if (context->fps_total_ns >= 1000000000ULL) {
 		const double fps = (double)context->fps_total_frames / ((double)context->fps_total_ns / 1000000000.0);
-		const uint64_t frame_time_ns = context->frame_time_total_ns / (uint64_t)context->fps_total_frames;
-		obs_video_stats_set_timing(&obs->video.stats, fps, frame_time_ns);
+		const uint64_t avg_frame_time_ns = context->frame_time_total_ns / (uint64_t)context->fps_total_frames;
+		obs_video_stats_set_timing(&obs->video.stats, fps, avg_frame_time_ns);
 
 		context->frame_time_total_ns = 0;
 		context->fps_total_ns = 0;
