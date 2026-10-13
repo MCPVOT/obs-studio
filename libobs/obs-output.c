@@ -3081,7 +3081,7 @@ static void output_reconnect(struct obs_output *output)
 		os_atomic_set_bool(&output->reconnecting, false);
 	} else {
 		blog(LOG_INFO, "Output '%s': Reconnecting in %.02f seconds..", output->context.name,
-		     (float)(output->reconnect_retry_cur_msec / 1000.0));
+		     (double)(float)(output->reconnect_retry_cur_msec / 1000.0));
 
 		signal_reconnect(output);
 	}
