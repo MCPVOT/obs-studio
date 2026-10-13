@@ -65,6 +65,7 @@ const STRICT_FLAGS: &[&str] = &[
     "-Wdouble-promotion",
     "-Wstrict-prototypes",
     "-Wformat-nonliteral",
+    "-Wpedantic",
 ];
 
 fn main() {
