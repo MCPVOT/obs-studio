@@ -38,6 +38,12 @@ tools = ["uvx", "soldr"]
 run = ["python3", "ci/local_gate.py", "--lane", "rust-test"]
 tools = ["soldr"]
 
+# Clippy and Dylint for x86_64-pc-windows-msvc and both macOS targets,
+# cross-checked from this host through soldr (#472).
+[gate.lanes.cross]
+run = ["python3", "ci/local_gate.py", "--lane", "cross"]
+tools = ["soldr"]
+
 # Tier 2: libobs + cmocka with ENABLE_RUST_LIBOBS OFF and ON in Docker
 # (ubuntu-26.04, the CI image), exported-symbol diff.
 [gate.lanes.tier2-linux]
@@ -50,8 +56,8 @@ tools = ["docker"]
 # sample all run the jobs. Pushes to master always run everything.
 [gate.trust]
 mode = "enforce"
-skip = ["build-project.yaml:rust-tests-linux", "build-project.yaml:rust-linux-tier2"]
-covered-by = { "build-project.yaml:rust-tests-linux" = ["lint", "rust-test"], "build-project.yaml:rust-linux-tier2" = ["tier2-linux"] }
+skip = ["build-project.yaml:rust-tests-linux", "build-project.yaml:rust-linux-tier2", "build-project.yaml:rust-cross-lint"]
+covered-by = { "build-project.yaml:rust-tests-linux" = ["lint", "rust-test"], "build-project.yaml:rust-linux-tier2" = ["tier2-linux"], "build-project.yaml:rust-cross-lint" = ["cross"] }
 surfaces = [
   "rust/tools/linux-validate/**",
   "rust-toolchain.toml",
