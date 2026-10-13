@@ -33,7 +33,7 @@ struct os_process_pipe {
 	FILE *err_file;
 };
 
-os_process_pipe_t *os_process_pipe_create_internal(const char *bin, char **argv, const char *type)
+static os_process_pipe_t *os_process_pipe_create_internal(const char *bin, char **argv, const char *type)
 {
 	struct os_process_pipe process_pipe = {0};
 	struct os_process_pipe *out;

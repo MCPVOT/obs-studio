@@ -18,6 +18,21 @@ struct base_test_rec {
 	char message[256];
 };
 
+/* Test-only exports called from Rust over FFI. */
+void base_test_record(int log_level, const char *format, va_list args, void *param);
+log_handler_t base_test_record_ptr(void);
+void base_test_flush(void);
+void base_test_rust_blog_i(int level, const char *fmt, int v);
+void base_test_oracle_blog_i(int level, const char *fmt, int v);
+void base_test_rust_blog_s(int level, const char *fmt, const char *s);
+void base_test_oracle_blog_s(int level, const char *fmt, const char *s);
+void base_test_rust_blog_ss(int level, const char *fmt, const char *a, const char *b);
+void base_test_oracle_blog_ss(int level, const char *fmt, const char *a, const char *b);
+void base_test_rust_blog_0(int level, const char *fmt);
+void base_test_oracle_blog_0(int level, const char *fmt);
+void base_test_rust_blogva_si(int level, const char *fmt, const char *s, int v);
+void base_test_oracle_blogva_si(int level, const char *fmt, const char *s, int v);
+
 void base_test_record(int log_level, const char *format, va_list args, void *param)
 {
 	struct base_test_rec *rec = param;

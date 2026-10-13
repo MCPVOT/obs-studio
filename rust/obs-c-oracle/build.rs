@@ -68,6 +68,7 @@ const STRICT_FLAGS: &[&str] = &[
     "-Wpedantic",
     "-Wcast-qual",
     "-Wsign-conversion",
+    "-Wmissing-prototypes",
 ];
 
 fn main() {

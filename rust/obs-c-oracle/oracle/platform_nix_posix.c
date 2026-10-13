@@ -74,6 +74,8 @@
  * rename macro. Put the attribute on the definition so that redeclaration
  * does not warn.
  */
+__attribute__((visibility("default"))) uint64_t oracle_os_gettime_ns(void);
+
 __attribute__((visibility("default"))) uint64_t oracle_os_gettime_ns(void)
 {
 	return clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
@@ -81,6 +83,24 @@ __attribute__((visibility("default"))) uint64_t oracle_os_gettime_ns(void)
 #endif
 
 #include "util/platform-nix.c"
+
+/* Test-only exports called from Rust over FFI. */
+size_t oracle_os_dirent_size(void);
+size_t oracle_os_dirent_align(void);
+size_t oracle_os_dirent_offset_d_name(void);
+size_t oracle_os_dirent_offset_directory(void);
+size_t oracle_os_globent_size(void);
+size_t oracle_os_globent_align(void);
+size_t oracle_os_globent_offset_path(void);
+size_t oracle_os_globent_offset_directory(void);
+size_t oracle_os_glob_info_size(void);
+size_t oracle_os_glob_info_align(void);
+size_t oracle_os_glob_info_offset_gl_pathc(void);
+size_t oracle_os_glob_info_offset_gl_pathv(void);
+size_t oracle_os_proc_memory_usage_size(void);
+size_t oracle_os_proc_memory_usage_align(void);
+size_t oracle_os_proc_memory_usage_offset_resident_size(void);
+size_t oracle_os_proc_memory_usage_offset_virtual_size(void);
 
 size_t oracle_os_dirent_size(void)
 {
