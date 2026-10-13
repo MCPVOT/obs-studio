@@ -71,7 +71,7 @@ bool os_sleepto_ns_fast(uint64_t time_target)
 	do {
 		uint64_t remain_us = (time_target - current + 999) / 1000;
 		unsigned long us = remain_us >= 1000000 ? 999999 : remain_us;
-		struct timespec ts = {us / 1000000, (us % 1000000) * 1000};
+		struct timespec ts = {(time_t)(us / 1000000), (long)((us % 1000000) * 1000)};
 		nanosleep(&ts, NULL);
 		current = os_gettime_ns();
 	} while (time_target > current);

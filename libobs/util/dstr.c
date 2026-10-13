@@ -166,7 +166,7 @@ char **strlist_split(const char *str, char split_ch, bool include_empty)
 		next_str = strchr(str, split_ch);
 
 		while (next_str) {
-			size_t size = next_str - cur_str;
+			size_t size = (size_t)(next_str - cur_str);
 
 			if (size || include_empty) {
 				++count;
@@ -196,7 +196,7 @@ char **strlist_split(const char *str, char split_ch, bool include_empty)
 		cur_str = str;
 
 		while (next_str) {
-			size_t size = next_str - cur_str;
+			size_t size = (size_t)(next_str - cur_str);
 
 			if (size || include_empty) {
 				table[cur_idx++] = offset;
