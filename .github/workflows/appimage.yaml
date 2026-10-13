@@ -96,7 +96,10 @@ jobs:
           sudo apt-get update
           mkdir -p .apt-cache/partial
           # Same set as .github/scripts/utils.zsh/setup_ubuntu, minus CEF/VLC/Python
-          # (not shipped in the AppImage), plus tools for packaging.
+          # (not shipped in the AppImage), plus tools for packaging, plus what the
+          # bundled libpipewire loads at runtime: its modules (libpipewire-0.3-modules)
+          # and client.conf (pipewire-bin). assemble-appdir.sh fails without them
+          # (obs-rust/obs-studio#426).
           sudo -E apt-get install -y --no-install-recommends -o DPkg::Lock::Timeout=120 -o Dir::Cache::archives="$PWD/.apt-cache" \
             build-essential cmake ninja-build ccache pkg-config git curl ca-certificates \
             patchelf desktop-file-utils file squashfs-tools zsync \
@@ -104,6 +107,7 @@ jobs:
             libavcodec-dev libavdevice-dev libavfilter-dev libavformat-dev libavutil-dev \
             libswresample-dev libswscale-dev libjansson-dev libx11-xcb-dev libgles2-mesa-dev \
             libwayland-dev libpipewire-0.3-dev libpulse-dev libx264-dev libmbedtls-dev \
+            libpipewire-0.3-modules pipewire-bin \
             libgl1-mesa-dev uthash-dev libsimde-dev libluajit-5.1-dev swig libxss-dev libglvnd-dev \
             libx11-dev libxcb-randr0-dev libxcb-shm0-dev libxcb-xinerama0-dev libxcb-composite0-dev \
             libxinerama-dev libxcb1-dev libxcb-xfixes0-dev libxkbcommon-dev libxkbcommon-x11-dev \

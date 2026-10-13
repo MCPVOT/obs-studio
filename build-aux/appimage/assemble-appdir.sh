@@ -57,12 +57,21 @@ cp -a "$SYSLIB"/gconv/. "$LIBDIR/gconv/"
 for so in libnss_files.so.2 libnss_dns.so.2 libresolv.so.2 libxkbcommon-x11.so.0; do
     [ -e "$SYSLIB/$so" ] && cp -aL "$SYSLIB/$so" "$LIBDIR/"
 done
-[ -d "$SYSLIB/spa-0.2" ] && cp -a "$SYSLIB/spa-0.2" "$LIBDIR/"
-[ -d "$SYSLIB/pipewire-0.3" ] && cp -a "$SYSLIB/pipewire-0.3" "$LIBDIR/"
-if [ -d /usr/share/pipewire ]; then
-    mkdir -p "$APPDIR/usr/share/pipewire"
-    cp -a /usr/share/pipewire/. "$APPDIR/usr/share/pipewire/"
-fi
+# The bundled libpipewire loads its modules, SPA plugins and client.conf from
+# the directories AppRun points it at. Without them pw_context_new() returns
+# NULL and OBS crashes as soon as a PipeWire capture starts
+# (obs-rust/obs-studio#426), so a build host that lacks them must fail here.
+for need in "$SYSLIB/spa-0.2/support/libspa-support.so:libspa-0.2-modules" \
+    "$SYSLIB/pipewire-0.3/libpipewire-module-protocol-native.so:libpipewire-0.3-modules" \
+    "/usr/share/pipewire/client.conf:pipewire-bin"; do
+    if [ ! -e "${need%%:*}" ]; then
+        echo "::error::${need%%:*} not found; install ${need##*:} on the build host" >&2
+        exit 1
+    fi
+done
+cp -a "$SYSLIB/spa-0.2" "$SYSLIB/pipewire-0.3" "$LIBDIR/"
+mkdir -p "$APPDIR/usr/share/pipewire"
+cp -a /usr/share/pipewire/. "$APPDIR/usr/share/pipewire/"
 
 # --- the modules the build installed, for test-appimage.sh -------------------
 mkdir -p "$APPDIR/usr/share/obs"
@@ -123,6 +132,9 @@ chmod +x "$APPDIR/AppRun"
 cp "$APPDIR/usr/share/applications/com.obsproject.Studio.desktop" "$APPDIR/"
 cp "$APPDIR/usr/share/icons/hicolor/256x256/apps/com.obsproject.Studio.png" "$APPDIR/"
 ln -sf com.obsproject.Studio.png "$APPDIR/.DirIcon"
+
+# --- everything AppRun points OBS at at runtime must be in the AppDir --------
+"$HERE/check-appdir.sh" "$APPDIR"
 
 # --- sanity: nothing may resolve outside the AppDir except the excluded host libs
 echo "::group::Libraries still resolved from the host"
