@@ -84,7 +84,7 @@ void matrix4_mul(struct matrix4 *dst, const struct matrix4 *m1, const struct mat
 	matrix4_copy(dst, &out);
 }
 
-void matrix4_mul_4x3_only(struct matrix4 *dst, const struct matrix4 *m1, const struct matrix4 *m2)
+static void matrix4_mul_4x3_only(struct matrix4 *dst, const struct matrix4 *m1, const struct matrix4 *m2)
 {
 	struct matrix4 transposed;
 	struct vec4 x;
@@ -280,7 +280,7 @@ bool matrix4_inv(struct matrix4 *dst, const struct matrix4 *m)
 	dstv = (struct vec4 *)dst;
 	det = matrix4_determinant(m);
 
-	if (fabs(det) < 0.0005f)
+	if (fabsf(det) < 0.0005f)
 		return false;
 
 	for (i = 0; i < 4; i++) {

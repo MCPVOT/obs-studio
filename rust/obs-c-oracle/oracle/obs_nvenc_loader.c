@@ -17,6 +17,15 @@
 #include <stddef.h>
 #include <string.h>
 
+/* Exported to the Rust parity test (-Wmissing-prototypes, #516). */
+void oracle_nvenc_reset_opened(void);
+size_t oracle_nvenc_num_opened_names(void);
+const char *oracle_nvenc_opened_name(size_t idx);
+bool oracle_load_cuda_lib(void);
+bool oracle_load_nvenc_lib(void);
+size_t oracle_num_cuda_funcs(void);
+const char *oracle_cuda_func_name(size_t idx);
+
 #define ORACLE_NVENC_MAX_OPENS 8
 static const char *oracle_nvenc_opened[ORACLE_NVENC_MAX_OPENS];
 static size_t oracle_nvenc_num_opened;

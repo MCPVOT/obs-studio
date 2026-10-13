@@ -25,6 +25,8 @@ target_sources(
     utility/GoLiveAPI_PostData.hpp
     utility/media-time.c
     utility/media-time.h
+    utility/missing-files-list.c
+    utility/missing-files-list.h
     utility/MissingFilesModel.cpp
     utility/MissingFilesModel.hpp
     utility/MissingFilesPathItemDelegate.cpp
@@ -43,13 +45,25 @@ target_sources(
     utility/multitrack-ladder.c
     utility/multitrack-ladder.h
     utility/product-name.c
+    utility/record-disk-space.c
+    utility/record-disk-space.h
     utility/product-name.h
+    utility/profile-activate.c
+    utility/profile-activate.h
+    utility/profile-remove.c
+    utility/profile-remove.h
     utility/scene-collection-migration.cpp
     utility/scene-collection-migration.hpp
+    utility/scene-list-remove.c
+    utility/scene-list-remove.h
     utility/service-encoder-settings.c
     utility/service-encoder-settings.h
     utility/studio-mode-exit.c
     utility/studio-mode-exit.h
+    utility/studio-mode-swap.c
+    utility/studio-mode-swap.h
+    utility/tbar-position.c
+    utility/tbar-position.h
     utility/transform-clipboard.c
     utility/transform-clipboard.h
     utility/OBSCanvas.cpp

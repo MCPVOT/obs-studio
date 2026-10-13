@@ -89,6 +89,10 @@ profiler_name_store_t *oracle_vio_obs_get_profiler_name_store(void)
 #endif
 
 VIO_STUB
+/* Test-only exports called from Rust over FFI. */
+profiler_name_store_t *obs_get_profiler_name_store(void);
+const char *profile_store_name(profiler_name_store_t *store, const char *format, ...);
+
 profiler_name_store_t *obs_get_profiler_name_store(void)
 {
 	return NULL;

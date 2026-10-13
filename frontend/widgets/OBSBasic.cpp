@@ -46,6 +46,7 @@
 #if defined(_WIN32) || defined(WHATSNEW_ENABLED)
 #include <utility/WhatsNewInfoThread.hpp>
 #endif
+#include <utility/profile-activate.h>
 #include <widgets/AudioMixer.hpp>
 #include <widgets/OBSProjector.hpp>
 
@@ -141,6 +142,9 @@ OBSBasic::OBSBasic(QWidget *parent) : OBSMainWindow(parent), undo_s(ui), ui(new 
 	ui->previewDisabledWidget->setVisible(false);
 
 	/* Set up streaming connections */
+	connect(
+		this, &OBSBasic::StreamingPreparing, this, [this] { this->streamingStarting = true; },
+		Qt::DirectConnection);
 	connect(
 		this, &OBSBasic::StreamingStarting, this, [this] { this->streamingStarting = true; },
 		Qt::DirectConnection);
@@ -771,11 +775,6 @@ void OBSBasic::InitBasicConfigDefaults2()
 	bool oldEncDefaults = config_get_bool(App()->GetUserConfig(), "General", "Pre23Defaults");
 	bool useNV = EncoderAvailable("ffmpeg_nvenc") && !oldEncDefaults;
 
-	config_set_default_string(activeConfiguration, "SimpleOutput", "StreamEncoder",
-				  useNV ? SIMPLE_ENCODER_NVENC : SIMPLE_ENCODER_X264);
-	config_set_default_string(activeConfiguration, "SimpleOutput", "RecEncoder",
-				  useNV ? SIMPLE_ENCODER_NVENC : SIMPLE_ENCODER_X264);
-
 	const char *aac_default = "ffmpeg_aac";
 	if (EncoderAvailable("CoreAudio_AAC")) {
 		aac_default = "CoreAudio_AAC";
@@ -783,8 +782,8 @@ void OBSBasic::InitBasicConfigDefaults2()
 		aac_default = "libfdk_aac";
 	}
 
-	config_set_default_string(activeConfiguration, "AdvOut", "AudioEncoder", aac_default);
-	config_set_default_string(activeConfiguration, "AdvOut", "RecAudioEncoder", aac_default);
+	profile_set_encoder_defaults(activeConfiguration, useNV ? SIMPLE_ENCODER_NVENC : SIMPLE_ENCODER_X264,
+				     aac_default);
 }
 
 bool OBSBasic::InitBasicConfig()

@@ -2297,7 +2297,7 @@ bool obs_encoder_set_group(obs_encoder_t *encoder, obs_encoder_group_t *group)
 	return true;
 }
 
-obs_encoder_group_t *obs_encoder_group_create()
+obs_encoder_group_t *obs_encoder_group_create(void)
 {
 	struct obs_encoder_group *group = bzalloc(sizeof(struct obs_encoder_group));
 

@@ -29,6 +29,14 @@
 size_t os_utf8_to_wcs_ptr(const char *str, size_t len, wchar_t **pstr);
 void bfree(void *ptr);
 
+/* Windows stand-ins for the platform.c / platform-windows.c functions. */
+FILE *os_fopen(const char *path, const char *mode);
+int os_fseeki64(FILE *file, int64_t offset, int origin);
+int64_t os_ftelli64(FILE *file);
+int os_unlink(const char *path);
+int os_rename(const char *old_path, const char *new_path);
+int os_safe_replace(const char *target, const char *from, const char *backup);
+
 /* platform.c os_fopen + os_wfopen (MSVC branch). Like libobs, the
  * conversion result is not checked. */
 FILE *os_fopen(const char *path, const char *mode)
@@ -126,6 +134,12 @@ fail:
 }
 #else
 #include <unistd.h>
+
+/* Test-only exports called from Rust over FFI. */
+FILE *os_fopen(const char *path, const char *mode);
+int os_fseeki64(FILE *file, int64_t offset, int origin);
+int64_t os_ftelli64(FILE *file);
+int oracle_host_os_safe_replace(const char *target, const char *from, const char *backup);
 
 FILE *os_fopen(const char *path, const char *mode)
 {

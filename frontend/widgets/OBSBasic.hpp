@@ -28,6 +28,7 @@
 #include <utility/PreviewProgramSizeObserver.hpp>
 #include <utility/VCamConfig.hpp>
 #include <utility/platform.hpp>
+#include <utility/record-disk-space.h>
 #include <utility/undo_stack.hpp>
 
 #include <obs-frontend-internal.hpp>
@@ -66,6 +67,7 @@ class YouTubeAppDock;
 class QMessageBox;
 class QWidgetAction;
 struct QuickTransition;
+struct profile_remove_ops;
 
 namespace OBS {
 class SceneCollection;
@@ -494,9 +496,14 @@ private:
 	obs_hotkey_id screenshotHotkey = 0;
 	obs_hotkey_id sourceScreenshotHotkey = 0;
 
-	obs_hotkey_pair_id streamingHotkeys, recordingHotkeys, pauseHotkeys, replayBufHotkeys, vcamHotkeys,
-		togglePreviewHotkeys, contextBarHotkeys;
-	obs_hotkey_id forceStreamingStopHotkey, splitFileHotkey, addChapterHotkey, saveReplayBufferHotkey;
+	/* Invalid until registered: some are registered only with their feature
+	 * (replay buffer, virtual camera...), and ClearHotkeys() unregisters all. */
+	obs_hotkey_pair_id streamingHotkeys = OBS_INVALID_HOTKEY_PAIR_ID, recordingHotkeys = OBS_INVALID_HOTKEY_PAIR_ID,
+			   pauseHotkeys = OBS_INVALID_HOTKEY_PAIR_ID, replayBufHotkeys = OBS_INVALID_HOTKEY_PAIR_ID,
+			   vcamHotkeys = OBS_INVALID_HOTKEY_PAIR_ID, togglePreviewHotkeys = OBS_INVALID_HOTKEY_PAIR_ID,
+			   contextBarHotkeys = OBS_INVALID_HOTKEY_PAIR_ID;
+	obs_hotkey_id forceStreamingStopHotkey = OBS_INVALID_HOTKEY_ID, splitFileHotkey = OBS_INVALID_HOTKEY_ID,
+		      addChapterHotkey = OBS_INVALID_HOTKEY_ID, saveReplayBufferHotkey = OBS_INVALID_HOTKEY_ID;
 
 	void InitHotkeys();
 	void CreateHotkeys();
@@ -912,6 +919,12 @@ private:
 	const OBSProfile &CreateProfile(const std::string &profileName);
 	void RemoveProfile(OBSProfile profile);
 
+	struct ProfileRemoval {
+		OBSBasic *main;
+		OBSProfile profile;
+	};
+	static void InitProfileRemoveOps(struct profile_remove_ops &ops, ProfileRemoval &removal);
+
 	void ChangeProfile();
 
 	void RefreshProfileCache();
@@ -1005,7 +1018,7 @@ private:
 	void AutoRemux(QString input, bool no_show = false);
 	void UpdateIsRecordingPausable();
 
-	bool LowDiskSpace();
+	bool LowDiskSpace(enum record_disk_check when);
 	void DiskSpaceMessage();
 
 private slots:
@@ -1267,6 +1280,7 @@ private:
 	std::atomic<obs_scene_t *> currentScene = nullptr;
 	OBSWeakSource lastScene;
 	OBSWeakSource swapScene;
+	OBSWeakSource swapPreviewScene;
 
 	void LoadSceneListOrder(obs_data_array_t *array);
 	obs_data_array_t *SaveSceneListOrder();
@@ -1610,6 +1624,7 @@ signals:
 public:
 	int GetTransitionDuration();
 	int GetTbarPosition();
+	void SetTbarPosition(int position);
 
 	/* -------------------------------------
 	 * MARK: - OBSBasic_Updater

@@ -22,7 +22,9 @@
 #include <components/MenuButton.hpp>
 #include <dialogs/NameDialog.hpp>
 #include <utility/display-helpers.hpp>
+#include <utility/studio-mode-swap.h>
 #include <utility/QuickTransition.hpp>
+#include <utility/tbar-position.h>
 
 #include <qt-wrappers.hpp>
 #include <slider-ignorewheel.hpp>
@@ -257,8 +259,13 @@ void OBSBasic::TransitionStopped()
 {
 	if (swapScenesMode) {
 		OBSSource scene = OBSGetStrongRef(swapScene);
-		if (scene) {
-			SetCurrentScene(scene);
+		OBSSource previewAtStart = OBSGetStrongRef(swapPreviewScene);
+		OBSSource preview = GetCurrentSceneSource();
+
+		obs_source_t *swapTo = static_cast<obs_source_t *>(
+			studio_mode_swap_scene(scene.Get(), previewAtStart.Get(), preview.Get()));
+		if (swapTo) {
+			SetCurrentScene(OBSSource(swapTo));
 		}
 	}
 
@@ -269,6 +276,7 @@ void OBSBasic::TransitionStopped()
 	OnEvent(OBS_FRONTEND_EVENT_SCENE_CHANGED);
 
 	swapScene = nullptr;
+	swapPreviewScene = nullptr;
 }
 
 void OBSBasic::OverrideTransition(OBSSource transition)
@@ -316,6 +324,7 @@ void OBSBasic::TransitionToScene(OBSSource source, bool force, bool quickTransit
 
 			if (swapScenesMode && lastScene && lastScene != GetCurrentSceneSource()) {
 				swapScene = lastProgramScene;
+				swapPreviewScene = OBSGetWeakRef(GetCurrentSceneSource());
 			}
 		}
 	}
@@ -758,7 +767,9 @@ void OBSBasic::TBarReleased()
 
 	OBSSourceAutoRelease transition = obs_get_output_source(0);
 
-	if ((tBar->maximum() - val) <= T_BAR_CLAMP) {
+	enum tbar_release_action action = tbar_release_action(val, tBar->maximum(), T_BAR_CLAMP);
+
+	if (action == TBAR_RELEASE_FINISH) {
 		obs_transition_set_manual_time(transition, 1.0f);
 		tBar->blockSignals(true);
 		tBar->setValue(0);
@@ -769,7 +780,7 @@ void OBSBasic::TBarReleased()
 		OBSSourceAutoRelease target = obs_transition_get_active_source(transition);
 		const char *sceneName = obs_source_get_name(target);
 		blog(LOG_INFO, "Manual transition to scene '%s' finished", sceneName);
-	} else if (val <= T_BAR_CLAMP) {
+	} else if (action == TBAR_RELEASE_CANCEL) {
 		obs_transition_set_manual_time(transition, 0.0f);
 		TransitionFullyStopped();
 		tBar->blockSignals(true);
@@ -834,6 +845,25 @@ void OBSBasic::TBarChanged(int value)
 int OBSBasic::GetTbarPosition()
 {
 	return tBar->value();
+}
+
+void OBSBasic::SetTbarPosition(int position)
+{
+	/* The T-Bar only exists in Studio Mode. */
+	if (!previewProgramMode) {
+		return;
+	}
+
+	struct tbar_position_ops ops = {};
+	ops.param = this;
+	ops.set_slider_value = [](void *param, int value) {
+		static_cast<OBSBasic *>(param)->tBar->setValue(value);
+	};
+	ops.position_changed = [](void *param, int value) {
+		static_cast<OBSBasic *>(param)->TBarChanged(value);
+	};
+
+	tbar_api_set_position(&ops, position);
 }
 
 static inline void ResetQuickTransitionText(QuickTransition *qt)
