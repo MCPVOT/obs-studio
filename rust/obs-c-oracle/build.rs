@@ -99,6 +99,11 @@ fn main() {
         // As the shipped libobs build (cmake/windows/compilerconfig.cmake).
         oracle.define("_CRT_SECURE_NO_WARNINGS", None);
         flags.push("-D_CRT_SECURE_NO_WARNINGS");
+        // /W4 is stricter than the shipped /W3. C4702 (unreachable code)
+        // only fires inside the vendored uthash HASH_* macros, whose
+        // uthash_fatal path does not return.
+        oracle.flag("/wd4702");
+        flags.push("/wd4702");
     }
     if oracle.get_compiler().is_like_clang() {
         // soldr's Apple toolchains pass -fuse-ld=lld in CFLAGS, unused by a
