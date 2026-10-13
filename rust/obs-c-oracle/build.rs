@@ -67,6 +67,7 @@ const STRICT_FLAGS: &[&str] = &[
     "-Wformat-nonliteral",
     "-Wpedantic",
     "-Wcast-qual",
+    "-Wsign-conversion",
 ];
 
 fn main() {
