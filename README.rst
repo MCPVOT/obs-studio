@@ -1,3 +1,7 @@
+.. image:: https://github.com/obs-rust/obs-studio/actions/workflows/leaderboard.yml/badge.svg?branch=master
+   :alt: Contributor leaderboard workflow status
+   :target: https://github.com/obs-rust/obs-studio/actions/workflows/leaderboard.yml
+
 .. image:: docs/images/obs-rust-logo.png
    :alt: obs-rust logo
    :width: 128
@@ -11,7 +15,7 @@ Contributors leaderboard
 ------------------------
 
 Ranked by merged PRs only, credited to the original author even when a
-maintainer re-landed the work (counted once). Updated daily at 3 a.m. Pacific.
+maintainer re-landed the work (counted once). Updated every 4 hours.
 
 .. image:: https://raw.githubusercontent.com/obs-rust/obs-studio/leaderboard/leaderboard.jpg
    :alt: obs-rust contributors leaderboard

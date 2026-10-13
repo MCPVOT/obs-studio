@@ -89,21 +89,30 @@ def pr_commits(repo, n):
             out.append({"messageHeadline": head, "messageBody": body, "authors": authors})
     return out
 
+def merged_list_complete(fetched, total):
+    """True unless the fetched list is shorter than GitHub's merged-PR count.
+
+    A PR can merge between the two API calls, so a longer list is just fresher.
+    """
+    return fetched >= total
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--repo", default="obs-rust/obs-studio")
     ap.add_argument("--out", default="leaderboard.json")
     o = ap.parse_args()
     repo = o.repo
+    # Read the merged count BEFORE listing: a PR merging mid-run then only makes
+    # the list longer than the count, which is fine.
+    total = json.loads(gh("api", "-X", "GET", "search/issues", "-f",
+                          f"q=repo:{repo} is:pr is:merged", "-f", "per_page=1"))["total_count"]
     # gh pr/issue list paginates internally; the limit is far above any real count.
     prs = json.loads(gh("pr", "list", "-R", repo, "--state", "all", "-L", "1000000", "--json",
                         "number,state,author,body,mergedAt,createdAt"))
     issues = json.loads(gh("issue", "list", "-R", repo, "--state", "all", "-L", "1000000", "--json",
                            "number,author,createdAt"))
     merged = [p for p in prs if p["state"] == "MERGED"]
-    total = json.loads(gh("api", "-X", "GET", "search/issues", "-f",
-                          f"q=repo:{repo} is:pr is:merged", "-f", "per_page=1"))["total_count"]
-    if total != len(merged):
+    if not merged_list_complete(len(merged), total):
         raise SystemExit(f"INCOMPLETE: fetched {len(merged)} merged PRs, GitHub reports {total}")
     by_num = {p["number"]: p for p in prs}
     people = {}
