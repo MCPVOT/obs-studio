@@ -441,15 +441,6 @@ jobs:
           git config --global --add safe.directory "${GITHUB_WORKSPACE}"
 
           cache_key='flatpak-builder-${{ hashFiles('build-aux/com.obsproject.Studio.json') }}'
-          cache_ref='master'
-          read -r id key size unit created accessed <<< \
-            "$(gh cache list --ref "refs/heads/${cache_ref}" --key "${cache_key}-x86_64" | head -1)"
-
-          if [[ "${key}" ]]; then
-            echo "cacheHit=true" >> $GITHUB_OUTPUT
-          else
-            echo "cacheHit=false" >> $GITHUB_OUTPUT
-          fi
 
           echo "cacheKey=${cache_key}" >> $GITHUB_OUTPUT
 
@@ -485,8 +476,15 @@ jobs:
           build-bundle: ${{ fromJSON(needs.check-event.outputs.package) && (github.event_name != 'push' || github.ref_type == 'tag' || startsWith(github.ref_name, 'release/')) }}
           bundle: obs-studio-flatpak-${{ needs.check-event.outputs.commitHash }}.flatpak
           manifest-path: ${{ github.workspace }}/build-aux/com.obsproject.Studio.json
-          cache: ${{ fromJSON(steps.setup.outputs.cacheHit) || (github.event_name != 'pull_request' && github.ref_name == 'master')}}
-          restore-cache: ${{ fromJSON(steps.setup.outputs.cacheHit) }}
+          # Always on: the action passes `--ccache` to flatpak-builder only
+          # when `cache` is true. It used to be off for a PR whose manifest
+          # hash had no master cache, so a ci-full PR compiled all ~700 files
+          # without ccache (~9 min instead of ~1.5 min, #651). The restore
+          # falls back to the newest flatpak-builder-x86_64 cache, and
+          # flatpak-builder only reuses a module whose own manifest entry and
+          # source checksums are unchanged.
+          cache: true
+          restore-cache: true
           cache-key: ${{ steps.setup.outputs.cacheKey }}
           mirror-screenshots-url: https://dl.flathub.org/media
 
