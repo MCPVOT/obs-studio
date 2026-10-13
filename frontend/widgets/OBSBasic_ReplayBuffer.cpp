@@ -162,6 +162,10 @@ void OBSBasic::ReplayBufferSave()
 
 	OnEvent(OBS_FRONTEND_EVENT_REPLAY_BUFFER_SAVING);
 
+	/* The replay buffer keeps the filename settings it was started with
+	 * unless they are applied again: the user may have changed them since. */
+	outputHandler->UpdateReplayBufferNaming();
+
 	calldata_t cd = {0};
 	proc_handler_t *ph = obs_output_get_proc_handler(outputHandler->replayBuffer);
 	proc_handler_call(ph, "save", &cd);
