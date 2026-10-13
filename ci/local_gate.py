@@ -174,6 +174,21 @@ def lane_lint(fix: bool) -> None:
     soldr_cargo(["dylint", "--all", "--", "--workspace", "--lib", "--bins"])
 
 
+# Every shipped Rust target, linted from this host (#472): soldr provides
+# the Windows SDK (xwin) and the macOS SDK for cross-compiling.
+CROSS_TARGETS = ("x86_64-pc-windows-msvc", "aarch64-apple-darwin", "x86_64-apple-darwin")
+
+
+def lane_cross(fix: bool) -> None:
+    # obs-c-oracle is a dev-only crate of C built for the host's tests; it
+    # never ships and its C doesn't cross-compile to every target.
+    scope = ["--workspace", "--exclude", "obs-c-oracle", "--lib", "--bins"]
+    for target in CROSS_TARGETS:
+        run(["soldr", "rustup", "target", "add", target])
+        soldr_cargo(["clippy", *scope, "--locked", "--target", target, "--", "-D", "warnings"])
+        soldr_cargo(["dylint", "--all", "--", *scope, "--target", target])
+
+
 def lane_rust_test(fix: bool) -> None:
     soldr_cargo(["test", "--workspace", "--locked"])
     # Every test binary, C oracle included, must also link for a GCC-based
@@ -195,7 +210,7 @@ def lane_tier2_linux(fix: bool) -> None:
     run(["bash", "rust/tools/linux-validate/run.sh"])
 
 
-LANES = {"lint": lane_lint, "rust-test": lane_rust_test, "tier2-linux": lane_tier2_linux}
+LANES = {"lint": lane_lint, "rust-test": lane_rust_test, "cross": lane_cross, "tier2-linux": lane_tier2_linux}
 
 
 def main() -> int:

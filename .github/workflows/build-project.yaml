@@ -656,6 +656,7 @@ jobs:
       trusted: ${{ steps.gate.outputs.trusted }}
       skip_rust-tests-linux: ${{ steps.gate.outputs.skip_rust-tests-linux }}
       skip_rust-linux-tier2: ${{ steps.gate.outputs.skip_rust-linux-tier2 }}
+      skip_rust-cross-lint: ${{ steps.gate.outputs.skip_rust-cross-lint }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -709,6 +710,28 @@ jobs:
       # clang-format, gersemi and soldr cargo test --workspace --locked.
       - name: Local Gate (lint, rust-test) 🧪
         run: python3 ci/local_gate.py --lane lint --lane rust-test
+
+  # Clippy and Dylint for Windows and both macOS targets, cross-checked on
+  # Linux through soldr (#472). Every PR push runs it unless the head is
+  # attested for the same gates (the `cross` local-gate lane).
+  rust-cross-lint:
+    name: Rust Cross Lint 🦀 (Windows, macOS)
+    runs-on: ubuntu-26.04
+    needs: [check-event, ci-mode]
+    if: needs.ci-mode.outputs.skip_rust-cross-lint != 'true'
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set Up soldr 🦀
+        uses: zackees/setup-soldr@0f223ac68e97fccaaeab026ef1861e5bf73639ac # v0.9.85
+        with:
+          version: 0.9.31
+
+      - name: Local Gate (cross) 🧪
+        run: python3 ci/local_gate.py --lane cross
 
   rust-tests:
     name: Rust Tests 🦀
