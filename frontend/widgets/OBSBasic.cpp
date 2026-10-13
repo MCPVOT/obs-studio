@@ -1275,7 +1275,13 @@ void OBSBasic::OnFirstLoad()
 	}
 }
 
-OBSBasic::~OBSBasic() {}
+OBSBasic::~OBSBasic()
+{
+	// Normal shutdown clears the API before deleting the window. Startup
+	// failures must also detach callbacks before their main window disappears.
+	if (api)
+		obs_frontend_set_callbacks_internal(nullptr);
+}
 
 void OBSBasic::applicationShutdown() noexcept
 {

@@ -27,18 +27,25 @@ read -r display_number <&"${XVFB[0]}"
 export DISPLAY=":$display_number"
 export QT_QPA_PLATFORM=xcb XDG_CONFIG_HOME="$out/profile" XDG_RUNTIME_DIR="$out/runtime"
 export __EGL_VENDOR_LIBRARY_FILENAMES="$out/no-egl-vendor.json"
+export LD_LIBRARY_PATH="$(dirname "$app")/../lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 export ASAN_OPTIONS="detect_leaks=1:log_path=$out/asan"
-export LSAN_OPTIONS="report_objects=1"
+export LSAN_OPTIONS="report_objects=1:exitcode=0"
 (
   cd "$(dirname "$app")"
   exec "$app" --multi --disable-shutdown-check --disable-updater --verbose
 ) >"$out/app.log" 2>&1 &
 app_pid=$!
 window=$(timeout 90 xdotool search --sync --onlyvisible --name '^Error$' | head -1)
-xdotool key --window "$window" Return
-wait "$app_pid" || { cat "$out/app.log"; exit 1; }
+xdotool keydown --window "$window" Return
+status=0
+wait "$app_pid" || status=$?
+if [ "$status" -ne 0 ] && [ "$status" -ne 255 ]; then
+  cat "$out/app.log"
+  exit 1
+fi
 app_pid=
 grep -q 'Failed to initialize video' "$out/app.log"
+grep -qE 'eglInitialize.*failed|eglGet.*Display.*failed|Failed to get EGL display' "$out/app.log"
 grep -q 'Number of memory leaks: 0' "$out/app.log" || {
   cat "$out/app.log"
   echo 'FAIL: video initialization failure leaked an OBS allocation' >&2

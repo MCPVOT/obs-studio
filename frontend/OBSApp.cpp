@@ -1329,11 +1329,14 @@ bool OBSApp::OBSInit()
 
 	thumbnailManager = new ThumbnailManager(this);
 
-	mainWindow = new OBSBasic();
+	// Release the partially initialized window if OBSInit throws.
+	auto initializingWindow = std::make_unique<OBSBasic>();
+	mainWindow = initializingWindow.get();
 
 	mainWindow->setAttribute(Qt::WA_DeleteOnClose, true);
 
 	mainWindow->OBSInit();
+	initializingWindow.release();
 
 	connect(OBSBasic::Get(), &OBSBasic::mainWindowClosed, crashHandler_.get(),
 		&OBS::CrashHandler::applicationShutdownHandler);
