@@ -17,8 +17,8 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-SCAN = (".github/scripts", ".github/actions", "cmake")
-DESCRIBE = re.compile(r"git\s+describe\b[^\n]*--tags[^\n]*")
+SCAN = (".github/scripts", ".github/actions", "cmake", "rust/tools")
+DESCRIBE = re.compile(r"\bgit\b(?:\s+-C\s+\S+|\s+--?[\w-]+(?:=\S+)?)*\s+describe\b[^\n]*--tags[^\n]*")
 
 
 class DescribeMatchTest(unittest.TestCase):

@@ -43,7 +43,7 @@ inst=$b/rundir/$type
 mkdir -p "$root" || exit 1
 [ -n "${SKIP_TESTS:-}" ] || rm -rf "$out"
 mkdir -p "$out"
-[ -n "${OBS_VERSION_OVERRIDE:-}" ] || OBS_VERSION_OVERRIDE=$(git -C "$src" describe --always --tags 2>/dev/null || true)
+[ -n "${OBS_VERSION_OVERRIDE:-}" ] || OBS_VERSION_OVERRIDE=$(git -C "$src" describe --always --tags --match "[0-9]*.[0-9]*.[0-9]*" 2>/dev/null || true)
 export CCACHE_BASEDIR=$src
 
 echo "== [$tool] configure + build (ENABLE_RUST_LIBOBS=${RUST_LIBOBS:-OFF})"

@@ -26,7 +26,7 @@ for sub in plugins/obs-browser plugins/obs-websocket; do
   fi
 done
 if [ -f "$repo/.git" ]; then
-  env=(-e "OBS_VERSION_OVERRIDE=$(git -C "$repo" describe --always --tags)")
+  env=(-e "OBS_VERSION_OVERRIDE=$(git -C "$repo" describe --always --tags --match "[0-9]*.[0-9]*.[0-9]*")")
 fi
 # The build volume is per checkout: a shared one let a run link another
 # branch's stale objects or Rust staticlib (obs-rust/obs-studio#135).
