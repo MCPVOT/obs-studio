@@ -43,3 +43,10 @@ before coding, search open PRs first, target master, RED then GREEN commits.
   the testing policy's "Platform boundary" rule.
 - Every port starts RED (failing test against stubs) and ends GREEN.
 - Do not add new GitHub Actions workflow files without explicit sign-off.
+- Packaging changes (`build-aux/appimage/`, the Flatpak manifest, anything that
+  decides what ships in a release artifact) must be covered by a test that runs
+  the packaged artifact the way a user does, including a saved profile with the
+  sources users depend on (screen capture, camera, microphone), not only a first
+  start with an empty profile. `test-appimage.sh` is that test for the AppImage;
+  extend it when a change adds something loaded at runtime, and show it failing
+  without the change (obs-rust/obs-studio#426).
