@@ -283,6 +283,14 @@ endif()
 add_dependencies(cmocka-tests test_video_stats_race)
 add_test(test_video_stats_race ${CMAKE_CURRENT_BINARY_DIR}/test_video_stats_race)
 
+# Qt-free concurrency check for the frontend meter's locked snapshot (#131).
+add_executable(test_volume_meter_snapshot test_volume_meter_snapshot.cpp)
+if(NOT MSVC)
+  target_link_libraries(test_volume_meter_snapshot PRIVATE Threads::Threads)
+endif()
+add_dependencies(cmocka-tests test_volume_meter_snapshot)
+add_test(test_volume_meter_snapshot ${CMAKE_CURRENT_BINARY_DIR}/test_volume_meter_snapshot)
+
 # task test (task.c)
 add_executable(test_task test_task.c)
 target_include_directories(test_task PRIVATE ${CMOCKA_INCLUDE_DIR})
