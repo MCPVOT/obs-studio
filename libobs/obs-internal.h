@@ -391,11 +391,16 @@ struct obs_core_video_mix {
 	gs_stagesurf_t *mapped_surfaces[NUM_CHANNELS];
 	int cur_texture;
 	volatile long raw_active;
+	/* Also pins this mix while GPU encoder starts wait on pool teardown. */
 	volatile long gpu_encoder_active;
 	bool gpu_was_active;
 	bool raw_was_active;
 	bool was_active;
 	pthread_mutex_t gpu_encoder_mutex;
+	/* Protects teardown state; creation lock order is lifecycle -> graphics -> gpu_encoder_mutex. */
+	pthread_mutex_t gpu_encoder_lifecycle_mutex;
+	pthread_cond_t gpu_encoder_teardown_cond;
+	bool gpu_encoder_tearing_down;
 	struct deque gpu_encoder_queue;
 	struct deque gpu_encoder_avail_queue;
 	DARRAY(obs_encoder_t *) gpu_encoders;
