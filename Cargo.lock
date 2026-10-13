@@ -281,7 +281,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "obs-stream-rust"
+name = "obs-studio-rust"
 version = "0.1.0"
 dependencies = [
  "base64",

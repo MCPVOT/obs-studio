@@ -3,7 +3,7 @@
 
     python3 -m unittest ci/test_versionconfig.py
 
-The repo also carries non-OBS tags (obs-studio-rust-v*, obs-stream-rust-v*).
+The repo also carries non-OBS tags (obs-studio-rust-v*, and the retired obs-stream-rust-v0.1.0).
 When one of them is the nearest tag, `git describe --tags` must not pick it,
 or project(VERSION ...) fails with 'VERSION "obs-studio-rust-v0.1.0" format
 invalid' (every macOS build, 2026-10-11).

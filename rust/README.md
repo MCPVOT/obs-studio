@@ -14,7 +14,7 @@ scripting APIs) while its internals are rewritten in Rust. Every port follows
 | `obs-media-io/` | Ports of `libobs/media-io/*` |
 | `obs-c-oracle/` | Test-only: original C sources compiled with `oracle_` symbols for layout and differential tests |
 | `libobs-rust/` | The single staticlib linked into libobs when `ENABLE_RUST_LIBOBS=ON` |
-| `obs-stream-rust/` | Standalone CLI that starts, stops and inspects OBS streaming over obs-websocket v5 (released as `obs-stream-rust` binaries) |
+| `obs-studio-rust/` | Standalone CLI that starts, stops and inspects OBS streaming over obs-websocket v5. Named after the product, with no release tags of its own (`docs/rust-port/naming.md`) |
 | `tools/linux-validate/` | Docker harness that builds libobs with the Rust ports OFF and ON |
 | `tools/tier2-validate/` | macOS/Windows Tier 2 (C tests plus exported symbols, OFF vs ON), used by CI |
 
@@ -94,26 +94,26 @@ tests and run them with `ctest`.
 | `libobs/media-io/format-conversion.c` | `obs-media-io::format_conversion` | No intentional differences. The C's SSE2 is integer only, so the port is scalar and parity is byte-exact. The planes are `Source`/`Sink` traits: byte slices panic where the C reads or writes out of bounds, and the shims read the caller's raw pointers at the C's offsets. Quirks kept: `decompress_422` reads and writes twice each row's width, so rows spill into the next. |
 | `libobs/util/platform-nix.c` | `obs-util::platform::unix::nix` | Swapped on macOS, Linux, and FreeBSD. `platform-cocoa.m` still provides the Apple clock, paths, CPU, memory, and inhibit. `platform-nix-dbus.c` and `platform-nix-portal.c` stay C. `os_opendir` copies the path (C keeps the caller's pointer). Null pointers that would crash return an error or null. Glob paths are copies freed by `os_globfree`. `os_dir`, `os_cpu_usage_info`, and `os_inhibit_info` are `Box` values, not `bmalloc`. The inhibit worker is a Rust thread, and a failed spawn is not joined. Core-count and total-memory caches take a mutex. A missing `$HOME` still `bcrash`es in the shim. FreeBSD total memory reads `hw.physmem`. |
 
-## obs-stream-rust
+## obs-studio-rust
 
-`obs-stream-rust` is a small client for a running OBS (Tools → WebSocket
+`obs-studio-rust` is a small client for a running OBS (Tools → WebSocket
 Server Settings must be enabled):
 
 ```sh
-obs-stream-rust status                           # stream: live 00:01:02.345, ...
-obs-stream-rust --password secret start          # or OBS_WEBSOCKET_PASSWORD=secret
-obs-stream-rust --host 192.168.1.5 --port 4455 stop
-obs-stream-rust --host ::1 status
-obs-stream-rust --host '[::1]' status             # IPv6 brackets are optional
-obs-stream-rust toggle
-obs-stream-rust version
+obs-studio-rust status                           # stream: live 00:01:02.345, ...
+obs-studio-rust --password secret start          # or OBS_WEBSOCKET_PASSWORD=secret
+obs-studio-rust --host 192.168.1.5 --port 4455 stop
+obs-studio-rust --host ::1 status
+obs-studio-rust --host '[::1]' status             # IPv6 brackets are optional
+obs-studio-rust toggle
+obs-studio-rust version
 ```
 
 For scripts and agents, add `--json` before or after the command:
 
 ```sh
-obs-stream-rust --json status
-obs-stream-rust version --json
+obs-studio-rust --json status
+obs-studio-rust version --json
 ```
 
 This prints one compact JSON value containing the server's full `responseData`,
@@ -122,11 +122,14 @@ prints `null`; an empty object remains `{}`. Errors still go to stderr with a
 nonzero exit status, so scripts should check the exit status as well as parse
 stdout. Local `--help` and `--version` keep their text output.
 
-Release binaries are cross-compiled from Linux with
+Binaries are cross-compiled from Linux with
 [cargo-zigbuild](https://github.com/rust-cross/cargo-zigbuild):
 
 ```sh
 for t in x86_64-unknown-linux-musl x86_64-pc-windows-gnu x86_64-apple-darwin aarch64-apple-darwin; do
-  cargo-zigbuild build --release --locked -p obs-stream-rust --target "$t"
+  cargo-zigbuild build --release --locked -p obs-studio-rust --target "$t"
 done
 ```
+
+Published binaries go on the app's `obs-studio-rust-v*` releases; the
+`obs-stream-rust-v0.1.0` tag is retired.

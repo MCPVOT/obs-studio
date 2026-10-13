@@ -10,8 +10,8 @@ One name per thing, so releases, crates and tags can't be confused (#320).
   use them. `--version` keeps the upstream OBS version ("based on OBS ...").
 - The command-line client (an obs-websocket v5 client for streaming control)
   is part of the product: crate and binary `obs-studio-rust` in
-  `rust/obs-studio-rust/`. It ships under the app's `obs-studio-rust-v*` tags
-  and gets no tag family of its own.
+  `rust/obs-studio-rust/`. It gets no tag family of its own: published
+  binaries go on the app's `obs-studio-rust-v*` releases.
 
 ## Rust crates (`rust/<dir>/`, directory name = package name)
 
@@ -30,4 +30,5 @@ No other crate takes a `-rust` suffix. A new tool is `obs-<tool>`.
   `git describe` that names an OBS version matches only those
   (`ci/test_describe_match.py`).
 - `obs-studio-rust-v*` is the only tag family this fork adds. The retired
-  `obs-stream-rust-v0.1.0` tag stays for history; no new ones are cut.
+  `obs-stream-rust-v*` tag (0.1.0, the CLI's old name) stays for history; no
+  new ones are cut.
