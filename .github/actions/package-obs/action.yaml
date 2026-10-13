@@ -113,3 +113,16 @@ runs:
         }
 
         .github/scripts/Package-windows.ps1 @PackageArgs
+
+    # The runner has the VC++ redistributable, so launching proves little on
+    # its own: the script also checks the zip's DLL imports against its
+    # contents (#626, #627). Launch only x64; arm64 cannot run here.
+    - name: Verify Windows package 🔎
+      if: runner.os == 'Windows'
+      shell: pwsh
+      working-directory: ${{ inputs.workingDirectory }}
+      run: |
+        $Zip = Get-ChildItem "build_${{ inputs.target }}/obs-studio-*-windows-${{ inputs.target }}.zip" | Select-Object -First 1
+        $Run = if ( '${{ inputs.target }}' -eq 'x64' ) { @('--run') } else { @() }
+        python ci/windows_zip_check.py check $Zip.FullName @Run
+        if ( $LASTEXITCODE -ne 0 ) { exit $LASTEXITCODE }
