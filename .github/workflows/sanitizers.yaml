@@ -3,7 +3,7 @@ run-name: Sanitizers (${{ inputs.tools || 'all' }}) 🧪
 # ASan+UBSan, TSan and valgrind over the cmocka tests and a timed headless OBS
 # launch, via rust/tools/sanitize/. Run it from the Actions tab or with
 #   gh workflow run sanitizers.yaml -f tools=tsan -f launch_seconds=90
-# PRs that change the harness run it too, so changes to it are checked before merge.
+# Runs nightly; PRs that change the harness dispatch it on their branch (#491).
 on:
   workflow_dispatch:
     inputs:
@@ -28,10 +28,11 @@ on:
         description: Fail the job when triage finds an OBS finding
         type: boolean
         default: false
-  pull_request:
-    paths:
-      - rust/tools/sanitize/**
-      - .github/workflows/sanitizers.yaml
+  # Nightly, all passes (#491): ~20 min, so never on PR or push CI
+  # (zackees/ci.yml GATE-012). A PR that changes the harness dispatches it
+  # on its own branch: gh workflow run sanitizers.yaml --ref <branch>
+  schedule:
+    - cron: '41 6 * * *'
 permissions:
   contents: read
 concurrency:
