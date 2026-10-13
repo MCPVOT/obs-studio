@@ -58,6 +58,8 @@ target_sources(
     utility/profile-activate.h
     utility/profile-remove.c
     utility/profile-remove.h
+    utility/preview-audio-sources.cpp
+    utility/preview-audio-sources.hpp
     utility/saved-transition.c
     utility/saved-transition.h
     utility/scene-collection-migration.cpp
