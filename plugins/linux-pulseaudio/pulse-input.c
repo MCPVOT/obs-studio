@@ -200,7 +200,7 @@ static void pulse_stream_read(pa_stream *p, size_t nbytes, void *userdata)
 	out.speakers = data->speakers;
 	out.samples_per_sec = data->samples_per_sec;
 	out.format = pulse_to_obs_audio_format(data->format);
-	out.data[0] = (uint8_t *)frames;
+	out.data[0] = (uint8_t *)(uintptr_t)frames;
 	out.frames = bytes / data->bytes_per_frame;
 	out.timestamp = pulse_timing_packet_ts(&data->timing, os_gettime_ns(), out.frames, out.samples_per_sec);
 

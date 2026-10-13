@@ -359,7 +359,7 @@ void obs_output_destroy(obs_output_t *output)
 		obs_context_data_free(&output->context);
 		deque_free(&output->delay_data);
 		if (output->owns_info_id)
-			bfree((void *)output->info.id);
+			bfree((void *)(uintptr_t)output->info.id);
 		if (output->last_error_message)
 			bfree(output->last_error_message);
 		bfree(output);

@@ -595,8 +595,8 @@ static void find_modules_in_path(struct obs_module_path *omp, obs_find_module_ca
 
 void obs_load_plugins(struct obs_runtime_module_info *info, struct obs_module_failure_info *error)
 {
-	struct obs_module_path omp = {.bin = (char *)info->path_info.binary,
-				      .data = (char *)info->path_info.data,
+	struct obs_module_path omp = {.bin = (char *)(uintptr_t)info->path_info.binary,
+				      .data = (char *)(uintptr_t)info->path_info.data,
 				      .type = info->type};
 
 	struct fail_info failure = {0};

@@ -293,7 +293,7 @@ static inline int connect_mpegts_url(struct ffmpeg_output *stream, bool is_rist)
 		goto fail;
 	}
 
-	uc->url = (char *)url;
+	uc->url = (char *)(uintptr_t)url;
 	uc->max_packet_size = is_rist ? RIST_MAX_PAYLOAD_SIZE : SRT_LIVE_DEFAULT_PAYLOAD_SIZE;
 
 	if (stream->ff_data.config.srt_pkt_size)

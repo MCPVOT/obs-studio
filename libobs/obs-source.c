@@ -872,8 +872,8 @@ static void obs_source_destroy_defer(struct obs_source *source)
 	obs_context_data_free(&source->context);
 
 	if (source->owns_info_id) {
-		bfree((void *)source->info.id);
-		bfree((void *)source->info.unversioned_id);
+		bfree((void *)(uintptr_t)source->info.id);
+		bfree((void *)(uintptr_t)source->info.unversioned_id);
 	}
 
 	bfree(source);

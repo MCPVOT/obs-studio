@@ -710,8 +710,8 @@ struct WindowInfo {
 
 static int cmp_wi(const void *a, const void *b)
 {
-	struct WindowInfo *awi = (struct WindowInfo *)a;
-	struct WindowInfo *bwi = (struct WindowInfo *)b;
+	const struct WindowInfo *awi = (const struct WindowInfo *)a;
+	const struct WindowInfo *bwi = (const struct WindowInfo *)b;
 	const char *a_name = awi->name_lower.array ? awi->name_lower.array : "";
 	const char *b_name = bwi->name_lower.array ? bwi->name_lower.array : "";
 	return strcmp(a_name, b_name);

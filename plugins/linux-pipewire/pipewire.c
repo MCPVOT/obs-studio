@@ -888,9 +888,9 @@ static void process_video_sync(obs_pipewire_stream *obs_pw_stream)
 
 		g_clear_pointer(&obs_pw_stream->texture, gs_texture_destroy);
 		if (layout.linesize[0] == layout.width * obs_pw_video_format.bpp) {
-			obs_pw_stream->texture = gs_texture_create(layout.width, layout.height,
-								   obs_pw_video_format.gs_format, 1,
-								   (const uint8_t **)&layout.data[0], GS_DYNAMIC);
+			obs_pw_stream->texture =
+				gs_texture_create(layout.width, layout.height, obs_pw_video_format.gs_format, 1,
+						  (const uint8_t **)(uintptr_t)&layout.data[0], GS_DYNAMIC);
 		} else {
 			/* Padded rows: copied one by one. */
 			obs_pw_stream->texture = gs_texture_create(layout.width, layout.height,

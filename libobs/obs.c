@@ -1417,7 +1417,7 @@ void obs_shutdown(void)
 		if (item->type_data && item->free_type_data)
 			item->free_type_data(item->type_data);
 		if (item->id)
-			bfree((void *)item->id);
+			bfree((void *)(uintptr_t)item->id);
 	}
 	da_free(obs->source_types);
 
@@ -2414,7 +2414,7 @@ static obs_source_t *obs_load_source_type(obs_data_t *source_data, bool is_priva
 	source = obs_source_create_set_last_ver(canvas, v_id, name, uuid, settings, hotkeys, prev_ver, is_private);
 
 	if (source->owns_info_id) {
-		bfree((void *)source->info.unversioned_id);
+		bfree((void *)(uintptr_t)source->info.unversioned_id);
 		source->info.unversioned_id = bstrdup(id);
 	}
 
@@ -2718,7 +2718,7 @@ void obs_reset_source_uuids(void)
 	HASH_ITER (hh_uuid, ht, ctx, tmp) {
 		HASH_DELETE(hh_uuid, ht, ctx);
 
-		bfree((void *)ctx->uuid);
+		bfree((void *)(uintptr_t)ctx->uuid);
 		ctx->uuid = os_generate_uuid();
 
 		HASH_ADD_UUID(new_ht, uuid, ctx);
@@ -2800,7 +2800,7 @@ void obs_context_data_free(struct obs_context_data *context)
 	obs_context_data_remove(context);
 	pthread_mutex_destroy(&context->rename_cache_mutex);
 	bfree(context->name);
-	bfree((void *)context->uuid);
+	bfree((void *)(uintptr_t)context->uuid);
 
 	for (size_t i = 0; i < context->rename_cache.num; i++)
 		bfree(context->rename_cache.array[i]);
@@ -2908,7 +2908,7 @@ void obs_context_data_insert_uuid(struct obs_context_data *context, pthread_mute
 		blog(LOG_WARNING, "Attempted to insert context with duplicate UUID \"%s\"!", context->uuid);
 		/* It is practically impossible for the new UUID to be a
 		 * duplicate, so don't bother checking again. */
-		bfree((void *)context->uuid);
+		bfree((void *)(uintptr_t)context->uuid);
 		context->uuid = os_generate_uuid();
 	}
 

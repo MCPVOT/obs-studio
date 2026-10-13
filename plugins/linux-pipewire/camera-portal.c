@@ -534,10 +534,9 @@ static inline void add_control_property(obs_properties_t *props, obs_data_t *set
 			if (labels == NULL)
 				return;
 
-			prop = obs_properties_add_list(props, (char *)name, (char *)name, OBS_COMBO_TYPE_LIST,
-						       OBS_COMBO_FORMAT_INT);
+			prop = obs_properties_add_list(props, name, name, OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
 
-			spa_pod_parser_pod(&prs, (struct spa_pod *)labels);
+			spa_pod_parser_pod(&prs, (struct spa_pod *)(uintptr_t)labels);
 			if (spa_pod_parser_push_struct(&prs, &f) < 0)
 				return;
 
@@ -546,15 +545,15 @@ static inline void add_control_property(obs_properties_t *props, obs_data_t *set
 				const char *desc;
 				if (spa_pod_parser_get_int(&prs, &id) < 0 || spa_pod_parser_get_string(&prs, &desc) < 0)
 					break;
-				obs_property_list_add_int(prop, (char *)desc, id);
+				obs_property_list_add_int(prop, desc, id);
 			}
 		} else {
 			min = n_vals > 1 ? vals[1] : def;
 			max = n_vals > 2 ? vals[2] : def;
 			step = n_vals > 3 ? vals[3] : (max - min) / 256.0f;
-			prop = obs_properties_add_int_slider(props, (char *)name, (char *)name, min, max, step);
+			prop = obs_properties_add_int_slider(props, name, name, min, max, step);
 		}
-		obs_data_set_default_int(settings, (char *)name, def);
+		obs_data_set_default_int(settings, name, def);
 		obs_property_set_modified_callback2(prop, control_changed, SPA_UINT32_TO_PTR(id));
 		break;
 	}
@@ -562,8 +561,8 @@ static inline void add_control_property(obs_properties_t *props, obs_data_t *set
 		int32_t *vals = SPA_POD_BODY(pod);
 		if (n_vals < 1)
 			return;
-		prop = obs_properties_add_bool(props, (char *)name, (char *)name);
-		obs_data_set_default_bool(settings, (char *)name, vals[0]);
+		prop = obs_properties_add_bool(props, name, name);
+		obs_data_set_default_bool(settings, name, vals[0]);
 		obs_property_set_modified_callback2(prop, control_changed, SPA_UINT32_TO_PTR(id));
 		break;
 	}
@@ -576,8 +575,8 @@ static inline void add_control_property(obs_properties_t *props, obs_data_t *set
 		min = n_vals > 1 ? vals[1] : def;
 		max = n_vals > 2 ? vals[2] : def;
 		step = n_vals > 3 ? vals[3] : (max - min) / 256.0f;
-		prop = obs_properties_add_float_slider(props, (char *)name, (char *)name, min, max, step);
-		obs_data_set_default_double(settings, (char *)name, def);
+		prop = obs_properties_add_float_slider(props, name, name, min, max, step);
+		obs_data_set_default_double(settings, name, def);
 		obs_property_set_modified_callback2(prop, control_changed, SPA_UINT32_TO_PTR(id));
 		break;
 	}
@@ -882,7 +881,7 @@ static void populate_cameras_list(struct camera_portal_source *camera_source, ob
 
 	device_found = false;
 	g_hash_table_iter_init(&iter, connection->devices);
-	while (g_hash_table_iter_next(&iter, (gpointer *)&device_id, (gpointer *)&device)) {
+	while (g_hash_table_iter_next(&iter, (gpointer *)(uintptr_t)&device_id, (gpointer *)&device)) {
 		const char *device_name;
 
 		device_name = pw_properties_get(device->properties, PW_KEY_NODE_DESCRIPTION);
@@ -1032,7 +1031,7 @@ static void on_registry_global_remove_cb(void *user_data, uint32_t id)
 	GHashTableIter iter;
 
 	g_hash_table_iter_init(&iter, connection->devices);
-	while (g_hash_table_iter_next(&iter, (gpointer *)&device_id, (gpointer *)&device)) {
+	while (g_hash_table_iter_next(&iter, (gpointer *)(uintptr_t)&device_id, (gpointer *)&device)) {
 		if (device->id != id)
 			continue;
 		blog(LOG_INFO, "[pipewire-camera] Removed device %s", device_id);
