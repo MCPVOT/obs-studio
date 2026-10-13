@@ -62,7 +62,7 @@ impl fmt::Display for CudaVersion {
 /// Symbols resolved when present but not required (not in `cuda_functions[]`).
 pub const OPTIONAL_CUDA_SYMBOLS: &[&str] = &["cuDriverGetVersion"];
 
-/// The names in `cuda_functions[]` (`plugins/obs-nvenc/cuda-helpers.c`), in
+/// The names in `cuda_functions[]` (`plugins/obs-nvenc/cuda-load.c`), in
 /// order, for `host`; the GL interop entries are absent on Windows.
 pub fn required_cuda_symbols(host: Host) -> Vec<&'static str> {
     const COMMON: &[&str] = &[
@@ -82,7 +82,7 @@ pub fn required_cuda_symbols(host: Host) -> Vec<&'static str> {
         "cuMemHostRegister_v2",
         "cuMemHostUnregister",
     ];
-    // `#ifndef _WIN32` in cuda-helpers.c.
+    // `#ifndef _WIN32` in cuda-load.c.
     const GL_INTEROP: &[&str] = &[
         "cuGLGetDevices_v2",
         "cuGraphicsGLRegisterImage",

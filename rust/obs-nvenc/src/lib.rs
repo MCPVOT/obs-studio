@@ -1,6 +1,6 @@
 //! Rust port of the CUDA/NVENC driver loader in `plugins/obs-nvenc`
-//! (`load_cuda_lib` and `cuda_functions[]` in `cuda-helpers.c`,
-//! `load_nvenc_lib` in `nvenc-helpers.c`; obs-rust/obs-studio#520).
+//! (`load_cuda_lib` and `cuda_functions[]` in `cuda-load.c`,
+//! `load_nvenc_lib` in `nvenc-load.c`; obs-rust/obs-studio#520).
 //!
 //! OBS never links or ships CUDA: it opens the user-mode driver libraries at
 //! run time. This crate replaces the C's single hard-coded name with an

@@ -31,11 +31,13 @@ target_sources(
     $<$<PLATFORM_ID:Windows>:nvenc-d3d11.c>
     cuda-helpers.c
     cuda-helpers.h
+    cuda-load.c
     nvenc-compat.c
     nvenc-cuda.c
     nvenc-helpers.c
     nvenc-helpers.h
     nvenc-internal.h
+    nvenc-load.c
     nvenc-opts-parser.c
     nvenc-properties.c
     nvenc.c

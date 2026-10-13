@@ -212,24 +212,24 @@ fn main() {
     let nvenc_dir = libobs.with_file_name("plugins").join("obs-nvenc");
     let extract_dir = PathBuf::from(std::env::var_os("OUT_DIR").unwrap()).join("obs-nvenc-extract");
     std::fs::create_dir_all(&extract_dir).expect("create obs-nvenc-extract");
-    let cuda_helpers = nvenc_dir.join("cuda-helpers.c");
-    let nvenc_helpers = nvenc_dir.join("nvenc-helpers.c");
+    let cuda_load = nvenc_dir.join("cuda-load.c");
+    let nvenc_load = nvenc_dir.join("nvenc-load.c");
     for (name, src, start, end) in [
         (
             "load_cuda_lib.inc",
-            &cuda_helpers,
+            &cuda_load,
             "bool load_cuda_lib(void)",
             "}",
         ),
         (
             "cuda_functions.inc",
-            &cuda_helpers,
+            &cuda_load,
             "typedef struct cuda_function {",
             "static const size_t num_cuda_funcs",
         ),
         (
             "load_nvenc_lib.inc",
-            &nvenc_helpers,
+            &nvenc_load,
             "bool load_nvenc_lib(void)",
             "}",
         ),
@@ -306,6 +306,6 @@ fn main() {
     // Cargo scans a watched directory recursively, so any libobs source or
     // header an oracle includes reruns this script.
     println!("cargo:rerun-if-changed={}", libobs.display());
-    println!("cargo:rerun-if-changed={}", cuda_helpers.display());
-    println!("cargo:rerun-if-changed={}", nvenc_helpers.display());
+    println!("cargo:rerun-if-changed={}", cuda_load.display());
+    println!("cargo:rerun-if-changed={}", nvenc_load.display());
 }
