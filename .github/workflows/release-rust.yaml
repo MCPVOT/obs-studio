@@ -73,7 +73,7 @@ jobs:
           } >>"$GITHUB_OUTPUT"
 
   build:
-    name: Build ${{ matrix.os }} 🧱
+    name: Build ${{ matrix.os }} ${{ matrix.target }} 🧱
     needs: check
     if: needs.check.outputs.skip != 'true'
     strategy:
@@ -86,6 +86,10 @@ jobs:
           - os: macos
             runner: macos-26
             target: arm64
+          # Intel Macs (#628): cross-built on the arm64 runner, as the gate does.
+          - os: macos
+            runner: macos-26
+            target: x86_64
           - os: windows
             runner: windows-2025-vs2026
             target: x64
@@ -127,6 +131,13 @@ jobs:
           version: 0.9.31
           shims: true
 
+      # The x86_64 leg is cross-built on an arm64 runner: Corrosion builds
+      # libobs-rust for x86_64-apple-darwin (libobs/cmake/rust-target.cmake),
+      # which needs that target's standard library.
+      - name: Add the Rust x86_64 macOS target 🦀
+        if: matrix.os == 'macos' && matrix.target == 'x86_64'
+        run: rustup target add x86_64-apple-darwin
+
       - name: Build OBS-Studio-Rust 🧱
         uses: ./.github/actions/build-obs
         with:
@@ -144,6 +155,7 @@ jobs:
         shell: bash
         env:
           OS: ${{ matrix.os }}
+          TARGET: ${{ matrix.target }}
           VERSION: ${{ needs.check.outputs.version }}
           CRATE: ${{ needs.check.outputs.crate }}
         run: |
@@ -151,7 +163,8 @@ jobs:
           mkdir -p pkg
           case "$OS" in
             linux) found=(build_ubuntu/obs-studio-*-x86_64-ubuntu-gnu.deb) ;;
-            macos) found=(build_macos/obs-studio-*-macos-apple.dmg) ;;
+            macos) [ "$TARGET" = x86_64 ] && kind=intel || kind=apple
+              found=(build_macos/obs-studio-*-macos-$kind.dmg) ;;
             windows) found=(build_x64/obs-studio-*-windows-x64.zip) ;;
           esac
           src=${found[0]}
@@ -175,7 +188,7 @@ jobs:
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: obs-studio-rust-${{ matrix.os }}
+          name: obs-studio-rust-${{ matrix.os }}-${{ matrix.target }}
           path: pkg/
           retention-days: 14
 
