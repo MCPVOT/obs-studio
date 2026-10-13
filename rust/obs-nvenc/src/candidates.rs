@@ -72,7 +72,7 @@ impl Candidate {
 pub enum Host {
     /// Linux and other non-Apple Unix.
     Linux,
-    /// Windows; `arm64` swaps the NVENC DLL order like `nvenc-helpers.c`.
+    /// Windows; `arm64` swaps the NVENC DLL order like `nvenc-load.c`.
     Windows { arm64: bool },
     /// macOS: no NVIDIA drivers, so no candidates.
     MacOs,
@@ -149,7 +149,7 @@ fn windows_candidates(lib: Library, arm64: bool) -> Vec<Candidate> {
     // Bare names: the platform loader restricts the search to System32.
     let names: &[&str] = match lib {
         Library::CudaDriver => &["nvcuda.dll"],
-        // nvenc-helpers.c: nvEncodeAPI.dll on _M_ARM64, else nvEncodeAPI64.dll.
+        // nvenc-load.c: nvEncodeAPI.dll on _M_ARM64, else nvEncodeAPI64.dll.
         Library::NvEncode if arm64 => &["nvEncodeAPI.dll", "nvEncodeAPI64.dll"],
         Library::NvEncode => &["nvEncodeAPI64.dll", "nvEncodeAPI.dll"],
         Library::Nvml => &["nvml.dll"],

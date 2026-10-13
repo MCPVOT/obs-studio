@@ -1,6 +1,6 @@
 /* Oracle for the obs-nvenc driver loader (obs-rust/obs-studio#520).
  *
- * cuda-helpers.c and nvenc-helpers.c cannot be compiled whole here: they
+ * cuda-load.c and nvenc-load.c cannot be compiled whole here: they
  * need nv-codec-headers (ffnvcodec), glad and, on Windows, D3D11. build.rs
  * therefore copies the original lines of load_cuda_lib(), the
  * cuda_functions[] table and load_nvenc_lib() verbatim (with #line markers)

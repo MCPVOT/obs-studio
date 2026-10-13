@@ -7,7 +7,6 @@
 #include <util/dstr.h>
 #include <util/pipe.h>
 
-static void *nvenc_lib = NULL;
 static pthread_mutex_t init_mutex = PTHREAD_MUTEX_INITIALIZER;
 NV_ENCODE_API_FUNCTION_LIST nv = {NV_ENCODE_API_FUNCTION_LIST_VER};
 NV_CREATE_INSTANCE_FUNC nv_create_instance = NULL;
@@ -98,18 +97,6 @@ bool nv_failed2(obs_encoder_t *encoder, void *session, NVENCSTATUS err, const ch
 }
 
 #define NV_FAILED(e, x) nv_failed2(e, NULL, x, __FUNCTION__, #x)
-
-bool load_nvenc_lib(void)
-{
-#if defined(_M_ARM64)
-	nvenc_lib = os_dlopen("nvEncodeAPI.dll");
-#elif defined(_WIN32)
-	nvenc_lib = os_dlopen("nvEncodeAPI64.dll");
-#else
-	nvenc_lib = os_dlopen("libnvidia-encode.so.1");
-#endif
-	return nvenc_lib != NULL;
-}
 
 static void *load_nv_func(const char *func)
 {

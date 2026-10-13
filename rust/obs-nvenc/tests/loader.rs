@@ -158,7 +158,7 @@ fn windows_lists_are_bare_system32_dll_names() {
         names(&default_candidates(Library::NvEncode, WIN64)),
         ["nvEncodeAPI64.dll", "nvEncodeAPI.dll"]
     );
-    // nvenc-helpers.c opens nvEncodeAPI.dll on _M_ARM64.
+    // nvenc-load.c opens nvEncodeAPI.dll on _M_ARM64.
     assert_eq!(
         names(&default_candidates(Library::NvEncode, WIN_ARM64)),
         ["nvEncodeAPI.dll", "nvEncodeAPI64.dll"]
