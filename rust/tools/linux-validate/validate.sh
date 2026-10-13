@@ -83,10 +83,10 @@ for mode in OFF ON; do
     -DENABLE_RUST_LIBOBS="$mode" \
     -DENABLE_FRONTEND=OFF -DENABLE_SCRIPTING=OFF -DENABLE_BROWSER=OFF \
     -DENABLE_WEBSOCKET=OFF -DENABLE_AJA=OFF -DENABLE_WEBRTC=OFF \
-    -DENABLE_NVENC=OFF -DENABLE_QSV11=OFF -DENABLE_VST=OFF -DENABLE_WAYLAND=OFF \
+    -DENABLE_NVENC=ON -DENABLE_QSV11=OFF -DENABLE_VST=OFF -DENABLE_WAYLAND=OFF \
     ${OBS_VERSION_OVERRIDE:+"-DOBS_VERSION_OVERRIDE=$OBS_VERSION_OVERRIDE"} \
     >"$build.configure.log" 2>&1 || { tail -40 "$build.configure.log"; exit 1; }
-  cmake --build "$build" --target libobs cmocka-tests decklink \
+  cmake --build "$build" --target libobs cmocka-tests decklink obs-nvenc \
     >"$build.build.log" 2>&1 || { grep -E ": (fatal )?error|FAILED:" "$build.build.log" | sort -u | head -40; exit 1; }
 
   echo "== [$mode] ctest"
