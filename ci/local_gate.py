@@ -168,6 +168,9 @@ def lane_rust_test(fix: bool) -> None:
     # Every test binary, C oracle included, must also link for a GCC-based
     # Windows target (obs-rust/obs-studio#291). soldr provides the
     # mingw-w64 cross toolchain; nothing runs, so no Wine is needed.
+    # The target is added here, not in rust-toolchain.toml: listing it there
+    # made soldr on a Windows host build and run every test as windows-gnu.
+    run(["soldr", "rustup", "target", "add", "x86_64-pc-windows-gnu"])
     soldr_cargo(["test", "--workspace", "--locked", "--no-run", "--target", "x86_64-pc-windows-gnu"])
 
 
