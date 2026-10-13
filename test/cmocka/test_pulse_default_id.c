@@ -179,8 +179,7 @@ void pa_context_set_subscribe_callback(pa_context *c, pa_context_subscribe_cb_t 
 	UNUSED_PARAMETER(cb);
 	UNUSED_PARAMETER(userdata);
 }
-pa_operation *pa_context_subscribe(pa_context *c, pa_subscription_mask_t m, pa_context_success_cb_t cb,
-				   void *userdata)
+pa_operation *pa_context_subscribe(pa_context *c, pa_subscription_mask_t m, pa_context_success_cb_t cb, void *userdata)
 {
 	UNUSED_PARAMETER(c);
 	UNUSED_PARAMETER(m);
