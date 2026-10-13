@@ -113,6 +113,17 @@ class ReleasePlatformsTest(unittest.TestCase):
         build_index = next(i for i, step in enumerate(steps) if step.startswith("Build OBS-Studio-Rust"))
         self.assertLess(steps.index(provision), build_index)
 
+    def test_release_appimage_call_explicitly_enables_rust(self):
+        call = re.search(r"^  appimage:\n(.*?)^  gate:", self.text, re.M | re.S)
+        self.assertIsNotNone(call)
+        self.assertTrue("rust_libobs: true" in call.group(1), "manual release calls can build a C-only AppImage")
+
+    def test_called_appimage_accepts_the_rust_build_option(self):
+        text = (ROOT / ".github/workflows/appimage.yaml").read_text()
+        call = re.search(r"^  workflow_call:\n(.*?)^  pull_request:", text, re.M | re.S)
+        self.assertIsNotNone(call)
+        self.assertRegex(call.group(1), r"rust_libobs:\n\s+description:.*\n\s+type: boolean")
+
     def test_release_requires_every_built_package(self):
         # The release refuses to publish without these (#622); a leg the
         # matrix builds must be on the list, or it can silently go missing.
