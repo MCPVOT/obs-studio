@@ -37,6 +37,8 @@ __attribute__((weak)) void os_oom(void) {}
  * do not link platform-cocoa.m, and Windows does not build that shim. The
  * profiler oracle's scripted clock is oracle_profiler_gettime_ns. */
 #if defined(__APPLE__) || defined(_WIN32)
+uint64_t os_gettime_ns(void);
+
 uint64_t os_gettime_ns(void)
 {
 	return 0;

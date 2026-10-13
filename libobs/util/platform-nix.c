@@ -104,6 +104,9 @@ void os_dlclose(void *module)
 		dlclose(module);
 }
 
+/* Declared only in obs-module.c, which calls it. */
+void get_plugin_info(const char *path, bool *is_obs_plugin);
+
 void get_plugin_info(const char *path, bool *is_obs_plugin)
 {
 	*is_obs_plugin = true;

@@ -197,6 +197,14 @@ bool audio_resampler_resample(audio_resampler_t *resampler, uint8_t *output[], u
 /* ------------------------------------------------------------------ */
 /* oracle-only extras: drive one tick + expose internal state          */
 
+/* Test-only exports called from Rust over FFI. */
+void oracle_audio_tick(audio_t *audio, uint64_t audio_time, uint64_t prev_time);
+int oracle_audio_output_open_no_thread(audio_t **audio, struct audio_output_info *info);
+void oracle_audio_output_close_no_thread(audio_t *audio);
+size_t oracle_audio_mix_input_count(audio_t *audio, size_t mix_idx);
+bool oracle_audio_mix_input_resampled(audio_t *audio, size_t mix_idx, size_t input_idx);
+const struct audio_convert_info *oracle_audio_mix_input_conversion(audio_t *audio, size_t mix_idx, size_t input_idx);
+
 void oracle_audio_tick(audio_t *audio, uint64_t audio_time, uint64_t prev_time)
 {
 	input_and_output(audio, audio_time, prev_time);

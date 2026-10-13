@@ -93,6 +93,10 @@ OBS_NORETURN static void def_crash_handler(const char *format, va_list args, voi
 	UNUSED_PARAMETER(param);
 }
 
+/* Called only from the Rust core (obs-util), so no header declares them. */
+BASE_HIDDEN log_handler_t base_default_log_handler(void);
+BASE_HIDDEN void base_log_literal(log_handler_t handler, void *param, int level, const char *msg);
+
 BASE_HIDDEN log_handler_t base_default_log_handler(void)
 {
 	return def_log_handler;

@@ -60,6 +60,10 @@ static inline void from_locale(char *buffer)
 		*pos = '.';
 }
 
+/* Test-only exports called from Rust over FFI. */
+double os_strtod(const char *str);
+int os_dtostr(double value, char *dst, size_t size);
+
 /* platform.c */
 double os_strtod(const char *str)
 {
@@ -146,6 +150,9 @@ static wchar_t *utf8_to_wide_cf(const char *path)
 	}
 	return wide;
 }
+
+/* Stands in for libobs's os_file_exists; platform.h is not included here. */
+bool os_file_exists(const char *path);
 
 bool os_file_exists(const char *path)
 {
