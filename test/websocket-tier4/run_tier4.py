@@ -24,6 +24,8 @@ import sys
 import tempfile
 import time
 
+import websockets
+
 from obsws import (
     ObsWsClient,
     SUB_ALL,
@@ -284,6 +286,33 @@ async def test_malformed_json():
     check("proto:malformed-json closes 4002",
           c.close.code == CLOSE_MESSAGE_DECODE_ERROR,
           f"close={c.close}")
+
+
+async def test_excessive_nesting():
+    # Both parsers used to recurse on untrusted frames before Identify and
+    # could exhaust the worker thread's stack instead of closing the client.
+    for name, subprotocol, payload in (
+        ("json", "obswebsocket.json",
+         '{"op":1,"d":{"rpcVersion":1,"x":' +
+         "[" * 500000 + "0" + "]" * 500000 + "}}"),
+        ("msgpack", "obswebsocket.msgpack", b"\x91" * 50000 + b"\xc0"),
+    ):
+        code = None
+        try:
+            async with websockets.connect(
+                    URI, subprotocols=[subprotocol], max_size=16 * 1024 * 1024) as ws:
+                await ws.recv()  # Hello; the payload is deliberately pre-auth.
+                await ws.send(payload)
+                try:
+                    await asyncio.wait_for(ws.recv(), timeout=10)
+                except websockets.exceptions.ConnectionClosed as exc:
+                    code = exc.code
+        except (OSError, asyncio.TimeoutError, websockets.exceptions.WebSocketException):
+            pass
+        check(f"proto:{name}-depth closes 4002",
+              code == CLOSE_MESSAGE_DECODE_ERROR, f"close={code}")
+        check(f"proto:{name}-depth keeps server alive",
+              wait_for_port(PORT, timeout=2))
 
 
 async def test_identify_missing_rpc_version():
@@ -1098,6 +1127,7 @@ async def run_all(obs_bin, skip_obs, skip_auth_phase):
         print("== protocol errors ==", flush=True)
         await test_unknown_opcode()
         await test_malformed_json()
+        await test_excessive_nesting()
         await test_request_errors()
 
         print("== events ==", flush=True)
