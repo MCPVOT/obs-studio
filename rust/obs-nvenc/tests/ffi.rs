@@ -175,3 +175,27 @@ fn plugin_cmake_swaps_the_c_loader_for_the_shim() {
         "cuda-load-rust.c must be built when ENABLE_RUST_LIBOBS is ON"
     );
 }
+
+/// The `cuda_functions[]` rows between the braces, without the `#ifndef`
+/// lines' surroundings, from one plugin source.
+fn function_table(file: &str) -> String {
+    let src = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../plugins/obs-nvenc")
+            .join(file),
+    )
+    .unwrap();
+    let start = src
+        .find("static const cuda_function cuda_functions[] = {")
+        .unwrap_or_else(|| panic!("{file}: no cuda_functions[]"));
+    let end = start + src[start..].find("};").unwrap();
+    src[start..end].to_owned()
+}
+
+#[test]
+fn rust_build_uses_the_same_function_table_as_the_c_build() {
+    assert_eq!(
+        function_table("cuda-load.c"),
+        function_table("cuda-load-rust.c")
+    );
+}
