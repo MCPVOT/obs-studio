@@ -105,7 +105,7 @@ wchar_t *wstrstri(const wchar_t *str, const wchar_t *find)
 
 	do {
 		if (wstrcmpi_n(str, find, len) == 0)
-			return (wchar_t *)str;
+			return (wchar_t *)(uintptr_t)str; /* wcsstr-style */
 	} while (*str++);
 
 	return NULL;

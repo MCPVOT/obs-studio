@@ -80,7 +80,7 @@ void quat_from_matrix4(struct quat *dst, const struct matrix4 *m)
 		dst->y = (m->z.x - m->x.z) * inv_half;
 		dst->z = (m->x.y - m->y.x) * inv_half;
 	} else {
-		struct f4x4 *val = (struct f4x4 *)m;
+		const struct f4x4 *val = (const struct f4x4 *)m;
 
 		i = (m->x.x > m->y.y) ? 0 : 1;
 
