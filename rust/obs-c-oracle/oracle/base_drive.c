@@ -3,7 +3,9 @@
 /* The parity tests choose the format string at run time (they drive blog
  * with arbitrary formats), so these test entry points forward non-literal
  * formats by design (obs-rust/obs-studio#516). */
+#if defined(__GNUC__) || defined(__clang__)
 #pragma GCC diagnostic ignored "-Wformat-nonliteral"
+#endif
 
 #include <stdarg.h>
 #include <stdio.h>
