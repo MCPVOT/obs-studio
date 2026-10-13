@@ -523,14 +523,19 @@ mod shims {
             size: usize,
             name: *const c_char,
         ) -> c_int {
-            write_out(dst, size, &nix::program_data_path(cstr(name)))
+            match nix::program_data_path(cstr(name)) {
+                Some(bytes) => write_out(dst, size, &bytes),
+                None => -1,
+            }
         }
 
         /// # Safety
         /// `name` is a C string or null. The result is `bmalloc`'d.
         #[unsafe(no_mangle)]
         pub unsafe extern "C" fn os_get_program_data_path_ptr(name: *const c_char) -> *mut c_char {
-            let bytes = nix::program_data_path(cstr(name));
+            let Some(bytes) = nix::program_data_path(cstr(name)) else {
+                return ptr::null_mut();
+            };
             // SAFETY: the prefix is non-empty.
             unsafe { alloc_bytes(&bytes) }
         }
