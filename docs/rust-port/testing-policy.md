@@ -259,7 +259,8 @@ Tier 2 checks.
    `quat.c`, `matrix3.c`, `matrix4.c`, `plane.c`, `bounds.c`, `axisang.c`,
    `math-extra.c`.
 2. `media-io` in crate `obs-media-io`.
-3. obs-websocket Tier 4 suite, then the port.
+3. obs-websocket Tier 4 suite, then the staged port described in
+   [websocket-port.md](websocket-port.md).
 
 - Tier 3 parity is exact bit equality (NaN == NaN) where the C is scalar and
   deterministic. Only where the C uses SIMD (`vec3`, `vec4`, `matrix4` via
