@@ -311,7 +311,11 @@ string CurrentDateTimeString()
 	time_t now = time(0);
 	struct tm tstruct;
 	char buf[80];
-	tstruct = *localtime(&now);
+#ifdef _WIN32
+	localtime_s(&tstruct, &now);
+#else
+	localtime_r(&now, &tstruct);
+#endif
 	strftime(buf, sizeof(buf), "%Y-%m-%d, %X", &tstruct);
 	return buf;
 }
@@ -1578,12 +1582,15 @@ string GenerateTimeDateFilename(const char *extension, bool noSpace)
 {
 	time_t now = time(0);
 	char file[256] = {};
-	struct tm *cur_time;
+	struct tm cur_time;
 
-	cur_time = localtime(&now);
-	snprintf(file, sizeof(file), "%d-%02d-%02d%c%02d-%02d-%02d.%s", cur_time->tm_year + 1900, cur_time->tm_mon + 1,
-		 cur_time->tm_mday, noSpace ? '_' : ' ', cur_time->tm_hour, cur_time->tm_min, cur_time->tm_sec,
-		 extension);
+#ifdef _WIN32
+	localtime_s(&cur_time, &now);
+#else
+	localtime_r(&now, &cur_time);
+#endif
+	snprintf(file, sizeof(file), "%d-%02d-%02d%c%02d-%02d-%02d.%s", cur_time.tm_year + 1900, cur_time.tm_mon + 1,
+		 cur_time.tm_mday, noSpace ? '_' : ' ', cur_time.tm_hour, cur_time.tm_min, cur_time.tm_sec, extension);
 
 	return string(file);
 }
