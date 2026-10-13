@@ -64,6 +64,7 @@ const STRICT_FLAGS: &[&str] = &[
     "-Wundef",
     "-Wdouble-promotion",
     "-Wstrict-prototypes",
+    "-Wformat-nonliteral",
 ];
 
 fn main() {
