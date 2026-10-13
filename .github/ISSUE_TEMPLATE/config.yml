@@ -1,5 +1,11 @@
 blank_issues_enabled: true
 contact_links:
+  - name: Feature idea
+    url: https://github.com/obs-rust/obs-studio/discussions/categories/ideas
+    about: Propose a future feature in Discussions → Ideas. Issues are for bugs and claimable work.
+  - name: Question
+    url: https://github.com/obs-rust/obs-studio/discussions/categories/q-a
+    about: Ask about using or building OBS-Studio-Rust.
   - name: Coordination rules
     url: https://github.com/obs-rust/obs-studio/blob/master/docs/rust-port/coordination.md
     about: How to claim issues and avoid duplicate pull requests.
