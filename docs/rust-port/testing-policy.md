@@ -112,8 +112,12 @@ cannot prove both, so every ported unit carries the four tiers below.
 - Known, intentional differences from the C behavior (bug fixes) MUST be
   listed in the test file and in the tracking issue, and the property test
   must exclude exactly those inputs, no more.
-- The oracle for a unit is deleted only after the C source itself is deleted
-  from the tree, in that same change.
+- When a C source is removed from the production tree, move that original
+  source to `rust/obs-c-oracle/legacy/` in the same change and update its
+  oracle wrapper. Keep Tier 3 parity running; the production source's
+  deletion does not end the behavioral baseline. See
+  [release-criteria.md](release-criteria.md) for the release and rollback
+  gates before removing a C implementation.
 
 ### Tier 4 — Black-box protocol tests (external network API)
 
