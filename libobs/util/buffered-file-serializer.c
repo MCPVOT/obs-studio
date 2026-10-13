@@ -80,7 +80,8 @@ static void *io_thread(void *opaque)
 	// flush the chunk. next_seek_position is the actual offset we should
 	// seek to when we write the chunk.
 	uint64_t current_seek_position = 0;
-	uint64_t next_seek_position;
+	/* Set together with want_seek; initialized for MSVC C4701. */
+	uint64_t next_seek_position = 0;
 
 	for (;;) {
 		// Wait for data to be written to the buffer
