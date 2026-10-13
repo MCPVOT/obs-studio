@@ -5,6 +5,8 @@ run-name: Daily OBS-Studio-Rust beta 🦀
 # publishes an unsigned GitHub pre-release tagged
 # obs-studio-rust-v<rust/libobs-rust version>-beta.<YYYYMMDD>.
 #   gh workflow run release-rust.yaml      # today's release now
+#   gh workflow run release-rust.yaml --ref <branch> -f verify_only=true
+#     builds the same candidate packages and gate without publishing anything.
 # Release gate (obs-rust/obs-studio#436): the full CI run (Flatpak, every OBS
 # build, Tier 2 on all OSes) moved out of PRs and master pushes and runs here
 # at the candidate SHA; nothing is published unless it passes. The release's
@@ -24,10 +26,14 @@ on:
         description: Replace or complete today's release if its tag already exists (master only)
         type: boolean
         default: false
+      verify_only:
+        description: Build and verify candidate packages from this ref without publishing
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
-  group: release-rust
+  group: ${{ inputs.verify_only && format('verify-rust-{0}', github.ref) || 'release-rust' }}
   cancel-in-progress: false
 jobs:
   check:
@@ -40,6 +46,7 @@ jobs:
       crate: ${{ steps.check.outputs.crate }}
       skip: ${{ steps.check.outputs.skip }}
       repair: ${{ steps.check.outputs.repair }}
+      verify_only: ${{ steps.check.outputs.verify_only }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -49,6 +56,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           REPAIR: ${{ inputs.repair }}
+          VERIFY_ONLY: ${{ inputs.verify_only }}
         run: |
           set -euo pipefail
           crate=$(sed -n 's/^version = "\(.*\)"/\1/p' rust/libobs-rust/Cargo.toml | head -1)
@@ -62,7 +70,8 @@ jobs:
           # Refuses non-master refs and stale dates; decides skip/repair.
           decision=$(uv run --no-project ci/release_decision.py check \
             --event "$GITHUB_EVENT_NAME" --ref "$GITHUB_REF" --repair "$REPAIR" \
-            --tag-exists "$exists" --tag-date "${version##*.}" --today "$(date -u +%Y%m%d)")
+            --tag-exists "$exists" --tag-date "${version##*.}" --today "$(date -u +%Y%m%d)" \
+            --verify-only "$VERIFY_ONLY")
           echo "$decision"
           {
             echo "crate=$crate"
@@ -267,6 +276,7 @@ jobs:
     # AppImage with its tests) must have succeeded (#622). Nothing ships partially.
     if: >-
       always() && needs.check.result == 'success' && needs.check.outputs.skip != 'true'
+      && needs.check.outputs.verify_only != 'true'
       && needs.gate.result == 'success' && needs.build.result == 'success'
       && needs.appimage.result == 'success'
     runs-on: ubuntu-26.04
@@ -297,12 +307,13 @@ jobs:
           SHA: ${{ needs.check.outputs.sha }}
           VERSION: ${{ needs.check.outputs.version }}
           REPAIR: ${{ needs.check.outputs.repair }}
+          VERIFY_ONLY: ${{ needs.check.outputs.verify_only }}
           GATE: ${{ needs.gate.result }}
           BUILD: ${{ needs.build.result }}
           APPIMAGE: ${{ needs.appimage.result }}
         run: |
           set -euo pipefail
-          uv run --no-project ci/release_decision.py publish --gate "$GATE" --build "$BUILD" --appimage "$APPIMAGE"
+          uv run --no-project ci/release_decision.py publish --gate "$GATE" --build "$BUILD" --appimage "$APPIMAGE" --verify-only "$VERIFY_ONLY"
           # Re-check the tag: another run may have released since `check` (#623).
           exists=false
           if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" >/dev/null 2>&1; then exists=true; fi
