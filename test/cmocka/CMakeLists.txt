@@ -508,6 +508,24 @@ if(TARGET OBS::pulseaudio)
   target_link_libraries(test_pulse_reconnect PRIVATE OBS::libobs PulseAudio::PulseAudio ${CMOCKA_LIBRARIES})
   add_dependencies(cmocka-tests test_pulse_reconnect)
   add_test(test_pulse_reconnect ${CMAKE_CURRENT_BINARY_DIR}/test_pulse_reconnect)
+
+  # obs-rust/obs-studio#158: pulseaudio-wrapper.c against a fake libpulse
+  # defined in the test (headers only, no libpulse link).
+  add_executable(
+    test_pulse_default_id
+    test_pulse_default_id.c
+    "${CMAKE_SOURCE_DIR}/libobs/audio-monitoring/pulse/pulseaudio-wrapper.c"
+  )
+  target_include_directories(
+    test_pulse_default_id
+    PRIVATE
+      ${CMOCKA_INCLUDE_DIR}
+      "${CMAKE_SOURCE_DIR}/libobs/audio-monitoring/pulse"
+      $<TARGET_PROPERTY:PulseAudio::PulseAudio,INTERFACE_INCLUDE_DIRECTORIES>
+  )
+  target_link_libraries(test_pulse_default_id PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
+  add_dependencies(cmocka-tests test_pulse_default_id)
+  add_test(test_pulse_default_id ${CMAKE_CURRENT_BINARY_DIR}/test_pulse_default_id)
 endif()
 
 # video frame test (media-io/video-frame.c + video-frame.h inlines)
