@@ -283,7 +283,10 @@ int os_get_program_data_path(char *dst, size_t size, const char *name)
 
 char *os_get_program_data_path_ptr(const char *name)
 {
-	size_t len = (size_t)snprintf(NULL, 0, "/usr/local/share/%s", !!name ? name : "");
+	int ret = snprintf(NULL, 0, "/usr/local/share/%s", !!name ? name : "");
+	if (ret < 0)
+		return NULL;
+	size_t len = (size_t)ret;
 	char *str = bmalloc(len + 1);
 	snprintf(str, len + 1, "/usr/local/share/%s", !!name ? name : "");
 	str[len] = 0;
