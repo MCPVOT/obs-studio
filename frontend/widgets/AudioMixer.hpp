@@ -58,6 +58,10 @@ private:
 	std::vector<OBSSignal> signalHandlers;
 	std::vector<OBSSignal> previewSignals;
 	static void onFrontendEvent(enum obs_frontend_event event, void *data);
+	// obs-rust/obs-studio#156: the callback is removed on EXIT, after which
+	// the frontend API is torn down; removing it again then logs an error.
+	bool frontendEventCallbackAdded = false;
+	void removeFrontendEventCallback();
 	void handleFrontendEvent(enum obs_frontend_event event);
 	void updatePreviewHandlers();
 
