@@ -214,7 +214,7 @@ void video_frame_init(struct video_frame *frame, enum video_format format, uint3
 		if (!linesizes[i] || !heights[i])
 			continue;
 		size_t plane_size = (size_t)linesizes[i] * (size_t)heights[i];
-		align_size(&plane_size, alignment);
+		align_size(&plane_size, (size_t)alignment);
 		size += plane_size;
 		offsets[i] = size;
 	}

@@ -182,8 +182,8 @@ bool os_sleepto_ns(uint64_t time_target)
 	struct timespec req, remain;
 	memset(&req, 0, sizeof(req));
 	memset(&remain, 0, sizeof(remain));
-	req.tv_sec = time_target / 1000000000;
-	req.tv_nsec = time_target % 1000000000;
+	req.tv_sec = (time_t)(time_target / 1000000000);
+	req.tv_nsec = (long)(time_target % 1000000000);
 
 	while (nanosleep(&req, &remain)) {
 		req = remain;
@@ -280,7 +280,7 @@ int os_get_program_data_path(char *dst, size_t size, const char *name)
 
 char *os_get_program_data_path_ptr(const char *name)
 {
-	size_t len = snprintf(NULL, 0, "/usr/local/share/%s", !!name ? name : "");
+	size_t len = (size_t)snprintf(NULL, 0, "/usr/local/share/%s", !!name ? name : "");
 	char *str = bmalloc(len + 1);
 	snprintf(str, len + 1, "/usr/local/share/%s", !!name ? name : "");
 	str[len] = 0;
@@ -410,7 +410,7 @@ size_t os_get_abs_path(const char *path, char *abspath, size_t size)
 		return 0;
 
 	ret = snprintf(abspath, min_size, "%s", newpath);
-	return ret >= 0 ? ret : 0;
+	return ret >= 0 ? (size_t)ret : 0;
 }
 
 char *os_get_abs_path_ptr(const char *path)
@@ -874,7 +874,7 @@ bool os_get_proc_memory_usage(os_proc_memory_usage_t *usage)
 	if (!os_get_proc_memory_usage_internal(&statm))
 		return false;
 
-	usage->resident_size = (uint64_t)statm.resident_size * sysconf(_SC_PAGESIZE);
+	usage->resident_size = (uint64_t)statm.resident_size * (uint64_t)sysconf(_SC_PAGESIZE);
 	usage->virtual_size = statm.virtual_size;
 	return true;
 }
@@ -884,7 +884,7 @@ uint64_t os_get_proc_resident_size(void)
 	statm_t statm = {0};
 	if (!os_get_proc_memory_usage_internal(&statm))
 		return 0;
-	return (uint64_t)statm.resident_size * sysconf(_SC_PAGESIZE);
+	return (uint64_t)statm.resident_size * (uint64_t)sysconf(_SC_PAGESIZE);
 }
 
 uint64_t os_get_proc_virtual_size(void)

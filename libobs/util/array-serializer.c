@@ -53,13 +53,13 @@ static int64_t array_output_seek(void *param, int64_t offset, enum serialize_see
 
 	switch (seek_type) {
 	case SERIALIZE_SEEK_START:
-		new_pos = offset;
+		new_pos = (size_t)offset;
 		break;
 	case SERIALIZE_SEEK_CURRENT:
-		new_pos = output->cur_pos + offset;
+		new_pos = output->cur_pos + (size_t)offset;
 		break;
 	case SERIALIZE_SEEK_END:
-		new_pos = output->bytes.num - offset;
+		new_pos = output->bytes.num - (size_t)offset;
 		break;
 	}
 

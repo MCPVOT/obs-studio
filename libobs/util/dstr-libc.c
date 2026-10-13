@@ -38,8 +38,8 @@ int wstrcmpi(const wchar_t *str1, const wchar_t *str2)
 		str2 = wstrblank;
 
 	do {
-		wchar_t ch1 = (wchar_t)towupper(*str1);
-		wchar_t ch2 = (wchar_t)towupper(*str2);
+		wchar_t ch1 = (wchar_t)towupper((wint_t)*str1);
+		wchar_t ch2 = (wchar_t)towupper((wint_t)*str2);
 
 		if (ch1 < ch2)
 			return -1;
@@ -82,8 +82,8 @@ int wstrcmpi_n(const wchar_t *str1, const wchar_t *str2, size_t n)
 		str2 = wstrblank;
 
 	do {
-		wchar_t ch1 = (wchar_t)towupper(*str1);
-		wchar_t ch2 = (wchar_t)towupper(*str2);
+		wchar_t ch1 = (wchar_t)towupper((wint_t)*str1);
+		wchar_t ch2 = (wchar_t)towupper((wint_t)*str2);
 
 		if (ch1 < ch2)
 			return -1;
@@ -252,7 +252,7 @@ void dstr_to_upper(struct dstr *str)
 		return;
 
 	while (*temp) {
-		*temp = (wchar_t)towupper(*temp);
+		*temp = (wchar_t)towupper((wint_t)*temp);
 		temp++;
 	}
 
@@ -275,7 +275,7 @@ void dstr_to_lower(struct dstr *str)
 		return;
 
 	while (*temp) {
-		*temp = (wchar_t)towlower(*temp);
+		*temp = (wchar_t)towlower((wint_t)*temp);
 		temp++;
 	}
 
