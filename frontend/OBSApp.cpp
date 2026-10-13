@@ -182,9 +182,9 @@ QAccessibleInterface *alignmentSelectorFactory(const QString &classname, QObject
 }
 } // namespace
 
-QObject *CreateShortcutFilter()
+QObject *CreateShortcutFilter(QObject *parent)
 {
-	return new OBSEventFilter([](QObject *obj, QEvent *event) {
+	auto *filter = new OBSEventFilter([](QObject *obj, QEvent *event) {
 		auto mouse_event = [](QMouseEvent &event) {
 			if (!App()->HotkeysEnabledInFocus() && event.button() != Qt::LeftButton) {
 				return true;
@@ -305,6 +305,8 @@ QObject *CreateShortcutFilter()
 			return false;
 		}
 	});
+	filter->setParent(parent);
+	return filter;
 }
 
 string CurrentDateTimeString()
@@ -970,7 +972,8 @@ OBSApp::OBSApp(int &argc, char **argv, profiler_name_store_t *store)
 	  profilerNameStore(store),
 	  appLaunchUUID_(QUuid::createUuid())
 {
-	installNativeEventFilter(new OBS::NativeEventFilter);
+	nativeEventFilter_ = std::make_unique<OBS::NativeEventFilter>();
+	installNativeEventFilter(nativeEventFilter_.get());
 
 	/* fix float handling */
 #if defined(Q_OS_UNIX)
@@ -1024,6 +1027,8 @@ OBSApp::~OBSApp()
 	if (libobs_initialized) {
 		applicationShutdown();
 	}
+	/* Before nativeEventFilter_ is freed: QCoreApplication outlives it. */
+	removeNativeEventFilter(nativeEventFilter_.get());
 };
 
 static void move_basic_to_profiles(void)
