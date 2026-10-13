@@ -2706,7 +2706,7 @@ obs_data_array_t *obs_save_sources(void)
 	return obs_save_sources_filtered(save_source_filter, NULL);
 }
 
-void obs_reset_source_uuids()
+void obs_reset_source_uuids(void)
 {
 	pthread_mutex_lock(&obs->data.sources_mutex);
 

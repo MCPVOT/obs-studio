@@ -1032,7 +1032,7 @@ void obs_output_remove_encoder(struct obs_output *output, struct obs_encoder *en
 	obs_output_remove_encoder_internal(output, encoder);
 }
 
-static struct caption_track_data *create_caption_track()
+static struct caption_track_data *create_caption_track(void)
 {
 	struct caption_track_data *rval = bzalloc(sizeof(struct caption_track_data));
 	pthread_mutex_init_value(&rval->caption_mutex);

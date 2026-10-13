@@ -117,7 +117,7 @@ static void initialize_matrix(float const Kb, float const Kr, float bit_range_ma
 #endif
 }
 
-static void initialize_matrices()
+static void initialize_matrices(void)
 {
 	static const float full_range_min3[] = {0, 0, 0};
 

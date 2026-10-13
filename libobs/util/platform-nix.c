@@ -640,12 +640,12 @@ int os_chdir(const char *path)
 /* os_inhibit_sleep_* for Linux and FreeBSD live in platform-nix-inhibit.c,
  * which is also built with ENABLE_RUST_LIBOBS. */
 
-void os_breakpoint()
+void os_breakpoint(void)
 {
 	raise(SIGTRAP);
 }
 
-void os_oom()
+void os_oom(void)
 {
 	raise(SIGTRAP);
 }
@@ -913,7 +913,7 @@ uint64_t os_get_sys_free_size(void)
 static uint64_t total_memory = 0;
 static bool total_memory_initialized = false;
 
-static void os_get_sys_total_size_internal()
+static void os_get_sys_total_size_internal(void)
 {
 	total_memory_initialized = true;
 

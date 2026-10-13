@@ -1655,7 +1655,7 @@ gs_indexbuffer_t *gs_indexbuffer_create(enum gs_index_type type, void *indices, 
 	return graphics->exports.device_indexbuffer_create(graphics->device, type, indices, num, flags);
 }
 
-gs_timer_t *gs_timer_create()
+gs_timer_t *gs_timer_create(void)
 {
 	graphics_t *graphics = thread_graphics;
 
@@ -1665,7 +1665,7 @@ gs_timer_t *gs_timer_create()
 	return graphics->exports.device_timer_create(graphics->device);
 }
 
-gs_timer_range_t *gs_timer_range_create()
+gs_timer_range_t *gs_timer_range_create(void)
 {
 	graphics_t *graphics = thread_graphics;
 
