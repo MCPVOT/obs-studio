@@ -478,7 +478,11 @@ jobs:
       - name: Build Flatpak Manifest 🧾
         uses: flatpak/flatpak-github-actions/flatpak-builder@401fe28a8384095fc1531b9d320b292f0ee45adb # v6.7
         with:
-          build-bundle: ${{ fromJSON(needs.check-event.outputs.package) }}
+          # `flatpak build-bundle` takes ~4 of the ~16 minutes and only testers
+          # download the result (#651). Routine master pushes skip it; the
+          # daily schedule, tags, release branches and Seeking Testers PRs
+          # still build and upload it.
+          build-bundle: ${{ fromJSON(needs.check-event.outputs.package) && (github.event_name != 'push' || github.ref_type == 'tag' || startsWith(github.ref_name, 'release/')) }}
           bundle: obs-studio-flatpak-${{ needs.check-event.outputs.commitHash }}.flatpak
           manifest-path: ${{ github.workspace }}/build-aux/com.obsproject.Studio.json
           cache: ${{ fromJSON(steps.setup.outputs.cacheHit) || (github.event_name != 'pull_request' && github.ref_name == 'master')}}
