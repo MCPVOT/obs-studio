@@ -3,7 +3,7 @@
    :width: 128
    :align: center
 
-This is a Rust Rewrite of OBS Studio.
+This is an independent rewrite of the obsproject's obs-studio.
 
 Same obs studio, but without the bugs. AI generated issues and PRs welcome.
 
