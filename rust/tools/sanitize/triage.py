@@ -213,8 +213,21 @@ def main():
         md += ["**Unit tests:** not run", ""]
 
     exit_file = out / "app-exit.txt"
-    md.append(f"**App launch:** `{exit_file.read_text().strip() if exit_file.exists() else 'not run'}` (124 = closed by the timeout)")
+    launch = exit_file.read_text().strip() if exit_file.exists() else "not run"
+    md.append(
+        f"**App launch:** `{launch}` (exited = shut down after SIGINT; "
+        "killed = still running after the grace period, then SIGKILL)"
+    )
     md.append("")
+    hang = out / "hang-backtrace.txt"
+    if "(killed)" in launch:
+        # A shutdown hang is an OBS finding (#462).
+        findings += 1
+        if hang.exists():
+            lines = hang.read_text(errors="replace").splitlines()
+            md += ["<details><summary>Threads when it hung (gdb)</summary>", "", "```", *lines[:400], "```", "</details>", ""]
+        else:
+            md += ["No backtrace was captured (gdb missing or not allowed to attach).", ""]
     if tool == "valgrind":
         log = out / "app.vg.log"
         if log.exists():
