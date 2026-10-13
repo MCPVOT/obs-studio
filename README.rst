@@ -37,8 +37,12 @@ OBS Studio <https://obsproject.com>
    :alt: OBS Studio Translation Project Progress
    :target: https://crowdin.com/project/obs-studio
 
-.. image:: https://img.shields.io/discord/348973006581923840.svg?label=&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2
-   :alt: OBS Studio Discord Server
+.. image:: https://img.shields.io/badge/Discord-OBS%20Rust-5865F2?logo=discord&logoColor=white
+   :alt: OBS Rust Discord Server
+   :target: https://discord.gg/6MWWX4x9pf
+
+.. image:: https://img.shields.io/discord/348973006581923840.svg?label=Upstream%20OBS%20Discord&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2
+   :alt: Upstream OBS Studio Discord Server
    :target: https://obsproject.com/discord
 
 What is OBS Studio?
