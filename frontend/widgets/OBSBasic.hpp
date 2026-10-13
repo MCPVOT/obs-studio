@@ -494,9 +494,14 @@ private:
 	obs_hotkey_id screenshotHotkey = 0;
 	obs_hotkey_id sourceScreenshotHotkey = 0;
 
-	obs_hotkey_pair_id streamingHotkeys, recordingHotkeys, pauseHotkeys, replayBufHotkeys, vcamHotkeys,
-		togglePreviewHotkeys, contextBarHotkeys;
-	obs_hotkey_id forceStreamingStopHotkey, splitFileHotkey, addChapterHotkey, saveReplayBufferHotkey;
+	/* Invalid until registered: some are registered only with their feature
+	 * (replay buffer, virtual camera...), and ClearHotkeys() unregisters all. */
+	obs_hotkey_pair_id streamingHotkeys = OBS_INVALID_HOTKEY_PAIR_ID, recordingHotkeys = OBS_INVALID_HOTKEY_PAIR_ID,
+			   pauseHotkeys = OBS_INVALID_HOTKEY_PAIR_ID, replayBufHotkeys = OBS_INVALID_HOTKEY_PAIR_ID,
+			   vcamHotkeys = OBS_INVALID_HOTKEY_PAIR_ID, togglePreviewHotkeys = OBS_INVALID_HOTKEY_PAIR_ID,
+			   contextBarHotkeys = OBS_INVALID_HOTKEY_PAIR_ID;
+	obs_hotkey_id forceStreamingStopHotkey = OBS_INVALID_HOTKEY_ID, splitFileHotkey = OBS_INVALID_HOTKEY_ID,
+		      addChapterHotkey = OBS_INVALID_HOTKEY_ID, saveReplayBufferHotkey = OBS_INVALID_HOTKEY_ID;
 
 	void InitHotkeys();
 	void CreateHotkeys();
