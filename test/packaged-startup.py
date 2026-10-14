@@ -4,7 +4,7 @@
 # ///
 """Launch a packaged frontend with a saved screen/camera/microphone profile.
 
-    uv run --no-project test/packaged-startup.py --app APP --config-dir DIR --platform windows
+    uv run --no-project test/packaged-startup.py --app APP --config-dir DIR --platform windows --expect-arch arm64
 
 Checks the running app over obs-websocket, including capture plugin registration,
 saved inputs/scene/profile, and clean shutdown. Hosted runners have no camera or
@@ -233,12 +233,16 @@ def main() -> None:
         print("packaged startup: capture plugins registered, saved profile loaded, clean shutdown")
     finally:
         if proc is not None and proc.poll() is None:
-            proc.terminate()
             try:
-                proc.wait(timeout=10)
-            except subprocess.TimeoutExpired:
-                proc.kill()
-                proc.wait(timeout=10)
+                close_frontend(proc, args.platform)
+            except (RuntimeError, OSError, subprocess.TimeoutExpired):
+                if proc.poll() is None:
+                    proc.terminate()
+                    try:
+                        proc.wait(timeout=10)
+                    except subprocess.TimeoutExpired:
+                        proc.kill()
+                        proc.wait(timeout=10)
         shutil.rmtree(config)
 
 

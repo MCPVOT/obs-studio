@@ -258,6 +258,47 @@ jobs:
     permissions:
       contents: write
 
+  windows_arm64_smoke:
+    name: Launch packaged Windows arm64 🧪
+    needs: [check, build]
+    if: needs.check.outputs.skip != 'true'
+    runs-on: windows-11-vs2026-arm
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ needs.check.outputs.sha }}
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: obs-studio-rust-windows-arm64
+          path: arm64-package
+      - name: Reload saved capture profile and reject a missing camera plugin
+        shell: pwsh
+        run: |
+          $Zip = Get-ChildItem 'arm64-package/*-windows-arm64.zip' | Select-Object -First 1
+          if ( -not $Zip ) { throw 'Windows arm64 release package is missing' }
+          uv run --no-project ci/windows_zip_check.py check $Zip.FullName
+          if ( $LASTEXITCODE -ne 0 ) { exit $LASTEXITCODE }
+          $PackageRoot = Join-Path $env:RUNNER_TEMP 'obs-arm64-package'
+          Expand-Archive -LiteralPath $Zip.FullName -DestinationPath $PackageRoot
+          $App = Join-Path $PackageRoot 'bin/64bit/obs64.exe'
+          $Config = Join-Path $env:APPDATA 'obs-studio'
+          uv run --no-project test/packaged-startup.py --app $App --config-dir $Config --platform windows --expect-arch arm64
+          if ( $LASTEXITCODE -ne 0 ) { exit $LASTEXITCODE }
+
+          # Prove this check detects a capture module removed from the real
+          # package, not merely that an empty frontend can start.
+          $CameraDll = Get-ChildItem (Join-Path $PackageRoot 'core') -Recurse -Filter 'win-dshow.dll'
+          if ( @($CameraDll).Count -ne 1 ) { throw 'Expected one packaged DirectShow camera module' }
+          Move-Item -LiteralPath $CameraDll.FullName -Destination "$($CameraDll.FullName).removed-for-test"
+          $Failure = uv run --no-project test/packaged-startup.py --app $App --config-dir $Config --platform windows --expect-arch arm64 2>&1
+          $FailedExit = $LASTEXITCODE
+          $Failure | Write-Output
+          if ( $FailedExit -eq 0 -or "$Failure" -notmatch 'capture plugins are missing.*dshow_input' ) {
+            throw 'Packaged startup check did not detect the missing camera module'
+          }
+
   # The release gate: every job the dev cycle skips (#436), at this commit.
   gate:
     name: Release gate 🚦
@@ -272,7 +313,7 @@ jobs:
 
   release:
     name: Publish pre-release 🚀
-    needs: [check, gate, build, appimage]
+    needs: [check, gate, build, appimage, windows_arm64_smoke]
     # Only a complete release: the full gate and every platform build (and the
     # AppImage with its tests) must have succeeded (#622). Nothing ships partially.
     if: >-
@@ -280,6 +321,7 @@ jobs:
       && needs.check.outputs.verify_only != 'true'
       && needs.gate.result == 'success' && needs.build.result == 'success'
       && needs.appimage.result == 'success'
+      && needs.windows_arm64_smoke.result == 'success'
     runs-on: ubuntu-26.04
     permissions:
       contents: write
