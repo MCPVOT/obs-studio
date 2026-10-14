@@ -261,7 +261,7 @@ jobs:
   windows_arm64_smoke:
     name: Launch packaged Windows arm64 🧪
     needs: [check, build]
-    if: needs.check.outputs.skip != 'true'
+    if: always() && needs.check.result == 'success' && needs.check.outputs.skip != 'true'
     runs-on: windows-11-vs2026-arm
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -275,10 +275,12 @@ jobs:
           path: arm64-package
       - name: Reload saved capture profile and reject a missing camera plugin
         shell: pwsh
+        env:
+          VERSION: ${{ needs.check.outputs.version }}
         run: |
           $Zip = Get-ChildItem 'arm64-package/*-windows-arm64.zip' | Select-Object -First 1
           if ( -not $Zip ) { throw 'Windows arm64 release package is missing' }
-          uv run --no-project ci/windows_zip_check.py check $Zip.FullName
+          uv run --no-project ci/windows_zip_check.py check $Zip.FullName --run --expect-version $env:VERSION
           if ( $LASTEXITCODE -ne 0 ) { exit $LASTEXITCODE }
           $PackageRoot = Join-Path $env:RUNNER_TEMP 'obs-arm64-package'
           Expand-Archive -LiteralPath $Zip.FullName -DestinationPath $PackageRoot
