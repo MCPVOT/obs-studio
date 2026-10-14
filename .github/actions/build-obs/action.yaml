@@ -61,8 +61,8 @@ runs:
         echo ::group::Install Dependencies
         eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
         echo "/home/linuxbrew/.linuxbrew/bin:/home/linuxbrew/.linuxbrew/sbin" >> $GITHUB_PATH
-        brew update
-        brew install --quiet zsh
+        "${GITHUB_WORKSPACE}/.github/scripts/retry" brew update
+        "${GITHUB_WORKSPACE}/.github/scripts/retry" brew install --quiet zsh
         echo ::endgroup::
 
     - name: Run Ubuntu Build

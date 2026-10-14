@@ -867,7 +867,7 @@ jobs:
         if: runner.os == 'macOS'
         shell: bash
         run: |
-          brew install cmocka
+          "${GITHUB_WORKSPACE}/.github/scripts/retry" brew install cmocka
           bash rust/tools/tier2-validate/validate.sh
 
       - name: Validate Tier 2 on Windows (ENABLE_RUST_LIBOBS OFF vs ON) 🪟
