@@ -27,7 +27,11 @@ class AppImageAssetsTest(unittest.TestCase):
         workflow = (ROOT / ".github/workflows/appimage.yaml").read_text()
         install = workflow.find("- name: Install host GPU runtime for metadata check")
         verify = workflow.find("- name: Verify AppImage identity and updater metadata")
-        self.assertGreater(install, 0, "the host launches the frontend before installing its unbundled driver libraries")
+        self.assertGreater(
+            install,
+            0,
+            "the host launches the frontend before installing its unbundled driver libraries",
+        )
         self.assertLess(install, verify)
         for package in ("libopengl0", "libegl1", "libgbm1", "libdrm2"):
             self.assertIn(package, workflow[install:verify])
@@ -36,10 +40,23 @@ class AppImageAssetsTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             app = Path(directory) / NAME
             app.touch()
-            failure = subprocess.CalledProcessError(127, [str(app), "--version"], stderr="libOpenGL.so.0 is missing")
-            with patch("sys.argv", ["asset_metadata.py", "verify", str(app), "--repository", "obs-rust/obs-studio"]):
+            failure = subprocess.CalledProcessError(
+                127, [str(app), "--version"], stderr="libOpenGL.so.0 is missing"
+            )
+            with patch(
+                "sys.argv",
+                [
+                    "asset_metadata.py",
+                    "verify",
+                    str(app),
+                    "--repository",
+                    "obs-rust/obs-studio",
+                ],
+            ):
                 with patch.object(metadata.subprocess, "run", side_effect=failure):
-                    with self.assertRaisesRegex(RuntimeError, "libOpenGL.so.0 is missing"):
+                    with self.assertRaisesRegex(
+                        RuntimeError, "libOpenGL.so.0 is missing"
+                    ):
                         metadata.main()
 
     def test_names_come_from_actual_executable_identity(self):

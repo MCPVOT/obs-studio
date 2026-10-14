@@ -67,6 +67,27 @@ def check_metadata(
         raise ValueError("zsync SHA-1 does not match the AppImage")
 
 
+def runtime_output(appimage: Path, option: str, *, extract: bool = False) -> str:
+    environment = dict(os.environ)
+    environment.pop("APPIMAGE_EXTRACT_AND_RUN", None)
+    if extract:
+        environment["APPIMAGE_EXTRACT_AND_RUN"] = "1"
+    try:
+        return subprocess.run(
+            [str(appimage), option],
+            env=environment,
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        ).stdout
+    except subprocess.CalledProcessError as error:
+        diagnostic = (error.stderr or error.stdout or "no runtime diagnostic")[-8192:]
+        raise RuntimeError(
+            f"AppImage {option} failed ({error.returncode}): {diagnostic}"
+        ) from error
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
@@ -81,21 +102,8 @@ def main() -> None:
         print(asset_name(args.version))
         return
     appimage = args.appimage.resolve(strict=True)
-    version = subprocess.run(
-        [str(appimage), "--version"],
-        env={**os.environ, "APPIMAGE_EXTRACT_AND_RUN": "1"},
-        check=True,
-        capture_output=True,
-        text=True,
-        timeout=60,
-    ).stdout
-    update = subprocess.run(
-        [str(appimage), "--appimage-updateinformation"],
-        check=True,
-        capture_output=True,
-        text=True,
-        timeout=30,
-    ).stdout
+    version = runtime_output(appimage, "--version", extract=True)
+    update = runtime_output(appimage, "--appimage-updateinformation")
     check_metadata(appimage, version, update, args.repository, args.require_update)
     print(f"AppImage identity and updater metadata verified: {appimage.name}")
 

@@ -291,6 +291,20 @@ jobs:
       # running. Every scenario runs even after one fails.
       - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
 
+      - name: Install host GPU runtime for metadata check
+        timeout-minutes: 10
+        env:
+          DEBIAN_FRONTEND: noninteractive
+          NEEDRESTART_SUSPEND: '1'
+        run: |
+          # The actual frontend loads the unbundled GPU libraries even for --version.
+          # Provide the same host driver stack as the distro runtime scenarios.
+          mkdir -p results pkgcache/apt pkgcache/lists pkgcache/dnf pkgcache/pacman
+          sudo apt-get update -qq
+          sudo -E apt-get install -y --no-install-recommends -o DPkg::Lock::Timeout=120 \
+            libgl1-mesa-dri libglx-mesa0 libegl-mesa0 libgl1 libegl1 libgbm1 libdrm2 \
+            libva2 libva-drm2 libopengl0 libwayland-client0 libwayland-egl1 libvulkan1
+
       - name: Verify AppImage identity and updater metadata
         env:
           REQUIRE_UPDATE: ${{ inputs.publish_continuous }}
