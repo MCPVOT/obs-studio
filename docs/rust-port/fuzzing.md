@@ -8,7 +8,7 @@ cron job, not from GitHub Actions.
 |---|---|---|
 | `avc_diff`, `hevc_diff`, `av1_differential` | bitstream parsers | listed in each target's header comment |
 | `nal_diff` | `obs_nal_find_startcode`: C, Rust C ABI, safe Rust | NULL, near-zero and reversed ranges are not generated (C UB). Inputs sit inside a padded allocation at four alignments. |
-| `config_ini_diff` | `config_open_string`, section order and string lookups | Lookups under duplicated section names, or for keys named on more than one `key=` line, are skipped until #681 is fixed. File I/O and NULL handles are not exercised. |
+| `config_ini_diff` | `config_open_string`, section order and string lookups | Duplicate section names and keys are compared (uthash model, #681). File I/O and NULL handles are not exercised. |
 
 AMF has no Rust port yet. Add a target when it lands.
 

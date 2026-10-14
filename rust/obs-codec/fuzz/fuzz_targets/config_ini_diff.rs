@@ -2,18 +2,14 @@
 //! input. C strings truncate at the first NUL on both sides. Null handles,
 //! file I/O and null section/key arguments are not generated. Section order
 //! and lookups for names derived from input lines are compared, not private
-//! config layouts. No byte values are excluded.
-//!
-//! Known exclusion (obs-rust/obs-studio#681): C resolves duplicate section
-//! names and keys through uthash, whose bucket expansion reverses duplicate
-//! order, while the port picks the newest. Lookups under a section name that
-//! occurs more than once, or for a key whose whitespace-trimmed name appears
-//! before `=` on more than one line, are skipped until #681 is fixed.
+//! config layouts. No byte values are excluded. Duplicate section names and
+//! keys are compared too: the port models C's uthash bucket expansion
+//! (obs-rust/obs-studio#681).
 
 #![no_main]
 
 use core::ffi::{CStr, c_char};
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 use std::ffi::CString;
 
 use libfuzzer_sys::fuzz_target;
@@ -37,8 +33,6 @@ fuzz_target!(|input: &[u8]| {
     let mut oracle = core::ptr::null_mut();
     let mut rust = core::ptr::null_mut();
     let mut keys = BTreeSet::from([Vec::new(), b"key".to_vec(), b"missing".to_vec()]);
-    let trim = |b: &[u8]| b.trim_ascii().to_vec();
-    let mut seen = BTreeMap::<Vec<u8>, usize>::new();
     for part in input.split(|b| matches!(b, b'\n' | b'\r' | b'[' | b']' | b'=')) {
         let start = part
             .iter()
@@ -55,13 +49,8 @@ fuzz_target!(|input: &[u8]| {
                 .position(|b| !matches!(b, b' ' | b'\t'))
                 .unwrap_or(name.len());
             keys.insert(name[start..].to_vec());
-            *seen.entry(trim(name)).or_default() += 1;
         }
     }
-    // #681: duplicate keys diverge. Drop every candidate whose trimmed form
-    // names more than one `key=` line anywhere in the input (this also skips
-    // the same key in different sections: over-broad but sound).
-    keys.retain(|k| seen.get(&trim(k)).copied().unwrap_or(0) < 2);
     // SAFETY: out-pointers are valid and text is NUL-terminated. Successful
     // opens yield live configs; all query strings outlive their calls, and
     // returned strings are copied before closing each config exactly once.
@@ -80,10 +69,6 @@ fuzz_target!(|input: &[u8]| {
             sections.push(section.unwrap());
         }
         for section in &sections {
-            // #681: duplicated section names diverge after uthash expansion.
-            if sections.iter().filter(|s| *s == section).count() > 1 {
-                continue;
-            }
             let section = CString::new(section.as_slice()).unwrap();
             for key in &keys {
                 let key = CString::new(key.as_slice()).unwrap();
