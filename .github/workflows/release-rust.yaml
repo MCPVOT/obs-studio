@@ -202,7 +202,8 @@ jobs:
               echo "$key=$got"
               [ "$got" = "$VERSION" ] || { echo "::error::$key is '$got', want '$VERSION'"; exit 1; }
             done
-            vol=$(diskutil info -plist "$mnt" | /usr/libexec/PlistBuddy -c "Print :VolumeName" /dev/stdin)
+            # PlistBuddy cannot read a pipe; plutil reads stdin with "-".
+            vol=$(diskutil info -plist "$mnt" | plutil -extract VolumeName raw -o - -)
             echo "volume: $vol"
             [[ "$vol" == "OBS-Studio-Rust $VERSION "* ]] || { echo "::error::DMG volume is '$vol'"; exit 1; }
             if [ "$TARGET" = arm64 ]; then
