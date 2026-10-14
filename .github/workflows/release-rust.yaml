@@ -511,12 +511,17 @@ jobs:
           if gh release view continuous --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload continuous --repo "$GITHUB_REPOSITORY" --clobber \
               OBS-Studio-Rust-*-linux-x86_64.AppImage OBS-Studio-Rust-*-linux-x86_64.AppImage.zsync
-            # The names carry the commit, so --clobber leaves the previous
-            # build's files; drop every asset this run did not upload.
+            # Versioned names leave the previous build's files. Prune only
+            # superseded AppImage pairs after upload; preserve other attachments.
             keep=" $(printf '%s ' OBS-Studio-Rust-*-linux-x86_64.AppImage OBS-Studio-Rust-*-linux-x86_64.AppImage.zsync)"
             gh release view continuous --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' |
               while read -r name; do
-                case "$keep" in *" $name "*) ;; *) gh release delete-asset continuous "$name" --repo "$GITHUB_REPOSITORY" --yes ;; esac
+                case "$name" in
+                  OBS_Studio-*-x86_64.AppImage | OBS_Studio-*-x86_64.AppImage.zsync | \
+                  OBS-Studio-Rust-*-linux-x86_64.AppImage | OBS-Studio-Rust-*-linux-x86_64.AppImage.zsync)
+                    case "$keep" in *" $name "*) ;; *) gh release delete-asset continuous "$name" --repo "$GITHUB_REPOSITORY" --yes ;; esac
+                    ;;
+                esac
               done
             gh api -X PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/continuous" -f sha="$SHA" -F force=true >/dev/null
             gh release edit continuous --repo "$GITHUB_REPOSITORY" --prerelease \
