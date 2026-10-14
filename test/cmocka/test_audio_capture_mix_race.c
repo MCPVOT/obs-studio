@@ -6,6 +6,7 @@
 #include <stddef.h>
 #include <setjmp.h>
 #include <cmocka.h>
+#include <stdlib.h>
 
 #include <obs.h>
 #include <util/platform.h>
@@ -125,8 +126,9 @@ static void run_capture(bool through_transition)
 	transition_renders = 0;
 	transition_successes = 0;
 	transition_mix_calls = 0;
-	if (!obs_startup("en-US", NULL, NULL))
+	if (!getenv("DISPLAY"))
 		skip();
+	assert_true(obs_startup("en-US", NULL, NULL));
 	struct obs_video_info video = {
 		.graphics_module = GRAPHICS_MODULE_PATH,
 		.fps_num = 30,
@@ -140,9 +142,10 @@ static void run_capture(bool through_transition)
 		.range = VIDEO_RANGE_PARTIAL,
 		.scale_type = OBS_SCALE_BICUBIC,
 	};
-	if (obs_reset_video(&video) != OBS_VIDEO_SUCCESS) {
+	int video_result = obs_reset_video(&video);
+	if (video_result != OBS_VIDEO_SUCCESS) {
 		obs_shutdown();
-		skip();
+		assert_int_equal(video_result, OBS_VIDEO_SUCCESS);
 	}
 	struct obs_audio_info audio = {.samples_per_sec = RATE, .speakers = SPEAKERS_STEREO};
 	assert_true(obs_reset_audio(&audio));

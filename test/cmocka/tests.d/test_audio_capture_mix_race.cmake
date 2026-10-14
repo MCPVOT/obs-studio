@@ -8,10 +8,19 @@ if(OS_LINUX AND TARGET OBS::libobs-opengl)
   target_link_libraries(test_audio_capture_mix_race PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
   add_dependencies(test_audio_capture_mix_race libobs-opengl)
   add_dependencies(cmocka-tests test_audio_capture_mix_race)
-  add_test(
-    NAME test_audio_capture_mix_race
-    COMMAND test_audio_capture_mix_race
-    WORKING_DIRECTORY "${OBS_OUTPUT_DIR}/$<CONFIG>"
-  )
+  find_program(XVFB_RUN_EXECUTABLE xvfb-run)
+  if(XVFB_RUN_EXECUTABLE)
+    add_test(
+      NAME test_audio_capture_mix_race
+      COMMAND "${XVFB_RUN_EXECUTABLE}" -a "$<TARGET_FILE:test_audio_capture_mix_race>"
+      WORKING_DIRECTORY "${OBS_OUTPUT_DIR}/$<CONFIG>"
+    )
+  else()
+    add_test(
+      NAME test_audio_capture_mix_race
+      COMMAND test_audio_capture_mix_race
+      WORKING_DIRECTORY "${OBS_OUTPUT_DIR}/$<CONFIG>"
+    )
+  endif()
   set_tests_properties(test_audio_capture_mix_race PROPERTIES TIMEOUT 60)
 endif()
