@@ -565,6 +565,19 @@ fn parse_double(b: &[u8]) -> f64 {
         .map_or(0.0, |v| if neg { -v } else { v })
 }
 
+/// Size of the local buffer in C's `os_strtod` (`libobs/util/platform.c`,
+/// `char buf[64]`). It copies at most `sizeof(buf) - 1` bytes of the string.
+const OS_STRTOD_BUF: usize = 64;
+
+/// `os_strtod`: C copies at most `OS_STRTOD_BUF - 1` (63) bytes into its
+/// buffer before calling `strtod`, so everything past byte 63 is ignored.
+/// The cut comes first, on the whole stored string: leading whitespace and
+/// the sign count against the window, and it applies to hex floats as well
+/// as decimals, so it must stay ahead of `parse_double`'s own dispatch.
+fn os_strtod(b: &[u8]) -> f64 {
+    parse_double(&b[..b.len().min(OS_STRTOD_BUF - 1)])
+}
+
 /// Value of a `0x` hex float body (digits past `0x`): hex digits with an
 /// optional `.` and an optional `p`/`P` signed binary exponent.
 fn parse_hex_float(b: &[u8]) -> f64 {
@@ -983,7 +996,7 @@ impl Config {
     /// `config_get_double` (`os_strtod` semantics).
     pub fn get_double(&self, section: &[u8], name: &[u8]) -> f64 {
         self.get_string(section, name)
-            .map_or(0.0, |v| parse_double(&v))
+            .map_or(0.0, |v| os_strtod(&v))
     }
 
     /// `config_set_string`; a None value is stored as "" like C.
@@ -1093,7 +1106,7 @@ impl Config {
     /// `config_get_default_double`.
     pub fn get_default_double(&self, section: &[u8], name: &[u8]) -> f64 {
         self.get_default_string(section, name)
-            .map_or(0.0, |v| parse_double(&v))
+            .map_or(0.0, |v| os_strtod(&v))
     }
 
     /// `config_has_user_value`.
