@@ -7,7 +7,6 @@
 from __future__ import annotations
 
 import importlib.util
-import asyncio
 import json
 import struct
 import tempfile
@@ -43,7 +42,7 @@ class PackagedReadinessTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_not_ready_cannot_extend_the_startup_deadline(self):
         client = Mock(request=AsyncMock(return_value=self.response(207)))
-        with patch.object(smoke.time, "monotonic", side_effect=[0, 2]):
+        with patch.object(smoke, "time", Mock(monotonic=Mock(side_effect=[0, 2]))):
             with self.assertRaisesRegex(RuntimeError, "readiness"):
                 await smoke.wait_until_ready(client, Mock(poll=Mock(return_value=None)), 1)
         self.assertEqual(client.request.await_count, 1)

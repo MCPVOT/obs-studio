@@ -133,7 +133,25 @@ def validate_profile(platform: str, kinds: list[str], inputs: list[dict], scene:
 
 
 async def wait_until_ready(client, proc: subprocess.Popen, deadline: float) -> dict:
-    raise NotImplementedError("RED: distinguish authenticated transport from frontend readiness")
+    # Identification confirms the transport, not OBS_FRONTEND_EVENT_FINISHED_LOADING.
+    # Only the protocol's explicit NotReady response is a startup condition.
+    while True:
+        if proc.poll() is not None:
+            raise RuntimeError(f"packaged app exited before frontend readiness: {proc.returncode}")
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise RuntimeError("packaged frontend did not reach readiness within its startup deadline")
+        response = await asyncio.wait_for(
+            client.request("GetInputKindList", {"unversioned": True}, timeout=min(15, remaining)),
+            timeout=remaining,
+        )
+        result = response["d"]
+        status = result["requestStatus"]
+        if status["result"]:
+            print("packaged frontend readiness confirmed by GetInputKindList")
+            return result.get("responseData", {})
+        if status["code"] != 207:
+            raise RuntimeError(f"GetInputKindList failed: {status}")
 
 
 async def inspect_running_app(proc: subprocess.Popen, port: int, password: str, platform: str) -> None:
@@ -173,7 +191,7 @@ async def inspect_running_app(proc: subprocess.Popen, port: int, password: str, 
                 raise RuntimeError(f"{name} failed: {result['requestStatus']}")
             return result.get("responseData", {})
 
-        kinds = await request("GetInputKindList", {"unversioned": True})
+        kinds = await wait_until_ready(client, proc, deadline)
         inputs = await request("GetInputList")
         scene = await request("GetSceneList")
         profile = await request("GetProfileList")
