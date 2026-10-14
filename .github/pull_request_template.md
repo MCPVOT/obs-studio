@@ -11,5 +11,5 @@ Fixes #  <!-- or Refs # when this does not complete the issue -->
 - [ ] Base is `master` (or the description starts with a **Stacked:** note)
 - [ ] I claimed the issue, or no one else has an open PR for it
 - [ ] Characterization test (if the unit had none), then RED, then GREEN commits
-- [ ] Local gate passed and the pushed head is stamped
+- [ ] (Optional) Local gate passed and the pushed head is stamped; otherwise PR CI runs the full suite
 - [ ] Intentional differences from C listed in the parity test header and rust/README.md (ports)

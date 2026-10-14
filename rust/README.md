@@ -20,7 +20,8 @@ scripting APIs) while its internals are rewritten in Rust. Every port follows
 
 ## Running the tests
 
-The fastest path is the local gate, which runs the same checks as CI's Linux jobs:
+PR CI is the merge gate, so opening a PR is enough. For faster feedback, the
+local gate runs the same checks as CI's Linux jobs (optional):
 
 ```sh
 ./lint          # clang-format, gersemi, rustfmt, clippy (~8 s)

@@ -161,6 +161,12 @@ cannot prove both, so every ported unit carries the four tiers below.
 A port is not done until all applicable tiers pass. "Tier 1 passes" alone is
 not done.
 
+PR CI on `obs-rust/obs-studio` decides whether the tiers pass for a merge.
+Open a PR (a draft is fine) once the RED commit exists and let CI run the
+tiers; running them locally first (`./lint`, `./unittest`, `local-gate run`)
+is recommended, not required. The tiers, RED then GREEN, and the ban on
+editing C tests or public headers stay mandatory.
+
 ## Extracting a function before porting it
 
 If the unit to port is one function inside a larger C file,
