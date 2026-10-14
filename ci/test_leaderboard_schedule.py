@@ -62,7 +62,7 @@ class LeaderboardScheduleTest(unittest.TestCase):
         self.assertNotIn("steps.gate", self.text)
 
     def test_readme_badge_points_at_workflow(self):
-        readme = (WORKFLOW.parent.parent.parent / "README.rst").read_text()
+        readme = (WORKFLOW.parent.parent.parent / "README.md").read_text()
         self.assertIn("actions/workflows/leaderboard.yml/badge.svg?branch=master", readme)
 
     def test_still_dispatchable(self):

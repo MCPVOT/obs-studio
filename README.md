@@ -1,52 +1,33 @@
-obs-studio-rust
----------------
+# obs-studio-rust
 
-.. image:: https://github.com/obs-rust/obs-studio/actions/workflows/leaderboard.yml/badge.svg?branch=master
-   :alt: Contributor leaderboard workflow status
-   :target: https://github.com/obs-rust/obs-studio/actions/workflows/leaderboard.yml
+[![Contributor leaderboard workflow status](https://github.com/obs-rust/obs-studio/actions/workflows/leaderboard.yml/badge.svg?branch=master)](https://github.com/obs-rust/obs-studio/actions/workflows/leaderboard.yml)
 
-.. image:: docs/images/obs-rust-logo.png
-   :alt: obs-rust logo
-   :width: 128
-   :align: center
+<p align="center"><img src="docs/images/obs-rust-logo.png" alt="obs-rust logo" width="128"></p>
 
 This is an independent rewrite of the obsproject's obs-studio.
 
 Same obs studio, but without the bugs. AI generated issues and PRs welcome.
 
-Contributors leaderboard
-------------------------
+# Contributors leaderboard
 
 Ranked by merged PRs only, credited to the original author even when a
 maintainer re-landed the work (counted once). Updated every 4 hours.
 
-.. image:: https://raw.githubusercontent.com/obs-rust/obs-studio/leaderboard/leaderboard.jpg
-   :alt: obs-rust contributors leaderboard
-   :target: https://obs-rust.github.io/obs-studio/
+[![obs-rust contributors leaderboard](https://raw.githubusercontent.com/obs-rust/obs-studio/leaderboard/leaderboard.jpg)](https://obs-rust.github.io/obs-studio/)
 
-`Open the live leaderboard <https://obs-rust.github.io/obs-studio/>`_
+[Open the live leaderboard](https://obs-rust.github.io/obs-studio/)
 
-OBS Studio <https://obsproject.com>
-===================================
+## OBS Studio &lt;<https://obsproject.com>&gt;
 
-.. image:: https://github.com/obsproject/obs-studio/actions/workflows/push.yaml/badge.svg?branch=master
-   :alt: OBS Studio Build Status - GitHub Actions
-   :target: https://github.com/obsproject/obs-studio/actions/workflows/push.yaml?query=branch%3Amaster
+[![OBS Studio Build Status - GitHub Actions](https://github.com/obsproject/obs-studio/actions/workflows/push.yaml/badge.svg?branch=master)](https://github.com/obsproject/obs-studio/actions/workflows/push.yaml?query=branch%3Amaster)
 
-.. image:: https://badges.crowdin.net/obs-studio/localized.svg
-   :alt: OBS Studio Translation Project Progress
-   :target: https://crowdin.com/project/obs-studio
+[![OBS Studio Translation Project Progress](https://badges.crowdin.net/obs-studio/localized.svg)](https://crowdin.com/project/obs-studio)
 
-.. image:: https://img.shields.io/badge/Discord-OBS%20Rust-5865F2?logo=discord&logoColor=white
-   :alt: OBS Rust Discord Server
-   :target: https://discord.gg/6MWWX4x9pf
+[![OBS Rust Discord Server](https://img.shields.io/badge/Discord-OBS%20Rust-5865F2?logo=discord&logoColor=white)](https://discord.gg/6MWWX4x9pf)
 
-.. image:: https://img.shields.io/discord/348973006581923840.svg?label=Upstream%20OBS%20Discord&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2
-   :alt: Upstream OBS Studio Discord Server
-   :target: https://obsproject.com/discord
+[![Upstream OBS Studio Discord Server](https://img.shields.io/discord/348973006581923840.svg?label=Upstream%20OBS%20Discord&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2)](https://obsproject.com/discord)
 
-What is OBS Studio?
--------------------
+# What is OBS Studio?
 
 OBS Studio is software designed for capturing, compositing, encoding,
 recording, and streaming video content, efficiently.
@@ -54,8 +35,7 @@ recording, and streaming video content, efficiently.
 It's distributed under the GNU General Public License v2 (or any later
 version) - see the accompanying COPYING file for more details.
 
-Quick Links
------------
+# Quick Links
 
 - Website: https://obsproject.com
 
@@ -71,19 +51,15 @@ Quick Links
 
 - Bug Tracker: https://github.com/obsproject/obs-studio/issues
 
-Contributing
-------------
+# Contributing
 
 - If you would like to help fund or sponsor the project, you can do so
-  via `Patreon <https://www.patreon.com/obsproject>`_, `OpenCollective
-  <https://opencollective.com/obsproject>`_, or `PayPal
-  <https://www.paypal.me/obsproject>`_.  See our `contribute page
-  <https://obsproject.com/contribute>`_ for more information.
+  via [Patreon](https://www.patreon.com/obsproject), [OpenCollective](https://opencollective.com/obsproject), or [PayPal](https://www.paypal.me/obsproject).  See our [contribute page](https://obsproject.com/contribute) for more information.
 
 - If you wish to contribute code to the project, please make sure to
   read the coding and commit guidelines:
   https://github.com/obs-rust/obs-studio/blob/master/CONTRIBUTING.md
-  
+
 - Code for the project follows the code style guidelines, located
   here: https://github.com/obs-rust/obs-studio/blob/master/CODESTYLE.md
 
@@ -105,8 +81,6 @@ Contributing
   comes to something that you don't fully know or understand, please
   defer to the official help or official channels.
 
+# SAST Tools
 
-SAST Tools
-----------
-
-`PVS-Studio <https://pvs-studio.com/pvs-studio/?utm_source=website&utm_medium=github&utm_campaign=open_source>`_ - static analyzer for C, C++, C#, and Java code.
+[PVS-Studio](https://pvs-studio.com/pvs-studio/?utm_source=website&utm_medium=github&utm_campaign=open_source) - static analyzer for C, C++, C#, and Java code.
