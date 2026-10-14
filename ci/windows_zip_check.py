@@ -11,7 +11,8 @@ carry. The CI runner has the redistributable installed, so merely launching
 there cannot catch a missing runtime; the import check can. It also fails when
 the zip carries PDBs (they belong in the separate symbols zip), has no
 bin/64bit/obs64.exe or no plugins under core/. With --run it extracts the zip
-to an empty directory and runs `obs64.exe --version` from bin/64bit.
+to an empty directory and runs `obs64.exe --version` from bin/64bit; with
+--expect-version V that must print "OBS-Studio-Rust V (based on OBS ...)" (#631).
 
 split-symbols: moves every .pdb out of the zip into <zip stem>-symbols.zip.
 """
@@ -102,7 +103,17 @@ def problems(zf: zipfile.ZipFile) -> list[str]:
     return out
 
 
-def check(zip_path: str, run: bool) -> int:
+def version_problem(output: str, expected: str | None) -> str | None:
+    """Why `obs64.exe --version` output is not the Rust beta `expected`, or None."""
+    if not expected:
+        return None
+    want = f"OBS-Studio-Rust {expected} (based on OBS "
+    if output.startswith(want):
+        return None
+    return f"expected {want!r}... from --version, got {output.strip()!r}"
+
+
+def check(zip_path: str, run: bool, expect_version: str | None = None) -> int:
     with zipfile.ZipFile(zip_path) as zf:
         found = problems(zf)
         for p in found:
@@ -126,6 +137,10 @@ def check(zip_path: str, run: bool) -> int:
                 print(r.stdout, r.stderr)
                 if r.returncode != 0 or "OBS" not in r.stdout:
                     print(f"::error::obs64.exe --version exited {r.returncode}: {r.stdout!r}")
+                    return 1
+                why = version_problem(r.stdout, expect_version)
+                if why:
+                    print(f"::error::{why}")
                     return 1
     print("zip ok")
     return 0
@@ -152,8 +167,11 @@ def main() -> int:
     ap.add_argument("command", choices=["check", "split-symbols"])
     ap.add_argument("zip")
     ap.add_argument("--run", action="store_true")
+    ap.add_argument("--expect-version", help="full OBS-Studio-Rust release string --version must report (needs --run)")
     a = ap.parse_args()
-    return check(a.zip, a.run) if a.command == "check" else split_symbols(a.zip)
+    if a.expect_version and not a.run:
+        ap.error("--expect-version needs --run")
+    return check(a.zip, a.run, a.expect_version) if a.command == "check" else split_symbols(a.zip)
 
 
 if __name__ == "__main__":

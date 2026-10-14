@@ -40,6 +40,16 @@ function(set_target_properties_obs target)
   # Target is a GUI or CLI application
   if(target_type STREQUAL EXECUTABLE)
     if(target STREQUAL obs-studio)
+      # The Rust beta shows its full release string (CFBundleShortVersionString
+      # and CFBundleVersion), so daily betas can be told apart (#631).
+      if(OBS_RUST_RELEASE_VERSION)
+        set(_obs_bundle_marketing "${OBS_RUST_RELEASE_VERSION}")
+        set(_obs_bundle_build "${OBS_RUST_RELEASE_VERSION}")
+      else()
+        set(_obs_bundle_marketing "${OBS_VERSION_CANONICAL}")
+        set(_obs_bundle_build "${OBS_BUILD_NUMBER}")
+      endif()
+
       set_target_properties(
         ${target}
         PROPERTIES
@@ -57,8 +67,8 @@ function(set_target_properties_obs target)
         PROPERTIES PRODUCT_BUNDLE_IDENTIFIER com.obsproject.obs-studio
                    PRODUCT_NAME OBS
                    ASSETCATALOG_COMPILER_APPICON_NAME AppIcon
-                   CURRENT_PROJECT_VERSION ${OBS_BUILD_NUMBER}
-                   MARKETING_VERSION ${OBS_VERSION_CANONICAL}
+                   CURRENT_PROJECT_VERSION ${_obs_bundle_build}
+                   MARKETING_VERSION ${_obs_bundle_marketing}
                    GENERATE_INFOPLIST_FILE YES
                    COPY_PHASE_STRIP NO
                    CLANG_ENABLE_OBJC_ARC YES
