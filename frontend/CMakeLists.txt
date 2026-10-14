@@ -81,6 +81,22 @@ target_sources(
   PRIVATE obs-main.cpp OBSStudioAPI.cpp OBSStudioAPI.hpp OBSApp.cpp OBSApp.hpp OBSApp_Themes.cpp ui-config.h
 )
 
+# The Rust build names itself OBS-Studio-Rust and shows its own version, read from
+# the libobs-rust crate, next to the upstream OBS version it is based on.
+if(ENABLE_RUST_LIBOBS)
+  file(STRINGS "${CMAKE_SOURCE_DIR}/rust/libobs-rust/Cargo.toml" _obs_rust_version_line REGEX "^version = \"[^\"]+\"")
+  string(REGEX REPLACE "^version = \"([^\"]+)\"" "\\1" OBS_RUST_VERSION "${_obs_rust_version_line}")
+  # CI release builds embed the full release string instead (#631).
+  if(OBS_RUST_RELEASE_VERSION)
+    set(OBS_RUST_VERSION "${OBS_RUST_RELEASE_VERSION}")
+  endif()
+  if(NOT OBS_RUST_VERSION)
+    message(FATAL_ERROR "Could not read the version from rust/libobs-rust/Cargo.toml")
+  endif()
+  message(STATUS "OBS-Studio-Rust version: ${OBS_RUST_VERSION}")
+  target_compile_definitions(obs-studio PRIVATE OBS_RUST_VERSION="${OBS_RUST_VERSION}")
+endif()
+
 if(OS_WINDOWS)
   include(cmake/os-windows.cmake)
 elseif(OS_MACOS)
@@ -103,18 +119,6 @@ foreach(graphics_library IN ITEMS opengl metal d3d11)
     target_compile_definitions(obs-studio PRIVATE DL_${graphics_library_U}="")
   endif()
 endforeach()
-
-# The Rust build names itself OBS-Studio-Rust and shows its own version, read from
-# the libobs-rust crate, next to the upstream OBS version it is based on.
-if(ENABLE_RUST_LIBOBS)
-  file(STRINGS "${CMAKE_SOURCE_DIR}/rust/libobs-rust/Cargo.toml" _obs_rust_version_line REGEX "^version = \"[^\"]+\"")
-  string(REGEX REPLACE "^version = \"([^\"]+)\"" "\\1" OBS_RUST_VERSION "${_obs_rust_version_line}")
-  if(NOT OBS_RUST_VERSION)
-    message(FATAL_ERROR "Could not read the version from rust/libobs-rust/Cargo.toml")
-  endif()
-  message(STATUS "OBS-Studio-Rust version: ${OBS_RUST_VERSION}")
-  target_compile_definitions(obs-studio PRIVATE OBS_RUST_VERSION="${OBS_RUST_VERSION}")
-endif()
 
 get_target_property(target_sources obs-studio SOURCES)
 set(target_cpp_sources ${target_sources})
