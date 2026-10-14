@@ -220,7 +220,7 @@ jobs:
               echo "$key=$got"
               [ "$got" = "$VERSION" ] || { echo "::error::$key is '$got', want '$VERSION'"; exit 1; }
             done
-            # PlistBuddy requires a regular file; a pipe through /dev/stdin
+            # PlistBuddy requires a regular file; reading standard input
             # reports "Cannot parse a NULL or zero-length data" on macOS.
             disk_info="$RUNNER_TEMP/obs-dmg-info-$TARGET.plist"
             diskutil info -plist "$mnt" > "$disk_info"
