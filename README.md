@@ -14,6 +14,30 @@ https://github.com/user-attachments/assets/4d9af616-bd76-468e-93ac-ef8ef44a0efb
 
 
 
+# How CI works here
+
+Lots of people and AI agents work on this repo at the same time, so CI is
+built to do as little repeated work as possible:
+
+- **Every pull request gets a quick check.** It runs the Rust and C tests on
+  Linux, plus macOS or Windows only when your change touches those
+  platforms. It does not build every app package.
+- **The full build runs before each release.** Once a day, and before
+  anything is published, CI builds and tests everything: every platform,
+  the full app, Flatpak and the release packages. A beta only ships if
+  all of it passes.
+- **You can prove your change locally first.** One command (`ci-lint
+  local-gate run`) runs the same Linux checks on your machine and signs
+  your commit. CI sees the signature and skips the checks you already
+  ran.
+- **Builds are cached and shared.** Rust builds go through `soldr`, which
+  reuses compiled code across branches and machines.
+
+The full guide, with the tools, rules and commands, is in
+[docs/ci-tooling.md](docs/ci-tooling.md). If you're contributing, please
+read it before you push: it explains how to avoid overloading the
+shared machines and CI.
+
 # Contributors leaderboard
 
 Ranked by merged PRs only, credited to the original author even when a
