@@ -253,6 +253,11 @@ if [ -n "${EXPECT_RUST:-}" ] && [[ "$VERSION_OUT" != OBS-Studio-Rust* ]]; then
     echo "::error::this AppImage was built with ENABLE_RUST_LIBOBS but does not report OBS-Studio-Rust"
     exit 1
 fi
+# The daily beta carries its full release string, so betas can be told apart (#631).
+if [ -n "${EXPECT_RUST_VERSION:-}" ] && [[ "$VERSION_OUT" != "OBS-Studio-Rust $EXPECT_RUST_VERSION (based on OBS "* ]]; then
+    echo "::error::expected 'OBS-Studio-Rust $EXPECT_RUST_VERSION (based on OBS ...)' from --version, got: $VERSION_OUT"
+    exit 1
+fi
 
 "$APPIMAGE" --appimage-extract >/dev/null
 APPDIR="$PWD/squashfs-root"

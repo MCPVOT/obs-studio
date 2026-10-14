@@ -24,6 +24,11 @@ on:
         type: boolean
         required: false
         default: false
+      rust_version:
+        description: Full OBS-Studio-Rust release string to embed (e.g. 0.1.0-beta.20261013) and expect from --version
+        type: string
+        required: false
+        default: ''
   pull_request:
     paths:
       - 'build-aux/appimage/**'
@@ -142,6 +147,7 @@ jobs:
         env:
           RUST_LIBOBS: ${{ github.event_name != 'workflow_dispatch' || inputs.rust_libobs }}
           QSV: ${{ github.event_name == 'workflow_dispatch' && inputs.qsv }}
+          OBS_RUST_VERSION: ${{ inputs.rust_version }}
         run: |
           echo "rust=${RUST_LIBOBS^^}" >> "$GITHUB_OUTPUT" # the tests check the build really has it
           cmake --preset ubuntu-ci \
@@ -281,6 +287,7 @@ jobs:
             docker run --rm --cap-add SYS_PTRACE \
               ${{ matrix.image == 'debian:trixie-slim' && '-e HOSTILE_QT=1' || '' }} \
               ${{ needs.build.outputs.rust == 'TRUE' && '-e EXPECT_RUST=1' || '' }} \
+              ${{ inputs.rust_version != '' && format('-e EXPECT_RUST_VERSION={0}', inputs.rust_version) || '' }} \
               -v "$PWD/pkgcache/apt:/var/cache/apt/archives" \
               -v "$PWD/pkgcache/lists:/var/lib/apt/lists" \
               -v "$PWD/pkgcache/dnf:/var/cache/libdnf5" \

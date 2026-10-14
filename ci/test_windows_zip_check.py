@@ -69,6 +69,19 @@ class T(unittest.TestCase):
     def test_pdb_and_layout(self):
         self.assertEqual(len(w.problems(make({"bin/64bit/obs64.pdb": b""}))), 3)
 
+    def test_version_banner(self):
+        v = "0.1.0-beta.20261013"
+        banner = f"OBS-Studio-Rust {v} (based on OBS 33.0.0-beta6-947-gc553fd90a)\n"
+        self.assertIsNone(w.version_problem(banner, v))
+        self.assertIsNone(w.version_problem("OBS 33.0.0\n", None))
+
+    def test_version_banner_wrong(self):
+        v = "0.1.0-beta.20261013"
+        self.assertIsNotNone(w.version_problem("OBS-Studio-Rust 0.1.0 (based on OBS 33.0.0)\n", v))
+        self.assertIsNotNone(w.version_problem("OBS 33.0.0\n", v))
+        # A longer version that merely starts with the expected one is not a match.
+        self.assertIsNotNone(w.version_problem(f"OBS-Studio-Rust {v}3 (based on OBS 33.0.0)\n", v))
+
 
 if __name__ == "__main__":
     unittest.main()

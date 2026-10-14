@@ -421,7 +421,7 @@ static void add_audio_buffering(struct obs_core_audio *audio, size_t sample_rate
 	*ts = new_ts;
 }
 
-static bool audio_buffer_insufficient(struct obs_source *source, size_t sample_rate, uint64_t min_ts)
+static bool audio_buffer_insufficient_locked(struct obs_source *source, size_t sample_rate, uint64_t min_ts)
 {
 	size_t total_floats = AUDIO_OUTPUT_FRAMES;
 	size_t size;
@@ -448,15 +448,25 @@ static bool audio_buffer_insufficient(struct obs_source *source, size_t sample_r
 	return false;
 }
 
+static bool audio_buffer_insufficient(struct obs_source *source, size_t sample_rate, uint64_t min_ts)
+{
+	pthread_mutex_lock(&source->audio_buf_mutex);
+	bool insufficient = audio_buffer_insufficient_locked(source, sample_rate, min_ts);
+	pthread_mutex_unlock(&source->audio_buf_mutex);
+	return insufficient;
+}
+
 static inline const char *find_min_ts(struct obs_core_data *data, uint64_t *min_ts)
 {
 	obs_source_t *buffering_source = NULL;
 	struct obs_source *source = data->first_audio_source;
 	while (source) {
+		pthread_mutex_lock(&source->audio_buf_mutex);
 		if (!source->audio_pending && source->audio_ts && source->audio_ts < *min_ts) {
 			*min_ts = source->audio_ts;
 			buffering_source = source;
 		}
+		pthread_mutex_unlock(&source->audio_buf_mutex);
 
 		source = (struct obs_source *)source->next_audio_source;
 	}
@@ -636,6 +646,8 @@ bool audio_callback(void *param, uint64_t start_ts_in, uint64_t end_ts_in, uint6
 
 		/* if a source has gone backward in time and we can no
 		 * longer buffer, drop some or all of its audio */
+		bool rerender = false;
+		pthread_mutex_lock(&render_source->audio_buf_mutex);
 		if (audio_buffering_maxed(audio) && render_source->audio_ts != 0 &&
 		    render_source->audio_ts < ts.start) {
 			if (render_source->info.audio_render) {
@@ -651,16 +663,14 @@ bool audio_callback(void *param, uint64_t start_ts_in, uint64_t end_ts_in, uint6
 				assert(false);
 #endif
 			} else {
-				pthread_mutex_lock(&render_source->audio_buf_mutex);
-				bool rerender = ignore_audio(render_source, channels, sample_rate, ts.start);
-				pthread_mutex_unlock(&render_source->audio_buf_mutex);
-
-				/* if we (potentially) recovered, re-render */
-				if (rerender)
-					obs_source_audio_render(render_source, mixers, channels, sample_rate,
-								audio_size);
+				rerender = ignore_audio(render_source, channels, sample_rate, ts.start);
 			}
 		}
+		pthread_mutex_unlock(&render_source->audio_buf_mutex);
+
+		/* Rendering can call plugins; release the buffer lock first. */
+		if (rerender)
+			obs_source_audio_render(render_source, mixers, channels, sample_rate, audio_size);
 	}
 
 	/* ------------------------------------------------ */
