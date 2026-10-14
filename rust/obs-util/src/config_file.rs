@@ -881,7 +881,10 @@ impl Config {
         if f.write_all(&out).is_err() || f.flush().is_err() {
             return CONFIG_ERROR;
         }
-        drop(f);
+        // `fclose` result: a failed close must not look like success.
+        if crate::platform::close_file(f).is_err() {
+            return CONFIG_ERROR;
+        }
         CONFIG_SUCCESS
     }
 
