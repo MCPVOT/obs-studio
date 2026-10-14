@@ -28,6 +28,7 @@ from __future__ import annotations
 import argparse
 import fnmatch
 import os
+import re
 import subprocess
 import sys
 import time
@@ -60,9 +61,54 @@ GERSEMI_EXCLUDE = (
 )
 
 
+TROUBLESHOOTING = "docs/rust-port/troubleshooting.md"
+# Environment failures that look like code failures (#694): output pattern ->
+# a one-line hint. Each one has a section in TROUBLESHOOTING.
+HINTS = (
+    (
+        re.compile(r"soldr: .*Permission denied"),
+        "soldr cannot write its cache or target directory; fix the ownership of ~/.soldr and target/",
+    ),
+    (
+        re.compile(r"soldr: (command )?not found|soldr: No such file"),
+        "soldr is not on PATH; install it with `uv tool install --upgrade soldr`",
+    ),
+    (re.compile(r"soldr: .*disk space is low"), "less than 10 GiB free; run `soldr gc` or free disk space"),
+    (
+        re.compile(r"Could NOT find FFmpeg|FFmpeg.*Required is at least version"),
+        "Tier 2 found the host's FFmpeg; run it in Docker with ./unittest instead of against host packages",
+    ),
+    (
+        re.compile(r"Cannot connect to the Docker daemon|docker: (command )?not found|permission denied.*docker\.sock"),
+        "Tier 2 needs a running Docker you can use without sudo",
+    ),
+)
+
+
+def hints_for(text: str) -> list[str]:
+    """One hint per known environment failure in `text`, in HINTS order."""
+    return [
+        f"hint: {hint} ({TROUBLESHOOTING}); or open the PR and let CI run."
+        for pattern, hint in HINTS
+        if pattern.search(text)
+    ]
+
+
 def run(cmd: list[str], **kw) -> None:
+    """Run `cmd`, streaming its output, and print hints for known environment failures."""
     print("+", " ".join(cmd), flush=True)
-    subprocess.run(cmd, cwd=ROOT, check=True, **kw)
+    seen = []
+    with subprocess.Popen(
+        cmd, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors="replace", **kw
+    ) as proc:
+        for line in proc.stdout:
+            print(line, end="", flush=True)
+            if "soldr" in line or "FFmpeg" in line or "ocker" in line:
+                seen.append(line)
+    for hint in hints_for("".join(seen)):
+        print(hint, flush=True)
+    if proc.returncode:
+        raise subprocess.CalledProcessError(proc.returncode, cmd)
 
 
 def soldr_cargo(args: list[str], extra_env: dict[str, str] | None = None) -> None:
@@ -231,6 +277,13 @@ def main() -> int:
             LANES[name](args.fix)
         except subprocess.CalledProcessError as e:
             print(f"== lane {name}: FAILED ({e.returncode})", flush=True)
+            return 1
+        except FileNotFoundError as e:
+            print(f"local_gate: {e.filename or e}: command not found", flush=True)
+            if e.filename == "soldr":
+                print(f"hint: soldr is not on PATH; install it with `uv tool install --upgrade soldr` ({TROUBLESHOOTING}); "
+                      "or open the PR and let CI run.", flush=True)
+            print(f"== lane {name}: FAILED (127)", flush=True)
             return 1
         print(f"== lane {name}: ok ({time.monotonic() - start:.1f}s)", flush=True)
     return 0

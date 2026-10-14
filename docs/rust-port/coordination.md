@@ -52,7 +52,9 @@ this document covers *who does what, and when*.
   RED test exists; a red CI run on a PR is expected. The local gate
   (AGENTS.md) is recommended, not required: a stamped head lets CI skip the
   Linux unit-test jobs, and without a stamp PR CI runs the full suite. Do not
-  build fork or self-hosted CI to pre-validate PRs.
+  build fork or self-hosted CI to pre-validate PRs. Local errors from your
+  environment (soldr permissions, disk, Docker, host packages):
+  [troubleshooting.md](troubleshooting.md).
 - **Merge queue:** master merges go through GitHub's merge queue. Queue a
   green PR with `gh pr merge <N>` (or the "Merge when ready" button); the
   queue reruns PR CI on the merge result with current master, and the

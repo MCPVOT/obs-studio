@@ -32,6 +32,7 @@ class SoldrCacheTest(unittest.TestCase):
         with (
             mock.patch.dict(os.environ, env or {}, clear=False),
             mock.patch.object(local_gate.subprocess, "run", side_effect=fake_run),
+            mock.patch.object(local_gate, "run", side_effect=fake_run),
             mock.patch.object(local_gate, "tracked_files", return_value=[]),
             mock.patch.object(local_gate, "clang_format"),
             mock.patch.object(local_gate, "gersemi"),
@@ -71,6 +72,56 @@ class SelfTestTest(unittest.TestCase):
         cmd = calls[0]
         self.assertIn("discover", cmd)
         self.assertIn("test_*.py", cmd)
+
+
+class EnvironmentHintTest(unittest.TestCase):
+    """Environment failures get a one-line hint naming the documented fix
+    (obs-rust/obs-studio#694, docs/rust-port/troubleshooting.md)."""
+
+    CASES = {
+        "soldr: IO error: Permission denied (os error 13)": "ownership",
+        "soldr: warning: disk space is low (6.2 GiB free). Run `soldr gc` to review": "soldr gc",
+        "Could NOT find FFmpeg (missing: avcodec) (Required is at least version \"8.0\")": "./unittest",
+        "Cannot connect to the Docker daemon at unix:///var/run/docker.sock": "Docker",
+    }
+
+    def test_each_error_maps_to_a_hint(self):
+        for line, words in self.CASES.items():
+            with self.subTest(line=line):
+                hints = local_gate.hints_for(line)
+                self.assertEqual(len(hints), 1, hints)
+                self.assertIn(words, hints[0])
+                self.assertIn("troubleshooting.md", hints[0])
+
+    def test_ordinary_output_has_no_hint(self):
+        self.assertEqual(local_gate.hints_for("test result: ok. 12 passed\nerror[E0308]: mismatched types"), [])
+
+    def test_hints_are_not_repeated(self):
+        line = "soldr: IO error: Permission denied (os error 13)"
+        self.assertEqual(len(local_gate.hints_for(f"{line}\n{line}")), 1)
+
+    def test_missing_soldr_fails_the_lane_with_a_hint(self):
+        def missing(cmd, **kw):
+            raise FileNotFoundError(2, "No such file or directory", "soldr")
+
+        out = []
+        with mock.patch.object(local_gate.subprocess, "Popen", side_effect=missing), \
+                mock.patch("builtins.print", side_effect=lambda *a, **k: out.append(" ".join(map(str, a)))), \
+                mock.patch("sys.argv", ["local_gate.py", "--lane", "rust-test"]):
+            self.assertEqual(local_gate.main(), 1)
+        text = "\n".join(out)
+        self.assertIn("lane rust-test: FAILED", text)
+        self.assertIn("soldr is not on PATH", text)
+        self.assertIn("troubleshooting.md", text)
+
+    def test_run_streams_output_and_reports_hints(self):
+        out = []
+        with mock.patch("builtins.print", side_effect=lambda *a, **k: out.append(" ".join(map(str, a)))):
+            with self.assertRaises(subprocess.CalledProcessError):
+                local_gate.run(["sh", "-c", "echo 'soldr: IO error: Permission denied (os error 13)'; exit 3"])
+        text = "\n".join(out)
+        self.assertIn("Permission denied", text)
+        self.assertIn("hint:", text)
 
 
 if __name__ == "__main__":

@@ -30,7 +30,9 @@ coverage, and no edits to C tests or public headers.
 ## Local gate (recommended, not required)
 
 The local gate gives faster feedback and, when stamped, lets CI skip the Linux
-unit-test jobs. Without a stamp, PR CI runs the full suite.
+unit-test jobs. Without a stamp, PR CI runs the full suite. Environment
+errors (soldr permissions, disk, Docker, host FFmpeg): see
+[docs/rust-port/troubleshooting.md](docs/rust-port/troubleshooting.md).
 
 - `./lint` (8 s): clang-format 22.1.3 and gersemi 0.25.0 pinned via uvx, rustfmt, clippy, and the repo Dylints (`dylints/*`). `./lint --fix` rewrites files.
 - `./unittest`: Rust Tiers 1-3, then Tier 2 (cmocka with `ENABLE_RUST_LIBOBS` OFF/ON in Docker; ~30-40 s warm thanks to ccache).
