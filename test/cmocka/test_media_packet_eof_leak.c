@@ -136,6 +136,7 @@ int main(int argc, char **argv)
 	if (argc != 2)
 		return 2;
 	fixture_path = argv[1];
-	const struct CMUnitTest tests[] = {cmocka_unit_test(eof_releases_packet), cmocka_unit_test(read_error_releases_packet)};
+	const struct CMUnitTest tests[] = {cmocka_unit_test(eof_releases_packet),
+					   cmocka_unit_test(read_error_releases_packet)};
 	return cmocka_run_group_tests(tests, NULL, NULL);
 }
