@@ -19,6 +19,11 @@ Before picking up or filing an issue, or opening a PR, read
 [docs/rust-port/coordination.md](docs/rust-port/coordination.md): claim
 before coding, search open PRs first, target master, RED then GREEN commits.
 
+Before building, testing or pushing, read
+[docs/ci-tooling.md](docs/ci-tooling.md): soldr, setup-soldr, bosn, act2,
+zackees/ci.yml, the local gate and CI attestation, and how to use them so
+many agents don't overload the shared machines and CI runners.
+
 ## Merge gate: PR CI
 
 PR CI on `obs-rust/obs-studio` is the only check that decides a merge. Open a
