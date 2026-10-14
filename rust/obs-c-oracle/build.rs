@@ -295,6 +295,11 @@ fn main() {
     let windows_gnu =
         windows && std::env::var("CARGO_CFG_TARGET_ENV").ok().as_deref() == Some("gnu");
     if windows_gnu {
+        // audio-io.c includes <Windows.h>. MinGW's header is windows.h, and
+        // a case-sensitive host (Ubuntu's windows-gnu link) will not find
+        // the capital name. This directory is first, so the wrapper is the
+        // one that gets included.
+        oracle.include("oracle/mingw-case");
         // C99 printf (%zu) from MinGW's stdio, matching PRINTFATTR's
         // __gnu_printf__ archetype there.
         oracle.define("__USE_MINGW_ANSI_STDIO", Some("1"));
@@ -434,7 +439,9 @@ fn main() {
         }
         pthreads.compile("obs_c_oracle_w32_pthreads");
         // platform-windows.c calls these. kernel32 is the default.
-        for lib in ["shell32", "ole32", "advapi32", "psapi", "rpcrt4", "winmm"] {
+        for lib in [
+            "shell32", "ole32", "advapi32", "psapi", "rpcrt4", "winmm", "avrt",
+        ] {
             println!("cargo:rustc-link-lib={lib}");
         }
     }
