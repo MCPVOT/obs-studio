@@ -49,5 +49,14 @@ class ReleaseStepPitfallsTest(unittest.TestCase):
         self.assertIn("gh release delete-asset continuous", step)
 
 
+    def test_daily_beta_is_the_latest_release(self):
+        # Published as pre-releases, the betas never showed as the repo's
+        # "Latest" release; the front page still offered obs-stream-rust v0.1.0.
+        text = (ROOT / ".github" / "workflows" / "release-rust.yaml").read_text()
+        for m in re.finditer(r'gh release (?:create|edit) "\$TAG"[^\n]*(?:\\\n[^\n]*)*', text):
+            self.assertNotIn("--prerelease", m.group(0))
+            self.assertIn("--latest", m.group(0))
+
+
 if __name__ == "__main__":
     unittest.main()
