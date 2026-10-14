@@ -132,6 +132,10 @@ def validate_profile(platform: str, kinds: list[str], inputs: list[dict], scene:
         raise RuntimeError(f"saved profile was not selected: {profile}")
 
 
+async def wait_until_ready(client, proc: subprocess.Popen, deadline: float) -> dict:
+    raise NotImplementedError("RED: distinguish authenticated transport from frontend readiness")
+
+
 async def inspect_running_app(proc: subprocess.Popen, port: int, password: str, platform: str) -> None:
     sys.path.insert(0, str(Path(__file__).resolve().parent / "websocket-tier4"))
     from obsws import ObsWsClient, SUB_NONE
