@@ -29,6 +29,11 @@ class AppImageCallInputsTest(unittest.TestCase):
         self.assertIsNotNone(m, "workflow_call has no rust_libobs input")
         self.assertIn("default: true", m.group(0))
 
+    def test_workflow_call_declares_rust_libobs_only_once(self):
+        call = self.text.split("workflow_call:", 1)[1].split("\n  pull_request:", 1)[0]
+        declarations = re.findall(r"^      rust_libobs:$", call, re.M)
+        self.assertEqual(len(declarations), 1, "duplicate workflow_call input keys prevent any job from starting")
+
     def test_rust_libobs_does_not_depend_on_the_event_name(self):
         line = next(l for l in self.text.splitlines() if "RUST_LIBOBS:" in l)
         self.assertNotIn("github.event_name", line, line)
