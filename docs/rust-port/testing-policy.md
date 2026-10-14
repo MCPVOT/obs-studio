@@ -269,6 +269,8 @@ Tier 2 checks.
 - The bitstream parsers (`obs-avc.c`, `obs-hevc.c`, `obs-av1.c`) get
   cargo-fuzz differential targets against the C oracle. Each runs at least 1
   hour with no mismatch outside documented exclusions.
+- These and the later targets (`nal_diff`, `config_ini_diff`) run nightly
+  through the local runner described in [fuzzing.md](fuzzing.md).
 - Inputs that trigger C UB are excluded and listed. The `get_ue_golomb` UB is
   already fixed in C (#11, #17).
 - obs-websocket gets a Tier 4 black-box suite covering every v5 request type,
