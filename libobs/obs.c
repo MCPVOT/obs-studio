@@ -1168,8 +1168,16 @@ static inline bool obs_init_hotkeys(void)
 
 	if (os_event_init(&hotkeys->stop_event, OS_EVENT_TYPE_MANUAL) != 0)
 		goto fail;
-	if (pthread_create(&hotkeys->hotkey_thread, NULL, obs_hotkey_thread, NULL))
+	os_event_t *ready = NULL;
+	if (os_event_init(&ready, OS_EVENT_TYPE_MANUAL) != 0)
 		goto fail;
+	if (pthread_create(&hotkeys->hotkey_thread, NULL, obs_hotkey_thread, ready)) {
+		os_event_destroy(ready);
+		goto fail;
+	}
+	/* Let the thread finish its one-time allocations first. */
+	os_event_wait(ready);
+	os_event_destroy(ready);
 
 	hotkeys->strict_modifiers = true;
 	hotkeys->hotkey_thread_initialized = true;

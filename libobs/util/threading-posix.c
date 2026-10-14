@@ -262,12 +262,12 @@ void os_set_thread_name(const char *name)
 #elif defined(__FreeBSD__)
 	pthread_set_name_np(pthread_self(), name);
 #elif defined(__GLIBC__) && !defined(__MINGW32__)
-	if (strlen(name) <= 15) {
-		pthread_setname_np(pthread_self(), name);
-	} else {
-		char *thread_name = bstrdup_n(name, 15);
-		pthread_setname_np(pthread_self(), thread_name);
-		bfree(thread_name);
-	}
+	/* Truncate on the stack: a heap copy here is an allocation (and a free)
+	 * on every new thread, so bnum_allocs() drifts right after a thread
+	 * starts, e.g. after obs_startup() (obs-rust/obs-studio#663). */
+	char thread_name[16];
+	strncpy(thread_name, name, sizeof(thread_name) - 1);
+	thread_name[sizeof(thread_name) - 1] = 0;
+	pthread_setname_np(pthread_self(), thread_name);
 #endif
 }
