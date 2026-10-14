@@ -372,9 +372,10 @@ jobs:
             echo "::error::$TAG appeared while this run was building; not overwriting it"
             exit 1
           fi
-          # The AppImage joins the packages under the release's naming scheme; its
-          # .zsync stays in appimage/ for the continuous release.
-          mv appimage/OBS_Studio-*-x86_64.AppImage "dist/OBS-Studio-Rust-$VERSION-linux-x86_64.AppImage"
+          # The AppImage joins the packages under the release's naming scheme. Copy,
+          # don't move: the continuous step below uploads it from appimage/ with
+          # its .zsync, under the OBS_Studio-* name baked into the update info.
+          cp appimage/OBS_Studio-*-x86_64.AppImage "dist/OBS-Studio-Rust-$VERSION-linux-x86_64.AppImage"
           uv run --no-project ci/release_decision.py assets --version "$VERSION" dist
           cd dist
           files=(OBS-Studio-Rust-*)

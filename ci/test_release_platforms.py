@@ -135,6 +135,17 @@ class ReleasePlatformsTest(unittest.TestCase):
                     f"{os_}-{target} missing from {required}",
                 )
 
+    def test_continuous_keeps_its_appimage(self):
+        # The continuous step uploads appimage/OBS_Studio-*-x86_64.AppImage
+        # after the beta is published; moving it into dist/ for the beta left
+        # only the .zsync, so run 38500530155 published the beta and then
+        # failed with "no matches found for OBS_Studio-*-x86_64.AppImage".
+        self.assertIsNone(
+            re.search(r"^\s*mv\s+appimage/OBS_Studio-", self.text, re.M),
+            "the beta step moves the AppImage the continuous step still needs; copy it",
+        )
+        self.assertIn("OBS_Studio-*-x86_64.AppImage OBS_Studio-*-x86_64.AppImage.zsync", self.text)
+
 
 if __name__ == "__main__":
     unittest.main()
