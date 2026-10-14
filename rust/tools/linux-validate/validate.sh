@@ -85,10 +85,10 @@ for mode in OFF ON; do
     ${OBS_EXTRA_CMAKE_ARGS:-} \
     -DENABLE_FRONTEND=OFF -DENABLE_SCRIPTING=OFF -DENABLE_BROWSER=OFF \
     -DENABLE_WEBSOCKET=OFF -DENABLE_AJA=OFF -DENABLE_WEBRTC=OFF \
-    -DENABLE_NVENC=OFF -DENABLE_QSV11=OFF -DENABLE_VST=OFF -DENABLE_WAYLAND=OFF \
+    -DENABLE_NVENC=ON -DENABLE_QSV11=OFF -DENABLE_VST=OFF -DENABLE_WAYLAND=OFF \
     ${OBS_VERSION_OVERRIDE:+"-DOBS_VERSION_OVERRIDE=$OBS_VERSION_OVERRIDE"} \
     >"$build.configure.log" 2>&1 || { tail -40 "$build.configure.log"; exit 1; }
-  cmake --build "$build" --target libobs cmocka-tests decklink \
+  cmake --build "$build" --target libobs cmocka-tests decklink obs-nvenc \
     >"$build.build.log" 2>&1 || { grep -E ": (fatal )?error|FAILED:" "$build.build.log" | sort -u | head -40; exit 1; }
   if [ -n "${OBS_EXTRA_CFLAGS:-}" ]; then
     # Measuring extra flags: show what they report (#516).
@@ -126,6 +126,20 @@ for mode in OFF ON; do
   plugin=$(find "$build" -name 'decklink.so' | head -1)
   echo "== [$mode] decklink.so imports:"
   nm -D --undefined-only "$plugin" | grep bitstream_reader
+
+  # Issue #645: obs-nvenc swaps cuda-load.c for cuda-load-rust.c (#592).
+  # Check the plugin links in both modes and takes the right loader.
+  nvenc_objs=$(ninja -C "$build" -t inputs obs-nvenc 2>/dev/null | grep -E '\.c\.o$' || true)
+  if [ "$mode" = ON ]; then want=cuda-load-rust.c.o not=cuda-load.c.o; else want=cuda-load.c.o not=cuda-load-rust.c.o; fi
+  if ! grep -q "/$want\$" <<<"$nvenc_objs" || grep -q "/$not\$" <<<"$nvenc_objs"; then
+    echo "FAIL: obs-nvenc with ENABLE_RUST_LIBOBS=$mode must compile $want and not $not"
+    exit 1
+  fi
+  if [ -z "$(find "$build" -name 'obs-nvenc.so' | head -1)" ]; then
+    echo "FAIL: obs-nvenc.so was not built with ENABLE_RUST_LIBOBS=$mode"
+    exit 1
+  fi
+  echo "== [$mode] obs-nvenc.so built with $want"
 done
 
 # Issue #80: panic=abort is set only for [profile.release], so libobs must
