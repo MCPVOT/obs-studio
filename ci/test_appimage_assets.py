@@ -4,8 +4,10 @@
 import hashlib
 import importlib.util
 import tempfile
+import subprocess
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parent.parent
 SPEC = importlib.util.spec_from_file_location(
@@ -20,6 +22,25 @@ TARGET = "gh-releases-zsync|obs-rust|obs-studio|continuous|OBS-Studio-Rust-*-lin
 
 class AppImageAssetsTest(unittest.TestCase):
     maxDiff = 250
+
+    def test_metadata_host_installs_driver_libraries_before_launch(self):
+        workflow = (ROOT / ".github/workflows/appimage.yaml").read_text()
+        install = workflow.find("- name: Install host GPU runtime for metadata check")
+        verify = workflow.find("- name: Verify AppImage identity and updater metadata")
+        self.assertGreater(install, 0, "the host launches the frontend before installing its unbundled driver libraries")
+        self.assertLess(install, verify)
+        for package in ("libopengl0", "libegl1", "libgbm1", "libdrm2"):
+            self.assertIn(package, workflow[install:verify])
+
+    def test_runtime_loader_failure_retains_its_diagnostic(self):
+        with tempfile.TemporaryDirectory() as directory:
+            app = Path(directory) / NAME
+            app.touch()
+            failure = subprocess.CalledProcessError(127, [str(app), "--version"], stderr="libOpenGL.so.0 is missing")
+            with patch("sys.argv", ["asset_metadata.py", "verify", str(app), "--repository", "obs-rust/obs-studio"]):
+                with patch.object(metadata.subprocess, "run", side_effect=failure):
+                    with self.assertRaisesRegex(RuntimeError, "libOpenGL.so.0 is missing"):
+                        metadata.main()
 
     def test_names_come_from_actual_executable_identity(self):
         self.assertEqual(metadata.asset_name(VERSION), NAME)
