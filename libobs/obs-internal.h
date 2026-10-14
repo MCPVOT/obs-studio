@@ -550,6 +550,7 @@ struct obs_core_hotkeys {
 
 	pthread_t hotkey_thread;
 	bool hotkey_thread_initialized;
+	os_event_t *ready_event;
 	os_event_t *stop_event;
 	bool thread_disable_press;
 	bool strict_modifiers;

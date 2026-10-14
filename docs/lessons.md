@@ -57,3 +57,10 @@ Append-only. Symptom / Cause / Fix / Tell. Read before diagnosing, not after.
 - **Cause:** `ci/local_gate.py` formats only `libobs`, `frontend`, `plugins`, `deps`, `shared`, and `test`, the same default glob as `build-aux/run-clang-format`. The CI action passes every changed `.c`/`.h` on the command line, and then the script formats those paths even when they sit under `rust/`.
 - **Fix:** run `build-aux/run-clang-format --fail-error --check` on the changed C files under `rust/` before the stamp. clang-format 22.1.3.
 - **The tell:** the failing path starts with `rust/` and the lint log says `clang-format --dry-run` over the libobs set only.
+
+## 2026-10-14: windows-gnu profiler_parity access violation
+
+- **Symptom:** `profiler_parity-*.exe` for `x86_64-pc-windows-gnu` exits `0xC0000005`. The fault is a read in `pthread_getspecific` at an address whose top 32 bits are zero. The same binary passes under Wine, and under a debugger.
+- **Cause:** libgcc emutls calls `pthread_getspecific` and loads `pthread_key_t` with a 32-bit `mov`. The oracle's w32-pthreads defines that symbol with a pointer-sized key. The linker bound emutls to w32-pthreads. A low 4GB heap (Wine, or the Windows debug heap) makes the truncated pointer still valid.
+- **Fix:** on `windows-gnu`, rename the oracle's `pthread_*`, `sem_*`, and `sched_*` symbols to `oracle_*` and link libwinpthread for the unprefixed names. `-include sys/stat.h` lets GCC 15 compile `platform.h`.
+- **The tell:** `nm` shows `oracle_pthread_getspecific` as a real function and `pthread_getspecific` as a jmp to `__imp_pthread_getspecific`. A fault address below 4GB while other pointers in the crash context are above 4GB is this truncation, not a null mutex.

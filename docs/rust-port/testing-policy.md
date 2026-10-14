@@ -161,6 +161,12 @@ cannot prove both, so every ported unit carries the four tiers below.
 A port is not done until all applicable tiers pass. "Tier 1 passes" alone is
 not done.
 
+PR CI on `obs-rust/obs-studio` decides whether the tiers pass for a merge.
+Open a PR (a draft is fine) once the RED commit exists and let CI run the
+tiers; running them locally first (`./lint`, `./unittest`, `local-gate run`)
+is recommended, not required. The tiers, RED then GREEN, and the ban on
+editing C tests or public headers stay mandatory.
+
 ## Extracting a function before porting it
 
 If the unit to port is one function inside a larger C file,
@@ -269,6 +275,8 @@ Tier 2 checks.
 - The bitstream parsers (`obs-avc.c`, `obs-hevc.c`, `obs-av1.c`) get
   cargo-fuzz differential targets against the C oracle. Each runs at least 1
   hour with no mismatch outside documented exclusions.
+- These and the later targets (`nal_diff`, `config_ini_diff`) run nightly
+  through the local runner described in [fuzzing.md](fuzzing.md).
 - Inputs that trigger C UB are excluded and listed. The `get_ue_golomb` UB is
   already fixed in C (#11, #17).
 - obs-websocket gets a Tier 4 black-box suite covering every v5 request type,

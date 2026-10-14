@@ -115,7 +115,12 @@ static void matrix4_mul_4x3_only(struct matrix4 *dst, const struct matrix4 *m1, 
 static inline void get_3x3_submatrix(float *dst, const struct matrix4 *m, int i, int j)
 {
 	const float *mf = (const float *)m;
-	int ti, tj, idst, jdst;
+	float src[16];
+	int ti, tj, idst, jdst, n;
+
+	/* dst can overlap m. Read the whole matrix before any store. */
+	for (n = 0; n < 16; n++)
+		src[n] = mf[n];
 
 	for (ti = 0; ti < 4; ti++) {
 		if (ti < i)
@@ -133,7 +138,7 @@ static inline void get_3x3_submatrix(float *dst, const struct matrix4 *m, int i,
 			else
 				continue;
 
-			dst[(idst * 3) + jdst] = mf[(ti * 4) + tj];
+			dst[(idst * 3) + jdst] = src[(ti * 4) + tj];
 		}
 	}
 }

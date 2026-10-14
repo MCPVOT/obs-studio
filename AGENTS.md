@@ -19,7 +19,18 @@ Before picking up or filing an issue, or opening a PR, read
 [docs/rust-port/coordination.md](docs/rust-port/coordination.md): claim
 before coding, search open PRs first, target master, RED then GREEN commits.
 
-## Local gate (run before every push)
+## Merge gate: PR CI
+
+PR CI on `obs-rust/obs-studio` is the only check that decides a merge. Open a
+PR (a draft is fine) as soon as the RED test exists; a red CI run on a PR is
+expected, not a process failure. Do not build fork or self-hosted CI to
+pre-validate PRs. What stays mandatory: RED then GREEN, differential and Tier 2
+coverage, and no edits to C tests or public headers.
+
+## Local gate (recommended, not required)
+
+The local gate gives faster feedback and, when stamped, lets CI skip the Linux
+unit-test jobs. Without a stamp, PR CI runs the full suite.
 
 - `./lint` (8 s): clang-format 22.1.3 and gersemi 0.25.0 pinned via uvx, rustfmt, clippy, and the repo Dylints (`dylints/*`). `./lint --fix` rewrites files.
 - `./unittest`: Rust Tiers 1-3, then Tier 2 (cmocka with `ENABLE_RUST_LIBOBS` OFF/ON in Docker; ~30-40 s warm thanks to ccache).

@@ -133,7 +133,7 @@ export GIO_USE_VFS=local
 export GSETTINGS_BACKEND=memory
 
 if [ -n "$OBS_APPIMAGE_DEBUG" ]; then
-    # Troubleshooting: OBS_APPIMAGE_DEBUG=1 ./OBS_Studio-*.AppImage
+    # Troubleshooting: OBS_APPIMAGE_DEBUG=1 ./OBS-Studio-*-linux-x86_64.AppImage
     # prints the environment and, when gdb is installed, a backtrace of a crash.
     echo "== AppImage environment ==" >&2
     env | sort | grep -E '^(APPDIR|LD_|QT_|GIO_|GSETTINGS_|XDG_|WAYLAND|DISPLAY|DBUS|LANG|LC_)' >&2

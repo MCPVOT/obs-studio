@@ -100,6 +100,138 @@ const STRICT_FLAGS: &[&str] = &[
     "-Wmissing-prototypes",
 ];
 
+/// On windows-gnu, libgcc's emutls (`__emutls_get_address`) calls the POSIX
+/// pthread symbols and treats `pthread_key_t` as a 32-bit unsigned long.
+/// w32-pthreads, which the oracle links in one object, uses a pointer-sized
+/// `pthread_key_t`. High-entropy ASLR then makes the truncated key fault
+/// (`STATUS_ACCESS_VIOLATION` in `pthread_getspecific`, obs-rust/obs-studio#441).
+/// Wine and a debugger heap sit in the low 4GB, so the truncated pointer still
+/// works there. Renaming the oracle's copies leaves the unprefixed symbols for
+/// libwinpthread. MSVC has no libgcc, so it keeps the original names.
+macro_rules! gnu_oracle_renames {
+    ($($name:ident),* $(,)?) => {
+        &[$((stringify!($name), concat!("oracle_", stringify!($name)))),*]
+    };
+}
+
+const GNU_ORACLE_RENAMES: &[(&str, &str)] = gnu_oracle_renames!(
+    pthread_attr_destroy,
+    pthread_attr_getdetachstate,
+    pthread_attr_getinheritsched,
+    pthread_attr_getschedparam,
+    pthread_attr_getschedpolicy,
+    pthread_attr_getscope,
+    pthread_attr_getstackaddr,
+    pthread_attr_getstacksize,
+    pthread_attr_init,
+    pthread_attr_setdetachstate,
+    pthread_attr_setinheritsched,
+    pthread_attr_setschedparam,
+    pthread_attr_setschedpolicy,
+    pthread_attr_setscope,
+    pthread_attr_setstackaddr,
+    pthread_attr_setstacksize,
+    pthread_barrier_destroy,
+    pthread_barrier_init,
+    pthread_barrier_wait,
+    pthread_barrierattr_destroy,
+    pthread_barrierattr_getpshared,
+    pthread_barrierattr_init,
+    pthread_barrierattr_setpshared,
+    pthread_cancel,
+    pthread_cond_broadcast,
+    pthread_cond_destroy,
+    pthread_cond_init,
+    pthread_cond_signal,
+    pthread_cond_timedwait,
+    pthread_cond_wait,
+    pthread_condattr_destroy,
+    pthread_condattr_getpshared,
+    pthread_condattr_init,
+    pthread_condattr_setpshared,
+    pthread_create,
+    pthread_delay_np,
+    pthread_detach,
+    pthread_equal,
+    pthread_exit,
+    pthread_getconcurrency,
+    pthread_getschedparam,
+    pthread_getspecific,
+    pthread_getunique_np,
+    pthread_getw32threadhandle_np,
+    pthread_getw32threadid_np,
+    pthread_join,
+    pthread_key_create,
+    pthread_key_delete,
+    pthread_kill,
+    pthread_mutex_consistent,
+    pthread_mutex_destroy,
+    pthread_mutex_init,
+    pthread_mutex_lock,
+    pthread_mutex_timedlock,
+    pthread_mutex_trylock,
+    pthread_mutex_unlock,
+    pthread_mutexattr_destroy,
+    pthread_mutexattr_getkind_np,
+    pthread_mutexattr_getpshared,
+    pthread_mutexattr_getrobust,
+    pthread_mutexattr_gettype,
+    pthread_mutexattr_init,
+    pthread_mutexattr_setkind_np,
+    pthread_mutexattr_setpshared,
+    pthread_mutexattr_setrobust,
+    pthread_mutexattr_settype,
+    pthread_num_processors_np,
+    pthread_once,
+    pthread_rwlock_destroy,
+    pthread_rwlock_init,
+    pthread_rwlock_rdlock,
+    pthread_rwlock_timedrdlock,
+    pthread_rwlock_timedwrlock,
+    pthread_rwlock_tryrdlock,
+    pthread_rwlock_trywrlock,
+    pthread_rwlock_unlock,
+    pthread_rwlock_wrlock,
+    pthread_rwlockattr_destroy,
+    pthread_rwlockattr_getpshared,
+    pthread_rwlockattr_init,
+    pthread_rwlockattr_setpshared,
+    pthread_self,
+    pthread_setcancelstate,
+    pthread_setcanceltype,
+    pthread_setconcurrency,
+    pthread_setschedparam,
+    pthread_setspecific,
+    pthread_spin_destroy,
+    pthread_spin_init,
+    pthread_spin_lock,
+    pthread_spin_trylock,
+    pthread_spin_unlock,
+    pthread_testcancel,
+    pthread_timechange_handler_np,
+    pthread_win32_process_attach_np,
+    pthread_win32_process_detach_np,
+    pthread_win32_test_features_np,
+    pthread_win32_thread_attach_np,
+    pthread_win32_thread_detach_np,
+    sched_get_priority_max,
+    sched_get_priority_min,
+    sched_getscheduler,
+    sched_setscheduler,
+    sched_yield,
+    sem_close,
+    sem_destroy,
+    sem_getvalue,
+    sem_init,
+    sem_open,
+    sem_post,
+    sem_post_multiple,
+    sem_timedwait,
+    sem_trywait,
+    sem_unlink,
+    sem_wait,
+);
+
 fn main() {
     let manifest = PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").unwrap());
     // No canonicalize(): on Windows it yields a verbatim `\\?\` path, and
@@ -120,6 +252,9 @@ fn main() {
     // Rust port. Pin the C oracle to unfused IEEE operations. MSVC does not
     // contract under its default /fp:precise.
     let mut flags: Vec<&str> = Vec::new();
+    // Owned -D flags for the input hash. build.rs is hashed too; these keep
+    // the flag list complete when the rename set changes beside the script.
+    let mut owned_flags: Vec<String> = Vec::new();
     // Warnings are errors (obs-rust/obs-studio#516): cc maps these to
     // -Wall -Wextra -Werror, or /W4 /WX for MSVC and clang-cl. STRICT_FLAGS
     // is the ratchet toward the full strict set: a flag joins once every
@@ -141,9 +276,12 @@ fn main() {
         flags.push("-D_CRT_SECURE_NO_WARNINGS");
         // /W4 is stricter than the shipped /W3. C4702 (unreachable code)
         // only fires inside the vendored uthash HASH_* macros, whose
-        // uthash_fatal path does not return.
+        // uthash_fatal path does not return. C4127 is the same macros'
+        // `do { ... } while (0)`.
         oracle.flag("/wd4702");
         flags.push("/wd4702");
+        oracle.flag("/wd4127");
+        flags.push("/wd4127");
     }
     if oracle.get_compiler().is_like_clang() {
         // soldr's Apple toolchains pass -fuse-ld=lld in CFLAGS, unused by a
@@ -151,11 +289,23 @@ fn main() {
         oracle.flag("-Wno-error=unused-command-line-argument");
         flags.push("-Wno-error=unused-command-line-argument");
     }
-    if windows && std::env::var("CARGO_CFG_TARGET_ENV").ok().as_deref() == Some("gnu") {
+    let windows_gnu =
+        windows && std::env::var("CARGO_CFG_TARGET_ENV").ok().as_deref() == Some("gnu");
+    if windows_gnu {
         // C99 printf (%zu) from MinGW's stdio, matching PRINTFATTR's
         // __gnu_printf__ archetype there.
         oracle.define("__USE_MINGW_ANSI_STDIO", Some("1"));
         flags.push("-D__USE_MINGW_ANSI_STDIO=1");
+        // GCC 15 rejects `struct stat` in platform.h's prototype unless a
+        // previous include has declared it. Force that for the oracle only.
+        oracle.flag("-include").flag("sys/stat.h");
+        owned_flags.push("-include sys/stat.h".to_string());
+        for (from, to) in GNU_ORACLE_RENAMES {
+            oracle.define(from, Some(*to));
+            owned_flags.push(format!("-D{from}={to}"));
+        }
+        // libgcc's unprefixed pthread_* must resolve to MinGW winpthreads.
+        println!("cargo:rustc-link-lib=pthread");
     }
     if !oracle.get_compiler().is_like_msvc() {
         oracle.flag("-ffp-contract=off");
@@ -262,13 +412,19 @@ fn main() {
             .define("PTW32_STATIC_LIB", None);
         flags.push("-DPTW32_STATIC_LIB");
         // Vendored third-party code: its own library, warnings off (#516).
-        cc::Build::new()
+        let mut pthreads = cc::Build::new();
+        pthreads
             .include(deps.join("w32-pthreads"))
             .define("PTW32_STATIC_LIB", None)
             .file(deps.join("w32-pthreads/pthread.c"))
             .warnings(false)
-            .std("c11")
-            .compile("obs_c_oracle_w32_pthreads");
+            .std("c11");
+        if windows_gnu {
+            for (from, to) in GNU_ORACLE_RENAMES {
+                pthreads.define(from, Some(*to));
+            }
+        }
+        pthreads.compile("obs_c_oracle_w32_pthreads");
     }
     // Every directory the oracle can read C/headers from. libobs is the
     // important one: wrappers include its sources directly, so a libobs-only
@@ -281,9 +437,11 @@ fn main() {
         libobs.with_file_name("deps").join("w32-pthreads"),
         nvenc_dir.clone(),
     ];
+    let mut hash_flags: Vec<&str> = flags.clone();
+    hash_flags.extend(owned_flags.iter().map(String::as_str));
     println!(
         "cargo:rustc-env=OBS_ORACLE_INPUT_HASH={:016x}",
-        oracle_input_hash(&roots, &flags)
+        oracle_input_hash(&roots, &hash_flags)
     );
     // platform-nix.c calls uuid_generate. macOS has it in libSystem.
     // Linux needs libuuid, which the OBS build already links.
