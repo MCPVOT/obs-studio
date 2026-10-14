@@ -369,7 +369,7 @@ jobs:
           trap 'hdiutil detach "$Mount" -force >/dev/null 2>&1 || true' EXIT
           App="$Root/OBS.app"
           ditto "$Mount/OBS.app" "$App"
-          lipo -verify_arch "$TARGET" "$App/Contents/MacOS/OBS"
+          lipo "$App/Contents/MacOS/OBS" -verify_arch "$TARGET"
           codesign --verify --deep --strict "$App"
           codesign -dvv "$App" 2>&1
           Plist="$App/Contents/Info.plist"
