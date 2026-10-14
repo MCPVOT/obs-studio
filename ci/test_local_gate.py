@@ -126,3 +126,26 @@ class EnvironmentHintTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ClangFormatScopeTest(unittest.TestCase):
+    """CI's clang-format job checks every changed C/C++/ObjC file
+    (.github/actions/run-clang-format, checkGlob '*.c' '*.h' ...), but the
+    lint lane only formatted the upstream OBS directories. C under rust/
+    (obs-c-oracle wrappers, the platform_windows SEH shim) passed the local
+    gate and then failed CI's clang-format (#707)."""
+
+    def test_rust_c_sources_are_checked(self):
+        files = [
+            "rust/obs-util/src/platform/windows/plugin_seh.c",
+            "rust/obs-c-oracle/oracle/platform_windows.c",
+            "libobs/obs.c",
+        ]
+        checked = [
+            f
+            for f in files
+            if local_gate.top_dir_matches(f, local_gate.CLANG_DIRS)
+            and f.endswith(local_gate.CLANG_EXTS)
+            and not local_gate.excluded(f, local_gate.CLANG_EXCLUDE)
+        ]
+        self.assertEqual(checked, files)

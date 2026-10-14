@@ -40,7 +40,7 @@ CLANG_FORMAT = "clang-format==22.1.3"
 GERSEMI = "gersemi==0.25.0"
 
 # build-aux/run-clang-format
-CLANG_DIRS = ("libobs", "libobs-*", "frontend", "plugins", "deps", "shared", "test")
+CLANG_DIRS = ("libobs", "libobs-*", "frontend", "plugins", "deps", "shared", "test", "rust")
 CLANG_EXTS = (".c", ".cpp", ".h", ".hpp", ".m", ".mm")
 CLANG_EXCLUDE = (
     "*/obs-websocket/deps/*",
