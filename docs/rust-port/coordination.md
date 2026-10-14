@@ -105,20 +105,22 @@ this document covers *who does what, and when*.
 - A superseded PR is closed by its author (or a maintainer) with a link to the
   replacement.
 
-## 8. Master branch protection (decision for #139)
+## 8. Master branch protection (decisions for #139 and #692)
 
-`master` blocks force pushes and deletion, including for administrators. It
-does not require pull requests or status checks, and it allows merge commits.
-The maintainer's direct-push tooling can therefore continue to publish a
-locally tested, attested commit. Contributors should still use the claim and
-PR workflow above; this setting is not a waiver of those rules.
+`master` blocks force pushes and deletion, including for administrators.
 
-Do not require the Linux Rust or Tier 2 CI jobs while the local-gate
-attestation legitimately skips them. A skipped job is not a successful
-required check. Revisit required checks only after CI exposes a stable,
-always-reported aggregate result for both attested and full runs. Do not
-enable a merge queue before that result exists; queued runs would need the
-same gate and would delay the current grind and maintainer flows.
+PRs merge through GitHub's merge queue (ruleset "master merge queue (#692)",
+squash merges). The queue reruns PR CI on the merge result with current
+master, and the one required check is `CI Gate ✅` (`pr-pull.yaml`). That job
+always reports: it passes when every other job passed or was skipped (out of
+scope, or attested by the local gate on the PR) and fails when any job failed
+or was cancelled. In the queue, the attestation never skips tests, so the
+merge result always runs the full Linux suite.
+
+Repository administrators bypass the ruleset, so the maintainer's direct-push
+tooling can still publish a locally tested, attested commit. Contributors use
+the claim and PR workflow above and queue their PRs; the bypass is not a
+waiver of those rules.
 
 Do not require linear history while the project uses merge commits for PRs.
 Review this policy again if direct pushes are retired or the gate's CI
