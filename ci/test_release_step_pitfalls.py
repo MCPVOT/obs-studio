@@ -40,5 +40,14 @@ class ReleaseStepPitfallsTest(unittest.TestCase):
         self.assertEqual(bad, [], "PlistBuddy cannot read a pipe; use plutil -extract ... -o - -")
 
 
+    def test_continuous_drops_superseded_assets(self):
+        # AppImage names carry the commit, so --clobber never replaces the
+        # previous day's: continuous kept the 2026-10-13 AppImage and .zsync
+        # next to 2026-10-14's, and AppImageUpdate matches OBS_Studio-*.zsync.
+        text = (ROOT / ".github" / "workflows" / "release-rust.yaml").read_text()
+        step = text.split("gh release upload continuous", 1)[1].split("gh release edit continuous", 1)[0]
+        self.assertIn("gh release delete-asset continuous", step)
+
+
 if __name__ == "__main__":
     unittest.main()

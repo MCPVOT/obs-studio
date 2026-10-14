@@ -426,6 +426,13 @@ jobs:
           if gh release view continuous --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload continuous --repo "$GITHUB_REPOSITORY" --clobber \
               OBS_Studio-*-x86_64.AppImage OBS_Studio-*-x86_64.AppImage.zsync
+            # The names carry the commit, so --clobber leaves the previous
+            # build's files; drop every asset this run did not upload.
+            keep=" $(printf '%s ' OBS_Studio-*-x86_64.AppImage OBS_Studio-*-x86_64.AppImage.zsync)"
+            gh release view continuous --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' |
+              while read -r name; do
+                case "$keep" in *" $name "*) ;; *) gh release delete-asset continuous "$name" --repo "$GITHUB_REPOSITORY" --yes ;; esac
+              done
             gh api -X PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/continuous" -f sha="$SHA" -F force=true >/dev/null
             gh release edit continuous --repo "$GITHUB_REPOSITORY" --prerelease \
               --title "OBS-Studio-Rust continuous build" --notes-file notes.md
