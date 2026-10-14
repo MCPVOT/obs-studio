@@ -491,6 +491,8 @@ static void ffmpeg_source_update(void *data, obs_data_t *settings)
 	if (s->media && should_restart_media) {
 		media_playback_destroy(s->media);
 		s->media = NULL;
+		/* A close requested by the old media no longer applies. */
+		s->destroy_media = false;
 	}
 
 	/* directly set options if media is playing */
@@ -739,8 +741,22 @@ static void ffmpeg_source_restart(void *data)
 {
 	struct ffmpeg_source *s = data;
 
-	if (obs_source_showing(s->source))
+	if (obs_source_showing(s->source)) {
+		/* A local file asked to be closed when it stopped, and that
+		 * close would run on the next tick, after this restart. Close
+		 * it now instead, so the restart opens new media; the stopped
+		 * worker may have exited after a failed open or read. Network
+		 * sources leave the close to the tick, which reconnects after
+		 * reconnect_delay_sec. */
+		if (s->destroy_media && s->is_local_file) {
+			if (s->media) {
+				media_playback_destroy(s->media);
+				s->media = NULL;
+			}
+			s->destroy_media = false;
+		}
 		ffmpeg_source_start(s);
+	}
 
 	set_media_state(s, OBS_MEDIA_STATE_PLAYING);
 }
