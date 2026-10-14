@@ -60,6 +60,14 @@ def enabled(expression: str, os_: str, signed: bool, notarized: bool) -> bool:
 
 
 class ReleaseNotarizationTest(unittest.TestCase):
+    def test_release_launches_both_macos_dmg_architectures_with_saved_profiles(self):
+        self.assertIn("macos_smoke:", self.workflow, "release never launches its DMGs with saved capture sources")
+        self.assertIn("runner: macos-26-intel", self.workflow, "Intel DMG has no native runtime check")
+        self.assertIn("name: obs-studio-rust-macos-${{ matrix.target }}", self.workflow)
+        self.assertIn("--platform macos", self.workflow)
+        self.assertIn("codesign --verify --deep --strict", self.workflow)
+        self.assertIn("needs.macos_smoke.result == 'success'", self.workflow)
+
     def test_beta_bundle_versions_remain_numeric_and_keep_the_full_identity(self):
         with tempfile.TemporaryDirectory() as root:
             driver = Path(root) / "probe.cmake"
