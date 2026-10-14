@@ -2,10 +2,12 @@
 """Canonical release assets and real updater metadata contracts for #624."""
 
 import hashlib
+import os
 import importlib.util
 import tempfile
 import subprocess
 import unittest
+import textwrap
 from pathlib import Path
 from unittest.mock import patch
 
@@ -58,6 +60,40 @@ class AppImageAssetsTest(unittest.TestCase):
                         RuntimeError, "libOpenGL.so.0 is missing"
                     ):
                         metadata.main()
+
+    def test_continuous_prune_preserves_current_pair_and_unrelated_assets(self):
+        workflow = (ROOT / ".github/workflows/release-rust.yaml").read_text()
+        start = workflow.index('            keep=')
+        end = workflow.index('            gh api -X PATCH', start)
+        prune = textwrap.dedent(workflow[start:end])
+        legacy = "OBS_Studio-33.0.0-old-x86_64.AppImage"
+        previous = "OBS-Studio-Rust-0.1.0-beta.20261013-linux-x86_64.AppImage"
+        old = {legacy, legacy + ".zsync", previous, previous + ".zsync"}
+        current = {NAME, NAME + ".zsync"}
+        assets = sorted(old | current | {"SHA256SUMS", "release-notes.txt"})
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for name in current:
+                (root / name).touch()
+            # Exercise the workflow's actual selector; only GitHub I/O is replaced.
+            script = '''set -euo pipefail
+gh() {
+  case "$1 $2" in
+    "release view") cat assets.txt ;;
+    "release delete-asset") printf '%s\\n' "$4" ;;
+    *) return 2 ;;
+  esac
+}
+''' + prune
+            (root / "assets.txt").write_text("\n".join(assets) + "\n")
+            result = subprocess.run(
+                ["bash", "-c", script], cwd=root,
+                env={**os.environ, "GITHUB_REPOSITORY": "obs-rust/obs-studio"},
+                check=True, capture_output=True, text=True,
+            )
+        deleted = set(result.stdout.splitlines())
+        self.assertFalse(current & deleted, "the newly uploaded canonical pair must survive")
+        self.assertEqual(deleted, old, "only superseded AppImage/zsync assets may be pruned")
 
     def test_names_come_from_actual_executable_identity(self):
         self.assertEqual(metadata.asset_name(VERSION), NAME)
@@ -146,7 +182,7 @@ class AppImageAssetsTest(unittest.TestCase):
         self.assertIn(
             "cp appimage/OBS-Studio-Rust-*-linux-x86_64.AppImage* dist/", release
         )
-        self.assertNotIn("OBS_Studio-", release)
+        self.assertNotIn("OBS_Studio-", release.split('            keep=', 1)[0])
         smoke = (ROOT / "build-aux/appimage/test-appimage.sh").read_text()
         self.assertIn("asset_metadata.py verify", appimage)
         self.assertIn("EXPECT_APPIMAGE_UPDATE", smoke)
