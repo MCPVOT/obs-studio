@@ -58,6 +58,11 @@ this document covers *who does what, and when*.
   queue reruns PR CI on the merge result with current master, and the
   required `CI Gate ✅` check decides. You do not need to rebase by hand for
   unrelated master changes; rebase only when GitHub reports a conflict.
+- **Submodules move forward only.** PR CI fails when a PR moves a submodule
+  pointer (for example `plugins/obs-websocket`) to a commit that does not
+  descend from master's pointer, which usually means a stale checkout. Run
+  `git submodule update` before committing, or put `submodule:` in the PR
+  title for a deliberate move back. Locally: `uv run ci/submodule_direction.py origin/master`.
 - **Fork PRs:** Actions asks a maintainer to approve workflow runs only for a
   first-time contributor's first PR (repository setting "Require approval for
   first-time contributors"). Once a PR of yours has merged, later fork PRs

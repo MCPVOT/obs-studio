@@ -76,6 +76,16 @@ jobs:
           done
           echo "commitHash=${GITHUB_SHA:0:9}" >> $GITHUB_OUTPUT
 
+      # A PR must not move a submodule pointer backwards (#693): stale
+      # checkouts reverted merged obs-websocket fixes (#492, #496, #503, #615).
+      # `submodule:` in the PR title allows a deliberate move back.
+      - name: Check Submodule Pointers 🧭
+        if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          BASE: ${{ github.event.merge_group.base_sha || format('origin/{0}', github.base_ref) }}
+        run: uv run ci/submodule_direction.py "${BASE}"
+
       # What this change needs (#436, ci/ci_scope.py): the Linux Rust tests
       # and Tier 2 always run; macOS or Windows code, or shared build/CI
       # config, adds that platform's Rust tests and Tier 2. Every OBS app
