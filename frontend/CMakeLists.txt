@@ -34,6 +34,18 @@ add_executable(OBS::studio ALIAS obs-studio)
 if(ENABLE_UNIT_TESTS)
   add_executable(test_virtual_cam_shutdown tests/test_virtual_cam_shutdown.cpp)
   add_test(NAME test_virtual_cam_shutdown COMMAND test_virtual_cam_shutdown)
+  add_executable(test_config_migration tests/test_config_migration.cpp)
+  target_include_directories(test_config_migration PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+  foreach(
+    mode
+    IN
+    ITEMS first existing absent custom empty-custom failure
+  )
+    add_test(
+      NAME test_config_migration_${mode}
+      COMMAND test_config_migration "${CMAKE_CURRENT_BINARY_DIR}/config-migration-${mode}" ${mode}
+    )
+  endforeach()
 endif()
 
 target_link_libraries(
@@ -134,4 +146,4 @@ source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" PREFIX "Source Files" FILES ${ta
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" PREFIX "Header Files" FILES ${target_hpp_sources})
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" PREFIX "Qt Files" FILES ${target_qt_sources})
 
-set_target_properties_obs(obs-studio PROPERTIES FOLDER frontend OUTPUT_NAME "$<IF:$<PLATFORM_ID:Windows>,obs64,obs>")
+set_target_properties_obs(obs-studio PROPERTIES FOLDER frontend OUTPUT_NAME "$<IF:$<PLATFORM_ID:Windows>,obs64,${OBS_UNIX_GUI_NAME}>")
