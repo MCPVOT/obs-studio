@@ -12,16 +12,56 @@ HERE="$(dirname "$(readlink -f "$0")")"
 LOADER="@LOADER@"
 LOADER_DIR="$(dirname "$LOADER")"
 BUNDLED_LOADER="$HERE/lib64/ld-linux-x86-64.so.2"
+GLIBC_DIR="$HERE/glibc"
+
+# glibc, libstdc++ and libgcc_s: the host's when they are at least as new as the
+# bundled ones, the bundled ones otherwise (obs-rust/obs-studio#621). The host's
+# Mesa and LLVM are built against the host's C and C++ runtime and cannot load
+# against an older one; but an older host (Ubuntu 22.04, ...) cannot run what
+# was built here. Every ELF file's RPATH ends with $LOADER_DIR/lib: filled with
+# the bundled copies, or left empty so that the host's are found.
+# (OBS_APPIMAGE_BUNDLED_LIBC=1 forces the bundled ones.)
+host_loader=""
+for c in /lib64/ld-linux-x86-64.so.2 /usr/lib64/ld-linux-x86-64.so.2 \
+    /lib/x86_64-linux-gnu/ld-linux-x86-64.so.2 /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2 \
+    /usr/lib/ld-linux-x86-64.so.2 /lib/ld-linux-x86-64.so.2; do
+    [ -x "$c" ] && { host_loader="$(readlink -f "$c")"; break; }
+done
+# "major.minor" -> a comparable number
+ver_num() { echo "$1" | awk -F. '{ printf "%d", $1 * 1000 + $2 }'; }
+use_host_libc=0
+if [ -n "$host_loader" ] && [ -z "$OBS_APPIMAGE_BUNDLED_LIBC" ]; then
+    host_glibc="$("$host_loader" --version 2>/dev/null | sed -n '1s/.*release version \([0-9][0-9]*\.[0-9][0-9]*\).*/\1/p')"
+    host_stdcxx=""
+    for d in /usr/lib64 /usr/lib/x86_64-linux-gnu /usr/lib /lib64 /lib/x86_64-linux-gnu /lib; do
+        if [ -r "$d/libstdc++.so.6" ] && [ -r "$d/libgcc_s.so.1" ]; then
+            host_stdcxx="$(grep -a -o 'GLIBCXX_3\.4\.[0-9]*' "$d/libstdc++.so.6" 2>/dev/null | sed 's/.*\.//' | sort -n | tail -1)"
+            break
+        fi
+    done
+    if [ -n "$host_glibc" ] && [ -n "$host_stdcxx" ] &&
+        [ "$(ver_num "$host_glibc")" -ge "$(ver_num "$(cat "$GLIBC_DIR/GLIBC_VERSION")")" ] &&
+        [ "$host_stdcxx" -ge "$(cat "$GLIBC_DIR/GLIBCXX_MINOR")" ]; then
+        use_host_libc=1
+    fi
+fi
+if [ "$use_host_libc" = 1 ]; then
+    MODE=host
+    SOURCE_LOADER="$host_loader"
+else
+    MODE=bundled
+    SOURCE_LOADER="$BUNDLED_LOADER"
+fi
 
 # Only coreutils here: minimal containers lack cmp, find, ...
 same_loader() {
-    [ -f "$LOADER" ] && [ "$(sha256sum <"$BUNDLED_LOADER")" = "$(sha256sum <"$LOADER")" ]
+    [ -f "$LOADER" ] && [ "$(sha256sum <"$SOURCE_LOADER")" = "$(sha256sum <"$LOADER")" ]
 }
+umask 022
+mkdir -p "$LOADER_DIR" 2>/dev/null
 if ! same_loader; then
-    umask 022
-    mkdir -p "$LOADER_DIR" 2>/dev/null
     tmp="$(mktemp "$LOADER_DIR/.ld.XXXXXX" 2>/dev/null)" &&
-        cp "$BUNDLED_LOADER" "$tmp" && chmod 755 "$tmp" &&
+        cp "$SOURCE_LOADER" "$tmp" && chmod 755 "$tmp" &&
         mv -f "$tmp" "$LOADER"
 fi
 # Never trust a loader directory someone else owns or can write to: it is
@@ -37,6 +77,23 @@ if ! same_loader || [ "$writable" = 1 ] || { [ "$owner" != "$(id -u)" ] && [ "$o
     echo "(the directory must be writable by you only and /tmp must allow exec)" >&2
     exit 1
 fi
+# The libraries behind the RPATH entry: copies (the AppImage mounts at a new
+# place every time, so links into it would dangle for a running instance).
+if [ "$MODE" = host ]; then
+    rm -rf "$LOADER_DIR/lib" 2>/dev/null
+elif [ ! -e "$LOADER_DIR/lib/.complete" ]; then
+    rm -rf "$LOADER_DIR/lib" "$LOADER_DIR/lib.new" 2>/dev/null
+    if mkdir "$LOADER_DIR/lib.new" &&
+        for f in "$GLIBC_DIR"/*.so*; do cp "$f" "$LOADER_DIR/lib.new/" || exit 1; done &&
+        : >"$LOADER_DIR/lib.new/.complete" &&
+        mv "$LOADER_DIR/lib.new" "$LOADER_DIR/lib"; then
+        :
+    else
+        echo "obs AppImage: cannot copy the bundled C library to $LOADER_DIR/lib" >&2
+        exit 1
+    fi
+fi
+echo "$MODE" >"$LOADER_DIR/mode" 2>/dev/null
 
 export APPDIR="$HERE"
 # Deliberately NO LD_LIBRARY_PATH: every bundled ELF carries a relative RPATH
@@ -49,6 +106,17 @@ export XDG_DATA_DIRS="$HERE/usr/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/sha
 export SPA_PLUGIN_DIR="$HERE/usr/lib/spa-0.2"
 export PIPEWIRE_MODULE_DIR="$HERE/usr/lib/pipewire-0.3"
 export PIPEWIRE_CONFIG_DIR="$HERE/usr/share/pipewire"
+# libva is bundled (the bundled FFmpeg needs a newer libva than old hosts have),
+# but the VA-API drivers are the host's: libva looks for them in the directory
+# it was configured with, which is a Debian one, so name the host's.
+if [ -z "$LIBVA_DRIVERS_PATH" ]; then
+    for d in /usr/lib/x86_64-linux-gnu/dri /usr/lib64/dri /usr/lib/dri; do
+        [ -d "$d" ] && LIBVA_DRIVERS_PATH="${LIBVA_DRIVERS_PATH:+$LIBVA_DRIVERS_PATH:}$d"
+    done
+    [ -n "$LIBVA_DRIVERS_PATH" ] && export LIBVA_DRIVERS_PATH
+fi
+# gconv modules belong to the glibc that runs them
+[ "$MODE" = host ] && unset GCONV_PATH
 # Host certificate bundles live in different places per distribution.
 if [ -z "$SSL_CERT_FILE" ]; then
     for f in /etc/ssl/certs/ca-certificates.crt /etc/pki/tls/certs/ca-bundle.crt \

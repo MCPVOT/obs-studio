@@ -293,6 +293,23 @@ macros is compiled into every caller, so no symbol swap is possible.
   helpers in `util/dstr.h` (the `struct dstr` layout is the contract).
   `util/dstr.c` itself is ported with the normal workflow.
 
+## Python runs through uv
+
+Every Python invocation in this repo goes through `uv run` (or `uvx` for a
+tool pulled from a package), never bare `python` or `python3`: `uv run
+python -m unittest ci/test_x.py`, `uv run tools/leaderboard/generate.py`,
+`uv run --with pillow python docs/images/generate-logo-assets.py SOURCE`. This
+covers shell scripts, `./lint`, `./unittest`, `local-gate.toml`, workflows and
+composite actions (which set uv up with the `astral-sh/setup-uv` step already
+pinned in `build-project.yaml`), CMake `COMMAND`s, docstring usage lines and
+Markdown code. Standalone scripts start with `#!/usr/bin/env -S uv run
+--script` (with PEP 723 inline metadata when they need packages); a
+shebang naming a bare interpreter is not allowed.
+
+`ci/test_uv_run.py` scans every tracked file and fails on a bare invocation.
+Its small, commented allowlist covers only trees we do not own (`deps/`,
+`plugins/`). Do not extend it to dodge the rule.
+
 ## Layout and naming
 
 ```text

@@ -1,8 +1,8 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
 """plugins/obs-websocket must point at a commit that has the project fork's
 bounded websocket parser (#99).
 
-    python3 -m unittest ci/test_websocket_submodule.py
+    uv run python -m unittest ci/test_websocket_submodule.py
 
 #492 moved the submodule back to upstream 073a294cd from a stale checkout
 and silently undid the #99 fix. The pointer must be 7d89109c9 or a

@@ -1,8 +1,8 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
 """The leaderboard shows a green up-arrow with +N for merged PRs since
 12:00 AM America/Los_Angeles.
 
-    python3 -m unittest ci/test_leaderboard_daily_delta.py
+    uv run python -m unittest ci/test_leaderboard_daily_delta.py
 """
 
 from __future__ import annotations

@@ -31,6 +31,7 @@ before coding, search open PRs first, target master, RED then GREEN commits.
 ## Quick rules
 
 - Use `soldr cargo ...`, never bare `cargo`.
+- Run Python through `uv run` (or `uvx`), never bare `python`/`python3`; standalone scripts use `#!/usr/bin/env -S uv run --script`. `ci/test_uv_run.py` (part of `./lint`) enforces it; see the testing policy's "Python runs through uv" rule.
 - Pin `rust-toolchain.toml` to the latest Rust the CI soldr version supports natively, never beyond; bump it only after a soldr bump (see the testing policy).
 - Never edit existing C tests or public C headers to make a port pass.
 - Name crates, binaries and tags per

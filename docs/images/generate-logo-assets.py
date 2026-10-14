@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
 """Regenerate every obs-rust logo asset from one source image.
 
 Usage: uv run --with pillow python docs/images/generate-logo-assets.py SOURCE

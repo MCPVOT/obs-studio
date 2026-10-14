@@ -10,9 +10,12 @@ LIBDIR="$APPDIR/usr/lib"
 MULTIARCH="$(gcc -print-multiarch)"
 SYSLIB="/usr/lib/$MULTIARCH"
 
-# Libraries that must come from the host because they are tied to its kernel
-# driver or hardware stack. Everything else is bundled.
-EXCLUDE='^(linux-vdso|libcuda|libnvidia|libnvcuvid|libGLX_.*|libEGL_.*|libgallium|libvulkan_.*|libdrm_.*)'
+# Libraries that must come from the host because they are the GPU driver stack
+# (the AppImage excludelist): the host's Mesa/NVIDIA/VA-API drivers are built
+# against the host's copies of these and look for their backends in the host's
+# directories, so a bundled copy would shadow them through the relative RPATH
+# (obs-rust/obs-studio#625). Everything else is bundled.
+EXCLUDE='^(linux-vdso|libcuda|libnvidia|libnvcuvid|libGL\.so|libGLX|libEGL|libOpenGL|libGLdispatch|libGLESv|libglapi|libgbm|libdrm|libvulkan|libwayland-(client|egl|server)|libgallium|libLLVM)'
 
 mkdir -p "$LIBDIR" "$APPDIR/lib64"
 
@@ -128,14 +131,44 @@ if [ -e "$LIBDIR/libc.so.6" ]; then
         libthread_db*) continue ;; # a plugin of the debugger, which provides its ps_* symbols
         esac
         [ -e "$LIBDIR/$name" ] || { cp -aL "$lib" "$LIBDIR/$name"; echo "glibc ($glibc_pkg): $name"; }
+        echo "$name" >>"$PWD/.glibc-names.$$"
     done
 fi
+
+# --- the C and C++ runtime goes to its own directory (see AppRun) -------------
+# glibc, libstdc++ and libgcc_s must be switchable: a host with a newer glibc
+# runs its own Mesa/LLVM (built against that glibc and a newer libstdc++), which
+# cannot load against the bundled, older ones (obs-rust/obs-studio#621). AppRun
+# chooses at start. They are therefore NOT in usr/lib: the RPATH of every ELF
+# file ends with a fixed directory that AppRun fills with the bundled copies,
+# or leaves empty so that the host's are found.
+GLIBC_DIR="$APPDIR/glibc"
+mkdir -p "$GLIBC_DIR"
+if [ -e "$LIBDIR/libc.so.6" ]; then
+    { cat "$PWD/.glibc-names.$$"; echo libstdc++.so.6; echo libgcc_s.so.1; } | sort -u | while read -r name; do
+        if [ -e "$LIBDIR/$name" ]; then mv "$LIBDIR/$name" "$GLIBC_DIR/$name"; fi
+    done
+    rm -f "$PWD/.glibc-names.$$"
+fi
+cp -aL "$SYSLIB/ld-linux-x86-64.so.2" "$GLIBC_DIR/ld-linux-x86-64.so.2"
+# What AppRun compares the host against: the glibc version, and the newest
+# GLIBCXX symbol version libstdc++ provides.
+"$GLIBC_DIR/ld-linux-x86-64.so.2" --version | sed -n '1s/.*release version \([0-9][0-9]*\.[0-9][0-9]*\).*/\1/p' >"$GLIBC_DIR/GLIBC_VERSION"
+grep -a -o 'GLIBCXX_3\.4\.[0-9]*' "$GLIBC_DIR/libstdc++.so.6" | sed 's/.*\.//' | sort -n | tail -1 >"$GLIBC_DIR/GLIBCXX_MINOR"
+if [ ! -s "$GLIBC_DIR/GLIBC_VERSION" ] || [ ! -s "$GLIBC_DIR/GLIBCXX_MINOR" ]; then
+    echo "::error::cannot determine the bundled glibc/libstdc++ version" >&2
+    exit 1
+fi
+echo "bundled glibc $(cat "$GLIBC_DIR/GLIBC_VERSION"), GLIBCXX_3.4.$(cat "$GLIBC_DIR/GLIBCXX_MINOR")"
 
 # --- the dynamic loader (see AppRun) ---------------------------------------
 cp -aL "$SYSLIB/ld-linux-x86-64.so.2" "$APPDIR/lib64/ld-linux-x86-64.so.2"
 rm -f "$LIBDIR/ld-linux-x86-64.so.2"
-LOADER_HASH="$(sha256sum "$APPDIR/lib64/ld-linux-x86-64.so.2" | cut -c1-12)"
-LOADER="/tmp/.obs-rust-appimage-$LOADER_HASH/ld-linux-x86-64.so.2"
+# The directory name identifies this exact C/C++ runtime, so that a rebuild with
+# a different libstdc++ never reuses a stale copy of it in /tmp.
+LOADER_HASH="$(cd "$GLIBC_DIR" && find . -type f | sort | xargs sha256sum | sha256sum | cut -c1-12)"
+LOADER_DIR="/tmp/.obs-rust-appimage-$LOADER_HASH"
+LOADER="$LOADER_DIR/ld-linux-x86-64.so.2"
 
 # Every executable (not libraries) gets the bundled loader as interpreter.
 find "$APPDIR/usr" -type f -perm -u+x ! -name '*.so' ! -name '*.so.*' | while read -r f; do
@@ -147,7 +180,7 @@ done
 
 # --- relative RPATHs instead of an exported LD_LIBRARY_PATH (see set-runpaths.sh) ---
 unset LD_LIBRARY_PATH # patchelf and friends are host programs
-"$HERE/set-runpaths.sh" "$APPDIR"
+"$HERE/set-runpaths.sh" "$APPDIR" "$LOADER_DIR/lib"
 
 # --- desktop integration -----------------------------------------------------
 sed "s|@LOADER@|$LOADER|" "$HERE/AppRun" >"$APPDIR/AppRun"
@@ -162,7 +195,7 @@ ln -sf com.obsproject.Studio.png "$APPDIR/.DirIcon"
 # --- sanity: nothing may resolve outside the AppDir except the excluded host libs
 echo "::group::Libraries still resolved from the host"
 # (the binary's interpreter now points at the not-yet-installed loader, so ask the bundled one)
-"$APPDIR/lib64/ld-linux-x86-64.so.2" --library-path "$LIBDIR" --list "$APPDIR/usr/bin/obs" |
+"$APPDIR/lib64/ld-linux-x86-64.so.2" --library-path "$GLIBC_DIR:$LIBDIR" --list "$APPDIR/usr/bin/obs" |
     grep -v "$APPDIR" | grep '=> /' || true
 echo "::endgroup::"
 du -sh "$APPDIR"

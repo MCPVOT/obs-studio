@@ -1,13 +1,13 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
 """Local gate for obs-rust/obs-studio (zackees/ci.yml GATE-001..010).
 
 One entry point for everything CI's lint and unit-test jobs check, split into
 lanes that `ci-lint local-gate run` caches on their inputs and attests in the
 commit message (see local-gate.toml and ci-attestations.yml).
 
-    python3 ci/local_gate.py                 # every lane
-    python3 ci/local_gate.py --lane lint     # one lane
-    python3 ci/local_gate.py --lane lint --fix
+    uv run ci/local_gate.py                 # every lane
+    uv run ci/local_gate.py --lane lint     # one lane
+    uv run ci/local_gate.py --lane lint --fix
 
 Lanes:
   lint         clang-format 22.1.3 and gersemi 0.25.0 over the same files as
@@ -143,7 +143,7 @@ def clang_format(files: list[str], fix: bool) -> None:
     for r in failed:
         sys.stderr.write(r.stderr)
     if failed:
-        sys.exit("local_gate: clang-format check failed (fix with: python3 ci/local_gate.py --lane lint --fix)")
+        sys.exit("local_gate: clang-format check failed (fix with: uv run ci/local_gate.py --lane lint --fix)")
 
 
 def gersemi(files: list[str], fix: bool) -> None:

@@ -587,6 +587,32 @@ target_link_libraries(test_video_frame PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
 add_dependencies(cmocka-tests test_video_frame)
 add_test(test_video_frame ${CMAKE_CURRENT_BINARY_DIR}/test_video_frame)
 
+# cmocka_qt_runtime(<test> <Qt target>): lets a Qt-linked test find Qt at run
+# time outside the app bundle, through the test's environment: macOS gets the
+# directory holding the Qt frameworks on DYLD_FRAMEWORK_PATH (a build rpath
+# does not reach the binary under the Xcode generator), Windows gets Qt's bin
+# directory on PATH. Linux finds Qt through the system loader. The path is
+# resolved here: tests added with add_test(<name> <cmd>) get no generator
+# expressions in their properties.
+function(cmocka_qt_runtime test qt_target)
+  get_target_property(qt_location ${qt_target} LOCATION)
+  if(NOT qt_location)
+    return()
+  endif()
+  if(OS_MACOS)
+    # .../lib/QtCore.framework/Versions/A/QtCore -> .../lib
+    string(REGEX REPLACE "/[^/]+\\.framework/.*$" "" qt_dir "${qt_location}")
+    set_property(
+      TEST ${test}
+      APPEND
+      PROPERTY ENVIRONMENT_MODIFICATION "DYLD_FRAMEWORK_PATH=path_list_prepend:${qt_dir}"
+    )
+  elseif(OS_WINDOWS)
+    get_filename_component(qt_dir "${qt_location}" DIRECTORY)
+    set_property(TEST ${test} APPEND PROPERTY ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:${qt_dir}")
+  endif()
+endfunction()
+
 # One file per test from here on (obs-rust/obs-studio#137): add
 # tests.d/<test>.cmake instead of appending to this file, so concurrent PRs
 # that add tests do not conflict. Included in this directory's scope, so

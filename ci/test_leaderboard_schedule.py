@@ -1,7 +1,7 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
 """The contributor leaderboard refreshes every 4 hours.
 
-    python3 -m unittest ci/test_leaderboard_schedule.py
+    uv run python -m unittest ci/test_leaderboard_schedule.py
 """
 
 from __future__ import annotations

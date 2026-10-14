@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
 """obs-websocket v5 Tier 4 black-box suite.
 
 Language-independent wire-level tests: launches a real OBS process (headless,

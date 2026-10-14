@@ -81,6 +81,8 @@ for mode in OFF ON; do
     -DENABLE_UNIT_TESTS=ON \
     -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
     -DENABLE_RUST_LIBOBS="$mode" \
+    ${OBS_EXTRA_CFLAGS:+"-DCMAKE_C_FLAGS=$OBS_EXTRA_CFLAGS" "-DCMAKE_CXX_FLAGS=$OBS_EXTRA_CFLAGS"} \
+    ${OBS_EXTRA_CMAKE_ARGS:-} \
     -DENABLE_FRONTEND=OFF -DENABLE_SCRIPTING=OFF -DENABLE_BROWSER=OFF \
     -DENABLE_WEBSOCKET=OFF -DENABLE_AJA=OFF -DENABLE_WEBRTC=OFF \
     -DENABLE_NVENC=ON -DENABLE_QSV11=OFF -DENABLE_VST=OFF -DENABLE_WAYLAND=OFF \
@@ -88,6 +90,11 @@ for mode in OFF ON; do
     >"$build.configure.log" 2>&1 || { tail -40 "$build.configure.log"; exit 1; }
   cmake --build "$build" --target libobs cmocka-tests decklink obs-nvenc \
     >"$build.build.log" 2>&1 || { grep -E ": (fatal )?error|FAILED:" "$build.build.log" | sort -u | head -40; exit 1; }
+  if [ -n "${OBS_EXTRA_CFLAGS:-}" ]; then
+    # Measuring extra flags: show what they report (#516).
+    echo "== [$mode] warnings"
+    grep -E ': warning: ' "$build.build.log" | sort -u || true
+  fi
 
   echo "== [$mode] ctest"
   ctest --test-dir "$build" --output-on-failure
