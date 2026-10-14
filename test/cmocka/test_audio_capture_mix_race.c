@@ -6,6 +6,7 @@
 #include <stddef.h>
 #include <setjmp.h>
 #include <cmocka.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 #include <obs.h>
@@ -51,10 +52,11 @@ static void capture_destroy(void *data)
 
 static void quiet_log(int level, const char *format, va_list args, void *param)
 {
-	(void)level;
-	(void)format;
-	(void)args;
 	(void)param;
+	if (level <= LOG_WARNING) {
+		vfprintf(stderr, format, args);
+		fputc('\n', stderr);
+	}
 }
 
 static void mixed_audio(void *param, size_t mix, struct audio_data *audio)

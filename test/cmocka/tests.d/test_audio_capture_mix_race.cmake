@@ -12,7 +12,8 @@ if(OS_LINUX AND TARGET OBS::libobs-opengl)
   if(XVFB_RUN_EXECUTABLE)
     add_test(
       NAME test_audio_capture_mix_race
-      COMMAND "${XVFB_RUN_EXECUTABLE}" -a "$<TARGET_FILE:test_audio_capture_mix_race>"
+      COMMAND
+        "${XVFB_RUN_EXECUTABLE}" -a -s "-screen 0 1280x1024x24 -noreset" "$<TARGET_FILE:test_audio_capture_mix_race>"
       WORKING_DIRECTORY "${OBS_OUTPUT_DIR}/$<CONFIG>"
     )
   else()
