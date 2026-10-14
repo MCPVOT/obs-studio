@@ -53,6 +53,11 @@ this document covers *who does what, and when*.
   (AGENTS.md) is recommended, not required: a stamped head lets CI skip the
   Linux unit-test jobs, and without a stamp PR CI runs the full suite. Do not
   build fork or self-hosted CI to pre-validate PRs.
+- **Fork PRs:** Actions asks a maintainer to approve workflow runs only for a
+  first-time contributor's first PR (repository setting "Require approval for
+  first-time contributors"). Once a PR of yours has merged, later fork PRs
+  start CI as soon as they are opened. On a first PR, a maintainer approves
+  the run; ping one in the PR if it waits more than a few hours.
 - `Fixes #N` only when the PR completes the issue; otherwise `Refs #N`, and
   tick the tracking-issue checkbox when it merges.
 - **Draft status:** mark the PR ready when it is ready. If you move a PR back
