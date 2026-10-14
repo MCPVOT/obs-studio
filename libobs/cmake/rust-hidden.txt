@@ -8,6 +8,11 @@ wchar_to_utf8
 # platform-nix.c: obs-module.c calls this inside libobs. The C file is not
 # exported (no EXPORT). The unix shim is hidden the same way.
 get_plugin_info
+# platform-windows.c: obs-windows.c and obs-win-crash-handler.c call
+# get_win_release_id inside libobs. The C file does not export it.
+# DllMain is the DLL entry, not an EXPORT symbol.
+get_win_release_id
+DllMain
 # video-io.c: not EXPORT. obs.c, obs-encoder.c, and obs-video-gpu-encode.c
 # call them inside libobs. -fvisibility=hidden keeps them out of libobs.so.
 video_output_inc_texture_encoders

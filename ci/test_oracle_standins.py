@@ -26,15 +26,12 @@ DEFINITION = re.compile(
 
 # Stand-ins that intentionally differ from libobs, and why.
 DIFFERENT = {
-    "os_breakpoint": "test-only empty stub (weak on Unix so the Rust shim wins)",
-    "os_oom": "test-only empty stub (weak on Unix so the Rust shim wins)",
-    "os_gettime_ns": "test-only zero clock where no Rust shim exists (macOS, Windows)",
+    "os_gettime_ns": "test-only zero clock where no Rust shim exists (macOS)",
     "os_fread_utf8": "ftell/memcmp instead of os_ftelli64/astrcmp_n: same result below 2 GiB, "
     "and test_stubs.c links without dstr",
     "os_fopen": "the libobs #ifdef _WIN32 body split into one definition per platform",
     "os_fseeki64": "the libobs #ifdef _MSC_VER body split into one definition per platform",
     "os_ftelli64": "the libobs #ifdef _MSC_VER body split into one definition per platform",
-    "os_file_exists": "platform-windows.c logic over a malloc'd wide path (config_file_host.c has no bmem)",
 }
 
 
