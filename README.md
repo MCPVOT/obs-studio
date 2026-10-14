@@ -69,6 +69,11 @@ version) - see the accompanying COPYING file for more details.
 - Code for the project follows the code style guidelines, located
   here: https://github.com/obs-rust/obs-studio/blob/master/CODESTYLE.md
 
+- Before building, testing or pushing (people and AI agents alike), read the
+  CI and build tooling guide, which explains how to avoid overloading the
+  shared machines and CI:
+  [docs/ci-tooling.md](docs/ci-tooling.md)
+
 - Developer/API documentation can be found here:
   https://obsproject.com/docs
 
