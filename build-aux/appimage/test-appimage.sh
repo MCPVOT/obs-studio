@@ -259,6 +259,14 @@ if [ -n "${EXPECT_RUST_VERSION:-}" ] && [[ "$VERSION_OUT" != "OBS-Studio-Rust $E
     exit 1
 fi
 
+# Release candidates must retain updater information in the actual runtime.
+# The workflow's asset_metadata.py check verifies its zsync against this file.
+if [ -n "${EXPECT_APPIMAGE_UPDATE:-}" ]; then
+    UPDATE_INFO="$("$APPIMAGE" --appimage-updateinformation)"
+    [[ "$UPDATE_INFO" == gh-releases-zsync\|*\|*\|continuous\|OBS-Studio-Rust-\*-linux-x86_64.AppImage.zsync ]] ||
+        { echo "::error::missing or stale AppImage update target: $UPDATE_INFO"; exit 1; }
+fi
+
 "$APPIMAGE" --appimage-extract >/dev/null
 APPDIR="$PWD/squashfs-root"
 LOADER="$APPDIR/lib64/ld-linux-x86-64.so.2"

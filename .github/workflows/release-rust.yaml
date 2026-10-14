@@ -457,10 +457,9 @@ jobs:
             echo "::error::$TAG appeared while this run was building; not overwriting it"
             exit 1
           fi
-          # The AppImage joins the packages under the release's naming scheme. Copy,
-          # don't move: the continuous step below uploads it from appimage/ with
-          # its .zsync, under the OBS_Studio-* name baked into the update info.
-          cp appimage/OBS_Studio-*-x86_64.AppImage "dist/OBS-Studio-Rust-$VERSION-linux-x86_64.AppImage"
+          # Preserve the name and zsync metadata generated from the executable.
+          # Copy both so the same artifacts remain available to continuous.
+          cp appimage/OBS-Studio-Rust-*-linux-x86_64.AppImage* dist/
           uv run --no-project ci/release_decision.py assets --version "$VERSION" dist
           cd dist
           files=(OBS-Studio-Rust-*)
@@ -495,8 +494,7 @@ jobs:
       # The rolling continuous AppImage moves only here, after the gate and every
       # build passed (#624), and in place: upload the new files over the old
       # (--clobber), then move the tag. The release and its URLs never disappear.
-      # Asset names keep the OBS_Studio-* scheme baked into the AppImage's update
-      # information (the .zsync name).
+      # Daily and continuous releases use the same names and updater metadata.
       - name: Move the continuous build 🔄
         env:
           GH_TOKEN: ${{ github.token }}
@@ -508,14 +506,14 @@ jobs:
           cat >notes.md <<EOF
           Rolling build of OBS-Studio-Rust from \`master\`, currently [\`${SHA:0:9}\`](https://github.com/$GITHUB_REPOSITORY/commit/$SHA). Replaced daily by the release build, once the release gate passes and the AppImage passes its tests on Debian, Ubuntu and Fedora, including a saved profile that records a PipeWire screen capture, camera and microphone.
 
-          **Pre-release.** \`chmod +x OBS_Studio-*-x86_64.AppImage && ./OBS_Studio-*-x86_64.AppImage\`. AppRun selects the host runtime on newer systems and uses the bundled runtime on older systems; GPU drivers come from the host. The \`.zsync\` file lets AppImageUpdate fetch the next build as a delta. Limits and troubleshooting: \`build-aux/appimage/README.md\`.
+          **Pre-release.** \`chmod +x OBS-Studio-Rust-*-linux-x86_64.AppImage && ./OBS-Studio-Rust-*-linux-x86_64.AppImage\`. AppRun selects the host runtime on newer systems and uses the bundled runtime on older systems; GPU drivers come from the host. The \`.zsync\` file lets AppImageUpdate fetch the next build as a delta. Limits and troubleshooting: \`build-aux/appimage/README.md\`.
           EOF
           if gh release view continuous --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload continuous --repo "$GITHUB_REPOSITORY" --clobber \
-              OBS_Studio-*-x86_64.AppImage OBS_Studio-*-x86_64.AppImage.zsync
+              OBS-Studio-Rust-*-linux-x86_64.AppImage OBS-Studio-Rust-*-linux-x86_64.AppImage.zsync
             # The names carry the commit, so --clobber leaves the previous
             # build's files; drop every asset this run did not upload.
-            keep=" $(printf '%s ' OBS_Studio-*-x86_64.AppImage OBS_Studio-*-x86_64.AppImage.zsync)"
+            keep=" $(printf '%s ' OBS-Studio-Rust-*-linux-x86_64.AppImage OBS-Studio-Rust-*-linux-x86_64.AppImage.zsync)"
             gh release view continuous --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' |
               while read -r name; do
                 case "$keep" in *" $name "*) ;; *) gh release delete-asset continuous "$name" --repo "$GITHUB_REPOSITORY" --yes ;; esac
@@ -526,5 +524,5 @@ jobs:
           else
             gh release create continuous --repo "$GITHUB_REPOSITORY" --target "$SHA" --prerelease \
               --title "OBS-Studio-Rust continuous build" --notes-file notes.md \
-              OBS_Studio-*-x86_64.AppImage OBS_Studio-*-x86_64.AppImage.zsync
+              OBS-Studio-Rust-*-linux-x86_64.AppImage OBS-Studio-Rust-*-linux-x86_64.AppImage.zsync
           fi
