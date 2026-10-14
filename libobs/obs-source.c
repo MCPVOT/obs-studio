@@ -5442,11 +5442,15 @@ static void custom_audio_render(obs_source_t *source, uint32_t mixers, size_t ch
 	}
 
 	success = source->info.audio_render(source->context.data, &ts, &audio_data, mixers, channels, sample_rate);
+	/* The callback may render other sources or submit capture audio. */
+	pthread_mutex_lock(&source->audio_buf_mutex);
 	source->audio_ts = success ? ts : 0;
 	source->audio_pending = !success;
 
-	if (!success || !source->audio_ts || !mixers)
+	if (!success || !source->audio_ts || !mixers) {
+		pthread_mutex_unlock(&source->audio_buf_mutex);
 		return;
+	}
 
 	for (size_t mix = 0; mix < MAX_AUDIO_MIXES; mix++) {
 		uint32_t mix_bit = 1 << mix;
@@ -5460,6 +5464,7 @@ static void custom_audio_render(obs_source_t *source, uint32_t mixers, size_t ch
 	}
 
 	apply_audio_volume(source, mixers, channels, sample_rate);
+	pthread_mutex_unlock(&source->audio_buf_mutex);
 }
 
 static void audio_submix(obs_source_t *source, size_t channels, size_t sample_rate)
@@ -5499,7 +5504,7 @@ static inline void process_audio_source_tick(obs_source_t *source, uint32_t mixe
 
 	pthread_mutex_lock(&source->audio_buf_mutex);
 
-	if (source->audio_input_buf[0].size < size) {
+	if (!source->audio_ts || source->audio_input_buf[0].size < size) {
 		source->audio_pending = true;
 		pthread_mutex_unlock(&source->audio_buf_mutex);
 		return;
@@ -5507,8 +5512,6 @@ static inline void process_audio_source_tick(obs_source_t *source, uint32_t mixe
 
 	for (size_t ch = 0; ch < channels; ch++)
 		deque_peek_front(&source->audio_input_buf[ch], source->audio_output_buf[0][ch], size);
-
-	pthread_mutex_unlock(&source->audio_buf_mutex);
 
 	for (size_t mix = 1; mix < MAX_AUDIO_MIXES; mix++) {
 		uint32_t mix_and_val = (1 << mix);
@@ -5532,6 +5535,7 @@ static inline void process_audio_source_tick(obs_source_t *source, uint32_t mixe
 
 	if (audio_submix) {
 		source->audio_pending = false;
+		pthread_mutex_unlock(&source->audio_buf_mutex);
 		return;
 	}
 
@@ -5540,6 +5544,7 @@ static inline void process_audio_source_tick(obs_source_t *source, uint32_t mixe
 
 	apply_audio_volume(source, mixers, channels, sample_rate);
 	source->audio_pending = false;
+	pthread_mutex_unlock(&source->audio_buf_mutex);
 }
 
 void obs_source_audio_render(obs_source_t *source, uint32_t mixers, size_t channels, size_t sample_rate, size_t size)
@@ -5562,11 +5567,6 @@ void obs_source_audio_render(obs_source_t *source, uint32_t mixers, size_t chann
 		audio_submix(source, channels, sample_rate);
 	}
 
-	if (!source->audio_ts) {
-		source->audio_pending = true;
-		return;
-	}
-
 	process_audio_source_tick(source, mixers, channels, sample_rate, size);
 }
 
@@ -5583,7 +5583,14 @@ bool obs_source_audio_pending(const obs_source_t *source)
 
 uint64_t obs_source_get_audio_timestamp(const obs_source_t *source)
 {
-	return obs_source_valid(source, "obs_source_get_audio_timestamp") ? source->audio_ts : 0;
+	if (!obs_source_valid(source, "obs_source_get_audio_timestamp"))
+		return 0;
+	/* Locking synchronizes the read without changing the logical source. */
+	pthread_mutex_t *mutex = (pthread_mutex_t *)(uintptr_t)&source->audio_buf_mutex;
+	pthread_mutex_lock(mutex);
+	uint64_t timestamp = source->audio_ts;
+	pthread_mutex_unlock(mutex);
+	return timestamp;
 }
 
 void obs_source_get_audio_mix(const obs_source_t *source, struct obs_source_audio_mix *audio)

@@ -133,7 +133,9 @@ package() {
     output_name="${output_name}-macos-${(L)arch_names[${target##*-}]}"
 
     local volume_name
-    if (( commit_distance > 0 )) {
+    if [[ -n "${OBS_RUST_VERSION:-}" ]] {
+      volume_name="OBS-Studio-Rust ${OBS_RUST_VERSION} (${arch_names[${target##*-}]})"
+    } elif (( commit_distance > 0 )) {
       volume_name="OBS Studio ${commit_version}-${commit_hash} (${arch_names[${target##*-}]})"
     } else {
       volume_name="OBS Studio ${commit_version} (${arch_names[${target##*-}]})"

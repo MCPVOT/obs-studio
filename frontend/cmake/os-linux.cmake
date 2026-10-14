@@ -36,7 +36,24 @@ if(NOT DEFINED GIT_HASH)
   endif()
 endif()
 
-configure_file(cmake/linux/com.obsproject.Studio.metainfo.xml.in com.obsproject.Studio.metainfo.xml)
+# The Rust build's release is its own version, linked to its own release page (#631).
+set(_obs_metainfo_version "${OBS_VERSION}")
+if(ENABLE_RUST_LIBOBS)
+  set(OBS_VERSION "${OBS_RUST_VERSION}")
+endif()
+configure_file(cmake/linux/com.obsproject.Studio.metainfo.xml.in com.obsproject.Studio.metainfo.xml @ONLY)
+set(OBS_VERSION "${_obs_metainfo_version}")
+if(ENABLE_RUST_LIBOBS)
+  file(READ "${CMAKE_CURRENT_BINARY_DIR}/com.obsproject.Studio.metainfo.xml" _obs_metainfo)
+  string(
+    REPLACE
+    "https://github.com/obsproject/obs-studio/releases/tag/${OBS_RUST_VERSION}"
+    "https://github.com/obs-rust/obs-studio/releases/tag/obs-studio-rust-v${OBS_RUST_VERSION}"
+    _obs_metainfo
+    "${_obs_metainfo}"
+  )
+  file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/com.obsproject.Studio.metainfo.xml" "${_obs_metainfo}")
+endif()
 
 install(
   FILES "${CMAKE_CURRENT_BINARY_DIR}/com.obsproject.Studio.metainfo.xml"
