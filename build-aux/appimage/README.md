@@ -117,7 +117,7 @@ The release job publishes only after the tests pass on every distribution.
   (signal, system, environment, tail of the OBS log). If `gdb` is installed and
   the crash happened right after start, it runs OBS once more under `gdb` and
   adds the backtrace to the report.
-- `OBS_APPIMAGE_DEBUG=1 ./OBS_Studio-*.AppImage` prints the environment and, with
+- `OBS_APPIMAGE_DEBUG=1 ./OBS-Studio-*-linux-x86_64.AppImage` prints the environment and, with
   `gdb` installed, a backtrace.
 
 ## Updating the pinned `appimagetool`
@@ -126,3 +126,9 @@ The workflow downloads a tagged `appimagetool` release and verifies it with
 `sha256sum -c`. To update, change `APPIMAGETOOL_VERSION` and
 `APPIMAGETOOL_SHA256` in the workflow together; the checksum is the SHA-256 of
 `https://github.com/AppImage/appimagetool/releases/download/<tag>/appimagetool-x86_64.AppImage`.
+
+## Release assets and updates
+
+Rust AppImages are named `OBS-Studio-Rust-<reported-version>-linux-x86_64.AppImage`. The daily beta and `continuous` publish the same AppImage and `.zsync` names. Update information targets the canonical Rust `.zsync` pattern in `continuous`; collection copies both files without renaming them.
+
+`asset_metadata.py` verifies the actual executable identity and embedded update target, and checks the zsync filename, URL, length and whole-file SHA-1 against the AppImage before the portability tests. Release-candidate runtime tests also require the update target. Standalone builds may omit update information.
