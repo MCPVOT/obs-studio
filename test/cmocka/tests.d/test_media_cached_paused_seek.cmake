@@ -3,12 +3,7 @@ if(TARGET OBS::media-playback)
   target_include_directories(test_media_cached_paused_seek PRIVATE ${CMOCKA_INCLUDE_DIR})
   target_link_libraries(
     test_media_cached_paused_seek
-    PRIVATE
-      OBS::libobs
-      OBS::media-playback
-      FFmpeg::swscale
-      FFmpeg::swresample
-      ${CMOCKA_LIBRARIES}
+    PRIVATE OBS::libobs OBS::media-playback FFmpeg::swscale FFmpeg::swresample ${CMOCKA_LIBRARIES}
   )
   add_dependencies(cmocka-tests test_media_cached_paused_seek)
   add_test(
