@@ -129,10 +129,14 @@ runs:
       working-directory: ${{ inputs.workingDirectory }}
       run: |
         $Zip = Get-ChildItem "build_${{ inputs.target }}/obs-studio-*-windows-${{ inputs.target }}.zip" | Select-Object -First 1
-        # @(...) keeps these arrays: a bare if/else unwraps @('--run') to a
-        # string, and @Run then splats it one character at a time.
-        $Run = @(if ( '${{ inputs.target }}' -eq 'x64' ) { '--run' })
-        # The release build embeds its full version; the zip must report it (#631).
-        $Expect = @(if ( $Env:OBS_RUST_VERSION ) { '--expect-version'; $Env:OBS_RUST_VERSION })
-        uv run --no-project ci/windows_zip_check.py check $Zip.FullName @Run @Expect
+        $CheckArgs = @('check', $Zip.FullName)
+        if ( '${{ inputs.target }}' -eq 'x64' ) {
+          $CheckArgs += '--run'
+          # Cross-built ARM64 packages get this version check on their native
+          # runner. --expect-version requires executing the frontend.
+          if ( $Env:OBS_RUST_VERSION ) {
+            $CheckArgs += @('--expect-version', $Env:OBS_RUST_VERSION)
+          }
+        }
+        uv run --no-project ci/windows_zip_check.py @CheckArgs
         if ( $LASTEXITCODE -ne 0 ) { exit $LASTEXITCODE }

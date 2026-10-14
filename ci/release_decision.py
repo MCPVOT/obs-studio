@@ -29,6 +29,7 @@ def required_assets(version: str) -> list[str]:
         f"{p}-macos-arm64.dmg",
         f"{p}-macos-x86_64.dmg",
         f"{p}-windows-x64.zip",
+        f"{p}-windows-arm64.zip",
     ]
 
 
@@ -37,13 +38,23 @@ def missing_assets(version: str, present: list[str]) -> list[str]:
     return [a for a in required_assets(version) if a not in have]
 
 
-def may_publish(gate: str, build: str, appimage: str) -> bool:
+def may_publish(gate: str, build: str, appimage: str, verify_only: bool = False) -> bool:
     """Ship only when the gate and every platform build succeeded."""
-    return gate == build == appimage == "success"
+    return not verify_only and gate == build == appimage == "success"
 
 
-def check(event: str, ref: str, repair: bool, tag_exists: bool, tag_date: str, today: str) -> tuple[bool, bool]:
+def check(
+    event: str, ref: str, repair: bool, tag_exists: bool, tag_date: str, today: str, verify_only: bool = False
+) -> tuple[bool, bool]:
     """Return (skip, repair); raise ValueError for a refused run."""
+    if verify_only:
+        if event != "workflow_dispatch":
+            raise ValueError("verification is only available from a manual dispatch")
+        if repair:
+            raise ValueError("verification cannot repair or replace a release")
+        if tag_date != today:
+            raise ValueError(f"tag date {tag_date} is not today ({today}, UTC)")
+        return False, False
     if ref != MASTER_REF:
         raise ValueError(f"refusing to release {ref}: only {MASTER_REF} may publish the daily tag")
     if tag_date != today:
@@ -71,9 +82,11 @@ def main(argv: list[str]) -> int:
     c.add_argument("--tag-exists", required=True)
     c.add_argument("--tag-date", required=True)
     c.add_argument("--today", required=True)
+    c.add_argument("--verify-only", default="false")
     p = sub.add_parser("publish")
     for n in ("gate", "build", "appimage"):
         p.add_argument(f"--{n}", required=True)
+    p.add_argument("--verify-only", default="false")
     a = sub.add_parser("assets")
     a.add_argument("--version", required=True)
     a.add_argument("dir")
@@ -81,17 +94,24 @@ def main(argv: list[str]) -> int:
 
     if args.cmd == "check":
         try:
-            skip, repair = check(args.event, args.ref, _bool(args.repair), _bool(args.tag_exists), args.tag_date, args.today)
+            skip, repair = check(
+                args.event, args.ref, _bool(args.repair), _bool(args.tag_exists), args.tag_date, args.today,
+                verify_only=_bool(args.verify_only),
+            )
         except ValueError as e:
             print(f"::error::{e}", file=sys.stderr)
             return 1
         print(f"skip={str(skip).lower()}")
         print(f"repair={str(repair).lower()}")
+        print(f"verify_only={str(_bool(args.verify_only)).lower()}")
         return 0
     if args.cmd == "publish":
-        if may_publish(args.gate, args.build, args.appimage):
+        if may_publish(args.gate, args.build, args.appimage, verify_only=_bool(args.verify_only)):
             return 0
-        print(f"::error::not publishing: gate={args.gate} build={args.build} appimage={args.appimage}")
+        print(
+            f"::error::not publishing: gate={args.gate} build={args.build} appimage={args.appimage} "
+            f"verify_only={args.verify_only}"
+        )
         return 1
     missing = missing_assets(args.version, [f.name for f in Path(args.dir).iterdir()])
     if missing:

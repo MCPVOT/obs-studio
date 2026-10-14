@@ -1,17 +1,21 @@
 #!/usr/bin/env -S uv run --script
-"""The daily beta builds a package for every platform we ship (#628).
+"""The daily beta builds a package for every platform we ship (#628, #629).
 
     uv run python -m unittest ci/test_release_platforms.py
 
 release-rust.yaml's build matrix decides which packages a beta has. Intel
 Macs got nothing: the matrix had only macos/arm64, although the release gate
-already builds macOS x86_64.
+already builds macOS x86_64. Windows arm64 also needs its own package and
+Rust cross target on the x64 build runner.
 """
 
 from __future__ import annotations
 
+import os
 import re
+import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -26,6 +30,7 @@ REQUIRED = {
     ("macos", "arm64"),
     ("macos", "x86_64"),
     ("windows", "x64"),
+    ("windows", "arm64"),
 }
 
 
@@ -64,6 +69,60 @@ class ReleasePlatformsTest(unittest.TestCase):
     def test_collect_finds_the_intel_dmg(self):
         # package-obs names the x86_64 DMG *-macos-intel.dmg, not -apple.
         self.assertIn("kind=intel", self.text, "Collect and verify looks only for -apple.dmg")
+
+    def test_collect_selects_each_windows_architecture(self):
+        # Execute the workflow's selector with both packages present. An
+        # arm64 leg must never silently collect the x64 zip (#629).
+        case = re.search(r'case "\$OS" in\n(.*?)\n\s+esac', self.text, re.S)
+        self.assertIsNotNone(case, "no package selector in the build job")
+        script = case.group(0) + '\nprintf "%s\\n" "${found[@]}"\n'
+        with tempfile.TemporaryDirectory() as clean:
+            for target in ("x64", "arm64"):
+                directory = Path(clean) / f"build_{target}"
+                directory.mkdir()
+                (directory / f"obs-studio-33.0.0-windows-{target}.zip").touch()
+            for target in ("x64", "arm64"):
+                with self.subTest(target=target):
+                    result = subprocess.run(
+                        ["bash", "-euc", script],
+                        cwd=clean,
+                        env={**os.environ, "OS": "windows", "TARGET": target},
+                        check=True,
+                        capture_output=True,
+                        text=True,
+                    )
+                    self.assertEqual(
+                        result.stdout.strip(),
+                        f"build_{target}/obs-studio-33.0.0-windows-{target}.zip",
+                    )
+
+    def test_release_refuses_missing_windows_arm64_zip(self):
+        version = "0.1.0-beta.20261013"
+        arm64 = f"OBS-Studio-Rust-{version}-windows-arm64.zip"
+        present = [name for name in release_decision.required_assets(version) if name != arm64]
+        self.assertEqual(release_decision.missing_assets(version, present), [arm64])
+
+    def test_windows_arm64_rust_target_is_installed_before_build(self):
+        steps = self.text.split("      - name: ")
+        provision = next(
+            (step for step in steps if "run: rustup target add aarch64-pc-windows-msvc" in step), None
+        )
+        self.assertIsNotNone(provision, "the x64 runner needs Rust's Windows arm64 standard library")
+        self.assertIn("matrix.os == 'windows'", provision)
+        self.assertIn("matrix.target == 'arm64'", provision)
+        build_index = next(i for i, step in enumerate(steps) if step.startswith("Build OBS-Studio-Rust"))
+        self.assertLess(steps.index(provision), build_index)
+
+    def test_release_appimage_call_explicitly_enables_rust(self):
+        call = re.search(r"^  appimage:\n(.*?)^  gate:", self.text, re.M | re.S)
+        self.assertIsNotNone(call)
+        self.assertTrue("rust_libobs: true" in call.group(1), "manual release calls can build a C-only AppImage")
+
+    def test_called_appimage_accepts_the_rust_build_option(self):
+        text = (ROOT / ".github/workflows/appimage.yaml").read_text()
+        call = re.search(r"^  workflow_call:\n(.*?)^  pull_request:", text, re.M | re.S)
+        self.assertIsNotNone(call)
+        self.assertRegex(call.group(1), r"rust_libobs:\n\s+description:.*\n\s+type: boolean")
 
     def test_release_requires_every_built_package(self):
         # The release refuses to publish without these (#622); a leg the

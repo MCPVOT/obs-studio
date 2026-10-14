@@ -5,6 +5,8 @@ run-name: Daily OBS-Studio-Rust beta 🦀
 # publishes an unsigned GitHub pre-release tagged
 # obs-studio-rust-v<rust/libobs-rust version>-beta.<YYYYMMDD>.
 #   gh workflow run release-rust.yaml      # today's release now
+#   gh workflow run release-rust.yaml --ref <branch> -f verify_only=true
+#     builds the same candidate packages and gate without publishing anything.
 # Release gate (obs-rust/obs-studio#436): the full CI run (Flatpak, every OBS
 # build, Tier 2 on all OSes) moved out of PRs and master pushes and runs here
 # at the candidate SHA; nothing is published unless it passes. The release's
@@ -24,10 +26,14 @@ on:
         description: Replace or complete today's release if its tag already exists (master only)
         type: boolean
         default: false
+      verify_only:
+        description: Build and verify candidate packages from this ref without publishing
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
-  group: release-rust
+  group: ${{ inputs.verify_only && format('verify-rust-{0}', github.ref) || 'release-rust' }}
   cancel-in-progress: false
 jobs:
   check:
@@ -40,6 +46,7 @@ jobs:
       crate: ${{ steps.check.outputs.crate }}
       skip: ${{ steps.check.outputs.skip }}
       repair: ${{ steps.check.outputs.repair }}
+      verify_only: ${{ steps.check.outputs.verify_only }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -49,6 +56,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           REPAIR: ${{ inputs.repair }}
+          VERIFY_ONLY: ${{ inputs.verify_only }}
         run: |
           set -euo pipefail
           crate=$(sed -n 's/^version = "\(.*\)"/\1/p' rust/libobs-rust/Cargo.toml | head -1)
@@ -62,7 +70,8 @@ jobs:
           # Refuses non-master refs and stale dates; decides skip/repair.
           decision=$(uv run --no-project ci/release_decision.py check \
             --event "$GITHUB_EVENT_NAME" --ref "$GITHUB_REF" --repair "$REPAIR" \
-            --tag-exists "$exists" --tag-date "${version##*.}" --today "$(date -u +%Y%m%d)")
+            --tag-exists "$exists" --tag-date "${version##*.}" --today "$(date -u +%Y%m%d)" \
+            --verify-only "$VERIFY_ONLY")
           echo "$decision"
           {
             echo "crate=$crate"
@@ -93,6 +102,9 @@ jobs:
           - os: windows
             runner: windows-2025-vs2026
             target: x64
+          - os: windows
+            runner: windows-2025-vs2026
+            target: arm64
     runs-on: ${{ matrix.runner }}
     env:
       # The full release string: the build embeds it (log banner, About, bundle,
@@ -142,6 +154,12 @@ jobs:
         if: matrix.os == 'macos' && matrix.target == 'x86_64'
         run: rustup target add x86_64-apple-darwin
 
+      # Corrosion infers aarch64-pc-windows-msvc from the ARM64 Visual Studio
+      # preset, but the x64 runner still needs its standard library installed.
+      - name: Add the Rust Windows arm64 target 🦀
+        if: matrix.os == 'windows' && matrix.target == 'arm64'
+        run: rustup target add aarch64-pc-windows-msvc
+
       - name: Build OBS-Studio-Rust 🧱
         uses: ./.github/actions/build-obs
         with:
@@ -168,7 +186,7 @@ jobs:
             linux) found=(build_ubuntu/obs-studio-*-x86_64-ubuntu-gnu.deb) ;;
             macos) [ "$TARGET" = x86_64 ] && kind=intel || kind=apple
               found=(build_macos/obs-studio-*-macos-$kind.dmg) ;;
-            windows) found=(build_x64/obs-studio-*-windows-x64.zip) ;;
+            windows) found=(build_${TARGET}/obs-studio-*-windows-${TARGET}.zip) ;;
           esac
           src=${found[0]}
           [ -f "$src" ] || { echo "::error::no $OS package found"; exit 1; }
@@ -202,8 +220,11 @@ jobs:
               echo "$key=$got"
               [ "$got" = "$VERSION" ] || { echo "::error::$key is '$got', want '$VERSION'"; exit 1; }
             done
-            # PlistBuddy cannot read a pipe; plutil reads stdin with "-".
-            vol=$(diskutil info -plist "$mnt" | plutil -extract VolumeName raw -o - -)
+            # PlistBuddy requires a regular file; reading standard input
+            # reports "Cannot parse a NULL or zero-length data" on macOS.
+            disk_info="$RUNNER_TEMP/obs-dmg-info-$TARGET.plist"
+            diskutil info -plist "$mnt" > "$disk_info"
+            vol=$(/usr/libexec/PlistBuddy -c "Print :VolumeName" "$disk_info")
             echo "volume: $vol"
             [[ "$vol" == "OBS-Studio-Rust $VERSION "* ]] || { echo "::error::DMG volume is '$vol'"; exit 1; }
             if [ "$TARGET" = arm64 ]; then
@@ -232,12 +253,59 @@ jobs:
       ref: ${{ needs.check.outputs.sha }}
       publish_continuous: true
       rust_version: ${{ needs.check.outputs.version }}
+      rust_libobs: true
     # A called workflow may not ask for more than its caller grants, and
     # appimage.yaml's release job asks for contents: write (it only runs on a
     # push, never from here). Granting less made GitHub refuse to start this
     # whole workflow (startup_failure), so no daily beta was published.
     permissions:
       contents: write
+
+  windows_arm64_smoke:
+    name: Launch packaged Windows arm64 🧪
+    needs: [check, build]
+    if: always() && needs.check.result == 'success' && needs.check.outputs.skip != 'true'
+    runs-on: windows-11-vs2026-arm
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ needs.check.outputs.sha }}
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: obs-studio-rust-windows-arm64
+          path: arm64-package
+      - name: Reload saved capture profile and reject a missing camera plugin
+        shell: pwsh
+        env:
+          VERSION: ${{ needs.check.outputs.version }}
+        run: |
+          $Zip = Get-ChildItem 'arm64-package/*-windows-arm64.zip' | Select-Object -First 1
+          if ( -not $Zip ) { throw 'Windows arm64 release package is missing' }
+          uv run --no-project ci/windows_zip_check.py check $Zip.FullName --run --expect-version $env:VERSION
+          if ( $LASTEXITCODE -ne 0 ) { exit $LASTEXITCODE }
+          $PackageRoot = Join-Path $env:RUNNER_TEMP 'obs-arm64-package'
+          Expand-Archive -LiteralPath $Zip.FullName -DestinationPath $PackageRoot
+          $App = Join-Path $PackageRoot 'bin/64bit/obs64.exe'
+          $Config = Join-Path $env:APPDATA 'obs-studio'
+          uv run --no-project test/packaged-startup.py --app $App --config-dir $Config --platform windows --expect-arch arm64
+          if ( $LASTEXITCODE -ne 0 ) { exit $LASTEXITCODE }
+
+          # Prove this check detects a capture module removed from the real
+          # package, not merely that an empty frontend can start.
+          $CameraDll = Get-ChildItem (Join-Path $PackageRoot 'core') -Recurse -Filter 'win-dshow.dll'
+          if ( @($CameraDll).Count -ne 1 ) { throw 'Expected one packaged DirectShow camera module' }
+          Move-Item -LiteralPath $CameraDll.FullName -Destination "$($CameraDll.FullName).removed-for-test"
+          $Failure = uv run --no-project test/packaged-startup.py --app $App --config-dir $Config --platform windows --expect-arch arm64 2>&1
+          $FailedExit = $LASTEXITCODE
+          $Failure | Write-Output
+          if ( $FailedExit -eq 0 -or "$Failure" -notmatch 'capture plugins are missing.*dshow_input' ) {
+            throw 'Packaged startup check did not detect the missing camera module'
+          }
+          # The expected failure was verified; clear its native exit status for
+          # the Actions PowerShell wrapper.
+          $global:LASTEXITCODE = 0
 
   # The release gate: every job the dev cycle skips (#436), at this commit.
   gate:
@@ -253,13 +321,15 @@ jobs:
 
   release:
     name: Publish pre-release 🚀
-    needs: [check, gate, build, appimage]
+    needs: [check, gate, build, appimage, windows_arm64_smoke]
     # Only a complete release: the full gate and every platform build (and the
     # AppImage with its tests) must have succeeded (#622). Nothing ships partially.
     if: >-
       always() && needs.check.result == 'success' && needs.check.outputs.skip != 'true'
+      && needs.check.outputs.verify_only != 'true'
       && needs.gate.result == 'success' && needs.build.result == 'success'
       && needs.appimage.result == 'success'
+      && needs.windows_arm64_smoke.result == 'success'
     runs-on: ubuntu-26.04
     permissions:
       contents: write
@@ -288,12 +358,13 @@ jobs:
           SHA: ${{ needs.check.outputs.sha }}
           VERSION: ${{ needs.check.outputs.version }}
           REPAIR: ${{ needs.check.outputs.repair }}
+          VERIFY_ONLY: ${{ needs.check.outputs.verify_only }}
           GATE: ${{ needs.gate.result }}
           BUILD: ${{ needs.build.result }}
           APPIMAGE: ${{ needs.appimage.result }}
         run: |
           set -euo pipefail
-          uv run --no-project ci/release_decision.py publish --gate "$GATE" --build "$BUILD" --appimage "$APPIMAGE"
+          uv run --no-project ci/release_decision.py publish --gate "$GATE" --build "$BUILD" --appimage "$APPIMAGE" --verify-only "$VERIFY_ONLY"
           # Re-check the tag: another run may have released since `check` (#623).
           exists=false
           if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" >/dev/null 2>&1; then exists=true; fi

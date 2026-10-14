@@ -14,6 +14,11 @@ on:
       - '**.md'
   workflow_call:
     inputs:
+      rust_libobs:
+        description: Build libobs with the Rust ports (ENABLE_RUST_LIBOBS)
+        type: boolean
+        required: false
+        default: true
       ref:
         description: The commit to build (defaults to the caller's)
         type: string
