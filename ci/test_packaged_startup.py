@@ -11,6 +11,7 @@ import json
 import struct
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -20,6 +21,16 @@ spec.loader.exec_module(smoke)
 
 
 class PackagedStartupTest(unittest.TestCase):
+    def test_fixture_must_target_the_frontends_actual_config_directory(self):
+        with tempfile.TemporaryDirectory() as root, patch.dict("os.environ", {"APPDATA": root}):
+            smoke.require_config_directory(Path(root) / "obs-studio", "windows")
+            with self.assertRaisesRegex(RuntimeError, "frontend configuration"):
+                smoke.require_config_directory(Path(root) / "unrelated", "windows")
+        with patch.object(Path, "home", return_value=Path("/example")):
+            smoke.require_config_directory(Path("/example/Library/Application Support/obs-studio"), "macos")
+            with self.assertRaisesRegex(RuntimeError, "frontend configuration"):
+                smoke.require_config_directory(Path("/example/unrelated"), "macos")
+
     def inputs(self, platform):
         return [
             {"inputName": name, "inputKind": kind, "unversionedInputKind": kind}
