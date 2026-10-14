@@ -469,7 +469,7 @@ jobs:
           cat >notes.md <<EOF
           Daily beta of OBS-Studio-Rust $VERSION: OBS Studio built with \`ENABLE_RUST_LIBOBS=ON\`, so the ported libobs internals run from Rust. Built from [\`${SHA:0:9}\`](https://github.com/$GITHUB_REPOSITORY/commit/$SHA).
 
-          **Pre-release.** macOS packages are signed and notarized when the project's release credentials are configured. For an unnotarized download, copy OBS.app to Applications and try opening it, then choose **System Settings → Privacy & Security → Open Anyway**. For a download you trust, the Terminal alternative is \`xattr -dr com.apple.quarantine /Applications/OBS.app\`; it removes quarantine from that app only. See [Apple's guidance](https://support.apple.com/102445).
+          **Daily beta.** macOS packages are signed and notarized when the project's release credentials are configured. For an unnotarized download, copy OBS.app to Applications and try opening it, then choose **System Settings → Privacy & Security → Open Anyway**. For a download you trust, the Terminal alternative is \`xattr -dr com.apple.quarantine /Applications/OBS.app\`; it removes quarantine from that app only. See [Apple's guidance](https://support.apple.com/102445).
 
           Windows: SmartScreen will warn. Linux: \`sudo apt install ./OBS-Studio-Rust-$VERSION-linux-x86_64.deb\` (Ubuntu 26.04), or the AppImage for any distribution: \`chmod +x OBS-Studio-Rust-$VERSION-linux-x86_64.AppImage\` and run it.
 
@@ -480,14 +480,14 @@ jobs:
             gh api -X PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/$TAG" -f sha="$SHA" -F force=true >/dev/null
             if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
               gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber "${files[@]}" SHA256SUMS
-              gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --prerelease \
+              gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --prerelease=false --latest \
                 --title "OBS-Studio-Rust v$VERSION" --notes-file notes.md
             else
-              gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --prerelease \
+              gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --latest \
                 --title "OBS-Studio-Rust v$VERSION" --notes-file notes.md "${files[@]}" SHA256SUMS
             fi
           else
-            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$SHA" --prerelease \
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$SHA" --latest \
               --title "OBS-Studio-Rust v$VERSION" --notes-file notes.md \
               "${files[@]}" SHA256SUMS
           fi

@@ -54,7 +54,7 @@ class ReleaseStepPitfallsTest(unittest.TestCase):
         # "Latest" release; the front page still offered obs-stream-rust v0.1.0.
         text = (ROOT / ".github" / "workflows" / "release-rust.yaml").read_text()
         for m in re.finditer(r'gh release (?:create|edit) "\$TAG"[^\n]*(?:\\\n[^\n]*)*', text):
-            self.assertNotIn("--prerelease", m.group(0))
+            self.assertIsNone(re.search(r"--prerelease(?!=false)", m.group(0)), m.group(0))
             self.assertIn("--latest", m.group(0))
 
 
