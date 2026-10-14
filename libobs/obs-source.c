@@ -4657,6 +4657,7 @@ int64_t obs_source_get_sync_offset(const obs_source_t *source)
 struct source_enum_data {
 	obs_source_enum_proc_t enum_callback;
 	void *param;
+	obs_source_t *stop_source;
 };
 
 static void enum_source_active_tree_callback(obs_source_t *parent, obs_source_t *child, void *param)
@@ -4724,6 +4725,12 @@ void obs_source_enum_active_tree(obs_source_t *source, obs_source_enum_proc_t en
 static void enum_source_full_tree_callback(obs_source_t *parent, obs_source_t *child, void *param)
 {
 	struct source_enum_data *data = param;
+	/* Child admission can hold stop_source's nonrecursive transition mutex.
+	 * Report that edge before descending, even if a plugin changed the tree. */
+	if (child == data->stop_source) {
+		data->enum_callback(parent, child, data->param);
+		return;
+	}
 	bool is_transition = child->info.type == OBS_SOURCE_TYPE_TRANSITION;
 
 	if (is_transition)
@@ -4741,9 +4748,10 @@ static void enum_source_full_tree_callback(obs_source_t *parent, obs_source_t *c
 	data->enum_callback(parent, child, data->param);
 }
 
-void obs_source_enum_full_tree(obs_source_t *source, obs_source_enum_proc_t enum_callback, void *param)
+static void enum_source_full_tree(obs_source_t *source, obs_source_enum_proc_t enum_callback, void *param,
+				  obs_source_t *stop_source)
 {
-	struct source_enum_data data = {enum_callback, param};
+	struct source_enum_data data = {enum_callback, param, stop_source};
 	bool is_transition;
 
 	if (!data_valid(source, "obs_source_enum_full_tree"))
@@ -4768,6 +4776,11 @@ void obs_source_enum_full_tree(obs_source_t *source, obs_source_enum_proc_t enum
 	}
 
 	obs_source_release(source);
+}
+
+void obs_source_enum_full_tree(obs_source_t *source, obs_source_enum_proc_t enum_callback, void *param)
+{
+	enum_source_full_tree(source, enum_callback, param, NULL);
 }
 
 struct descendant_info {
@@ -4796,7 +4809,7 @@ bool obs_source_add_active_child(obs_source_t *parent, obs_source_t *child)
 		return false;
 	}
 
-	obs_source_enum_full_tree(child, check_descendant, &info);
+	enum_source_full_tree(child, check_descendant, &info, parent);
 	if (info.exists)
 		return false;
 
