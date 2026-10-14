@@ -331,6 +331,66 @@ jobs:
           # the Actions PowerShell wrapper.
           $global:LASTEXITCODE = 0
 
+  macos_smoke:
+    name: Native macOS ${{ matrix.target }} DMG startup 🧪
+    needs: [check, build]
+    if: always() && needs.check.result == 'success' && needs.check.outputs.skip != 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: arm64
+            runner: macos-26
+          - target: x86_64
+            runner: macos-26-intel
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ needs.check.outputs.sha }}
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+      - uses: actions/download-artifact@v8
+        with:
+          name: obs-studio-rust-macos-${{ matrix.target }}
+          path: macos-package
+      - name: Install the DMG and reload a saved capture profile
+        env:
+          TARGET: ${{ matrix.target }}
+          VERSION: ${{ needs.check.outputs.version }}
+        run: |
+          set -euo pipefail
+          [ "$(uname -m)" = "$TARGET" ] || { echo '::error::runtime runner is not the package architecture'; exit 1; }
+          Dmg="macos-package/OBS-Studio-Rust-$VERSION-macos-$TARGET.dmg"
+          Root="$RUNNER_TEMP/obs-macos-$TARGET"
+          Mount="$RUNNER_TEMP/obs-macos-mount-$TARGET"
+          mkdir "$Root" "$Mount"
+          hdiutil attach -nobrowse -readonly -mountpoint "$Mount" "$Dmg"
+          trap 'hdiutil detach "$Mount" -force >/dev/null 2>&1 || true' EXIT
+          App="$Root/OBS.app"
+          ditto "$Mount/OBS.app" "$App"
+          lipo -verify_arch "$TARGET" "$App/Contents/MacOS/OBS"
+          codesign --verify --deep --strict "$App"
+          codesign -dvv "$App" 2>&1
+          Plist="$App/Contents/Info.plist"
+          [ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$Plist")" = "${VERSION%%-*}" ]
+          Stamp="${VERSION##*.}"
+          Build="${Stamp:0:4}.$((10#${Stamp:4:2})).$((10#${Stamp:6:2}))"
+          [ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$Plist")" = "$Build" ]
+          [ "$(/usr/libexec/PlistBuddy -c 'Print :OBSStudioRustVersion' "$Plist")" = "$VERSION" ]
+          # Exercise the documented targeted quarantine removal on a copy of
+          # the actual packaged app. This does not assert notarization or grant
+          # camera/microphone/screen permissions on the hosted machine.
+          printf -v Quarantine '0083;%x;Safari;%s' "$(date +%s)" "$(uuidgen)"
+          xattr -w com.apple.quarantine "$Quarantine" "$App"
+          xattr -p com.apple.quarantine "$App"
+          xattr -dr com.apple.quarantine "$App"
+          if xattr -p com.apple.quarantine "$App" >/dev/null 2>&1; then
+            echo '::error::documented quarantine removal did not clear the app attribute'; exit 1
+          fi
+          uv run --no-project test/packaged-startup.py --app "$App" \
+            --config-dir "$HOME/Library/Application Support/obs-studio" --platform macos
+
   # The release gate: every job the dev cycle skips (#436), at this commit.
   gate:
     name: Release gate 🚦
@@ -345,7 +405,7 @@ jobs:
 
   release:
     name: Publish pre-release 🚀
-    needs: [check, gate, build, appimage, windows_arm64_smoke]
+    needs: [check, gate, build, appimage, windows_arm64_smoke, macos_smoke]
     # Only a complete release: the full gate and every platform build (and the
     # AppImage with its tests) must have succeeded (#622). Nothing ships partially.
     if: >-
@@ -354,6 +414,7 @@ jobs:
       && needs.gate.result == 'success' && needs.build.result == 'success'
       && needs.appimage.result == 'success'
       && needs.windows_arm64_smoke.result == 'success'
+      && needs.macos_smoke.result == 'success'
     runs-on: ubuntu-26.04
     permissions:
       contents: write
