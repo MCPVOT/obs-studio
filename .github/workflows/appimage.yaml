@@ -34,11 +34,6 @@ on:
         type: string
         required: false
         default: ''
-      rust_libobs:
-        description: Build libobs with the Rust ports (ENABLE_RUST_LIBOBS)
-        type: boolean
-        required: false
-        default: true
   pull_request:
     paths:
       - 'build-aux/appimage/**'
@@ -155,9 +150,9 @@ jobs:
       - name: Configure 🔧
         id: configure
         env:
-          # Inside a workflow_call github.event_name is the caller's, so go by the
-          # input alone: unset (push, tag, pull_request) means on.
-          RUST_LIBOBS: ${{ inputs.rust_libobs != false }}
+          # Keep absent inputs (push, tag, pull_request) distinct from explicit
+          # false: loose Boolean equality would treat both as zero.
+          RUST_LIBOBS: ${{ format('{0}', inputs.rust_libobs) != 'false' }}
           QSV: ${{ github.event_name == 'workflow_dispatch' && inputs.qsv }}
           OBS_RUST_VERSION: ${{ inputs.rust_version }}
         run: |
