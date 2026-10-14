@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import base64
 import json
 import os
 import secrets
@@ -176,6 +177,18 @@ async def inspect_running_app(proc: subprocess.Popen, port: int, password: str, 
         items = await request("GetSceneItemList", {"sceneName": SCENE})
         if set(NAMES) - {item["sourceName"] for item in items["sceneItems"]}:
             raise RuntimeError("saved scene lost its capture source items")
+        # Exercise the real screenshot caller affected by the prerequisite
+        # websocket fix, including the packaged Qt image codecs.
+        for format_, mime, signature in (
+            ("png", "image/png", b"\x89PNG\r\n\x1a\n"),
+            ("jpg", "image/jpeg", b"\xff\xd8\xff"),
+        ):
+            screenshot = await request("GetSourceScreenshot", {
+                "sourceName": SCENE, "imageFormat": format_, "imageWidth": 64, "imageHeight": 64,
+            })
+            prefix, encoded = screenshot["imageData"].split(",", 1)
+            if prefix != f"data:{mime};base64" or not base64.b64decode(encoded, validate=True).startswith(signature):
+                raise RuntimeError(f"packaged {format_} screenshot has the wrong MIME type or image signature")
     finally:
         await client.close_conn()
 
