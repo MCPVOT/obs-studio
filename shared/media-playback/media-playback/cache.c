@@ -667,8 +667,7 @@ void mp_cache_free(mp_cache_t *c)
 	mp_cache_stop(c);
 	mp_kill_thread(c);
 
-	if (c->m.fmt)
-		mp_media_free(&c->m);
+	mp_media_free(&c->m);
 
 	for (size_t i = 0; i < c->video_frames.num; i++) {
 		struct obs_source_frame *f = &c->video_frames.array[i];
