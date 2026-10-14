@@ -240,8 +240,10 @@ jobs:
             for key in CFBundleShortVersionString CFBundleVersion; do
               got=$(/usr/libexec/PlistBuddy -c "Print :$key" "$app/Contents/Info.plist")
               echo "$key=$got"
-              [ "$got" = "$VERSION" ] || { echo "::error::$key is '$got', want '$VERSION'"; exit 1; }
+              [[ "$got" =~ ^[0-9]+(\.[0-9]+){1,2}$ ]] || { echo "::error::$key is not numeric: $got"; exit 1; }
             done
+            got=$(/usr/libexec/PlistBuddy -c "Print :OBSStudioRustVersion" "$app/Contents/Info.plist")
+            [ "$got" = "$VERSION" ] || { echo "::error::Rust bundle version is '$got', want '$VERSION'"; exit 1; }
             # PlistBuddy requires a regular file; reading standard input
             # reports "Cannot parse a NULL or zero-length data" on macOS.
             disk_info="$RUNNER_TEMP/obs-dmg-info-$TARGET.plist"

@@ -3,6 +3,7 @@
 include_guard(GLOBAL)
 
 include(helpers_common)
+include("${CMAKE_CURRENT_LIST_DIR}/bundle-version.cmake")
 
 # set_target_xcode_properties: Sets Xcode-specific target attributes
 function(set_target_xcode_properties target)
@@ -40,15 +41,7 @@ function(set_target_properties_obs target)
   # Target is a GUI or CLI application
   if(target_type STREQUAL EXECUTABLE)
     if(target STREQUAL obs-studio)
-      # The Rust beta shows its full release string (CFBundleShortVersionString
-      # and CFBundleVersion), so daily betas can be told apart (#631).
-      if(OBS_RUST_RELEASE_VERSION)
-        set(_obs_bundle_marketing "${OBS_RUST_RELEASE_VERSION}")
-        set(_obs_bundle_build "${OBS_RUST_RELEASE_VERSION}")
-      else()
-        set(_obs_bundle_marketing "${OBS_VERSION_CANONICAL}")
-        set(_obs_bundle_build "${OBS_BUILD_NUMBER}")
-      endif()
+      obs_bundle_versions(_obs_bundle_marketing _obs_bundle_build)
 
       set_target_properties(
         ${target}
