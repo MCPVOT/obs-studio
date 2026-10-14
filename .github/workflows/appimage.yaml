@@ -34,11 +34,6 @@ on:
         type: string
         required: false
         default: ''
-      rust_libobs:
-        description: Build libobs with the Rust ports (ENABLE_RUST_LIBOBS)
-        type: boolean
-        required: false
-        default: true
   pull_request:
     paths:
       - 'build-aux/appimage/**'
