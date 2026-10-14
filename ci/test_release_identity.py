@@ -89,7 +89,8 @@ class Wiring(unittest.TestCase):
         self.assertIn("rust_version: ${{ needs.check.outputs.version }}", self.release)
 
     def test_resources_use_the_release_version(self):
-        self.assertIn("OBS_RUST_RELEASE_VERSION", text("cmake/macos/helpers.cmake"))
+        self.assertIn("obs_bundle_versions", text("cmake/macos/helpers.cmake"))
+        self.assertIn("OBS_RUST_RELEASE_VERSION", text("cmake/macos/bundle-version.cmake"))
         self.assertIn("OBS_RC_PRODUCT_VERSION", text("frontend/cmake/windows/obs.rc.in"))
         self.assertIn("OBS_RUST_VERSION", text("frontend/cmake/os-linux.cmake"))
         self.assertIn("OBS_RUST_VERSION", text(".github/scripts/.package.zsh"))

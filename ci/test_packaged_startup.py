@@ -11,13 +11,41 @@ import json
 import struct
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import AsyncMock, Mock, patch
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 spec = importlib.util.spec_from_file_location("packaged_startup", ROOT / "test/packaged-startup.py")
 smoke = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(smoke)
+
+
+class PackagedReadinessTest(unittest.IsolatedAsyncioTestCase):
+    def response(self, code, success=False):
+        return {"d": {"requestStatus": {"code": code, "result": success}, "responseData": {"inputKinds": ["screen_capture"]}}}
+
+    async def test_not_ready_is_followed_by_a_real_success_response(self):
+        client = Mock(request=AsyncMock(side_effect=[self.response(207), self.response(207), self.response(100, True)]))
+        result = await smoke.wait_until_ready(client, Mock(poll=Mock(return_value=None)), smoke.time.monotonic() + 5)
+        self.assertEqual(result, {"inputKinds": ["screen_capture"]})
+        self.assertEqual(client.request.await_count, 3)
+        self.assertTrue(all(call.args == ("GetInputKindList", {"unversioned": True}) for call in client.request.await_args_list))
+
+    async def test_other_protocol_failures_and_process_exit_are_fatal(self):
+        client = Mock(request=AsyncMock(return_value=self.response(702)))
+        with self.assertRaisesRegex(RuntimeError, "702"):
+            await smoke.wait_until_ready(client, Mock(poll=Mock(return_value=None)), smoke.time.monotonic() + 5)
+        self.assertEqual(client.request.await_count, 1)
+        with self.assertRaisesRegex(RuntimeError, "exited"):
+            await smoke.wait_until_ready(client, Mock(poll=Mock(return_value=1), returncode=1), smoke.time.monotonic() + 5)
+        self.assertEqual(client.request.await_count, 1)
+
+    async def test_not_ready_cannot_extend_the_startup_deadline(self):
+        client = Mock(request=AsyncMock(return_value=self.response(207)))
+        with patch.object(smoke, "time", Mock(monotonic=Mock(side_effect=[0, 2]))):
+            with self.assertRaisesRegex(RuntimeError, "readiness"):
+                await smoke.wait_until_ready(client, Mock(poll=Mock(return_value=None)), 1)
+        self.assertEqual(client.request.await_count, 1)
 
 
 class PackagedStartupTest(unittest.TestCase):

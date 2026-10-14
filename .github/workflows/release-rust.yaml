@@ -2,7 +2,7 @@ name: Release OBS-Studio-Rust
 run-name: Daily OBS-Studio-Rust beta 🦀
 # Daily beta: builds OBS-Studio-Rust (ENABLE_RUST_LIBOBS=ON) for Linux, macOS
 # and Windows from master, plus the Linux AppImage (appimage.yaml), and
-# publishes an unsigned GitHub pre-release tagged
+# publishes a GitHub pre-release (macOS signed/notarized when credentials exist) tagged
 # obs-studio-rust-v<rust/libobs-rust version>-beta.<YYYYMMDD>.
 #   gh workflow run release-rust.yaml      # today's release now
 #   gh workflow run release-rust.yaml --ref <branch> -f verify_only=true
@@ -140,6 +140,19 @@ jobs:
           mkdir -p "$cas"
           echo "XCODE_CAS_PATH=$cas" >>"$GITHUB_ENV"
 
+      - name: Set Up Code Signing 🔑
+        if: matrix.os == 'macos'
+        id: codesign
+        uses: ./.github/actions/setup-macos-codesigning
+        with:
+          codesignIdentity: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+          codesignCertificate: ${{ secrets.MACOS_SIGNING_CERT }}
+          certificatePassword: ${{ secrets.MACOS_SIGNING_CERT_PASSWORD }}
+          keychainPassword: ${{ secrets.MACOS_KEYCHAIN_PASSWORD }}
+          provisioningProfile: ${{ secrets.MACOS_SIGNING_PROVISIONING_PROFILE }}
+          notarizationUser: ${{ secrets.MACOS_NOTARIZATION_USERNAME }}
+          notarizationPassword: ${{ secrets.MACOS_NOTARIZATION_PASSWORD }}
+
       # Corrosion runs cargo inside the CMake build; same soldr as build-project.yaml.
       - name: Set up soldr 🦀
         uses: zackees/setup-soldr@0f223ac68e97fccaaeab026ef1861e5bf73639ac # v0.9.85
@@ -165,6 +178,10 @@ jobs:
         with:
           target: ${{ matrix.target }}
           config: RelWithDebInfo
+          codesign: ${{ matrix.os == 'macos' && steps.codesign.outputs.haveCodesignIdent == 'true' }}
+          codesignIdent: ${{ steps.codesign.outputs.codesignIdent || '-' }}
+          codesignTeam: ${{ steps.codesign.outputs.codesignTeam }}
+          provisioningProfileUUID: ${{ steps.codesign.outputs.provisioningProfileUUID }}
 
       - name: Package OBS-Studio-Rust 📀
         uses: ./.github/actions/package-obs
@@ -172,6 +189,11 @@ jobs:
           target: ${{ matrix.target }}
           config: RelWithDebInfo
           package: ${{ matrix.os != 'windows' }}
+          codesign: ${{ matrix.os == 'macos' && steps.codesign.outputs.haveCodesignIdent == 'true' }}
+          codesignIdent: ${{ steps.codesign.outputs.codesignIdent || '-' }}
+          notarize: ${{ matrix.os == 'macos' && steps.codesign.outputs.haveCodesignIdent == 'true' && steps.codesign.outputs.haveNotarizationUser == 'true' }}
+          codesignUser: ${{ secrets.MACOS_NOTARIZATION_USERNAME }}
+          codesignPass: ${{ secrets.MACOS_NOTARIZATION_PASSWORD }}
 
       - name: Collect and verify 🔎
         shell: bash
@@ -218,8 +240,10 @@ jobs:
             for key in CFBundleShortVersionString CFBundleVersion; do
               got=$(/usr/libexec/PlistBuddy -c "Print :$key" "$app/Contents/Info.plist")
               echo "$key=$got"
-              [ "$got" = "$VERSION" ] || { echo "::error::$key is '$got', want '$VERSION'"; exit 1; }
+              [[ "$got" =~ ^[0-9]+(\.[0-9]+){1,2}$ ]] || { echo "::error::$key is not numeric: $got"; exit 1; }
             done
+            got=$(/usr/libexec/PlistBuddy -c "Print :OBSStudioRustVersion" "$app/Contents/Info.plist")
+            [ "$got" = "$VERSION" ] || { echo "::error::Rust bundle version is '$got', want '$VERSION'"; exit 1; }
             # PlistBuddy requires a regular file; reading standard input
             # reports "Cannot parse a NULL or zero-length data" on macOS.
             disk_info="$RUNNER_TEMP/obs-dmg-info-$TARGET.plist"
@@ -307,6 +331,66 @@ jobs:
           # the Actions PowerShell wrapper.
           $global:LASTEXITCODE = 0
 
+  macos_smoke:
+    name: Native macOS ${{ matrix.target }} DMG startup 🧪
+    needs: [check, build]
+    if: always() && needs.check.result == 'success' && needs.check.outputs.skip != 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: arm64
+            runner: macos-26
+          - target: x86_64
+            runner: macos-26-intel
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ needs.check.outputs.sha }}
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: obs-studio-rust-macos-${{ matrix.target }}
+          path: macos-package
+      - name: Install the DMG and reload a saved capture profile
+        env:
+          TARGET: ${{ matrix.target }}
+          VERSION: ${{ needs.check.outputs.version }}
+        run: |
+          set -euo pipefail
+          [ "$(uname -m)" = "$TARGET" ] || { echo '::error::runtime runner is not the package architecture'; exit 1; }
+          Dmg="macos-package/OBS-Studio-Rust-$VERSION-macos-$TARGET.dmg"
+          Root="$RUNNER_TEMP/obs-macos-$TARGET"
+          Mount="$RUNNER_TEMP/obs-macos-mount-$TARGET"
+          mkdir "$Root" "$Mount"
+          hdiutil attach -nobrowse -readonly -mountpoint "$Mount" "$Dmg"
+          trap 'hdiutil detach "$Mount" -force >/dev/null 2>&1 || true' EXIT
+          App="$Root/OBS.app"
+          ditto "$Mount/OBS.app" "$App"
+          lipo "$App/Contents/MacOS/OBS" -verify_arch "$TARGET"
+          codesign --verify --deep --strict "$App"
+          codesign -dvv "$App" 2>&1
+          Plist="$App/Contents/Info.plist"
+          [ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$Plist")" = "${VERSION%%-*}" ]
+          Stamp="${VERSION##*.}"
+          Build="${Stamp:0:4}.$((10#${Stamp:4:2})).$((10#${Stamp:6:2}))"
+          [ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$Plist")" = "$Build" ]
+          [ "$(/usr/libexec/PlistBuddy -c 'Print :OBSStudioRustVersion' "$Plist")" = "$VERSION" ]
+          # Exercise the documented targeted quarantine removal on a copy of
+          # the actual packaged app. This does not assert notarization or grant
+          # camera/microphone/screen permissions on the hosted machine.
+          printf -v Quarantine '0083;%x;Safari;%s' "$(date +%s)" "$(uuidgen)"
+          xattr -w com.apple.quarantine "$Quarantine" "$App"
+          xattr -p com.apple.quarantine "$App"
+          xattr -dr com.apple.quarantine "$App"
+          if xattr -p com.apple.quarantine "$App" >/dev/null 2>&1; then
+            echo '::error::documented quarantine removal did not clear the app attribute'; exit 1
+          fi
+          uv run --no-project test/packaged-startup.py --app "$App" \
+            --config-dir "$HOME/Library/Application Support/obs-studio" --platform macos
+
   # The release gate: every job the dev cycle skips (#436), at this commit.
   gate:
     name: Release gate 🚦
@@ -321,7 +405,7 @@ jobs:
 
   release:
     name: Publish pre-release 🚀
-    needs: [check, gate, build, appimage, windows_arm64_smoke]
+    needs: [check, gate, build, appimage, windows_arm64_smoke, macos_smoke]
     # Only a complete release: the full gate and every platform build (and the
     # AppImage with its tests) must have succeeded (#622). Nothing ships partially.
     if: >-
@@ -330,6 +414,7 @@ jobs:
       && needs.gate.result == 'success' && needs.build.result == 'success'
       && needs.appimage.result == 'success'
       && needs.windows_arm64_smoke.result == 'success'
+      && needs.macos_smoke.result == 'success'
     runs-on: ubuntu-26.04
     permissions:
       contents: write
@@ -384,7 +469,9 @@ jobs:
           cat >notes.md <<EOF
           Daily beta of OBS-Studio-Rust $VERSION: OBS Studio built with \`ENABLE_RUST_LIBOBS=ON\`, so the ported libobs internals run from Rust. Built from [\`${SHA:0:9}\`](https://github.com/$GITHUB_REPOSITORY/commit/$SHA).
 
-          **Pre-release, unsigned.** macOS: right-click → Open the first time. Windows: SmartScreen will warn. Linux: \`sudo apt install ./OBS-Studio-Rust-$VERSION-linux-x86_64.deb\` (Ubuntu 26.04), or the AppImage for any distribution: \`chmod +x OBS-Studio-Rust-$VERSION-linux-x86_64.AppImage\` and run it.
+          **Pre-release.** macOS packages are signed and notarized when the project's release credentials are configured. For an unnotarized download, copy OBS.app to Applications and try opening it, then choose **System Settings → Privacy & Security → Open Anyway**. For a download you trust, the Terminal alternative is \`xattr -dr com.apple.quarantine /Applications/OBS.app\`; it removes quarantine from that app only. See [Apple's guidance](https://support.apple.com/102445).
+
+          Windows: SmartScreen will warn. Linux: \`sudo apt install ./OBS-Studio-Rust-$VERSION-linux-x86_64.deb\` (Ubuntu 26.04), or the AppImage for any distribution: \`chmod +x OBS-Studio-Rust-$VERSION-linux-x86_64.AppImage\` and run it.
 
           Checksums: \`SHA256SUMS\`.
           EOF
@@ -421,7 +508,7 @@ jobs:
           cat >notes.md <<EOF
           Rolling build of OBS-Studio-Rust from \`master\`, currently [\`${SHA:0:9}\`](https://github.com/$GITHUB_REPOSITORY/commit/$SHA). Replaced daily by the release build, once the release gate passes and the AppImage passes its tests on Debian, Ubuntu and Fedora, including a saved profile that records a PipeWire screen capture, camera and microphone.
 
-          **Pre-release, unsigned.** \`chmod +x OBS_Studio-*-x86_64.AppImage && ./OBS_Studio-*-x86_64.AppImage\`. Everything down to glibc is inside; only the GPU driver comes from the host. The \`.zsync\` file lets AppImageUpdate fetch the next build as a delta. Limits and troubleshooting: \`build-aux/appimage/README.md\`.
+          **Pre-release.** \`chmod +x OBS_Studio-*-x86_64.AppImage && ./OBS_Studio-*-x86_64.AppImage\`. AppRun selects the host runtime on newer systems and uses the bundled runtime on older systems; GPU drivers come from the host. The \`.zsync\` file lets AppImageUpdate fetch the next build as a delta. Limits and troubleshooting: \`build-aux/appimage/README.md\`.
           EOF
           if gh release view continuous --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload continuous --repo "$GITHUB_REPOSITORY" --clobber \
