@@ -29,6 +29,8 @@ static THREAD_LOCAL bool is_ui_thread = false;
 
 extern char *find_libobs_data_file(const char *file);
 
+static void obs_free_render_textures(struct obs_core_video_mix *video);
+
 static inline void make_video_info(struct video_output_info *vi, struct obs_video_info *ovi)
 {
 	vi->name = "video";
@@ -606,6 +608,7 @@ static int obs_init_video_mix(struct obs_video_info *ovi, struct obs_core_video_
 	struct video_output_info vi;
 
 	pthread_mutex_init_value(&video->gpu_encoder_mutex);
+	pthread_mutex_init_value(&video->gpu_encoder_lifecycle_mutex);
 
 	make_video_info(&vi, ovi);
 	video->ovi = *ovi;
@@ -639,23 +642,51 @@ static int obs_init_video_mix(struct obs_video_info *ovi, struct obs_core_video_
 		return OBS_VIDEO_FAIL;
 	}
 
-	if (pthread_mutex_init(&video->gpu_encoder_mutex, NULL) < 0)
-		return OBS_VIDEO_FAIL;
+	if (pthread_mutex_init(&video->gpu_encoder_mutex, NULL) != 0) {
+		blog(LOG_ERROR, "Could not initialize GPU encoder mutex");
+		goto fail_video_output;
+	}
+	if (pthread_mutex_init(&video->gpu_encoder_lifecycle_mutex, NULL) != 0) {
+		blog(LOG_ERROR, "Could not initialize GPU encoder lifecycle mutex");
+		goto fail_gpu_encoder_mutex;
+	}
+	if (pthread_cond_init(&video->gpu_encoder_teardown_cond, NULL) != 0) {
+		blog(LOG_ERROR, "Could not initialize GPU encoder teardown condition variable");
+		goto fail_gpu_encoder_lifecycle_mutex;
+	}
+	video->gpu_encoder_tearing_down = false;
 
 	gs_enter_context(obs->video.graphics);
 
 	if (video->gpu_conversion && !obs_init_gpu_conversion(video)) {
 		gs_leave_context();
-		return OBS_VIDEO_FAIL;
+		obs_free_render_textures(video);
+		blog(LOG_ERROR, "Could not initialize GPU video conversion textures");
+		goto fail_gpu_encoder_teardown_cond;
 	}
 	if (!obs_init_textures(video)) {
 		gs_leave_context();
-		return OBS_VIDEO_FAIL;
+		obs_free_render_textures(video);
+		blog(LOG_ERROR, "Could not initialize video mix textures");
+		goto fail_gpu_encoder_teardown_cond;
 	}
 
 	gs_leave_context();
 
 	return OBS_VIDEO_SUCCESS;
+
+fail_gpu_encoder_teardown_cond:
+	pthread_cond_destroy(&video->gpu_encoder_teardown_cond);
+fail_gpu_encoder_lifecycle_mutex:
+	pthread_mutex_destroy(&video->gpu_encoder_lifecycle_mutex);
+	pthread_mutex_init_value(&video->gpu_encoder_lifecycle_mutex);
+fail_gpu_encoder_mutex:
+	pthread_mutex_destroy(&video->gpu_encoder_mutex);
+	pthread_mutex_init_value(&video->gpu_encoder_mutex);
+fail_video_output:
+	video_output_close(video->video);
+	video->video = NULL;
+	return OBS_VIDEO_FAIL;
 }
 
 struct obs_core_video_mix *obs_create_video_mix(struct obs_video_info *ovi)
@@ -815,6 +846,9 @@ void obs_free_video_mix(struct obs_core_video_mix *video)
 
 		pthread_mutex_destroy(&video->gpu_encoder_mutex);
 		pthread_mutex_init_value(&video->gpu_encoder_mutex);
+		pthread_cond_destroy(&video->gpu_encoder_teardown_cond);
+		pthread_mutex_destroy(&video->gpu_encoder_lifecycle_mutex);
+		pthread_mutex_init_value(&video->gpu_encoder_lifecycle_mutex);
 		da_free(video->gpu_encoders);
 
 		video->gpu_encoder_active = 0;
@@ -3363,7 +3397,23 @@ bool start_gpu_encode(obs_encoder_t *encoder)
 {
 	struct obs_core_video_mix *video = get_mix_for_video(encoder->media);
 	bool success = true;
+	if (!video)
+		return false;
 
+	/* Pin the mix through pool initialization and any teardown-condition wait. */
+	os_atomic_inc_long(&video->gpu_encoder_active);
+
+	pthread_mutex_lock(&video->gpu_encoder_lifecycle_mutex);
+	while (video->gpu_encoder_tearing_down) {
+		if (pthread_cond_wait(&video->gpu_encoder_teardown_cond, &video->gpu_encoder_lifecycle_mutex) != 0) {
+			blog(LOG_ERROR, "Could not wait for GPU encoder teardown");
+			pthread_mutex_unlock(&video->gpu_encoder_lifecycle_mutex);
+			os_atomic_dec_long(&video->gpu_encoder_active);
+			return false;
+		}
+	}
+
+	/* Pool creation lock order: lifecycle -> graphics -> gpu_encoder_mutex. */
 	obs_enter_graphics();
 	pthread_mutex_lock(&video->gpu_encoder_mutex);
 
@@ -3378,9 +3428,11 @@ bool start_gpu_encode(obs_encoder_t *encoder)
 	obs_leave_graphics();
 
 	if (success) {
-		os_atomic_inc_long(&video->gpu_encoder_active);
 		video_output_inc_texture_encoders(video->video);
 	}
+	pthread_mutex_unlock(&video->gpu_encoder_lifecycle_mutex);
+	if (!success)
+		os_atomic_dec_long(&video->gpu_encoder_active);
 
 	return success;
 }
@@ -3390,14 +3442,25 @@ void stop_gpu_encode(obs_encoder_t *encoder)
 	struct obs_core_video_mix *video = get_mix_for_video(encoder->media);
 	bool call_free = false;
 
-	os_atomic_dec_long(&video->gpu_encoder_active);
-	video_output_dec_texture_encoders(video->video);
+	pthread_mutex_lock(&video->gpu_encoder_lifecycle_mutex);
+	if (video->gpu_encoder_tearing_down) {
+		/* A concurrent stop already removed the last encoder and owns teardown. */
+		pthread_mutex_unlock(&video->gpu_encoder_lifecycle_mutex);
+		return;
+	}
 
 	pthread_mutex_lock(&video->gpu_encoder_mutex);
 	da_erase_item(video->gpu_encoders, &encoder);
-	if (!video->gpu_encoders.num)
+	if (!video->gpu_encoders.num) {
 		call_free = true;
+		video->gpu_encoder_tearing_down = true;
+	} else {
+		os_atomic_dec_long(&video->gpu_encoder_active);
+	}
+	video_output_dec_texture_encoders(video->video);
 	pthread_mutex_unlock(&video->gpu_encoder_mutex);
+	/* Keep starts out while draining, but never hold lifecycle across the worker wait. */
+	pthread_mutex_unlock(&video->gpu_encoder_lifecycle_mutex);
 
 	os_event_wait(video->gpu_encode_inactive);
 
@@ -3409,6 +3472,15 @@ void stop_gpu_encode(obs_encoder_t *encoder)
 		free_gpu_encoding(video);
 		pthread_mutex_unlock(&video->gpu_encoder_mutex);
 		obs_leave_graphics();
+
+		pthread_mutex_lock(&video->gpu_encoder_lifecycle_mutex);
+		video->gpu_encoder_tearing_down = false;
+		int broadcast_ret = pthread_cond_broadcast(&video->gpu_encoder_teardown_cond);
+		if (broadcast_ret != 0)
+			blog(LOG_ERROR, "Could not wake GPU encoder starts after teardown");
+		pthread_mutex_unlock(&video->gpu_encoder_lifecycle_mutex);
+		/* Keep obs_reset_video() out through the final lifecycle-mutex access. */
+		os_atomic_dec_long(&video->gpu_encoder_active);
 	}
 }
 
