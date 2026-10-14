@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import os
 import secrets
 import shutil
 import signal
@@ -35,6 +36,18 @@ KINDS = {
     "macos": ("screen_capture", "macos-avcapture", "coreaudio_input_capture"),
 }
 NAMES = ("Package screen", "Package camera", "Package microphone")
+
+
+def require_config_directory(config: Path, platform: str) -> None:
+    if platform == "windows":
+        appdata = os.environ.get("APPDATA")
+        if not appdata:
+            raise RuntimeError("APPDATA is required to locate the frontend configuration")
+        expected = Path(appdata) / "obs-studio"
+    else:
+        expected = Path.home() / "Library/Application Support/obs-studio"
+    if config.resolve() != expected.resolve():
+        raise RuntimeError(f"fixture must use the frontend configuration directory: {expected}")
 
 
 def write_profile(config: Path, platform: str, port: int, password: str) -> None:
@@ -220,6 +233,7 @@ def main() -> None:
         port = reservation.getsockname()[1]
     password = secrets.token_hex(24)
     config = args.config_dir.resolve()
+    require_config_directory(config, args.platform)
     # Ownership is established before launching: never delete an existing config.
     write_profile(config, args.platform, port, password)
     proc = None
