@@ -34,6 +34,9 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
+      - name: Set Up uv 🐍
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+
       - name: Check Event Data ☑️
         id: setup
         env:
@@ -73,12 +76,22 @@ jobs:
           done
           echo "commitHash=${GITHUB_SHA:0:9}" >> $GITHUB_OUTPUT
 
-      # What this change needs (#436, ci/ci_scope.py): the Linux jobs always
-      # run; core code (libobs, rust/) adds the Rust-libobs OBS build; macOS
-      # or Windows code, or shared build/CI config, adds that platform's
-      # jobs. `full` (the release gate in release-rust.yaml, tags, release
-      # branches, schedule, workflow_dispatch, the ci-full label) runs
-      # everything, Flatpak included.
+      # A PR must not move a submodule pointer backwards (#693): stale
+      # checkouts reverted merged obs-websocket fixes (#492, #496, #503, #615).
+      # `submodule:` in the PR title allows a deliberate move back.
+      - name: Check Submodule Pointers 🧭
+        if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          BASE: ${{ github.event.merge_group.base_sha || format('origin/{0}', github.base_ref) }}
+        run: uv run ci/submodule_direction.py "${BASE}"
+
+      # What this change needs (#436, ci/ci_scope.py): the Linux Rust tests
+      # and Tier 2 always run; macOS or Windows code, or shared build/CI
+      # config, adds that platform's Rust tests and Tier 2. Every OBS app
+      # build (Ubuntu, macOS, Windows, Flatpak) is release-gating: `full`
+      # (the release gate in release-rust.yaml, tags, release branches,
+      # schedule, workflow_dispatch, the ci-full label).
       - name: Check Change Scope 🧭
         id: native
         env:
@@ -101,10 +114,12 @@ jobs:
           else
             if [[ "${GITHUB_EVENT_NAME}" == pull_request ]]; then
               base="origin/${GITHUB_BASE_REF}"
+            elif [[ "${GITHUB_EVENT_NAME}" == merge_group ]]; then
+              base="${{ github.event.merge_group.base_sha }}"
             else
               base="HEAD^1"
             fi
-            eval "$(python3 ci/ci_scope.py "${base}")"
+            eval "$(uv run ci/ci_scope.py "${base}")"
           fi
           os=()
           [[ "${macos}" == true ]] && os+=('"macos-26"')
@@ -121,12 +136,13 @@ jobs:
     name: macOS 🍏
     runs-on: macos-26
     needs: check-event
-    if: fromJSON(needs.check-event.outputs.macos)
+    # OBS app builds are release-gating (#436): release gate, tags, schedule,
+    # dispatch and ci-full only.
+    if: fromJSON(needs.check-event.outputs.full)
     strategy:
       fail-fast: false
       matrix:
-        # One architecture in the dev cycle, both in the release gate (#436).
-        target: ${{ fromJSON(needs.check-event.outputs.full) && fromJSON('["arm64", "x86_64"]') || fromJSON('["arm64"]') }}
+        target: [arm64, x86_64]
     defaults:
       run:
         shell: zsh --no-rcs --errexit --pipefail {0}
@@ -252,11 +268,14 @@ jobs:
         os: [ubuntu-26.04]
         # ON builds the app with ENABLE_RUST_LIBOBS: the only CI job that runs
         # the Rust ports inside OBS itself (obs-rust/obs-studio#140).
-        # OFF always runs (the Linux app build, #436); ON when core code
-        # (libobs, rust/) changed, and in the release gate.
-        rust: ${{ fromJSON(needs.check-event.outputs.core) && fromJSON('["OFF", "ON"]') || fromJSON('["OFF"]') }}
+        rust: ['OFF', 'ON']
     runs-on: ${{ matrix.os }}
     needs: check-event
+    # The full OBS app build is release-gating, not dev-cycle CI: it runs in
+    # the release gate (release-rust.yaml), tags, schedule, dispatch and
+    # ci-full. PRs and pushes build and test the Rust workspace and Tier 2
+    # (libobs + cmocka) on Linux instead.
+    if: fromJSON(needs.check-event.outputs.full)
     defaults:
       run:
         shell: bash
@@ -301,7 +320,7 @@ jobs:
         run: |
           : Smoke Test Rust libobs 🦀
           prefix="${GITHUB_WORKSPACE}/build_ubuntu/install/${{ needs.check-event.outputs.config }}"
-          version=$(LD_LIBRARY_PATH="${prefix}/lib:${prefix}/lib/x86_64-linux-gnu" "${prefix}/bin/obs" --version)
+          version=$(LD_LIBRARY_PATH="${prefix}/lib:${prefix}/lib/x86_64-linux-gnu" "${prefix}/bin/obs-studio-rust-gui" --version)
           echo "${version}"
           # Only an ENABLE_RUST_LIBOBS build names itself OBS-Studio-Rust (#112).
           [[ "${version}" == OBS-Studio-Rust* ]]
@@ -434,15 +453,6 @@ jobs:
           git config --global --add safe.directory "${GITHUB_WORKSPACE}"
 
           cache_key='flatpak-builder-${{ hashFiles('build-aux/com.obsproject.Studio.json') }}'
-          cache_ref='master'
-          read -r id key size unit created accessed <<< \
-            "$(gh cache list --ref "refs/heads/${cache_ref}" --key "${cache_key}-x86_64" | head -1)"
-
-          if [[ "${key}" ]]; then
-            echo "cacheHit=true" >> $GITHUB_OUTPUT
-          else
-            echo "cacheHit=false" >> $GITHUB_OUTPUT
-          fi
 
           echo "cacheKey=${cache_key}" >> $GITHUB_OUTPUT
 
@@ -457,7 +467,9 @@ jobs:
       # saves under a manifest-hash key, so that ccache froze at its first
       # save. Restore a commit-keyed copy of just that directory first; the
       # action's restore then extracts its snapshot on top (ccache entries are
-      # content-addressed, so the union is safe). Only master pushes save.
+      # content-addressed, so the union is safe). Every full run saves, so a
+      # ci-full PR is warm from its second push on (a PR restores its own
+      # newest entry before master's); only master prunes.
       - uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: .flatpak-builder/ccache
@@ -471,11 +483,22 @@ jobs:
       - name: Build Flatpak Manifest 🧾
         uses: flatpak/flatpak-github-actions/flatpak-builder@401fe28a8384095fc1531b9d320b292f0ee45adb # v6.7
         with:
-          build-bundle: ${{ fromJSON(needs.check-event.outputs.package) }}
+          # `flatpak build-bundle` takes ~4 of the ~16 minutes and only testers
+          # download the result (#651). Routine master pushes skip it; the
+          # daily schedule, tags, release branches and Seeking Testers PRs
+          # still build and upload it.
+          build-bundle: ${{ fromJSON(needs.check-event.outputs.package) && (github.event_name != 'push' || github.ref_type == 'tag' || startsWith(github.ref_name, 'release/')) }}
           bundle: obs-studio-flatpak-${{ needs.check-event.outputs.commitHash }}.flatpak
           manifest-path: ${{ github.workspace }}/build-aux/com.obsproject.Studio.json
-          cache: ${{ fromJSON(steps.setup.outputs.cacheHit) || (github.event_name != 'pull_request' && github.ref_name == 'master')}}
-          restore-cache: ${{ fromJSON(steps.setup.outputs.cacheHit) }}
+          # Always on: the action passes `--ccache` to flatpak-builder only
+          # when `cache` is true. It used to be off for a PR whose manifest
+          # hash had no master cache, so a ci-full PR compiled all ~700 files
+          # without ccache (~9 min instead of ~1.5 min, #651). The restore
+          # falls back to the newest flatpak-builder-x86_64 cache, and
+          # flatpak-builder only reuses a module whose own manifest entry and
+          # source checksums are unchanged.
+          cache: true
+          restore-cache: true
           cache-key: ${{ steps.setup.outputs.cacheKey }}
           mirror-screenshots-url: https://dl.flathub.org/media
 
@@ -506,7 +529,7 @@ jobs:
           du -sh "${ccache_dir}"
 
       - uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master' && steps.ccache-stats.outcome == 'success'
+        if: steps.ccache-stats.outcome == 'success'
         with:
           path: .flatpak-builder/ccache
           key: flatpak-ccache-x86_64-${{ github.sha }}
@@ -540,11 +563,12 @@ jobs:
     name: Windows 🪟
     strategy:
       matrix:
-        # One architecture in the dev cycle, both in the release gate (#436).
-        architecture: ${{ fromJSON(needs.check-event.outputs.full) && fromJSON('["x64", "arm64"]') || fromJSON('["x64"]') }}
+        architecture: [x64, arm64]
     runs-on: windows-2025-vs2026
     needs: check-event
-    if: fromJSON(needs.check-event.outputs.windows)
+    # OBS app builds are release-gating (#436): release gate, tags, schedule,
+    # dispatch and ci-full only.
+    if: fromJSON(needs.check-event.outputs.full)
     defaults:
       run:
         shell: pwsh
@@ -642,7 +666,8 @@ jobs:
 
   # zackees/ci.yml GATE-008/010: an attested, in-policy PR head (local-gate.toml,
   # ci-attestations.yml) skips the Linux unit-test jobs the local gate already
-  # ran. Pushes never skip.
+  # ran. Pushes and merge-queue runs never skip: the queue commit is the merge
+  # result, not the stamped head (#692).
   ci-mode:
     name: CI Mode 🛂
     runs-on: ubuntu-26.04
@@ -651,6 +676,7 @@ jobs:
       trusted: ${{ steps.gate.outputs.trusted }}
       skip_rust-tests-linux: ${{ steps.gate.outputs.skip_rust-tests-linux }}
       skip_rust-linux-tier2: ${{ steps.gate.outputs.skip_rust-linux-tier2 }}
+      skip_rust-cross-lint: ${{ steps.gate.outputs.skip_rust-cross-lint }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -664,9 +690,13 @@ jobs:
           path: .ci-lint
           persist-credentials: false
           sparse-checkout: ci_lint
+      - name: Set Up uv 🐍
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+
       - name: Local Gate Attestation 🛂
         id: gate
-        run: PYTHONPATH=.ci-lint python3 -m ci_lint local-gate verify --repo . --trust --github-output
+        if: github.event_name != 'merge_group'
+        run: PYTHONPATH=.ci-lint uv run python -m ci_lint local-gate verify --repo . --trust --github-output
 
   rust-tests-linux:
     name: Rust Tests 🦀 (ubuntu-26.04)
@@ -703,7 +733,32 @@ jobs:
       # rust-test lanes (./lint, ./unittest), i.e. rustfmt, clippy -D warnings,
       # clang-format, gersemi and soldr cargo test --workspace --locked.
       - name: Local Gate (lint, rust-test) 🧪
-        run: python3 ci/local_gate.py --lane lint --lane rust-test
+        run: uv run ci/local_gate.py --lane lint --lane rust-test
+
+  # Clippy and Dylint for Windows and both macOS targets, cross-checked on
+  # Linux through soldr (#472). Every PR push runs it unless the head is
+  # attested for the same gates (the `cross` local-gate lane).
+  rust-cross-lint:
+    name: Rust Cross Lint 🦀 (Windows, macOS)
+    runs-on: ubuntu-26.04
+    needs: [check-event, ci-mode]
+    if: needs.ci-mode.outputs.skip_rust-cross-lint != 'true'
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set Up soldr 🦀
+        uses: zackees/setup-soldr@0f223ac68e97fccaaeab026ef1861e5bf73639ac # v0.9.85
+        with:
+          version: 0.9.31
+
+      - name: Set Up uv 🐍
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+
+      - name: Local Gate (cross) 🧪
+        run: uv run ci/local_gate.py --lane cross
 
   rust-tests:
     name: Rust Tests 🦀
@@ -764,12 +819,15 @@ jobs:
           key: tier2-ccache-linux-${{ github.sha }}
           restore-keys: tier2-ccache-linux-
 
+      - name: Set Up uv 🐍
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+
       # GATE-001 mirror (local-gate.toml): the local gate's tier2-linux lane,
       # which runs rust/tools/linux-validate/run.sh.
       - name: Validate Tier 2 (ENABLE_RUST_LIBOBS OFF vs ON) ✅
         env:
           OBS_CCACHE_DIR: ${{ github.workspace }}/.tier2-ccache
-        run: python3 ci/local_gate.py --lane tier2-linux
+        run: uv run ci/local_gate.py --lane tier2-linux
 
       - name: Save Tier 2 ccache 💾
         uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
@@ -809,7 +867,7 @@ jobs:
         if: runner.os == 'macOS'
         shell: bash
         run: |
-          brew install cmocka
+          "${GITHUB_WORKSPACE}/.github/scripts/retry" brew install cmocka
           bash rust/tools/tier2-validate/validate.sh
 
       - name: Validate Tier 2 on Windows (ENABLE_RUST_LIBOBS OFF vs ON) 🪟

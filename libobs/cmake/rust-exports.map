@@ -20,6 +20,9 @@
     wchar_to_utf8;
     /* platform-nix.c. obs-module.c calls it; the C build does not export it. */
     get_plugin_info;
+    /* platform-windows.c. Not EXPORT. */
+    get_win_release_id;
+    DllMain;
     /* video-io.c. Not EXPORT; callers are inside libobs. */
     video_output_inc_texture_encoders;
     video_output_dec_texture_encoders;

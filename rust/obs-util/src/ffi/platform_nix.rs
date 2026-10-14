@@ -1,11 +1,11 @@
 //! C ABI shim for `libobs/util/platform-nix.c`.
 //!
-//! macOS keeps config paths, the clock, CPU, memory, and sleep inhibit in
-//! `platform-cocoa.m`. Those shims are compiled out here.
+//! On macOS the clock, config paths, CPU, memory, and sleep inhibit live in
+//! the Cocoa platform module. Those shims are compiled out here.
 //!
-//! `os_inhibit_sleep_*` has no shim on any platform. Linux and FreeBSD keep
-//! it in C (`util/platform-nix-inhibit.c`, built in both lanes) because it
-//! talks to the xdg-desktop-portal and session D-Bus inhibitors through GIO.
+//! `os_inhibit_sleep_*` stays C on Linux and FreeBSD
+//! (`util/platform-nix-inhibit.c`, built in both lanes) because it talks to
+//! the xdg-desktop-portal and session D-Bus inhibitors through GIO.
 
 use core::ffi::{CStr, c_char, c_int, c_void};
 use core::ptr;
@@ -523,14 +523,19 @@ mod shims {
             size: usize,
             name: *const c_char,
         ) -> c_int {
-            write_out(dst, size, &nix::program_data_path(cstr(name)))
+            match nix::program_data_path(cstr(name)) {
+                Some(bytes) => write_out(dst, size, &bytes),
+                None => -1,
+            }
         }
 
         /// # Safety
         /// `name` is a C string or null. The result is `bmalloc`'d.
         #[unsafe(no_mangle)]
         pub unsafe extern "C" fn os_get_program_data_path_ptr(name: *const c_char) -> *mut c_char {
-            let bytes = nix::program_data_path(cstr(name));
+            let Some(bytes) = nix::program_data_path(cstr(name)) else {
+                return ptr::null_mut();
+            };
             // SAFETY: the prefix is non-empty.
             unsafe { alloc_bytes(&bytes) }
         }

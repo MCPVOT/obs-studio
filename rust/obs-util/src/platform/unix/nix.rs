@@ -341,7 +341,10 @@ pub fn getcwd() -> Option<Vec<u8>> {
 /// `snprintf(dst, size, "%s", bytes)`. Returns the untruncated length.
 /// A missing buffer writes nothing, matching `snprintf(NULL, 0, ...)`.
 pub fn snprintf_bytes(dst: Option<&mut [u8]>, bytes: &[u8]) -> i32 {
-    let n = bytes.len() as i32;
+    // Longer than INT_MAX is EOVERFLOW: snprintf returns -1.
+    let Ok(n) = i32::try_from(bytes.len()) else {
+        return -1;
+    };
     let Some(dst) = dst else {
         return n;
     };
@@ -555,9 +558,9 @@ pub fn is_obs_plugin(_path: &[u8]) -> bool {
     true
 }
 
-/// Monotonic nanoseconds. macOS uses `CLOCK_UPTIME_RAW`, which is what
-/// `platform-cocoa.m`'s `os_gettime_ns` returns and what `os_sleepto_ns`
-/// subtracts. Linux and the BSDs use `CLOCK_MONOTONIC`, as this file does.
+/// Monotonic nanoseconds. macOS uses `CLOCK_UPTIME_RAW`, the same clock
+/// the Cocoa port returns and the clock `os_sleepto_ns` subtracts. Linux
+/// and the BSDs use `CLOCK_MONOTONIC`, as this file does.
 pub fn gettime_ns() -> u64 {
     #[cfg(target_os = "macos")]
     {
@@ -659,12 +662,17 @@ pub fn generate_uuid() -> [u8; 36] {
 }
 
 /// `os_get_program_data_path` text, without a NUL. A missing name is empty.
-pub fn program_data_path(name: Option<&[u8]>) -> Vec<u8> {
-    let mut out = b"/usr/local/share/".to_vec();
+/// `None` when the text is longer than `INT_MAX`, where `snprintf` fails.
+pub fn program_data_path(name: Option<&[u8]>) -> Option<Vec<u8>> {
+    const PREFIX: &[u8] = b"/usr/local/share/";
+    if PREFIX.len() + name.map_or(0, <[u8]>::len) > i32::MAX as usize {
+        return None;
+    }
+    let mut out = PREFIX.to_vec();
     if let Some(name) = name {
         out.extend_from_slice(name);
     }
-    out
+    Some(out)
 }
 
 // The rest of platform-nix.c is under `#if !defined(__APPLE__)`. macOS

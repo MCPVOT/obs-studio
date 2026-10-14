@@ -46,6 +46,16 @@ if [ -n "${OBS_CCACHE_DIR:-}" ]; then
 else
   env+=(-v obs-rust-linux-validate-ccache:/ccache -e CCACHE_DIR=/ccache)
 fi
+# OBS_EXTRA_CFLAGS: extra C/C++ compiler flags for the CMake builds, e.g. to
+# measure a stricter warning set (obs-rust/obs-studio#516).
+if [ -n "${OBS_EXTRA_CFLAGS:-}" ]; then
+  env+=(-e "OBS_EXTRA_CFLAGS=$OBS_EXTRA_CFLAGS")
+fi
+# OBS_EXTRA_CMAKE_ARGS: extra CMake configure arguments, space-separated, e.g.
+# -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF to collect every warning in one run.
+if [ -n "${OBS_EXTRA_CMAKE_ARGS:-}" ]; then
+  env+=(-e "OBS_EXTRA_CMAKE_ARGS=$OBS_EXTRA_CMAKE_ARGS")
+fi
 # Bake the toolchain pinned in rust-toolchain.toml into the image.
 rust_toolchain=$(sed -n 's/^channel *= *"\(.*\)"/\1/p' "$repo/rust-toolchain.toml")
 docker build -q --build-arg "RUST_TOOLCHAIN=$rust_toolchain" -t obs-rust-linux-validate "$here" >/dev/null

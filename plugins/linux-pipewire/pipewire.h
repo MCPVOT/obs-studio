@@ -46,8 +46,11 @@ struct obs_pipewire_connect_stream_info {
  * unusable afterwards and must be destroyed. */
 typedef void (*obs_pipewire_disconnected_cb)(void *user_data);
 
-obs_pipewire *obs_pipewire_connect_fd(int pipewire_fd, const struct pw_registry_events *registry_events,
-				      void *user_data);
+obs_pipewire *obs_pipewire_connect_fd(int pipewire_fd);
+/* Registry events can arrive as soon as this returns, on the PipeWire thread:
+ * store the connection where the callbacks look for it before calling this. */
+void obs_pipewire_add_registry_listener(obs_pipewire *obs_pw, const struct pw_registry_events *registry_events,
+					void *user_data);
 void obs_pipewire_set_disconnected_callback(obs_pipewire *obs_pw, obs_pipewire_disconnected_cb callback,
 					    void *user_data);
 bool obs_pipewire_is_disconnected(obs_pipewire *obs_pw);
@@ -56,6 +59,8 @@ bool obs_pipewire_is_disconnected(obs_pipewire *obs_pw);
 void obs_pipewire_set_reconnecting(obs_pipewire *obs_pw, bool reconnecting);
 struct pw_registry *obs_pipewire_get_registry(obs_pipewire *obs_pw);
 void obs_pipewire_roundtrip(obs_pipewire *obs_pw);
+void obs_pipewire_lock(obs_pipewire *obs_pw);
+void obs_pipewire_unlock(obs_pipewire *obs_pw);
 void obs_pipewire_destroy(obs_pipewire *obs_pw);
 
 obs_pipewire_stream *obs_pipewire_connect_stream(obs_pipewire *obs_pw, obs_source_t *source, int pipewire_node,

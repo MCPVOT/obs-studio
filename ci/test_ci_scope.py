@@ -1,8 +1,8 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
 """Which CI jobs a change needs (#436): Linux always; core code adds the
 Rust-libobs OBS build; macOS or Windows code adds that platform's jobs.
 
-    python3 -m unittest ci/test_ci_scope.py
+    uv run python -m unittest ci/test_ci_scope.py
 """
 
 from __future__ import annotations
@@ -58,6 +58,20 @@ class CiScopeTest(unittest.TestCase):
         ]:
             got = scope([path])
             self.assertTrue(got.macos and got.windows, path)
+
+
+    def test_cpp_cmocka_tests_and_test_build_config_need_every_platform(self):
+        # Each platform's Tier 2 compiles them with its own compiler (#610).
+        for path in [
+            "test/cmocka/test_source_select_list.cpp",
+            "test/cmocka/tests.d/test_source_select_list.cmake",
+            "test/cmocka/CMakeLists.txt",
+        ]:
+            got = scope([path])
+            self.assertTrue(got.macos and got.windows, path)
+
+    def test_c_cmocka_tests_stay_linux_only(self):
+        self.check(["test/cmocka/test_pipe_wait_error.c"])
 
 
 if __name__ == "__main__":

@@ -1,15 +1,17 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
 """Which CI jobs a change needs (obs-rust/obs-studio#436).
 
-    python3 ci/ci_scope.py <base-ref>        # writes core/macos/windows to $GITHUB_OUTPUT
+    uv run ci/ci_scope.py <base-ref>        # writes core/macos/windows to $GITHUB_OUTPUT
 
-The Linux jobs (Ubuntu OBS build, Rust tests, Tier 2 Linux) always run. On
-top of them:
-- core:    libobs or the Rust workspace changed -> the Rust-libobs OBS build;
-- macos:   macOS code (or shared build/CI config) changed -> the macOS jobs;
-- windows: Windows code (or shared build/CI config) changed -> the Windows jobs.
-Flatpak and the rest run only in the release gate (`full`). A platform job
-that is skipped here can't hide a break: it runs at the release gate.
+The Linux Rust tests and Tier 2 always run. On top of them:
+- macos:   macOS code (or shared build/CI config) changed -> macOS Rust
+           tests and Tier 2;
+- windows: Windows code (or shared build/CI config) changed -> Windows Rust
+           tests and Tier 2;
+- core:    libobs or the Rust workspace changed (informational).
+Every OBS app build (Ubuntu, macOS, Windows, Flatpak) runs only in the
+release gate (`full`). A job that is skipped here can't hide a break: it
+runs at the release gate.
 """
 
 from __future__ import annotations
@@ -34,6 +36,9 @@ CORE_FILES = {"Cargo.toml", "Cargo.lock", "rust-toolchain.toml"}
 SHARED_PREFIXES = (".github/", "cmake/common/", "cmake/finders/", "libobs/cmake/")
 SHARED_FILES = {"CMakeLists.txt", "CMakePresets.json", "buildspec.json"}
 SHARED_PATTERN = re.compile(r"^rust/[^/]+/src/platform/mod\.rs$")
+# Every platform's Tier 2 compiles these with its own compiler and C++
+# library; plain C tests stay Linux-only (#610).
+SHARED_TEST = re.compile(r"^test/cmocka/(CMakeLists\.txt|tests\.d/[^/]+\.cmake|[^/]+\.(cpp|hpp))$")
 
 
 @dataclass(frozen=True)
@@ -48,7 +53,7 @@ def scope(files: list[str]) -> Scope:
     for path in files:
         if path.startswith(CORE_PREFIXES) or path in CORE_FILES:
             core = True
-        if path.startswith(SHARED_PREFIXES) or path in SHARED_FILES or SHARED_PATTERN.match(path):
+        if path.startswith(SHARED_PREFIXES) or path in SHARED_FILES or SHARED_PATTERN.match(path) or SHARED_TEST.match(path):
             macos = windows = True
             continue
         if path.startswith("cmake/macos/") or path.endswith(MACOS_SUFFIXES) or MACOS.search(path):
