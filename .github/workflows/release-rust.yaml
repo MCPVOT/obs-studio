@@ -220,8 +220,11 @@ jobs:
               echo "$key=$got"
               [ "$got" = "$VERSION" ] || { echo "::error::$key is '$got', want '$VERSION'"; exit 1; }
             done
-            # PlistBuddy cannot read a pipe; plutil reads stdin with "-".
-            vol=$(diskutil info -plist "$mnt" | plutil -extract VolumeName raw -o - -)
+            # PlistBuddy requires a regular file; a pipe through /dev/stdin
+            # reports "Cannot parse a NULL or zero-length data" on macOS.
+            disk_info="$RUNNER_TEMP/obs-dmg-info-$TARGET.plist"
+            diskutil info -plist "$mnt" > "$disk_info"
+            vol=$(/usr/libexec/PlistBuddy -c "Print :VolumeName" "$disk_info")
             echo "volume: $vol"
             [[ "$vol" == "OBS-Studio-Rust $VERSION "* ]] || { echo "::error::DMG volume is '$vol'"; exit 1; }
             if [ "$TARGET" = arm64 ]; then
