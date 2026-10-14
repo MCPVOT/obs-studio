@@ -1168,16 +1168,19 @@ static inline bool obs_init_hotkeys(void)
 
 	if (os_event_init(&hotkeys->stop_event, OS_EVENT_TYPE_MANUAL) != 0)
 		goto fail;
-	os_event_t *ready = NULL;
-	if (os_event_init(&ready, OS_EVENT_TYPE_MANUAL) != 0)
+	if (os_event_init(&hotkeys->ready_event, OS_EVENT_TYPE_MANUAL) != 0)
 		goto fail;
-	if (pthread_create(&hotkeys->hotkey_thread, NULL, obs_hotkey_thread, ready)) {
-		os_event_destroy(ready);
+	if (pthread_create(&hotkeys->hotkey_thread, NULL, obs_hotkey_thread, hotkeys->ready_event)) {
+		os_event_destroy(hotkeys->ready_event);
+		hotkeys->ready_event = NULL;
 		goto fail;
 	}
-	/* Let the thread finish its one-time allocations first. */
-	os_event_wait(ready);
-	os_event_destroy(ready);
+	/* Let the thread finish its one-time allocations first. The event must
+	 * outlive the thread: the signalling thread may still be inside
+	 * pthread_mutex_unlock() on it when this wait returns, so destroying it
+	 * here is a use-after-free on macOS (obs-rust/obs-studio#684). It is
+	 * destroyed in stop_hotkeys() after the thread is joined. */
+	os_event_wait(hotkeys->ready_event);
 
 	hotkeys->strict_modifiers = true;
 	hotkeys->hotkey_thread_initialized = true;
@@ -1200,6 +1203,8 @@ static inline void stop_hotkeys(void)
 	}
 
 	os_event_destroy(hotkeys->stop_event);
+	os_event_destroy(hotkeys->ready_event);
+	hotkeys->ready_event = NULL;
 	obs_hotkeys_free();
 }
 
