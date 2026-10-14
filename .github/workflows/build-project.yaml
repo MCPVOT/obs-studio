@@ -455,7 +455,9 @@ jobs:
       # saves under a manifest-hash key, so that ccache froze at its first
       # save. Restore a commit-keyed copy of just that directory first; the
       # action's restore then extracts its snapshot on top (ccache entries are
-      # content-addressed, so the union is safe). Only master pushes save.
+      # content-addressed, so the union is safe). Every full run saves, so a
+      # ci-full PR is warm from its second push on (a PR restores its own
+      # newest entry before master's); only master prunes.
       - uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: .flatpak-builder/ccache
@@ -515,7 +517,7 @@ jobs:
           du -sh "${ccache_dir}"
 
       - uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master' && steps.ccache-stats.outcome == 'success'
+        if: steps.ccache-stats.outcome == 'success'
         with:
           path: .flatpak-builder/ccache
           key: flatpak-ccache-x86_64-${{ github.sha }}
