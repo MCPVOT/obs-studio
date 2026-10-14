@@ -26,7 +26,6 @@ DEFINITION = re.compile(
 
 # Stand-ins that intentionally differ from libobs, and why.
 DIFFERENT = {
-    "os_gettime_ns": "test-only zero clock where no Rust shim exists (macOS)",
     "os_fread_utf8": "ftell/memcmp instead of os_ftelli64/astrcmp_n: same result below 2 GiB, "
     "and test_stubs.c links without dstr",
     "os_fopen": "the libobs #ifdef _WIN32 body split into one definition per platform",

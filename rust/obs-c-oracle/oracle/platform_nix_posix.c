@@ -64,23 +64,9 @@
 #define dstr_catf oracle_dstr_catf
 
 /* sleepto calls os_gettime_ns. On macOS that function lives in
- * platform-cocoa.m, so this file has to provide the renamed symbol.
- * The name is written out in full so the macro above does not rewrite it.
+ * platform-cocoa.m. oracle/platform_cocoa.m provides oracle_os_gettime_ns.
+ * The rename above still rewrites the calls in this file.
  */
-#ifdef __APPLE__
-#include <stdint.h>
-#include <time.h>
-/* The header redeclares this with visibility("default") after the
- * rename macro. Put the attribute on the definition so that redeclaration
- * does not warn.
- */
-__attribute__((visibility("default"))) uint64_t oracle_os_gettime_ns(void);
-
-__attribute__((visibility("default"))) uint64_t oracle_os_gettime_ns(void)
-{
-	return clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
-}
-#endif
 
 #include "util/platform-nix.c"
 

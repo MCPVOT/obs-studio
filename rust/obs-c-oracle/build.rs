@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 
 /// FNV-1a 64-bit over the bytes that change what the oracle archive contains:
-/// this script, every *.c and *.h under `oracle/`, `vendor/`, `libobs/` and
-/// `deps/w32-pthreads/`, and the flag list. The whole of libobs is hashed
+/// this script, every *.c, *.h, and *.m under `oracle/`, `vendor/`, `libobs/`
+/// and `deps/w32-pthreads/`, and the flag list. The whole of libobs is hashed
 /// because oracle wrappers `#include` libobs sources and headers directly, so
 /// any libobs edit can change the compiled archive. zccache keys an rlib on
 /// argv + Rust inputs but never hashes the native archive a build script
@@ -50,7 +50,10 @@ fn collect_c_sources(dir: &Path, out: &mut Vec<PathBuf>) {
         let path = entry.expect("dir entry").path();
         if path.is_dir() {
             collect_c_sources(&path, out);
-        } else if path.extension().is_some_and(|e| e == "c" || e == "h") {
+        } else if path
+            .extension()
+            .is_some_and(|e| e == "c" || e == "h" || e == "m")
+        {
             out.push(path);
         }
     }
@@ -446,6 +449,21 @@ fn main() {
         libobs.with_file_name("deps").join("w32-pthreads"),
         nvenc_dir.clone(),
     ];
+    // platform-cocoa.m is Objective-C and returns NULL from a bool
+    // (cfstr_copy_dstr). It is a separate cc build so that one warning
+    // does not have to be disabled for every other oracle file.
+    let macos = std::env::var("CARGO_CFG_TARGET_OS").ok().as_deref() == Some("macos");
+    if macos {
+        owned_flags.push("-fobjc-arc".to_string());
+        owned_flags.push("-Wno-int-conversion".to_string());
+        // The original file stores a sysctl result it never reads.
+        owned_flags.push("-Wno-unused-but-set-variable".to_string());
+        // soldr appends CFLAGS after the builder flags and restates
+        // -mmacosx-version-min=10.12, so a version-min here does not
+        // win. The file uses NSURL keys from 10.13. The project target
+        // is 13.0 (CMakePresets.json). Silence that one cross warning.
+        owned_flags.push("-Wno-unguarded-availability-new".to_string());
+    }
     let mut hash_flags: Vec<&str> = flags.clone();
     hash_flags.extend(owned_flags.iter().map(String::as_str));
     println!(
@@ -467,6 +485,25 @@ fn main() {
         _ => {}
     }
     oracle.compile("obs_c_oracle");
+
+    if macos {
+        let mut objc = cc::Build::new();
+        objc.warnings(true)
+            .extra_warnings(true)
+            .warnings_into_errors(true)
+            .flag("-fobjc-arc")
+            .flag("-Wno-int-conversion")
+            .flag("-Wno-unused-but-set-variable")
+            .flag("-Wno-error=unused-command-line-argument")
+            .flag("-Wno-unguarded-availability-new")
+            .include(&libobs)
+            .include("oracle/obsconfig")
+            .file(manifest.join("oracle/platform_cocoa.m"));
+        objc.compile("obs_c_oracle_cocoa");
+        for framework in ["Foundation", "CoreFoundation", "IOKit", "Cocoa"] {
+            println!("cargo:rustc-link-lib=framework={framework}");
+        }
+    }
 
     println!("cargo:rerun-if-changed=oracle");
     println!("cargo:rerun-if-changed=vendor");

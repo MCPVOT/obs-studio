@@ -51,6 +51,8 @@ pub mod nal;
 pub mod obs_nvenc;
 pub mod path_extension;
 pub mod pipe;
+#[cfg(target_os = "macos")]
+pub mod platform_cocoa;
 #[cfg(unix)]
 pub mod platform_nix;
 #[cfg(all(windows, target_env = "msvc"))]

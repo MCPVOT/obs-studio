@@ -558,9 +558,9 @@ pub fn is_obs_plugin(_path: &[u8]) -> bool {
     true
 }
 
-/// Monotonic nanoseconds. macOS uses `CLOCK_UPTIME_RAW`, which is what
-/// `platform-cocoa.m`'s `os_gettime_ns` returns and what `os_sleepto_ns`
-/// subtracts. Linux and the BSDs use `CLOCK_MONOTONIC`, as this file does.
+/// Monotonic nanoseconds. macOS uses `CLOCK_UPTIME_RAW`, the same clock
+/// the Cocoa port returns and the clock `os_sleepto_ns` subtracts. Linux
+/// and the BSDs use `CLOCK_MONOTONIC`, as this file does.
 pub fn gettime_ns() -> u64 {
     #[cfg(target_os = "macos")]
     {

@@ -41,13 +41,13 @@ __attribute__((weak)) void os_oom(void) {}
 
 /* os_fopen comes from oracle/file_serializer_host.c. */
 
-/* The Rust shim defines os_gettime_ns on non-Apple Unix and on Windows.
- * macOS cargo tests do not link platform-cocoa.m, so they keep a strong
- * stub. The profiler oracle's scripted clock is oracle_profiler_gettime_ns. */
+/* The Rust shim defines os_gettime_ns, including the macOS Cocoa port.
+ * This stub stays weak so the shim wins. The profiler oracle's scripted
+ * clock is oracle_profiler_gettime_ns and does not use this symbol. */
 #if defined(__APPLE__)
 uint64_t os_gettime_ns(void);
 
-uint64_t os_gettime_ns(void)
+__attribute__((weak)) uint64_t os_gettime_ns(void)
 {
 	return 0;
 }

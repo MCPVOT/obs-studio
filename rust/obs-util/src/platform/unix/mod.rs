@@ -1,5 +1,7 @@
 //! Unix (Linux, macOS) side of the [platform boundary](super).
 
+#[cfg(target_os = "macos")]
+pub mod cocoa;
 pub mod event;
 pub mod nix;
 pub mod pipe;
