@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import ast
 import re
+import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -58,6 +60,34 @@ def enabled(expression: str, os_: str, signed: bool, notarized: bool) -> bool:
 
 
 class ReleaseNotarizationTest(unittest.TestCase):
+    def test_beta_bundle_versions_remain_numeric_and_keep_the_full_identity(self):
+        with tempfile.TemporaryDirectory() as root:
+            driver = Path(root) / "probe.cmake"
+            helper = ROOT / "cmake/macos/bundle-version.cmake"
+            driver.write_text(
+                f'include("{helper.as_posix()}")\n'
+                'set(OBS_VERSION_CANONICAL "33.1.0")\n'
+                'set(OBS_BUILD_NUMBER "12")\n'
+                'set(OBS_RUST_RELEASE_VERSION "0.1.0-beta.20261013")\n'
+                'obs_bundle_versions(short build)\n'
+                'if(NOT short STREQUAL "0.1.0" OR NOT build STREQUAL "2026.10.13")\n'
+                '  message(FATAL_ERROR "Invalid beta bundle versions: ${short}, ${build}")\n'
+                'endif()\n'
+                'set(OBS_RUST_RELEASE_VERSION "")\n'
+                'obs_bundle_versions(short build)\n'
+                'if(NOT short STREQUAL "33.1.0" OR NOT build STREQUAL "12")\n'
+                '  message(FATAL_ERROR "Upstream bundle versions changed")\n'
+                'endif()\n'
+            )
+            result = subprocess.run(["cmake", "-P", str(driver)], capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        plist = (ROOT / "frontend/cmake/macos/Info.plist.in").read_text()
+        self.assertIn("<key>OBSStudioRustVersion</key>", plist)
+        self.assertIn("<string>${OBS_RUST_RELEASE_VERSION}</string>", plist)
+        self.assertIn("obs_bundle_versions(_obs_bundle_marketing _obs_bundle_build)",
+                      (ROOT / "cmake/macos/helpers.cmake").read_text())
+        self.assertIn("Print :OBSStudioRustVersion", self.workflow)
+
     def setUp(self):
         self.workflow = (ROOT / ".github/workflows/release-rust.yaml").read_text()
         self.setup = step(self.workflow, "uses: ./.github/actions/setup-macos-codesigning")
