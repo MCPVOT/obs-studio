@@ -161,6 +161,12 @@ cannot prove both, so every ported unit carries the four tiers below.
 A port is not done until all applicable tiers pass. "Tier 1 passes" alone is
 not done.
 
+PR CI on `obs-rust/obs-studio` decides whether the tiers pass for a merge.
+Open a PR (a draft is fine) once the RED commit exists and let CI run the
+tiers; running them locally first (`./lint`, `./unittest`, `local-gate run`)
+is recommended, not required. The tiers, RED then GREEN, and the ban on
+editing C tests or public headers stay mandatory.
+
 ## Extracting a function before porting it
 
 If the unit to port is one function inside a larger C file,
@@ -269,6 +275,8 @@ Tier 2 checks.
 - The bitstream parsers (`obs-avc.c`, `obs-hevc.c`, `obs-av1.c`) get
   cargo-fuzz differential targets against the C oracle. Each runs at least 1
   hour with no mismatch outside documented exclusions.
+- These and the later targets (`nal_diff`, `config_ini_diff`) run nightly
+  through the local runner described in [fuzzing.md](fuzzing.md).
 - Inputs that trigger C UB are excluded and listed. The `get_ue_golomb` UB is
   already fixed in C (#11, #17).
 - obs-websocket gets a Tier 4 black-box suite covering every v5 request type,
@@ -292,6 +300,23 @@ macros is compiled into every caller, so no symbol swap is possible.
   contract), `util/serializer.h` (`struct serializer`), and the `static inline`
   helpers in `util/dstr.h` (the `struct dstr` layout is the contract).
   `util/dstr.c` itself is ported with the normal workflow.
+
+## Python runs through uv
+
+Every Python invocation in this repo goes through `uv run` (or `uvx` for a
+tool pulled from a package), never bare `python` or `python3`: `uv run
+python -m unittest ci/test_x.py`, `uv run tools/leaderboard/generate.py`,
+`uv run --with pillow python docs/images/generate-logo-assets.py SOURCE`. This
+covers shell scripts, `./lint`, `./unittest`, `local-gate.toml`, workflows and
+composite actions (which set uv up with the `astral-sh/setup-uv` step already
+pinned in `build-project.yaml`), CMake `COMMAND`s, docstring usage lines and
+Markdown code. Standalone scripts start with `#!/usr/bin/env -S uv run
+--script` (with PEP 723 inline metadata when they need packages); a
+shebang naming a bare interpreter is not allowed.
+
+`ci/test_uv_run.py` scans every tracked file and fails on a bare invocation.
+Its small, commented allowlist covers only trees we do not own (`deps/`,
+`plugins/`). Do not extend it to dodge the rule.
 
 ## Layout and naming
 

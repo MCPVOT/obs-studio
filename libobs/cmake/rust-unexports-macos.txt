@@ -12,6 +12,9 @@ _utf8_to_wchar
 _wchar_to_utf8
 # platform-nix.c is not exported by the C libobs.
 _get_plugin_info
+# platform-windows.c is not exported for these two.
+_get_win_release_id
+_DllMain
 # video-io.c is not exported for these six.
 _video_output_inc_texture_encoders
 _video_output_dec_texture_encoders
