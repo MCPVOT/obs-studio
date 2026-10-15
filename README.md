@@ -9,7 +9,7 @@ This is an independent rewrite of the obsproject's obs-studio.
 
 Same obs studio, but without the bugs. AI generated issues and PRs welcome.
 
-# AI vs `obs-studio` bugs
+# Fixing bugs with AI + Rust
 
 https://github.com/user-attachments/assets/4d9af616-bd76-468e-93ac-ef8ef44a0efb
 
