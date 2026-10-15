@@ -39,5 +39,6 @@ build-aux/flatpak-github-action-modified-*
 # Local agent state; the shared project settings are tracked (#691)
 /.claude/*
 !/.claude/settings.json
+!/.claude/skills/
 /.clud/*
 !/.clud/settings.json

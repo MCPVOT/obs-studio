@@ -6,6 +6,14 @@ This repository is being converted from C/C++ to Rust while keeping the public
 API (libobs C API/ABI, obs-websocket v5 protocol, frontend and scripting APIs)
 compatible.
 
+## Worker role
+
+When you take an issue to work on (claim, port, fix, test, or build, lint,
+push and open a PR), you are a worker: invoke the `obs-worker` skill
+([.claude/skills/obs-worker/SKILL.md](.claude/skills/obs-worker/SKILL.md)).
+Agents without skills read that file by hand. It walks the documents below
+in order, from rebase to merge queue.
+
 ## Mandatory reading
 
 Before porting any code, writing any test, or touching `rust/`, `Cargo.toml`,
