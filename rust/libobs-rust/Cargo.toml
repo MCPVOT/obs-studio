@@ -17,3 +17,4 @@ obs-util = { path = "../obs-util" }
 obs-graphics = { path = "../obs-graphics" }
 obs-codec = { path = "../obs-codec" }
 obs-media-io = { path = "../obs-media-io" }
+obs-data = { path = "../obs-data" }

@@ -39,6 +39,15 @@ target_link_libraries(libobs PRIVATE "$<LINK_LIBRARY:WHOLE_ARCHIVE,libobs_rust-s
 if(OS_LINUX OR OS_FREEBSD OR OS_OPENBSD)
   target_link_options(libobs PRIVATE "LINKER:--version-script=${CMAKE_CURRENT_SOURCE_DIR}/cmake/rust-exports.map")
   set_property(TARGET libobs APPEND PROPERTY LINK_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/rust-exports.map")
+  # The obs-data glue calls json_delete from inside the staticlib.
+  # jansson is first linked earlier, in libobs/CMakeLists.txt. On
+  # Ubuntu, GNU ld --as-needed drops that first occurrence because
+  # nothing references jansson yet, and every cmocka executable then
+  # fails to link. Link it again so a later occurrence follows the
+  # archive.
+  if(OS_LINUX)
+    target_link_libraries(libobs PRIVATE jansson::jansson)
+  endif()
 elseif(OS_WINDOWS)
   # One fragment per FFI module (cmake/rust-exports.d/README.md).
   file(GLOB _obs_rust_export_fragments CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/rust-exports.d/*.txt")

@@ -45,7 +45,7 @@ target_sources(
     $<$<PLATFORM_ID:Windows>:obs-core-modules-loader-win.c>
     $<$<PLATFORM_ID:Linux,FreeBSD,OpenBSD>:obs-core-modules-loader-nix.c>
     obs-core-modules-loader.h
-    obs-data.c
+    $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:obs-data.c>
     obs-data.h
     obs-defs.h
     obs-display.c

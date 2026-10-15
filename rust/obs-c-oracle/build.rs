@@ -471,6 +471,19 @@ fn main() {
         // is 13.0 (CMakePresets.json). Silence that one cross warning.
         owned_flags.push("-Wno-unguarded-availability-new".to_string());
     }
+    // obs-data.c calls its own deprecated autoselect setters. The shipped
+    // libobs build silences that on this one file; the oracle has to as well
+    // or -Werror fails the include of the original source.
+    if oracle.get_compiler().is_like_msvc() {
+        oracle.flag("/wd4996");
+        owned_flags.push("/wd4996".into());
+    } else {
+        oracle.flag("-Wno-deprecated-declarations");
+        owned_flags.push("-Wno-deprecated-declarations".into());
+    }
+    let jansson_src = manifest.join("vendor/jansson/src");
+    oracle.include(&jansson_src);
+    owned_flags.push("-Ivendor/jansson/src".into());
     let mut hash_flags: Vec<&str> = flags.clone();
     hash_flags.extend(owned_flags.iter().map(String::as_str));
     println!(
@@ -492,6 +505,32 @@ fn main() {
         _ => {}
     }
     oracle.compile("obs_c_oracle");
+
+    // Jansson 2.14.1 for cargo test. libobs links its own copy, so this
+    // staticlib stays on the oracle and is not a rustc-link-lib of obs-data.
+    // Warnings stay off: the third-party sources are not part of the ratchet.
+    let mut jansson = cc::Build::new();
+    jansson
+        .include(&jansson_src)
+        .warnings(false)
+        .define("HAVE_CONFIG_H", None);
+    for name in [
+        "dump.c",
+        "error.c",
+        "hashtable.c",
+        "hashtable_seed.c",
+        "load.c",
+        "memory.c",
+        "pack_unpack.c",
+        "strbuffer.c",
+        "strconv.c",
+        "utf.c",
+        "value.c",
+        "version.c",
+    ] {
+        jansson.file(jansson_src.join(name));
+    }
+    jansson.compile("jansson_vendor");
 
     if macos {
         let mut objc = cc::Build::new();
