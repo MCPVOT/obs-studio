@@ -35,6 +35,8 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #define GetSockError() WSAGetLastError()
+/* the narrow form: gai_strerror is the wide one under UNICODE */
+#define GetAddrInfoErrorString(err) gai_strerrorA(err)
 #ifdef _MSC_VER
 #define snprintf _snprintf
 #endif
@@ -43,6 +45,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #define GetSockError() errno
+#define GetAddrInfoErrorString(err) gai_strerror(err)
 #endif
 
 /* ------------------------------------------------------------------------- */
@@ -208,8 +211,9 @@ static int build_addr_list(const char *hostname, int port, struct happy_eyeballs
 	context->name_resolution_time_ns = os_gettime_ns() - start_time;
 	dstr_free(&port_str);
 	if (err) {
-		context->error = GetSockError();
-		context->error_message = strerror(GetSockError());
+		/* getaddrinfo reports through its result, not errno */
+		context->error = err;
+		context->error_message = GetAddrInfoErrorString(err);
 		return STATUS_FAILURE;
 	}
 
