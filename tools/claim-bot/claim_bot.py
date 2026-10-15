@@ -45,7 +45,6 @@ LOCKED = "claim-locked"
 STALE_HOURS = 48
 CRITICAL_STALE_HOURS = 8
 WARN_HOURS = 2
-MAX_CLAIMS = 2
 MAINTAINERS = {"OWNER", "MEMBER", "COLLABORATOR"}
 
 CLAIM_RE = re.compile(r"^\s*claiming\b", re.I)
@@ -133,8 +132,10 @@ def is_stale(issue: Issue, claim: Claim, now: datetime) -> bool:
     return now - last_activity(issue, claim) >= timedelta(hours=stale_hours(issue))
 
 
-def decide_comment(issue: Issue, comment: Comment, now: datetime, open_claims: int) -> list[tuple]:
-    """Actions for one new comment. open_claims: other issues the author holds."""
+def decide_comment(issue: Issue, comment: Comment, now: datetime) -> list[tuple]:
+    """Actions for one new comment. There is no per-account claim limit:
+    several agents can share one maintainer's account, and expiry handles
+    hoarding."""
     if is_bot(comment.author) or LOCKED in issue.labels:
         return []
     line = comment.first_line()
@@ -148,15 +149,13 @@ def decide_comment(issue: Issue, comment: Comment, now: datetime, open_claims: i
 
     if m := TAKEOVER_RE.match(line):
         if claim is None:
-            return grant(who, open_claims, "the issue had no claim")
+            return grant(who, "the issue had no claim")
         if claim.user.lower() != m.group(1).lower():
             return [("comment", f"{BOT_PREFIX} @{who}, the current claim is held by @{claim.user}, not @{m.group(1)}.")]
         if not is_stale(issue, claim, now):
             left = timedelta(hours=stale_hours(issue)) - (now - last_activity(issue, claim))
             return [("comment", f"{BOT_PREFIX} @{who}, the claim by @{claim.user} is still active; "
                      f"it goes stale in {fmt_hours(left)} without progress.")]
-        if open_claims >= MAX_CLAIMS:
-            return [("comment", too_many(who))]
         return move(claim, who, f"stale claim taken over from @{claim.user}")
 
     if CLAIM_RE.match(line):
@@ -167,10 +166,8 @@ def decide_comment(issue: Issue, comment: Comment, now: datetime, open_claims: i
                      "Pick something else or offer help here; once the claim goes stale, "
                      f"comment `Taking over stale claim from @{claim.user}`.")]
         if claim:
-            if open_claims >= MAX_CLAIMS:
-                return [("comment", too_many(who))]
             return move(claim, who, f"stale claim from @{claim.user}")
-        return grant(who, open_claims, None)
+        return grant(who, None)
 
     if RELEASE_RE.match(line) and claim and claim.user.lower() == who.lower():
         return [("unassign", claim.user), ("label_remove", CLAIMED),
@@ -178,9 +175,7 @@ def decide_comment(issue: Issue, comment: Comment, now: datetime, open_claims: i
     return []
 
 
-def grant(who: str, open_claims: int, note: str | None) -> list[tuple]:
-    if open_claims >= MAX_CLAIMS:
-        return [("comment", too_many(who))]
+def grant(who: str, note: str | None) -> list[tuple]:
     suffix = f" ({note})" if note else ""
     return [("label_add", CLAIMED), ("assign", who),
             ("comment", f"{BOT_PREFIX} claimed by @{who}{suffix}. {window_note()}")]
@@ -215,11 +210,6 @@ def decide_sweep(issue: Issue, now: datetime) -> list[tuple]:
             return [("comment", f"{BOT_PREFIX} claim by @{claim.user} expires in {fmt_hours(limit - idle)} "
                      "unless there is progress (a comment here, or a push, comment or review on your PR).")]
     return []
-
-
-def too_many(who: str) -> str:
-    return (f"{BOT_PREFIX} @{who}, you already hold {MAX_CLAIMS} claims, the limit. "
-            "Finish or release one (`Releasing <item>`) first.")
 
 
 def window_note() -> str:
@@ -281,16 +271,6 @@ def claimed_issue_numbers() -> list[int]:
     return [i["number"] for i in items if "pull_request" not in i]
 
 
-def open_claims_of(user: str, exclude: int) -> int:
-    n = 0
-    for number in claimed_issue_numbers():
-        if number == exclude:
-            continue
-        claim = current_claim(load_issue(number))
-        n += bool(claim and claim.user.lower() == user.lower())
-    return n
-
-
 def apply(number: int, actions: list[tuple], dry_run: bool) -> None:
     for kind, arg in actions:
         print(f"#{number}: {kind} {arg if kind != 'comment' else arg[:80]!r}")
@@ -330,10 +310,7 @@ def main() -> int:
         issue = load_issue(number)
         # The new comment is in the issue's history; decide as of before it.
         issue.comments = [x for x in issue.comments if x.created < comment.created]
-        target = comment.author
-        if m := REASSIGN_RE.match(line):
-            target = m.group(1)
-        apply(number, decide_comment(issue, comment, now, open_claims_of(target, number)), args.dry_run)
+        apply(number, decide_comment(issue, comment, now), args.dry_run)
         return 0
 
     for number in claimed_issue_numbers():

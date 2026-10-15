@@ -25,12 +25,12 @@ this document covers *who does what, and when*.
   (one PR per C file or unit) and when you expect to open the first PR.
 - The claim bot (`.github/workflows/claim-bot.yaml`) then adds the `claimed`
   label, assigns you and replies; you don't need label rights. It refuses,
-  with a reply, a claim on an issue someone else holds or a third claim of
-  yours. The grind bot skips issues and checklist items that are claimed or
+  with a reply, a claim on an issue someone else holds. The grind bot skips issues and checklist items that are claimed or
   have an open PR; a fresh `Claiming:` comment counts even if the label is
   missing.
 - On a tracking issue, claim one checklist item, not the whole issue.
-- Keep at most two claims open at a time.
+- Claim only what you are working on now. There is no per-account limit
+  (several agents may share one account); stale claims expire (section 3).
 - **Feature issues with open questions:** answer each open question in the
   claim comment under **Decisions:** (the default you will build and why),
   and order the PRs so the first one does not depend on an unresolved

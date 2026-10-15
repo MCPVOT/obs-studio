@@ -61,47 +61,50 @@ def claimed_by_alice(labels=(cb.CLAIMED,), prs=()):
 
 class ClaimTest(unittest.TestCase):
     def test_outside_contributor_claim_is_labeled_and_assigned(self):
-        acts = cb.decide_comment(issue(), human("vpacher", "Claiming: audio-io\n1. plan", h(0)), h(0), 0)
+        acts = cb.decide_comment(issue(), human("vpacher", "Claiming: audio-io\n1. plan", h(0)), h(0))
         self.assertIn(("label_add", cb.CLAIMED), acts)
         self.assertIn(("assign", "vpacher"), acts)
         self.assertRegex(acts[-1][1], r"claimed by @vpacher")
 
     def test_claim_is_case_insensitive_and_first_line_only(self):
-        self.assertTrue(cb.decide_comment(issue(), human("a", "claiming: x", h(0)), h(0), 0))
-        self.assertEqual(cb.decide_comment(issue(), human("a", "plan\nClaiming: x", h(0)), h(0), 0), [])
+        self.assertTrue(cb.decide_comment(issue(), human("a", "claiming: x", h(0)), h(0)))
+        self.assertEqual(cb.decide_comment(issue(), human("a", "plan\nClaiming: x", h(0)), h(0)), [])
 
     def test_fresh_claim_by_someone_else_is_refused(self):
-        acts = cb.decide_comment(claimed_by_alice(), human("bob", "Claiming: x", h(1)), h(1), 0)
+        acts = cb.decide_comment(claimed_by_alice(), human("bob", "Claiming: x", h(1)), h(1))
         self.assertEqual(kinds(acts), ["comment"])
         self.assertIn("already claimed by @alice", acts[0][1])
 
-    def test_third_claim_is_refused(self):
-        acts = cb.decide_comment(issue(), human("bob", "Claiming: x", h(0)), h(0), cb.MAX_CLAIMS)
-        self.assertEqual(kinds(acts), ["comment"])
-        self.assertIn("limit", acts[0][1])
+    def test_one_account_may_hold_any_number_of_claims(self):
+        """Several agents on one maintainer's machine share one GitHub
+        account; a per-account cap refused their claims. Expiry handles
+        hoarding instead."""
+        acts = cb.decide_comment(issue(), human("zackees", "Claiming: x", h(0), "MEMBER"), h(0))
+        self.assertIn(("assign", "zackees"), acts)
+        self.assertNotIn("limit", acts[-1][1])
 
     def test_reclaim_by_holder_is_a_no_op(self):
-        self.assertEqual(cb.decide_comment(claimed_by_alice(), human("alice", "Claiming: x", h(1)), h(1), 1), [])
+        self.assertEqual(cb.decide_comment(claimed_by_alice(), human("alice", "Claiming: x", h(1)), h(1)), [])
 
     def test_claim_on_a_stale_claim_moves_it(self):
-        acts = cb.decide_comment(claimed_by_alice(), human("bob", "Claiming: x", h(49)), h(49), 0)
+        acts = cb.decide_comment(claimed_by_alice(), human("bob", "Claiming: x", h(49)), h(49))
         self.assertIn(("unassign", "alice"), acts)
         self.assertIn(("assign", "bob"), acts)
 
     def test_locked_issue_is_ignored(self):
-        self.assertEqual(cb.decide_comment(issue(labels=[cb.LOCKED]), human("a", "Claiming: x", h(0)), h(0), 0), [])
+        self.assertEqual(cb.decide_comment(issue(labels=[cb.LOCKED]), human("a", "Claiming: x", h(0)), h(0)), [])
 
     def test_bot_comments_are_ignored(self):
-        self.assertEqual(cb.decide_comment(issue(), cb.Comment("x[bot]", "NONE", "Claiming: x", h(0)), h(0), 0), [])
+        self.assertEqual(cb.decide_comment(issue(), cb.Comment("x[bot]", "NONE", "Claiming: x", h(0)), h(0)), [])
 
 
 class ReleaseTest(unittest.TestCase):
     def test_holder_releases(self):
-        acts = cb.decide_comment(claimed_by_alice(), human("alice", "Releasing x, branch foo", h(2)), h(2), 1)
+        acts = cb.decide_comment(claimed_by_alice(), human("alice", "Releasing x, branch foo", h(2)), h(2))
         self.assertEqual(kinds(acts), ["unassign", "label_remove", "comment"])
 
     def test_others_cannot_release(self):
-        self.assertEqual(cb.decide_comment(claimed_by_alice(), human("bob", "Releasing x", h(2)), h(2), 0), [])
+        self.assertEqual(cb.decide_comment(claimed_by_alice(), human("bob", "Releasing x", h(2)), h(2)), [])
 
     def test_released_issue_has_no_claim(self):
         i = claimed_by_alice()
@@ -112,34 +115,34 @@ class ReleaseTest(unittest.TestCase):
 class TakeoverTest(unittest.TestCase):
     def test_takeover_of_fresh_claim_is_refused(self):
         acts = cb.decide_comment(claimed_by_alice(),
-                                 human("bob", "Taking over stale claim from @alice", h(10)), h(10), 0)
+                                 human("bob", "Taking over stale claim from @alice", h(10)), h(10))
         self.assertEqual(kinds(acts), ["comment"])
         self.assertIn("still active", acts[0][1])
 
     def test_takeover_of_stale_claim_moves_it(self):
         acts = cb.decide_comment(claimed_by_alice(),
-                                 human("bob", "Taking over stale claim from @alice", h(48)), h(48), 0)
+                                 human("bob", "Taking over stale claim from @alice", h(48)), h(48))
         self.assertIn(("assign", "bob"), acts)
         self.assertRegex(acts[-1][1], r"claim moved to @bob")
 
     def test_takeover_naming_the_wrong_holder_is_refused(self):
         acts = cb.decide_comment(claimed_by_alice(),
-                                 human("bob", "Taking over stale claim from @carol", h(48)), h(48), 0)
+                                 human("bob", "Taking over stale claim from @carol", h(48)), h(48))
         self.assertEqual(kinds(acts), ["comment"])
 
     def test_critical_claim_with_idle_draft_pr_is_stealable_after_8h(self):
         pr = cb.LinkedPR(5, "alice", [h(1)])
         i = claimed_by_alice(labels=(cb.CLAIMED, cb.CRITICAL), prs=[pr])
         take = human("bob", "Taking over stale claim from @alice", h(8.5))
-        self.assertIn(("assign", "bob"), cb.decide_comment(i, take, h(9), 0))
-        early = cb.decide_comment(i, take, h(8.5), 0)
+        self.assertIn(("assign", "bob"), cb.decide_comment(i, take, h(9)))
+        early = cb.decide_comment(i, take, h(8.5))
         self.assertEqual(kinds(early), ["comment"])
 
     def test_pushes_to_the_pr_keep_a_critical_claim(self):
         pr = cb.LinkedPR(5, "alice", [h(1), h(7)])
         i = claimed_by_alice(labels=(cb.CLAIMED, cb.CRITICAL), prs=[pr])
         take = human("bob", "Taking over stale claim from @alice", h(10))
-        self.assertEqual(kinds(cb.decide_comment(i, take, h(10), 0)), ["comment"])
+        self.assertEqual(kinds(cb.decide_comment(i, take, h(10))), ["comment"])
 
     def test_someone_elses_pr_does_not_count_as_progress(self):
         pr = cb.LinkedPR(5, "mallory", [h(40)])
@@ -149,12 +152,12 @@ class TakeoverTest(unittest.TestCase):
 
 class ReassignTest(unittest.TestCase):
     def test_maintainer_reassigns_a_fresh_claim(self):
-        acts = cb.decide_comment(claimed_by_alice(), human("zackees", "/reassign @bob", h(1), "MEMBER"), h(1), 0)
+        acts = cb.decide_comment(claimed_by_alice(), human("zackees", "/reassign @bob", h(1), "MEMBER"), h(1))
         self.assertIn(("unassign", "alice"), acts)
         self.assertIn(("assign", "bob"), acts)
 
     def test_contributor_cannot_reassign(self):
-        acts = cb.decide_comment(claimed_by_alice(), human("bob", "/reassign @bob", h(1)), h(1), 0)
+        acts = cb.decide_comment(claimed_by_alice(), human("bob", "/reassign @bob", h(1)), h(1))
         self.assertEqual(kinds(acts), ["comment"])
 
 

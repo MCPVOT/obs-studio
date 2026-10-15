@@ -51,7 +51,7 @@ don't delete local branches you didn't create.
    clear failing-test sketch, then the next unit in the port order.
 3. Claim it: comment `Claiming: <item>` with a short numbered plan (one PR
    per unit) and when you expect the first PR. The claim bot adds the
-   `claimed` label and assigns you. Keep at most two claims open.
+   `claimed` label and assigns you. Claim only what you are working on now.
 4. **Feature issues** (new behavior, not a port or a bug): check that the
    design is agreed before you code. If the issue lists open questions,
    answer each one in the claim comment under a **Decisions:** heading
