@@ -129,9 +129,10 @@ running, wait and retry.
 
 - Mark the PR ready when CI is green, then queue it: `gh pr merge <N>`.
   The merge queue reruns CI on the merge result; `CI Gate ✅` decides.
-  Rebase by hand only when GitHub reports a conflict. Never use
+  Rebase by hand only when GitHub reports a conflict. Workers never use
   `gh pr merge --admin` or push to master: a merge outside the queue
-  rebuilds every queued PR (coordination.md §8).
+  rebuilds every queued PR. The admin bypass is for maintainers only
+  (coordination.md §8).
 - When the issue closes, comment what fixed it, what's left, and the
   follow-up issue for the rest. Tick the tracking-issue checkbox.
 - Stopping early: comment `Releasing <item>` and link the branch; the

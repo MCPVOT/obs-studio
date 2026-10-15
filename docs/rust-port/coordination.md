@@ -143,8 +143,9 @@ this document covers *who does what, and when*.
 `master` blocks force pushes and deletion, including for administrators.
 
 Every change reaches master through GitHub's merge queue (ruleset "master
-merge queue (#692)", squash merges, no bypass). Queue a green PR with
-`gh pr merge <N>`; never `gh pr merge --admin` and never push to master.
+merge queue (#692)", squash merges). Queue a green PR with
+`gh pr merge <N>`. Agents and contributors never use `gh pr merge --admin`
+and never push to master.
 The queue reruns PR CI on the merge result with current master, and the one
 required check is `CI Gate ✅` (`pr-pull.yaml`). That job always reports: it
 passes when every other job passed or was skipped (out of scope, attested by
@@ -158,9 +159,20 @@ from 11 administrator merges that bypassed the queue: each moved master under
 it and rebuilt every queued group (up to 5 runs for one PR, about 65 minutes
 from queueing to merge against a 16-minute run). Requiring branches to be up
 to date instead would make every agent rebase and rerun CI after every merge,
-which gets slower with each agent added. So nothing bypasses the queue, and
-lane proofs (docs/ci-tooling.md) let a rebuilt group skip the lanes whose
+which gets slower with each agent added. So the queue is the normal path,
+and lane proofs (docs/ci-tooling.md) let a rebuilt group skip the lanes whose
 inputs did not change.
+
+**Maintainer bypass.** The ruleset lets the repository admin role bypass it
+for pull requests only (`gh pr merge <N> --admin --squash`; direct pushes
+stay blocked). It is for a maintainer landing a small, low-risk PR (docs, a
+bot or CI tweak) that should not wait for a CI run. It skips CI, and it moves
+master under every queued group, which then rebuilds, so check the queue
+first and prefer it when the queue is busy. A queued PR that only needs to
+go first can jump to the front instead, keeping CI:
+`gh api graphql -f query='mutation{enqueuePullRequest(input:{pullRequestId:"<node id>",jump:true}){mergeQueueEntry{position}}}'`
+(the PR's own `CI Gate ✅` must already be green; GitHub refuses a PR whose
+checks are pending or failing).
 
 In an emergency an administrator may set the ruleset's enforcement to
 "disabled", land the fix, and enable it again, saying so in the PR.
