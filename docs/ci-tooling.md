@@ -127,13 +127,22 @@ What to do:
 What not to do:
 
 - `docker system prune`. It destroys everyone's warm caches.
-- Install bosn or add a `bosn.toml` unasked. It's manifest-driven, and the
-  machine owner decides.
+- Install bosn unasked, or add stacks to `bosn.toml` without a reason. It's
+  manifest-driven, and the machine owner decides what runs.
 
-Current gap: this repo doesn't route its own Docker work through bosn yet.
-`rust/tools/linux-validate/run.sh` (the Tier 2 lane) calls `docker build` and
-`docker run` directly, so concurrent local gates from many agents run
-unmanaged. Moving the Tier 2 harness under bosn is the main open step.
+The repo's `bosn.toml` declares one stack so far: `appimage`, an Ubuntu 26.04
+image (`build-aux/appimage/Dockerfile`) with the AppImage build dependencies
+preinstalled. `bosn run --task appimage` builds the AppImage locally by
+running `build-aux/appimage/build.py`, the same script the AppImage workflow
+calls, with no act and no GitHub involved. The source is bind-mounted, ccache
+and cargo caches live in bosn volumes, and the AppImage lands in
+`build_appimage/` (#899). (`bosn ci run` can't run that job through act: its
+`ubuntu-26.04` label isn't supported there.)
+
+Remaining gap: `rust/tools/linux-validate/run.sh` (the Tier 2 lane) still
+calls `docker build` and `docker run` directly, so concurrent local gates
+from many agents run unmanaged. Moving the Tier 2 harness under bosn is the
+main open step.
 
 ### act2: GitHub Actions, locally
 
@@ -293,7 +302,8 @@ Each gap is a step toward the full protocol, and a good issue to pick up:
 - **Docker through bosn.** The Tier 2 Linux harness
   (`rust/tools/linux-validate/run.sh`) drives Docker directly, so concurrent
   local gates run unmanaged. Running it under bosn's bounded runner slots is
-  the biggest single relief for shared machines.
+  the biggest single relief for shared machines. (The AppImage build already
+  runs under bosn: `bosn run --task appimage`.)
 - **A real `ci.toml`.** Path selection lives in `ci/ci_scope.py`, outside
   ci.yml's checker. Moving it into a schema-3 `ci.toml` lets the protocol's
   tooling validate and evolve it.
