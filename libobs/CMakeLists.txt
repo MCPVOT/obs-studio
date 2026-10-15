@@ -126,6 +126,7 @@ target_sources(
     $<$<BOOL:${ENABLE_RUST_LIBOBS}>:util/pipe-variadic.c>
     util/pipe.h
     util/platform.c
+    util/platform-number.c
     util/platform.h
     $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:util/profiler-snapshot.c>
     util/profiler-snapshot.h
