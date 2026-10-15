@@ -13,7 +13,7 @@ Lanes:
   lint         clang-format 22.1.3 and gersemi 0.25.0 over the same files as
                build-aux/run-clang-format and run-gersemi, plus rustfmt,
                clippy -D warnings and the repo Dylints (dylints/*). Formatters are pinned through uvx, so no
-               brew/zsh install is needed.
+               brew/zsh install is needed. Also ci/platform_ifdef_ratchet.py (#847).
   rust-test    soldr cargo test --workspace --locked (Tiers 1-3), plus a
                --no-run build of the tests for x86_64-pc-windows-gnu.
 
@@ -141,6 +141,11 @@ def self_test() -> None:
     run([sys.executable, "-m", "unittest", "discover", "-s", "ci", "-p", "test_*.py"])
 
 
+def platform_ifdef_ratchet() -> None:
+    """Shared C/C++ gains no platform conditionals (#847); see ci/platform_ifdef_ratchet.py."""
+    run([sys.executable, "ci/platform_ifdef_ratchet.py"])
+
+
 def tracked_files() -> list[str]:
     out = subprocess.run(["git", "ls-files", "-z"], cwd=ROOT, check=True, capture_output=True).stdout
     return [p for p in out.decode().split("\0") if p and (ROOT / p).is_file()]
@@ -210,6 +215,7 @@ def lane_lint(fix: bool) -> None:
     clang_format(files, fix)
     gersemi(files, fix)
     self_test()
+    platform_ifdef_ratchet()
     soldr_cargo(["fmt", "--all"] + ([] if fix else ["--check"]))
     soldr_cargo(["clippy", "--workspace", "--all-targets", "--locked", "--", "-D", "warnings"])
     # Pre-expansion Dylints (dylints/*), so host-cfg'd code is checked on
