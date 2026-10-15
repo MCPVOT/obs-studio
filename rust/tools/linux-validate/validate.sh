@@ -99,11 +99,15 @@ for mode in OFF ON; do
   fi
 
   echo "== [$mode] ctest"
-  ctest --test-dir "$build" --output-on-failure
+  # xvfb-run gives display tests an X server; the PipeWire tests start their
+  # own private PipeWire daemon and D-Bus bus (#776).
+  xvfb-run -a ctest --test-dir "$build" --output-on-failure 2>&1 | tee "$build.ctest.log"
+  # A PipeWire test that skips for lack of a daemon is a hole, not a pass (#776).
+  /src/rust/tools/linux-validate/check-skips.sh "$build.ctest.log"
 
   if [ "$repeat" -gt 0 ]; then
     echo "== [$mode] ctest --repeat until-fail:$repeat${tests:+ -R $tests}"
-    ctest --test-dir "$build" --output-on-failure \
+    xvfb-run -a ctest --test-dir "$build" --output-on-failure \
       --repeat "until-fail:$repeat" ${tests:+-R "$tests"}
   fi
 
