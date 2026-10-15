@@ -113,6 +113,142 @@ static bool Failing(obs_hotkeys_background_state state)
 	}
 }
 
+/* A desktop's own trigger text as a key combination, for the desktops that
+ * report one (KDE, GNOME). KDE sends Qt key sequences ("Ctrl+Shift+A",
+ * "F11"); GNOME a GTK accelerator after a word ("Press <Shift><Control>a").
+ * KDE localizes modifier names ("Strg+Umschalt+A"); those are counted, not
+ * read. Text that doesn't read as a key (several keys, no key name) gives
+ * nullopt: then nothing is claimed about it. */
+struct DesktopKey {
+	obs_key_combination_t combo;
+	/* "Shift+Ctrl+A", for the tooltip. */
+	std::string text;
+	/* Localized modifier names ("Strg") aren't read: then only the key
+	 * and the number of modifiers are known. */
+	bool modifiersKnown = true;
+	size_t modifierCount = 0;
+};
+
+static std::string Lower(std::string text)
+{
+	std::transform(text.begin(), text.end(), text.begin(), [](unsigned char c) { return (char)std::tolower(c); });
+	return text;
+}
+
+static bool ModifierFrom(const std::string &name, uint32_t &modifier, const char *&text)
+{
+	std::string lower = Lower(name);
+	if (lower == "ctrl" || lower == "control" || lower == "primary") {
+		modifier = INTERACT_CONTROL_KEY;
+		text = "Ctrl";
+	} else if (lower == "shift") {
+		modifier = INTERACT_SHIFT_KEY;
+		text = "Shift";
+	} else if (lower == "alt" || lower == "mod1") {
+		modifier = INTERACT_ALT_KEY;
+		text = "Alt";
+	} else if (lower == "meta" || lower == "super" || lower == "logo") {
+		modifier = INTERACT_COMMAND_KEY;
+		text = "Super";
+	} else {
+		return false;
+	}
+	return true;
+}
+
+static obs_key_t KeyFrom(const std::string &name)
+{
+	static const std::map<std::string, const char *> aliases = {
+		{"esc", "ESCAPE"},      {"prior", "PAGEUP"}, {"pgup", "PAGEUP"}, {"next", "PAGEDOWN"},
+		{"pgdown", "PAGEDOWN"}, {"ins", "INSERT"},   {"del", "DELETE"},  {"enter", "RETURN"},
+	};
+	if (name.empty()) {
+		return OBS_KEY_NONE;
+	}
+	std::string upper;
+	auto alias = aliases.find(Lower(name));
+	if (alias != aliases.end()) {
+		upper = alias->second;
+	} else {
+		for (char c : name) {
+			if (c != '_') {
+				upper += (char)std::toupper((unsigned char)c);
+			}
+		}
+	}
+	return obs_key_from_name(("OBS_KEY_" + upper).c_str());
+}
+
+static size_t ModifierCount(const obs_key_combination_t &combo)
+{
+	size_t count = 0;
+	for (uint32_t modifier : {INTERACT_CONTROL_KEY, INTERACT_SHIFT_KEY, INTERACT_ALT_KEY, INTERACT_COMMAND_KEY}) {
+		if (combo.modifiers & modifier) {
+			count++;
+		}
+	}
+	return count;
+}
+
+static std::optional<DesktopKey> ParseDesktopTrigger(const std::string &trigger)
+{
+	std::vector<std::string> mods;
+	std::string key;
+	size_t accel = trigger.find('<');
+	if (accel != std::string::npos) {
+		/* GTK accelerator: "<Shift><Control>a" */
+		size_t pos = accel;
+		while (pos < trigger.size() && trigger[pos] == '<') {
+			size_t end = trigger.find('>', pos);
+			if (end == std::string::npos) {
+				return std::nullopt;
+			}
+			mods.push_back(trigger.substr(pos + 1, end - pos - 1));
+			pos = end + 1;
+		}
+		key = trigger.substr(pos);
+	} else {
+		/* Qt key sequence, possibly after a word: "Ctrl+Shift+A" */
+		size_t space = trigger.find_last_of(' ');
+		std::string sequence = space == std::string::npos ? trigger : trigger.substr(space + 1);
+		std::stringstream stream(sequence);
+		std::string part;
+		while (std::getline(stream, part, '+')) {
+			mods.push_back(part);
+		}
+		if (mods.empty()) {
+			return std::nullopt;
+		}
+		key = mods.back();
+		mods.pop_back();
+	}
+	if (key.find_first_of(" ,") != std::string::npos) {
+		return std::nullopt;
+	}
+
+	DesktopKey parsed;
+	parsed.combo = {0, KeyFrom(key)};
+	if (parsed.combo.key == OBS_KEY_NONE) {
+		return std::nullopt;
+	}
+	parsed.modifierCount = mods.size();
+	for (auto &mod : mods) {
+		uint32_t modifier;
+		const char *text;
+		if (mod.empty()) {
+			return std::nullopt;
+		}
+		if (!ModifierFrom(mod, modifier, text)) {
+			parsed.modifiersKnown = false;
+			continue;
+		}
+		parsed.combo.modifiers |= modifier;
+		parsed.text += std::string(text) + "+";
+	}
+	parsed.text += key.size() == 1 ? std::string(1, (char)std::toupper((unsigned char)key[0])) : key;
+	return parsed;
+}
+
 Marker MarkerFor(const Input &input, const obs_key_combination_t &combo)
 {
 	if (input.state == OBS_HOTKEYS_BACKGROUND_NATIVE || obs_key_combination_is_empty(combo)) {
@@ -147,8 +283,17 @@ Marker MarkerFor(const Input &input, const obs_key_combination_t &combo)
 	case ConfigState::Bound:
 		break;
 	}
-	/* A desktop's own trigger text is localized ("Strg+Umschalt+A"), so it
-	 * is shown in the tooltip, not compared. */
+	/* The desktop runs it on another key, given in its own settings. */
+	if (!input.desktop) {
+		auto desktopKey = ParseDesktopTrigger(shortcut->trigger);
+		if (desktopKey && desktopKey->modifiersKnown && !SameCombo(desktopKey->combo, combo)) {
+			return Marker::OtherKey;
+		}
+		if (desktopKey && !desktopKey->modifiersKnown &&
+		    (desktopKey->combo.key != combo.key || desktopKey->modifierCount != ModifierCount(combo))) {
+			return Marker::OtherKey;
+		}
+	}
 	return Marker::Background;
 }
 
@@ -162,7 +307,11 @@ std::string DesktopTrigger(const Input &input, const obs_key_combination_t &comb
 		}
 	}
 	const Shortcut *shortcut = FindShortcut(input, combo);
-	return shortcut ? shortcut->trigger : std::string();
+	if (!shortcut) {
+		return std::string();
+	}
+	auto desktopKey = ParseDesktopTrigger(shortcut->trigger);
+	return desktopKey && desktopKey->modifiersKnown ? desktopKey->text : shortcut->trigger;
 }
 
 View Compute(const Input &input)
@@ -172,6 +321,7 @@ View Compute(const Input &input)
 		return view;
 	}
 	view.paused = (input.flags & OBS_HOTKEYS_BACKGROUND_PAUSED) != 0;
+	view.desktopTakesKeys = (input.flags & OBS_HOTKEYS_BACKGROUND_DESKTOP_TRIGGERS) && !input.desktop;
 	view.configureFailed = (input.flags & OBS_HOTKEYS_BACKGROUND_CONFIGURE_FAILED) != 0;
 
 	for (auto &combo : input.combos) {
@@ -190,6 +340,8 @@ View Compute(const Input &input)
 			view.unverified++;
 		} else if (marker == Marker::OtherKey) {
 			view.otherKey++;
+		} else if (marker == Marker::NotBound) {
+			view.notBound++;
 		}
 		if (input.desktop) {
 			ConfigState state = InConfig(input, combo);
@@ -221,6 +373,9 @@ View Compute(const Input &input)
 	case OBS_HOTKEYS_BACKGROUND_DECLINED:
 		warn(Banner::Declined);
 		view.askAgain = true;
+		/* A desktop with its own editor may not ask again (KDE keeps
+		 * the declined shortcuts without keys): keys can be set there. */
+		view.configure = (input.flags & OBS_HOTKEYS_BACKGROUND_CONFIGURABLE) != 0;
 		return view;
 	case OBS_HOTKEYS_BACKGROUND_CLOSED:
 		warn(Banner::Closed);
@@ -283,13 +438,21 @@ View Compute(const Input &input)
 	}
 
 	view.configure = (input.flags & OBS_HOTKEYS_BACKGROUND_CONFIGURABLE) != 0;
+	/* Only the new keys' dialog was declined: they were never added to the
+	 * desktop's settings, so asking again is the way back. */
+	view.newKeysDeclined = (input.flags & OBS_HOTKEYS_BACKGROUND_PARTLY_DECLINED) && view.notBound;
+	view.askAgain = view.newKeysDeclined;
 	if (view.working == 0 && view.pending) {
 		view.banner = Banner::Pending;
 		return view;
 	}
+	if (view.working == 0 && view.configure) {
+		warn(Banner::NoDesktopKeys);
+		return view;
+	}
 	view.testKey = true;
 	view.banner = Banner::Working;
-	view.level = (view.working == view.keys || view.pending) && !view.otherKey ? Level::Ok : Level::Warning;
+	view.level = !view.notBound && !view.otherKey ? Level::Ok : Level::Warning;
 	return view;
 }
 

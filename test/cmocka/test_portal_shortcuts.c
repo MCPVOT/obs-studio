@@ -140,6 +140,9 @@ static struct fake_portal {
 	char *configure_session;
 	/* ConfigureShortcuts fails with this D-Bus error message. */
 	const char *configure_error;
+	/* Like a dialog cancelled for one new shortcut: a BindShortcuts with
+	 * this id answers 1 (cancelled); one without it succeeds. */
+	const char *decline_with_id;
 } fake;
 
 static char *request_path(const char *sender, const char *token)
@@ -295,10 +298,21 @@ static void portal_method(GDBusConnection *conn, const char *sender, const char 
 			g_variant_builder_add(&list, "(s@a{sv})", id, g_variant_builder_end(&out));
 			g_variant_unref(props);
 		}
+		uint32_t response = fake.bind_response;
+		if (fake.decline_with_id) {
+			const char *requested;
+			GVariant *requested_props;
+			g_variant_iter_init(&iter, shortcuts);
+			while (g_variant_iter_next(&iter, "(&s@a{sv})", &requested, &requested_props)) {
+				if (strcmp(requested, fake.decline_with_id) == 0)
+					response = 1;
+				g_variant_unref(requested_props);
+			}
+		}
 		GVariantBuilder results;
 		g_variant_builder_init(&results, G_VARIANT_TYPE_VARDICT);
 		g_variant_builder_add(&results, "{sv}", "shortcuts", g_variant_builder_end(&list));
-		respond(sender, req, fake.bind_response, g_variant_builder_end(&results));
+		respond(sender, req, response, g_variant_builder_end(&results));
 		g_free(req);
 		return;
 	}
@@ -1272,7 +1286,8 @@ static void status_reports_bound_shortcuts(void **state)
 	fake_portal_stop();
 }
 
-/* Hyprland-like desktop: shortcuts are bound but no trigger comes back; the
+/* Hyprland-like desktop (xdg-desktop-portal-hyprland: version 1, empty
+ * trigger_description): shortcuts are bound but no trigger comes back; the
  * keys must be bound in the compositor's config. */
 static void status_without_desktop_triggers(void **state)
 {
@@ -1280,7 +1295,6 @@ static void status_without_desktop_triggers(void **state)
 	REQUIRE_DBUS_DAEMON();
 	fake_portal_start(true);
 	fake.no_triggers = true;
-	fake.version = 2;
 
 	struct hotkey_log talk = {0};
 	register_bound("push-to-talk", &talk, f13);
@@ -1291,7 +1305,7 @@ static void status_without_desktop_triggers(void **state)
 
 	uint32_t flags = background_flags();
 	assert_false(flags & OBS_HOTKEYS_BACKGROUND_DESKTOP_TRIGGERS);
-	assert_true(flags & OBS_HOTKEYS_BACKGROUND_CONFIGURABLE);
+	assert_false(flags & OBS_HOTKEYS_BACKGROUND_CONFIGURABLE);
 	struct shortcut_info info = shortcut_info(f13);
 	assert_true(info.bound);
 	assert_string_equal(info.trigger, "(none)");
@@ -1330,6 +1344,74 @@ static void declined_then_asked_again(void **state)
 	assert_true(wait_until(log_pressed, &talk));
 	emit_shortcut(fake.last_bind_session, "OBS_KEY_F13", false);
 	assert_true(wait_until(log_released, &talk));
+
+	obs_nix_portal_shortcuts_stop(portal);
+	fake_portal_stop();
+}
+
+/* A new key is added later and the user cancels the desktop's dialog for
+ * it (GNOME lists every shortcut again in that dialog): the keys approved
+ * before keep working, only the new one is not bound, and it is not asked
+ * for again until Ask again. */
+static void declined_new_key_keeps_approved_keys(void **state)
+{
+	UNUSED_PARAMETER(state);
+	REQUIRE_DBUS_DAEMON();
+	fake_portal_start(true);
+
+	struct hotkey_log talk = {0}, record = {0};
+	register_bound("push-to-talk", &talk, f13);
+
+	struct obs_nix_portal_shortcuts *portal = obs_nix_portal_shortcuts_start(&key_state, test_key_name);
+	expect_bind(1);
+	expect_state(OBS_HOTKEYS_BACKGROUND_ACTIVE, "approved");
+
+	fake.decline_with_id = "ctrl+shift+OBS_KEY_A";
+	register_bound("record", &record, ctrl_shift_a);
+	expect_bind(2);
+	/* The approved key is bound again, without the declined one. */
+	if (!wait_until(binds_at_least, (void *)(uintptr_t)3)) {
+		fprintf(stderr,
+			"after the dialog for a new key was cancelled, the approved keys were "
+			"not bound again (state %s)\n",
+			state_name(obs_hotkeys_get_background_state(NULL)));
+		fail();
+	}
+	expect_state(OBS_HOTKEYS_BACKGROUND_ACTIVE, "approved keys bound again");
+	uint32_t flags = background_flags();
+	assert_true(flags & OBS_HOTKEYS_BACKGROUND_PARTLY_DECLINED);
+	assert_true(shortcut_info(f13).bound);
+	assert_true(shortcut_info(ctrl_shift_a).found);
+	assert_false(shortcut_info(ctrl_shift_a).bound);
+	expect_no_bind_after(3, 700, "declined new key");
+
+	emit_shortcut(fake.last_bind_session, "OBS_KEY_F13", true);
+	assert_true(wait_until(log_pressed, &talk));
+	emit_shortcut(fake.last_bind_session, "OBS_KEY_F13", false);
+	assert_true(wait_until(log_released, &talk));
+
+	/* Settings opens and closes (the keys are released meanwhile): the
+	 * approved key is bound again, the declined one is not asked for. */
+	obs_hotkey_enable_background_press(false);
+	serve_for(300);
+	obs_hotkey_enable_background_press(true);
+	expect_bind(4);
+	expect_state(OBS_HOTKEYS_BACKGROUND_ACTIVE, "after Settings closed");
+	if (bound_has("ctrl+shift+OBS_KEY_A")) {
+		fprintf(stderr, "closing Settings asked again for the declined key\n");
+		fail();
+	}
+	assert_true(bound_has("OBS_KEY_F13"));
+	assert_true(background_flags() & OBS_HOTKEYS_BACKGROUND_PARTLY_DECLINED);
+	assert_false(shortcut_info(ctrl_shift_a).bound);
+	expect_no_bind_after(4, 700, "declined new key after Settings closed");
+
+	fake.decline_with_id = NULL;
+	obs_hotkeys_retry_background();
+	expect_bind(5);
+	expect_state(OBS_HOTKEYS_BACKGROUND_ACTIVE, "asked again");
+	assert_false(background_flags() & OBS_HOTKEYS_BACKGROUND_PARTLY_DECLINED);
+	assert_true(shortcut_info(ctrl_shift_a).bound);
 
 	obs_nix_portal_shortcuts_stop(portal);
 	fake_portal_stop();
@@ -1447,6 +1529,40 @@ static void untriggered_shortcut_is_not_bound(void **state)
 	assert_true(shortcut_info(f13).bound);
 	if (shortcut_info(ctrl_shift_a).bound) {
 		fprintf(stderr, "a shortcut the desktop gave no key is reported as bound\n");
+		fail();
+	}
+
+	obs_nix_portal_shortcuts_stop(portal);
+	fake_portal_stop();
+}
+
+/* KDE after its dialog was cancelled once: the shortcuts stay registered
+ * without keys, so every later BindShortcuts returns at once, no dialog, all
+ * triggers empty. A desktop with its own shortcut editor (portal version 2)
+ * assigns the keys itself, so none of them is bound. */
+static void configurable_portal_without_triggers_binds_nothing(void **state)
+{
+	UNUSED_PARAMETER(state);
+	REQUIRE_DBUS_DAEMON();
+	fake_portal_start(true);
+	fake.no_triggers = true;
+	fake.version = 2;
+
+	struct hotkey_log talk = {0}, record = {0};
+	register_bound("push-to-talk", &talk, f13);
+	register_bound("record", &record, ctrl_shift_a);
+
+	struct obs_nix_portal_shortcuts *portal = obs_nix_portal_shortcuts_start(&key_state, test_key_name);
+	expect_bind(1);
+	expect_state(OBS_HOTKEYS_BACKGROUND_ACTIVE, "after BindShortcuts");
+	uint32_t flags = background_flags();
+	assert_true(flags & OBS_HOTKEYS_BACKGROUND_CONFIGURABLE);
+	if (!(flags & OBS_HOTKEYS_BACKGROUND_DESKTOP_TRIGGERS) || shortcut_info(f13).bound ||
+	    shortcut_info(ctrl_shift_a).bound) {
+		fprintf(stderr,
+			"version 2 portal returned no keys, yet OBS counts the shortcuts as bound "
+			"(desktop triggers flag %s)\n",
+			flags & OBS_HOTKEYS_BACKGROUND_DESKTOP_TRIGGERS ? "set" : "not set");
 		fail();
 	}
 
@@ -1761,12 +1877,14 @@ int main(void)
 		cmocka_unit_test_setup_teardown(status_reports_bound_shortcuts, setup, teardown),
 		cmocka_unit_test_setup_teardown(status_without_desktop_triggers, setup, teardown),
 		cmocka_unit_test_setup_teardown(declined_then_asked_again, setup, teardown),
+		cmocka_unit_test_setup_teardown(declined_new_key_keeps_approved_keys, setup, teardown),
 		cmocka_unit_test_setup_teardown(closed_then_asked_again, setup, teardown),
 		cmocka_unit_test_setup_teardown(paused_status_and_probe, setup, teardown),
 		cmocka_unit_test_setup_teardown(status_without_portal, setup, teardown),
 		cmocka_unit_test_setup_teardown(status_reports_portal_error, setup, teardown),
 		cmocka_unit_test_setup_teardown(status_idle_with_mouse_only, setup, teardown),
 		cmocka_unit_test_setup_teardown(untriggered_shortcut_is_not_bound, setup, teardown),
+		cmocka_unit_test_setup_teardown(configurable_portal_without_triggers_binds_nothing, setup, teardown),
 		cmocka_unit_test_setup_teardown(status_follows_portal_restart, setup, teardown),
 		cmocka_unit_test_setup_teardown(descriptions_name_actions, setup, teardown),
 		cmocka_unit_test_setup_teardown(declined_not_reasked_for_description, setup, teardown),

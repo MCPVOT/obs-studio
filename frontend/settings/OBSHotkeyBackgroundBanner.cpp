@@ -185,7 +185,8 @@ OBSHotkeyBackgroundBanner::OBSHotkeyBackgroundBanner(QWidget *parent,
 			testTimer->start(TEST_TIMEOUT_MS);
 			return;
 		}
-		testResult = QTStr("Basic.Settings.Hotkeys.Background.TestTimeout");
+		testResult = QTStr(asking ? "Basic.Settings.Hotkeys.Background.TestTimeoutAsk"
+					  : "Basic.Settings.Hotkeys.Background.TestTimeout");
 		testLevel = Level::Warning;
 		StopTest();
 	});
@@ -302,6 +303,13 @@ void OBSHotkeyBackgroundBanner::Refresh(bool readConfig)
 	}
 
 	view = Compute(input);
+	if (asking && input.state == OBS_HOTKEYS_BACKGROUND_ACTIVE && view.working == 0 && !view.pending) {
+		/* Asked from a declined, closed or failed bind: the desktop
+		 * answered and gave no key (KDE answers at once, without a
+		 * dialog, for shortcuts declined before). No press can arrive,
+		 * so stop and show that state. */
+		QMetaObject::invokeMethod(this, &OBSHotkeyBackgroundBanner::StopTest, Qt::QueuedConnection);
+	}
 	if (configuring && view.configureFailed) {
 		/* No editor opened: say so and how to change the keys instead,
 		 * rather than waiting for Done. */
@@ -392,6 +400,18 @@ void OBSHotkeyBackgroundBanner::Refresh(bool readConfig)
 	case Banner::Pending:
 		message = QTStr("Basic.Settings.Hotkeys.Background.PendingOnly");
 		break;
+	case Banner::NoDesktopKeys:
+		message = QTStr("Basic.Settings.Hotkeys.Background.NoDesktopKeys");
+		break;
+	}
+	if (view.banner == Banner::Working && view.newKeysDeclined) {
+		message += " " + QTStr("Basic.Settings.Hotkeys.Background.NewKeysDeclined");
+	} else if (view.banner == Banner::Working && view.notBound) {
+		message += " " + QTStr(view.configure ? "Basic.Settings.Hotkeys.Background.NotBoundHint.Configure"
+						      : "Basic.Settings.Hotkeys.Background.NotBoundHint");
+	}
+	if (view.banner == Banner::Working && view.desktopTakesKeys) {
+		message += " " + QTStr("Basic.Settings.Hotkeys.Background.DesktopTakesKeys");
 	}
 	if (view.paused && (view.banner == Banner::Working || view.banner == Banner::NeedsConfig ||
 			    view.banner == Banner::Unverified)) {
@@ -629,6 +649,11 @@ QString OBSHotkeyBackgroundBanner::MarkerText(Marker marker)
 		return QString::fromUtf8("\u25b2 ") + QTStr("Basic.Settings.Hotkeys.Background.Marker.NotBound");
 	}
 	return {};
+}
+
+bool OBSHotkeyBackgroundBanner::MarkerNeedsUser(Marker marker)
+{
+	return marker == Marker::NotInConfig || marker == Marker::OtherKey || marker == Marker::NotBound;
 }
 
 QString OBSHotkeyBackgroundBanner::MarkerToolTip(Marker marker, const Input &input, const std::string &desktopTrigger)
