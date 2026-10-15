@@ -116,22 +116,32 @@ this document covers *who does what, and when*.
 - A superseded PR is closed by its author (or a maintainer) with a link to the
   replacement.
 
-## 8. Master branch protection (decisions for #139 and #692)
+## 8. Master branch protection (decisions for #139, #692 and #699)
 
 `master` blocks force pushes and deletion, including for administrators.
 
-PRs merge through GitHub's merge queue (ruleset "master merge queue (#692)",
-squash merges). The queue reruns PR CI on the merge result with current
-master, and the one required check is `CI Gate ✅` (`pr-pull.yaml`). That job
-always reports: it passes when every other job passed or was skipped (out of
-scope, or attested by the local gate on the PR) and fails when any job failed
-or was cancelled. In the queue, the attestation never skips tests, so the
-merge result always runs the full Linux suite.
+Every change reaches master through GitHub's merge queue (ruleset "master
+merge queue (#692)", squash merges, no bypass). Queue a green PR with
+`gh pr merge <N>`; never `gh pr merge --admin` and never push to master.
+The queue reruns PR CI on the merge result with current master, and the one
+required check is `CI Gate ✅` (`pr-pull.yaml`). That job always reports: it
+passes when every other job passed or was skipped (out of scope, attested by
+the local gate on the PR, or covered by a lane proof) and fails when any job
+failed or was cancelled.
 
-Repository administrators bypass the ruleset, so the maintainer's direct-push
-tooling can still publish a locally tested, attested commit. Contributors use
-the claim and PR workflow above and queue their PRs; the bypass is not a
-waiver of those rules.
+Why the queue and not rebase-and-merge per PR (#699): over a day of queue
+runs (58 runs, 37 PRs), 57 runs were green and one PR was removed for a
+failed check, so a queued PR goes through on the first try. The delay came
+from 11 administrator merges that bypassed the queue: each moved master under
+it and rebuilt every queued group (up to 5 runs for one PR, about 65 minutes
+from queueing to merge against a 16-minute run). Requiring branches to be up
+to date instead would make every agent rebase and rerun CI after every merge,
+which gets slower with each agent added. So nothing bypasses the queue, and
+lane proofs (docs/ci-tooling.md) let a rebuilt group skip the lanes whose
+inputs did not change.
+
+In an emergency an administrator may set the ruleset's enforcement to
+"disabled", land the fix, and enable it again, saying so in the PR.
 
 Do not require linear history while the project uses merge commits for PRs.
 Review this policy again if direct pushes are retired or the gate's CI

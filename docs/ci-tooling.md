@@ -185,6 +185,34 @@ the paths that select them, so a change only triggers the tests it can affect.
 
 Unchanged lanes are cached by the gate, so a re-run after a small fix is fast.
 
+### Lane proofs: skipping inputs that already passed
+
+A local-gate stamp covers one exact tree, so it can never cover a merge-queue
+commit. Lane proofs (`ci/lane_proof.py`, #699) are keyed by a lane's
+*inputs* instead:
+
+- Each lane declares what it reads in `local-gate.toml` (`exclude`/`keep`,
+  checked by tracing the lane with strace). `rust-test` and `cross` read
+  `rust/`, `dylints/`, `libobs/`, `deps/`, `plugins/obs-nvenc/` and the Cargo
+  and toolchain files; `tier2-linux` reads everything but docs, packaging,
+  the non-Linux graphics backends and CI-only files. `lint` reads everything.
+- When `Rust Tests (Linux)`, `Rust Cross Lint` or `Rust Tier 2 Linux` pass, the
+  job uploads an empty artifact named after the lane and its input key.
+- On a PR or merge-queue run, `Lane Proofs 🧾` recomputes each key, with the
+  lane declarations read from the base commit, and skips a lane whose key
+  has a proof from a trusted run: this repository's PR workflow on a branch
+  in this repository, or a merge-queue run, within 72 hours. Fork runs
+  never publish trusted proofs, but fork PRs do reuse proofs.
+- No proof is used when the change touches a proof surface (`local-gate.toml`,
+  `ci/lane_proof.py`, `ci/local_gate.py`, workflows and actions, the Tier 2
+  harness, `rust-toolchain.toml`), on pushes, schedules, dispatches and full
+  runs, or when the lookup fails.
+
+Over the last 200 master commits, the Rust lanes' inputs were unchanged 63% of
+the time and Tier 2's 18%, so a queue rebuild after an unrelated merge
+usually reruns only lint and the event checks. Check a key with
+`uv run ci/lane_proof.py key --lane rust-test --base origin/master`.
+
 ### CI attestation: skipping what's already proven
 
 When `ci-lint local-gate run` passes, it adds `Local-Gate` trailers to HEAD
