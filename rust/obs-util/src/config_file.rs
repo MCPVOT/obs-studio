@@ -717,13 +717,9 @@ fn strip_zeros(s: &str) -> &str {
 }
 
 /// `os_dtostr`: `%.17g`, `.0` appended when no `.`/`e` (so `inf.0`, `-inf.0`
-/// and `nan.0` too), then the C exponent normalization simulated
-/// byte-for-byte — including its quirk:
-/// `memmove(start, end, length - (end - dst))` never reaches the NUL, so
-/// the exponent's tail digits stay behind and the last digit is
-/// duplicated (`1e+18` -> `1e188`, `1e+151` -> `1e1511`). That is a C bug
-/// mirrored for parity, and it hits `-` exponents with a leading zero too
-/// (`1.5e-05` -> `1.5e-55`); it is tracked separately.
+/// and `nan.0` too), then the C exponent normalization: the `+` and
+/// leading zeros are removed from the exponent (`1e+18` -> `1e18`,
+/// `1.5e-05` -> `1.5e-5`), so the value reads back unchanged (#754).
 fn dtostr(v: f64) -> Vec<u8> {
     let mut s = g_format(v, DoubleFormat::G17);
     if !s.contains(&b'.') && !s.contains(&b'e') {
@@ -741,10 +737,7 @@ fn dtostr(v: f64) -> Vec<u8> {
         end += 1;
     }
     if end != start {
-        // C does not NUL-terminate the shifted span; leftover tail bytes
-        // remain part of the string, hence the duplicated last digit.
-        let n = s.len() - end;
-        s.copy_within(end..end + n, start);
+        s.drain(start..end);
     }
     s
 }

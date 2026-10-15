@@ -754,3 +754,37 @@ fn dtostr_values() {
         }
     }
 }
+
+/// #754: the exponent cleanup must shorten the string, so stored doubles
+/// read back unchanged, on both the C oracle and the Rust side.
+#[test]
+fn dtostr_exponent_round_trips() {
+    let cases: [(f64, &[u8]); 7] = [
+        (1.5e-5, b"1.5e-5"),
+        (1e-5, b"1.0000000000000001e-5"),
+        (1e17, b"1e17"),
+        (1.5e17, b"1.5e17"),
+        (1e18, b"1e18"),
+        (1e300, b"1.0000000000000001e300"),
+        (123_456_789_012_345_678.0, b"1.2345678901234568e17"),
+    ];
+    let (pair, oc, rc) = Pair::from_strings(b"");
+    assert_eq!(oc, rc);
+    let s = cstr(b"S");
+    for (i, (v, want)) in cases.iter().enumerate() {
+        let n = cstr(format!("k{i}").as_bytes());
+        // SAFETY: live configs; C strings outlive the calls.
+        unsafe {
+            oracle_config_set_double(pair.oracle, s.as_ptr(), n.as_ptr(), *v);
+            config_set_double(pair.rust, s.as_ptr(), n.as_ptr(), *v);
+            let o = oracle_config_get_string(pair.oracle, s.as_ptr(), n.as_ptr());
+            let r = config_get_string(pair.rust, s.as_ptr(), n.as_ptr());
+            assert_eq!(ptr_bytes(o), Some(want.to_vec()), "oracle dtostr({v:e})");
+            assert_eq!(ptr_bytes(r), Some(want.to_vec()), "rust dtostr({v:e})");
+            let od = oracle_config_get_double(pair.oracle, s.as_ptr(), n.as_ptr());
+            let rd = config_get_double(pair.rust, s.as_ptr(), n.as_ptr());
+            assert_eq!(od.to_bits(), v.to_bits(), "oracle read-back {v:e}");
+            assert_eq!(rd.to_bits(), v.to_bits(), "rust read-back {v:e}");
+        }
+    }
+}

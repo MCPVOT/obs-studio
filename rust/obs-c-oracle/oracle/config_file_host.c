@@ -118,7 +118,7 @@ int os_dtostr(double value, char *dst, size_t size)
 			end++;
 
 		if (end != start) {
-			memmove(start, end, length - (size_t)(end - dst));
+			memmove(start, end, length - (size_t)(end - dst) + 1);
 			length -= (size_t)(end - start);
 		}
 	}

@@ -373,6 +373,14 @@ target_link_libraries(test_platform PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
 add_dependencies(cmocka-tests test_platform)
 add_test(test_platform ${CMAKE_CURRENT_BINARY_DIR}/test_platform)
 
+# os_dtostr exponent normalization (obs-rust/obs-studio#754)
+add_executable(test_dtostr_exponent test_dtostr_exponent.c)
+target_include_directories(test_dtostr_exponent PRIVATE ${CMOCKA_INCLUDE_DIR})
+target_link_libraries(test_dtostr_exponent PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
+
+add_dependencies(cmocka-tests test_dtostr_exponent)
+add_test(test_dtostr_exponent ${CMAKE_CURRENT_BINARY_DIR}/test_dtostr_exponent)
+
 # quat test (graphics/quat.h inline setters)
 add_executable(test_quat test_quat.c)
 target_include_directories(test_quat PRIVATE ${CMOCKA_INCLUDE_DIR})
