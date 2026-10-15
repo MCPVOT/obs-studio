@@ -23,8 +23,12 @@ this document covers *who does what, and when*.
 
 - Comment on the issue: `Claiming: <item>` followed by a short numbered plan
   (one PR per C file or unit) and when you expect to open the first PR.
-- Add the `claimed` label (or ask a maintainer to). The grind bot skips issues
-  and checklist items that are claimed or have an open PR.
+- The claim bot (`.github/workflows/claim-bot.yaml`) then adds the `claimed`
+  label, assigns you and replies; you don't need label rights. It refuses,
+  with a reply, a claim on an issue someone else holds or a third claim of
+  yours. The grind bot skips issues and checklist items that are claimed or
+  have an open PR; a fresh `Claiming:` comment counts even if the label is
+  missing.
 - On a tracking issue, claim one checklist item, not the whole issue.
 - Keep at most two claims open at a time.
 - **Feature issues with open questions:** answer each open question in the
@@ -35,10 +39,23 @@ this document covers *who does what, and when*.
 
 ## 3. Keeping or releasing a claim
 
-- A claim expires after **48 hours** without a PR or a progress comment. Anyone
-  may then take the item after commenting `Taking over stale claim from @x`.
-- To stop, comment `Releasing <item>`, link any partial branch, and remove the
-  `claimed` label.
+- A claim goes stale after a period with no progress: no comment from the
+  claimant on the issue, and no commit, comment or review on an open PR they
+  opened that references it (a draft counts).
+
+  | Issue | Stale after |
+  |---|---|
+  | normal | **48 hours** |
+  | labeled `critical` (crash, data loss, broken release or CI-blocking; maintainers set it) | **8 hours** |
+
+  The bot warns 2 hours before, then removes the label and the assignee. Anyone
+  may take a stale claim by commenting `Taking over stale claim from @x`; the
+  bot moves it only if it is stale. Commits on the old draft PR stay
+  available: carry them over with `Co-Authored-By` (section 6).
+- Maintainers (owner, member, collaborator) can move any claim with
+  `/reassign @user`. The bot leaves issues labeled `claim-locked` alone.
+- To stop, comment `Releasing <item>` and link any partial branch; the bot
+  removes the label.
 
 ## 4. Pull requests
 

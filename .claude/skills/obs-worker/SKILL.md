@@ -42,15 +42,16 @@ don't delete local branches you didn't create.
 ## 2. Choose and claim one issue
 
 1. List candidates: `gh issue list --repo obs-rust/obs-studio --state open`.
-   Skip anything labeled `claimed` with a claim under 48 hours old, and
-   anything with an open PR (`gh pr list --repo obs-rust/obs-studio --search "<topic>"`).
+   Skip anything with a fresh claim (labeled `claimed`, or a `Claiming:`
+   comment under 48 hours old, 8 on `critical` issues), and anything with
+   an open PR (`gh pr list --repo obs-rust/obs-studio --search "<topic>"`).
    For port work, follow the port order in testing-policy.md and the
    trackers on #4.
 2. Prefer, in order: issues that unblock other contributors, bugs with a
    clear failing-test sketch, then the next unit in the port order.
 3. Claim it: comment `Claiming: <item>` with a short numbered plan (one PR
-   per unit) and when you expect the first PR, then add the `claimed` label.
-   Keep at most two claims open.
+   per unit) and when you expect the first PR. The claim bot adds the
+   `claimed` label and assigns you. Keep at most two claims open.
 4. **Feature issues** (new behavior, not a port or a bug): check that the
    design is agreed before you code. If the issue lists open questions,
    answer each one in the claim comment under a **Decisions:** heading
@@ -133,7 +134,7 @@ running, wait and retry.
   rebuilds every queued PR (coordination.md §8).
 - When the issue closes, comment what fixed it, what's left, and the
   follow-up issue for the rest. Tick the tracking-issue checkbox.
-- Stopping early: comment `Releasing <item>`, link the branch, remove
-  `claimed`.
+- Stopping early: comment `Releasing <item>` and link the branch; the
+  claim bot removes `claimed`.
 
 Then return to step 1 for the next issue.
