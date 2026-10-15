@@ -822,6 +822,9 @@ void OBSBasic::InitOBSCallbacks()
 	signalHandlers.emplace_back(obs_get_signal_handler(), "source_create", OBSBasic::SourceCreated, this);
 	signalHandlers.emplace_back(obs_get_signal_handler(), "source_remove", OBSBasic::SourceRemoved, this);
 	signalHandlers.emplace_back(obs_get_signal_handler(), "source_rename", OBSBasic::SourceRenamed, this);
+	/* Declared here, before the plugins that emit it load */
+	signal_handler_add(obs_get_signal_handler(), sourceDeviceBusyDecl);
+	signalHandlers.emplace_back(obs_get_signal_handler(), "source_device_busy", OBSBasic::SourceDeviceBusy, this);
 	signalHandlers.emplace_back(
 		obs_get_signal_handler(), "hotkey_background_status_changed",
 		[](void *data, calldata_t *) {

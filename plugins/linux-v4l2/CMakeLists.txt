@@ -28,6 +28,7 @@ target_sources(
   linux-v4l2
   PRIVATE
     linux-v4l2.c
+    v4l2-busy.c
     v4l2-controls.c
     v4l2-decoder.c
     v4l2-frame-action.c

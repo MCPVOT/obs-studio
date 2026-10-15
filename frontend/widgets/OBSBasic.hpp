@@ -42,6 +42,7 @@
 
 #include <QAccessible>
 #include <QPointer>
+#include <QSet>
 #include <QSystemTrayIcon>
 
 #include <deque>
@@ -509,6 +510,13 @@ private:
 	/* The last background hotkey failure the status bar reported. */
 	obs_hotkeys_background_state notifiedHotkeyBackgroundState = OBS_HOTKEYS_BACKGROUND_NATIVE;
 	void NotifyHotkeyBackgroundStatus();
+
+	/* A capture source's device is held by another process: popup with
+	 * Force Camera (obs-rust/obs-studio#799). */
+	static const char *sourceDeviceBusyDecl;
+	QSet<QString> busyDevicePopups;
+	static void SourceDeviceBusy(void *data, calldata_t *params);
+	void ShowDeviceBusy(OBSWeakSource weak, QString device, QString holder, qint64 pid, bool isObs, bool canForce);
 	void CreateHotkeys();
 	void ClearHotkeys();
 

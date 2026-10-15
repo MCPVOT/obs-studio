@@ -8,6 +8,7 @@ if(OS_LINUX AND TARGET OBS::v4l2)
   add_executable(
     test_v4l2_fd_cloexec
     test_v4l2_fd_cloexec.c
+    "${CMAKE_SOURCE_DIR}/plugins/linux-v4l2/v4l2-busy.c"
     "${CMAKE_SOURCE_DIR}/plugins/linux-v4l2/v4l2-controls.c"
     "${CMAKE_SOURCE_DIR}/plugins/linux-v4l2/v4l2-decoder.c"
     "${CMAKE_SOURCE_DIR}/plugins/linux-v4l2/v4l2-frame-action.c"

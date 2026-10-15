@@ -35,6 +35,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <util/platform.h>
 #include <obs-module.h>
 
+#include "v4l2-busy.h"
 #include "v4l2-controls.h"
 #include "v4l2-framerate.h"
 #include "v4l2-helpers.h"
@@ -107,6 +108,19 @@ struct v4l2_data {
 	struct dstr dev_identity;
 	/* the above are also used from the udev thread and on save */
 	pthread_mutex_t controls_mutex;
+
+	/* Another process has the device open (EBUSY, obs-rust/obs-studio#799):
+	 * the source names it, offers to close it, and retries until the
+	 * device is free. Also used from the graphics and udev threads. */
+	pthread_mutex_t busy_mutex;
+	bool busy;
+	bool busy_holder_known;
+	struct v4l2_holder busy_holder;
+	uint32_t busy_attempt;
+	/* next full retry, and next check whether the holder let go */
+	uint64_t busy_retry_ns;
+	uint64_t busy_check_ns;
+	bool busy_task_queued;
 };
 
 /* forward declarations */
@@ -844,12 +858,219 @@ static void device_removed(void *vptr, calldata_t *calldata)
 
 #endif
 
+#define BUSY_CHECK_NS 1000000000ULL
+#define FORCE_TIMEOUT_MS 5000
+
+/*
+ * Tell the frontend, which shows a "Camera is in use" popup with a Force
+ * Camera button calling the source's force_camera proc. The frontend declares
+ * the signal on the global handler; without a frontend nobody has, and
+ * signalling an undeclared signal does nothing.
+ *
+ * void source_device_busy(ptr source, string device, string holder, int pid,
+ *                         bool is_obs, bool can_force)
+ */
+static void v4l2_busy_announce(struct v4l2_data *data, const struct v4l2_holder *holder)
+{
+	signal_handler_t *sh = obs_get_signal_handler();
+	if (!sh || !data->source)
+		return;
+
+	calldata_t cd = {0};
+	calldata_set_ptr(&cd, "source", data->source);
+	calldata_set_string(&cd, "device", data->device_id);
+	calldata_set_string(&cd, "holder", holder ? holder->name : "");
+	calldata_set_int(&cd, "pid", holder ? holder->pid : 0);
+	calldata_set_bool(&cd, "is_obs", holder && v4l2_holder_is_obs(holder));
+	calldata_set_bool(&cd, "can_force", holder && holder->uid == getuid());
+	signal_handler_signal(sh, "source_device_busy", &cd);
+	calldata_free(&cd);
+}
+
+/*
+ * Record whether the last v4l2_init() failed because another process has the
+ * device, and who that is. Called with the errno of the failure, or 0.
+ */
+static void v4l2_busy_update(struct v4l2_data *data, int err)
+{
+	bool busy = v4l2_busy_errno(err);
+	struct v4l2_holder holder;
+	bool known = busy && v4l2_find_holders("/proc", data->device_id, getpid(), &holder, 1) == 1;
+
+	pthread_mutex_lock(&data->busy_mutex);
+	bool was_busy = data->busy;
+	data->busy = busy;
+	if (busy) {
+		data->busy_holder_known = known;
+		if (known)
+			data->busy_holder = holder;
+		data->busy_attempt = was_busy ? data->busy_attempt + 1 : 0;
+		uint64_t now = os_gettime_ns();
+		data->busy_retry_ns = now + (uint64_t)v4l2_busy_retry_delay_ms(data->busy_attempt) * 1000000ULL;
+		data->busy_check_ns = now + BUSY_CHECK_NS;
+	}
+	pthread_mutex_unlock(&data->busy_mutex);
+
+	if (busy && !was_busy) {
+		struct dstr text = {0};
+		v4l2_busy_describe(&text, data->device_id, known ? &holder : NULL);
+		blog(LOG_WARNING, "%s%s; retrying until it is free", text.array,
+		     known && v4l2_holder_is_obs(&holder) ? ", another OBS instance" : "");
+		dstr_free(&text);
+		/* once per busy episode, not on every retry */
+		v4l2_busy_announce(data, known ? &holder : NULL);
+	}
+	if (busy != was_busy || (busy && known))
+		obs_source_update_properties(data->source);
+}
+
+/* UI task: retry the device once its holder let go, or when the backoff
+ * delay has passed (holders of other users cannot be seen). */
+static void v4l2_busy_task(void *param)
+{
+	obs_weak_source_t *weak = param;
+	obs_source_t *source = obs_weak_source_get_source(weak);
+	obs_weak_source_release(weak);
+	if (!source)
+		return;
+
+	struct v4l2_data *data = obs_obj_get_data(source);
+
+	pthread_mutex_lock(&data->busy_mutex);
+	data->busy_task_queued = false;
+	bool busy = data->busy;
+	bool known = data->busy_holder_known;
+	struct v4l2_holder holder = data->busy_holder;
+	bool retry_due = os_gettime_ns() >= data->busy_retry_ns;
+	pthread_mutex_unlock(&data->busy_mutex);
+
+	if (busy && data->dev == -1) {
+		struct v4l2_holder now_holding;
+		bool released = known && (v4l2_find_holders("/proc", data->device_id, getpid(), &now_holding, 1) == 0 ||
+					  now_holding.pid != holder.pid);
+		if (released)
+			blog(LOG_INFO, "%s (PID %d) released %s", holder.name, (int)holder.pid, data->device_id);
+		if (released || retry_due)
+			v4l2_init(data);
+	}
+
+	obs_source_release(source);
+}
+
+static void v4l2_video_tick(void *vptr, float seconds)
+{
+	V4L2_DATA(vptr);
+	UNUSED_PARAMETER(seconds);
+
+	pthread_mutex_lock(&data->busy_mutex);
+	uint64_t now = os_gettime_ns();
+	bool due = data->busy && !data->busy_task_queued && now >= data->busy_check_ns;
+	if (due) {
+		data->busy_task_queued = true;
+		data->busy_check_ns = now + BUSY_CHECK_NS;
+	}
+	pthread_mutex_unlock(&data->busy_mutex);
+
+	/* /proc is scanned and the device opened on the UI thread, which also
+	 * runs v4l2_update(), not on the graphics thread */
+	if (due)
+		obs_queue_task(OBS_TASK_UI, v4l2_busy_task, obs_source_get_weak_source(data->source), false);
+}
+
+/* "Force Camera": ask the holder to close, then open the device. Returns
+ * whether the holder let go. */
+static bool v4l2_force_camera_now(struct v4l2_data *data)
+{
+	pthread_mutex_lock(&data->busy_mutex);
+	bool can_force = data->busy && data->busy_holder_known;
+	struct v4l2_holder holder = data->busy_holder;
+	pthread_mutex_unlock(&data->busy_mutex);
+	if (!can_force)
+		return false;
+
+	blog(LOG_INFO, "Force Camera: asking %s (PID %d) to close", holder.name, (int)holder.pid);
+	enum v4l2_force_result result =
+		v4l2_force_release("/proc", data->device_id, &holder, getuid(), FORCE_TIMEOUT_MS);
+	switch (result) {
+	case V4L2_FORCE_RELEASED:
+		v4l2_init(data);
+		break;
+	case V4L2_FORCE_NOT_OWNER:
+		blog(LOG_WARNING, "Force Camera: %s (PID %d) belongs to another user, not closed", holder.name,
+		     (int)holder.pid);
+		break;
+	case V4L2_FORCE_TIMEOUT:
+		blog(LOG_WARNING, "Force Camera: %s (PID %d) did not close within %d s; it was not killed", holder.name,
+		     (int)holder.pid, FORCE_TIMEOUT_MS / 1000);
+		break;
+	case V4L2_FORCE_ERROR:
+		blog(LOG_WARNING, "Force Camera: could not signal %s (PID %d): %s", holder.name, (int)holder.pid,
+		     strerror(errno));
+		break;
+	}
+	return result == V4L2_FORCE_RELEASED;
+}
+
+/* The Force Camera button in the source properties */
+static bool v4l2_force_camera(obs_properties_t *props, obs_property_t *property, void *vptr)
+{
+	UNUSED_PARAMETER(props);
+	UNUSED_PARAMETER(property);
+	v4l2_force_camera_now(vptr);
+	return true;
+}
+
+/* proc "void force_camera(out bool released)", for the frontend's popup */
+static void v4l2_force_camera_proc(void *vptr, calldata_t *cd)
+{
+	calldata_set_bool(cd, "released", v4l2_force_camera_now(vptr));
+}
+
+/* While the device is busy: who has it, and the Force Camera button */
+static void v4l2_busy_properties(struct v4l2_data *data, obs_properties_t *props)
+{
+	pthread_mutex_lock(&data->busy_mutex);
+	bool busy = data->busy;
+	bool known = data->busy_holder_known;
+	struct v4l2_holder holder = data->busy_holder;
+	pthread_mutex_unlock(&data->busy_mutex);
+	if (!busy)
+		return;
+
+	struct dstr text = {0};
+	v4l2_busy_describe(&text, data->device_id, known ? &holder : NULL);
+	dstr_cat(&text, ". ");
+	if (known && v4l2_holder_is_obs(&holder)) {
+		dstr_cat(&text, obs_module_text("DeviceBusy.OtherOBS"));
+		dstr_cat(&text, " ");
+	}
+	dstr_cat(&text, obs_module_text("DeviceBusy.Retrying"));
+
+	obs_property_t *info = obs_properties_add_text(props, "device_busy", text.array, OBS_TEXT_INFO);
+	obs_property_text_set_info_type(info, OBS_TEXT_INFO_WARNING);
+
+	/* Only another process of this user can be closed */
+	if (known && holder.uid == getuid()) {
+		obs_property_t *button = obs_properties_add_button2(
+			props, "force_camera", obs_module_text("ForceCamera"), v4l2_force_camera, data);
+		char pid[16];
+		snprintf(pid, sizeof(pid), "%d", (int)holder.pid);
+		dstr_copy(&text, obs_module_text("ForceCamera.ToolTip"));
+		dstr_replace(&text, "%1", holder.name);
+		dstr_replace(&text, "%2", pid);
+		obs_property_set_long_description(button, text.array);
+	}
+	dstr_free(&text);
+}
+
 static obs_properties_t *v4l2_properties(void *vptr)
 {
 	V4L2_DATA(vptr);
 
 	obs_properties_t *props = obs_properties_create();
 	obs_properties_set_param(props, data, NULL);
+
+	v4l2_busy_properties(data, props);
 
 	obs_property_t *device_list = obs_properties_add_list(props, "device_id", obs_module_text("Device"),
 							      OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_STRING);
@@ -937,6 +1158,7 @@ static void v4l2_destroy(void *vptr)
 	dstr_free(&data->controls_device);
 	dstr_free(&data->dev_identity);
 	pthread_mutex_destroy(&data->controls_mutex);
+	pthread_mutex_destroy(&data->busy_mutex);
 
 #ifdef HAVE_UDEV
 	signal_handler_t *sh = v4l2_get_udev_signalhandler();
@@ -1088,10 +1310,13 @@ static void v4l2_init(struct v4l2_data *data)
 		goto fail;
 	if (pthread_create(&data->thread, NULL, v4l2_thread, data) != 0)
 		goto fail;
+	v4l2_busy_update(data, 0);
 	return;
-fail:
-	blog(LOG_ERROR, "Initialization failed, errno: %s", strerror(errno));
+fail:;
+	int err = errno;
+	blog(LOG_ERROR, "Initialization failed, errno: %s", strerror(err));
 	v4l2_terminate(data);
+	v4l2_busy_update(data, err);
 }
 
 /** Update source flags depending on the settings */
@@ -1212,6 +1437,11 @@ static void *v4l2_create(obs_data_t *settings, obs_source_t *source)
 	data->resolution_unchanged = false;
 	data->framerate_unchanged = false;
 	pthread_mutex_init(&data->controls_mutex, NULL);
+	pthread_mutex_init(&data->busy_mutex, NULL);
+
+	proc_handler_t *ph = obs_source_get_proc_handler(source);
+	if (ph)
+		proc_handler_add(ph, "void force_camera(out bool released)", v4l2_force_camera_proc, data);
 
 	/* Bitch about build problems ... */
 #ifndef V4L2_CAP_DEVICE_CAPS
@@ -1244,6 +1474,7 @@ struct obs_source_info v4l2_input = {
 	.create = v4l2_create,
 	.destroy = v4l2_destroy,
 	.update = v4l2_update,
+	.video_tick = v4l2_video_tick,
 	.save = v4l2_save,
 	.get_defaults = v4l2_defaults,
 	.get_properties = v4l2_properties,

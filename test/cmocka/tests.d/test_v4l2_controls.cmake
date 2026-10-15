@@ -14,6 +14,7 @@ if(OS_LINUX AND TARGET OBS::v4l2)
     "${CMAKE_SOURCE_DIR}/plugins/linux-v4l2/v4l2-framerate.c"
     "${CMAKE_SOURCE_DIR}/plugins/linux-v4l2/v4l2-helpers.c"
     "${CMAKE_SOURCE_DIR}/plugins/linux-v4l2/v4l2-input-caps.c"
+    "${CMAKE_SOURCE_DIR}/plugins/linux-v4l2/v4l2-busy.c"
     "${CMAKE_SOURCE_DIR}/plugins/linux-v4l2/v4l2-input.c"
   )
   # libv4l2 and libudev are not linked: the test defines v4l2_open,

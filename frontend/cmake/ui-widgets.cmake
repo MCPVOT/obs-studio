@@ -22,6 +22,7 @@ target_sources(
     widgets/OBSBasic_ContextToolbar.cpp
     widgets/OBSBasic_Docks.cpp
     widgets/OBSBasic_Dropfiles.cpp
+    widgets/OBSBasic_DeviceBusy.cpp
     widgets/OBSBasic_Hotkeys.cpp
     widgets/OBSBasic_Icons.cpp
     widgets/OBSBasic_MainControls.cpp
