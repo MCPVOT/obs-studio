@@ -181,7 +181,19 @@ the paths that select them, so a change only triggers the tests it can affect.
     Docker.
 - **`ci/ci_scope.py`** maps changed paths to jobs. Linux Rust tests and Tier 2
   always run. macOS or Windows Rust tests and Tier 2 run when platform code,
-  shared build config, C++ cmocka tests or the test CMake files change.
+  shared build config or C++ cmocka tests change, or when a hunk of a shared
+  C/C++/ObjC/CMake file sits in (or names) a platform conditional
+  (`__APPLE__`, `TARGET_OS_*`, `_WIN32`, `_MSC_VER`, `if(OS_MACOS)`,
+  `if(WIN32)`, `$<PLATFORM_ID:...>`; `#else` and negated branches count). A
+  `tests.d/*.cmake` registration of a plain C test stays Linux-only; one that
+  mentions a platform reaches it, and one that adds a `.cpp`/`.hpp` test
+  reaches both (#610). Rust `src/platform/{macos,windows,unix}*` map to their
+  platform (`unix` reaches macOS); `platform/mod.rs` and `.github/`,
+  `cmake/common/`, `cmake/finders/`, `libobs/cmake/` and the root CMake files
+  stay shared. A hunk whose conditional cannot be determined turns nothing
+  on: Linux covers it and the release gate covers the rest. Overrides are
+  unchanged: the `ci-full` label, pushes, the merge queue and the release
+  gate still run every platform.
 
 Unchanged lanes are cached by the gate, so a re-run after a small fix is fast.
 
