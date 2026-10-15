@@ -410,6 +410,9 @@ fn main() {
         // package, so the text-lookup oracle uses a vendored copy of the
         // same release (2.3.0, BSD-1-Clause, see vendor/uthash/LICENSE).
         .include(manifest.join("vendor/uthash"))
+        // obs-properties.c includes obs-internal.h, which includes
+        // <caption/caption.h> from deps/libcaption (headers only).
+        .include(libobs.with_file_name("deps").join("libcaption"))
         .std("c11");
     // task.c calls pthread_mutex_*/pthread_create plus os_event/os_sem helpers.
     // Those helpers come from oracle/threading_posix.c or
@@ -480,6 +483,12 @@ fn main() {
     } else {
         oracle.flag("-Wno-deprecated-declarations");
         owned_flags.push("-Wno-deprecated-declarations".into());
+    }
+    // obs-properties.c initializes `struct list_item item = {NULL};`; the
+    // shipped build tolerates it, the oracle's -Werror does not.
+    if !oracle.get_compiler().is_like_msvc() || oracle.get_compiler().is_like_clang_cl() {
+        oracle.flag("-Wno-missing-field-initializers");
+        owned_flags.push("-Wno-missing-field-initializers".into());
     }
     let jansson_src = manifest.join("vendor/jansson/src");
     oracle.include(&jansson_src);

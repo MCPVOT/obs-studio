@@ -49,6 +49,7 @@ pub mod hevc;
 pub mod lexer;
 pub mod nal;
 pub mod obs_nvenc;
+pub mod obs_properties;
 pub mod path_extension;
 pub mod pipe;
 #[cfg(target_os = "macos")]

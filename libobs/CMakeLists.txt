@@ -67,7 +67,7 @@ target_sources(
     obs-output-delay.c
     obs-output.c
     obs-output.h
-    obs-properties.c
+    $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:obs-properties.c>
     obs-properties.h
     obs-scene-bounds.c
     obs-scene-bounds.h

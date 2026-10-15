@@ -378,6 +378,7 @@ dependencies = [
  "obs-data",
  "obs-graphics",
  "obs-media-io",
+ "obs-properties",
  "obs-util",
 ]
 
@@ -472,6 +473,16 @@ name = "obs-nvenc-plugin"
 version = "0.1.0"
 dependencies = [
  "obs-nvenc",
+]
+
+[[package]]
+name = "obs-properties"
+version = "0.1.0"
+dependencies = [
+ "obs-c-oracle",
+ "obs-data",
+ "obs-util",
+ "proptest",
 ]
 
 [[package]]
