@@ -52,7 +52,7 @@ target_sources(
     obs-encoder.c
     obs-encoder.h
     obs-ffmpeg-compat.h
-    obs-hotkey-name-map.c
+    $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:obs-hotkey-name-map.c>
     obs-hotkey.c
     obs-hotkey.h
     obs-hotkeys.h

@@ -377,6 +377,7 @@ dependencies = [
  "obs-codec",
  "obs-data",
  "obs-graphics",
+ "obs-hotkey",
  "obs-media-io",
  "obs-properties",
  "obs-util",
@@ -446,6 +447,15 @@ version = "0.1.0"
 dependencies = [
  "libc",
  "obs-c-oracle",
+ "proptest",
+]
+
+[[package]]
+name = "obs-hotkey"
+version = "0.1.0"
+dependencies = [
+ "obs-c-oracle",
+ "obs-util",
  "proptest",
 ]
 
