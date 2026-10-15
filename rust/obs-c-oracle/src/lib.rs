@@ -55,6 +55,7 @@ pub mod pipe;
 pub mod platform_cocoa;
 #[cfg(unix)]
 pub mod platform_nix;
+pub mod platform_number;
 #[cfg(all(windows, target_env = "msvc"))]
 pub mod platform_windows;
 pub mod profiler;
