@@ -225,6 +225,7 @@ target_sources(
     graphics/plane.h
     $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:graphics/quat.c>
     graphics/quat.h
+    graphics/shader-param-names.c
     graphics/shader-parser.c
     graphics/shader-parser.h
     graphics/srgb.h
