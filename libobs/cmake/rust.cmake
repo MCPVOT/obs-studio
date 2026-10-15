@@ -55,6 +55,16 @@ elseif(OS_WINDOWS)
     set_property(TARGET libobs APPEND PROPERTY LINK_DEPENDS "${fragment}")
   endforeach()
 elseif(OS_MACOS)
+  # Corrosion 0.5.2 injects the CLT SDK's libraries ahead of CMake's selected
+  # sysroot. If CLT is newer than Xcode, its .tbd files may name architectures
+  # Xcode's linker cannot read (#777). Let the linker use the selected SDK;
+  # preserve any other native library search paths on the imported target.
+  get_target_property(_obs_rust_link_dirs libobs_rust-static INTERFACE_LINK_DIRECTORIES)
+  if(_obs_rust_link_dirs)
+    list(REMOVE_ITEM _obs_rust_link_dirs "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib")
+    set_property(TARGET libobs_rust-static PROPERTY INTERFACE_LINK_DIRECTORIES "${_obs_rust_link_dirs}")
+  endif()
+
   target_link_options(
     libobs
     PRIVATE "LINKER:-unexported_symbols_list,${CMAKE_CURRENT_SOURCE_DIR}/cmake/rust-unexports-macos.txt"
