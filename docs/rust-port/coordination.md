@@ -27,6 +27,11 @@ this document covers *who does what, and when*.
   and checklist items that are claimed or have an open PR.
 - On a tracking issue, claim one checklist item, not the whole issue.
 - Keep at most two claims open at a time.
+- **Feature issues with open questions:** answer each open question in the
+  claim comment under **Decisions:** (the default you will build and why),
+  and order the PRs so the first one does not depend on an unresolved
+  answer. A question with no safe default is posted as **Decision needed:**
+  on the issue, and the work that depends on it waits for an answer.
 
 ## 3. Keeping or releasing a claim
 

@@ -5,8 +5,8 @@ description: Worker-role playbook for obs-rust/obs-studio. Use whenever you act 
 
 # obs-worker: picking up and landing one issue
 
-You are a **worker** when you take one issue (port, bug fix, test or infra
-task) from claim to merged PR. This skill is the checklist. The documents it
+You are a **worker** when you take one issue (port, bug fix, feature, test
+or infra task) from claim to merged PR. This skill is the checklist. The documents it
 links are the source of truth; when this file and a document disagree, the
 document wins, and you fix this file in the same PR.
 
@@ -51,12 +51,25 @@ don't delete local branches you didn't create.
 3. Claim it: comment `Claiming: <item>` with a short numbered plan (one PR
    per unit) and when you expect the first PR, then add the `claimed` label.
    Keep at most two claims open.
-4. No issue yet? File one first using the bug or port template
+4. **Feature issues** (new behavior, not a port or a bug): check that the
+   design is agreed before you code. If the issue lists open questions,
+   answer each one in the claim comment under a **Decisions:** heading
+   (the default you will build, and why), and split the work so the first
+   PR does not depend on an unresolved answer (for example, a pure Rust core
+   with Tier 1 tests first; UI, protocol fields and logging in follow-ups).
+   A question you cannot pick a safe default for goes on the issue as
+   **Decision needed:** and that part waits. An idea with no agreed design
+   belongs in Discussions, not an issue (coordination.md section 5).
+   Protocol additions (obs-websocket) are additive fields only.
+5. No issue yet? File one first using the bug or port template
    (coordination.md section 5), then claim it.
 
 ## 3. RED, then GREEN
 
 - **Characterization** test first if the unit has none.
+- New code (a feature with no C original) still starts RED: Tier 1 tests
+  against `todo!()` stubs. Tier 3 applies only to the C behavior it touches
+  (show that is unchanged); state which tiers do not apply in the PR.
 - **RED commit:** a failing test (or `todo!()` stubs) that shows the bug or
   the missing port. Run it and note how it fails.
 - **GREEN commit:** the fix or the port, until the test passes.
