@@ -14,6 +14,17 @@ https://github.com/user-attachments/assets/4d9af616-bd76-468e-93ac-ef8ef44a0efb
 
 
 
+
+# Contributors leaderboard
+
+Ranked by merged PRs only, credited to the original author even when a
+maintainer re-landed the work (counted once). Updated every 4 hours.
+
+[![obs-rust contributors leaderboard](https://raw.githubusercontent.com/obs-rust/obs-studio/leaderboard/leaderboard.jpg)](https://obs-rust.github.io/obs-studio/)
+
+[Open the live leaderboard](https://obs-rust.github.io/obs-studio/)
+
+
 # How CI works here
 
 Lots of people and AI agents work on this repo at the same time, so CI is
@@ -38,14 +49,8 @@ The full guide, with the tools, rules and commands, is in
 read it before you push: it explains how to avoid overloading the
 shared machines and CI.
 
-# Contributors leaderboard
 
-Ranked by merged PRs only, credited to the original author even when a
-maintainer re-landed the work (counted once). Updated every 4 hours.
-
-[![obs-rust contributors leaderboard](https://raw.githubusercontent.com/obs-rust/obs-studio/leaderboard/leaderboard.jpg)](https://obs-rust.github.io/obs-studio/)
-
-[Open the live leaderboard](https://obs-rust.github.io/obs-studio/)
+# Upstream/Original
 
 ## OBS Studio &lt;<https://obsproject.com>&gt;
 
