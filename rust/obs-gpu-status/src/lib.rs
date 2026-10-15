@@ -6,10 +6,15 @@
 //! Detection reads a sysfs/`/dev/dri` tree under a caller-supplied root, so
 //! tests use a fixture tree; [`platform::system_devices`] probes the host.
 
+#![deny(unsafe_code)]
+
 use std::path::Path;
 use std::process::Command;
 
+#[allow(unsafe_code)]
+pub mod ffi;
 pub mod platform;
+pub mod report;
 
 /// The light's color.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
