@@ -62,6 +62,7 @@ pub mod platform_number;
 pub mod platform_windows;
 pub mod profiler;
 pub mod profiler_snapshot;
+pub mod shader_param_names;
 pub mod task;
 pub mod text_lookup;
 pub mod threading;
