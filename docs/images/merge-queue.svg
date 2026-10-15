@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="20" role="img" aria-label="merge queue: master">
+  <title>merge queue: master</title>
+  <linearGradient id="s" x2="0" y2="100%">
+    <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
+    <stop offset="1" stop-opacity=".1"/>
+  </linearGradient>
+  <clipPath id="r">
+    <rect width="160" height="20" rx="3" fill="#fff"/>
+  </clipPath>
+  <g clip-path="url(#r)">
+    <rect width="105" height="20" fill="#555"/>
+    <rect x="105" width="55" height="20" fill="#f2c94c"/>
+    <rect width="160" height="20" fill="url(#s)"/>
+  </g>
+  <!-- git-merge symbol (octicon, MIT) in yellow -->
+  <path transform="translate(4 2) scale(1)" fill="#f2c94c" d="M5.45 5.154A4.25 4.25 0 0 0 9.25 7.5h1.378a2.251 2.251 0 1 1 0 1.5H9.25A5.734 5.734 0 0 1 5 7.123v3.505a2.25 2.25 0 1 1-1.5 0V5.372a2.25 2.25 0 1 1 1.95-.218ZM4.25 13.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm8.5-4.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5ZM5 3.25a.75.75 0 1 0-1.5 0 .75.75 0 0 0 1.5 0Z"/>
+  <g text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" text-rendering="geometricPrecision" font-size="11">
+    <text x="62.5" y="15" fill="#010101" fill-opacity=".3">merge queue</text>
+    <text x="62.5" y="14" fill="#fff">merge queue</text>
+    <text x="131.5" y="14" fill="#333">master</text>
+  </g>
+</svg>

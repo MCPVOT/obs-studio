@@ -1,6 +1,7 @@
 # obs-studio-rust
 
 [![Contributor leaderboard workflow status](https://github.com/obs-rust/obs-studio/actions/workflows/leaderboard.yml/badge.svg?branch=master)](https://github.com/obs-rust/obs-studio/actions/workflows/leaderboard.yml)
+[![Merge queue for master](docs/images/merge-queue.svg)](https://github.com/obs-rust/obs-studio/queue/master)
 
 <p align="center"><img src="docs/images/obs-rust-logo.png" alt="obs-rust logo" width="128"></p>
 
