@@ -63,8 +63,8 @@ win.
 the toolchain pinned in `rust-toolchain.toml`. It bundles **zccache**, a
 content-addressed compiler cache shared across branches and worktrees, so the
 same crate is not rebuilt for every checkout. It also manages the
-cross-compilation SDKs that let a Linux host check the Windows and macOS
-targets.
+cross-compilation SDKs that let a Linux host check and link the Windows and
+macOS targets.
 
 What to do:
 
@@ -184,8 +184,9 @@ the paths that select them, so a change only triggers the tests it can affect.
 - **`local-gate.toml`** declares the local lanes and what they attest:
   - `lint`: formatters, clippy, dylints, the `ci/` Python tests;
   - `rust-test`: Rust Tiers 1-3;
-  - `cross`: clippy, dylint and `check` for the Windows and macOS targets,
-    cross-compiled from Linux with soldr;
+  - `cross`: clippy, dylint, and a link of every test binary
+    (`test --no-run`) for the Windows and macOS targets, cross-compiled from
+    Linux with soldr;
   - `tier2-linux`: the cmocka suite with `ENABLE_RUST_LIBOBS` OFF and ON, in
     Docker.
 - **`ci/ci_scope.py`** maps changed paths to jobs, by path alone (#897). Linux
