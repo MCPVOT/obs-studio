@@ -136,8 +136,21 @@ def toolchain_gcc_ld() -> str:
     return os.path.join(sysroot, "lib", "rustlib", host, "bin", "gcc-ld")
 
 
+# ci/ tests that need soldr on PATH (they skip without it).
+SOLDR_SELF_TESTS = "test_local_gate_probe.py"
+
+
 def self_test() -> None:
-    """The gate's and the repo layout's unit tests: every ci/test_*.py."""
+    """The gate's and the repo layout's unit tests: every ci/test_*.py.
+
+    CI runs them in their own ubuntu-latest job (ci-self-test) and sets
+    OBS_GATE_SKIP_SELF_TEST=1 for the lint step on the scarce ubuntu-26.04
+    runner (#427); locally they always run."""
+    if os.environ.get("OBS_GATE_SKIP_SELF_TEST") == "1":
+        # Only the tests that need this runner's soldr; the rest run in ci-self-test.
+        print("+ ci/ self-tests: soldr-dependent only (OBS_GATE_SKIP_SELF_TEST=1; ci-self-test runs the rest)", flush=True)
+        run([sys.executable, "-m", "unittest", "discover", "-s", "ci", "-p", SOLDR_SELF_TESTS])
+        return
     run([sys.executable, "-m", "unittest", "discover", "-s", "ci", "-p", "test_*.py"])
 
 

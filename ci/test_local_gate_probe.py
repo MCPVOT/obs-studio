@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -26,6 +27,9 @@ def is_cross_step(cmd: list[str]) -> bool:
     return CROSS_TARGET in cmd
 
 
+# Needs soldr: CI runs it in the lint step on the soldr runner, not in the
+# ubuntu-latest ci-self-test job (#427).
+@unittest.skipUnless(shutil.which("soldr"), "soldr not on PATH")
 class RustSourceProbeTest(unittest.TestCase):
     def test_changed_source_fails_the_rust_test_lane(self):
         scratch_root = local_gate.ROOT / "target"

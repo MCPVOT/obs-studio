@@ -768,6 +768,22 @@ jobs:
         continue-on-error: true
         run: uv run ci/lane_proof.py check --lane tier2-linux --base "${BASE}" --repo "${GITHUB_REPOSITORY}"
 
+  # The 373 plain-Python ci/ tests took 27 s of the lint step on a scarce
+  # ubuntu-26.04 runner; they need nothing from it (#427).
+  ci-self-test:
+    name: CI Self-Tests 🐍
+    runs-on: ubuntu-latest
+    needs: check-event
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+      - name: Set Up uv 🐍
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+      - name: ci/ Self-Tests 🧪
+        run: uv run python -m unittest discover -s ci -p "test_*.py"
+
   rust-tests-linux:
     name: Rust Tests 🦀 (ubuntu-26.04)
     runs-on: ubuntu-26.04
@@ -805,7 +821,10 @@ jobs:
       # GATE-001 mirror (local-gate.toml): exactly the local gate's lint and
       # rust-test lanes (./lint, ./unittest), i.e. rustfmt, clippy -D warnings,
       # clang-format, gersemi and soldr cargo test --workspace --locked.
+      # The ci/ self-tests run in ci-self-test on the standard pool (#427).
       - name: Local Gate (lint) 🧪
+        env:
+          OBS_GATE_SKIP_SELF_TEST: "1"
         run: uv run ci/local_gate.py --lane lint
 
       # Skipped when a trusted run already passed these exact inputs.
