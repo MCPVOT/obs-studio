@@ -1039,6 +1039,16 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
+      # Reuse the 339 MB of .debs every Tier 2 job downloaded (#1055): keep
+      # them (the stock image's docker-clean config deletes them after each
+      # install) and cache the archive dir, keyed on the list and the image.
+      - name: Keep apt Downloads 📦
+        run: rm -f /etc/apt/apt.conf.d/docker-clean
+      - uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: /var/cache/apt/archives
+          key: tier2-apt-ubuntu2604-f144425f-${{ hashFiles('rust/tools/linux-validate/apt-packages.txt') }}
+
       # The package list is shared with the local Docker harness (run.sh).
       - name: Install Tier 2 Packages 📦
         run: |
@@ -1133,6 +1143,16 @@ jobs:
         with:
           submodules: recursive
           fetch-depth: 0
+
+      # Reuse the 339 MB of .debs every Tier 2 job downloaded (#1055): keep
+      # them (the stock image's docker-clean config deletes them after each
+      # install) and cache the archive dir, keyed on the list and the image.
+      - name: Keep apt Downloads 📦
+        run: rm -f /etc/apt/apt.conf.d/docker-clean
+      - uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: /var/cache/apt/archives
+          key: tier2-apt-ubuntu2604-f144425f-${{ hashFiles('rust/tools/linux-validate/apt-packages.txt') }}
 
       # The package list is shared with the local Docker harness (run.sh).
       - name: Install Tier 2 Packages 📦
