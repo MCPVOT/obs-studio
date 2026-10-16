@@ -119,6 +119,81 @@ pub fn is_graphics_api_name(adapter: &str) -> bool {
     matches!(adapter.trim(), "OpenGL" | "Direct3D 11" | "Metal")
 }
 
+/// Most log lines [`LogCapture`] keeps.
+pub const MAX_LOG_LINES: usize = 10;
+/// Longest log line [`LogCapture`] keeps, in characters.
+pub const MAX_LOG_LINE_CHARS: usize = 300;
+
+/// The OBS log lines that explain the GPU state (graphics init, the
+/// adapter, DRM render nodes, EGL/GLX), for the dialog (#944).
+#[derive(Debug, Clone, Default)]
+pub struct LogCapture {
+    lines: Vec<String>,
+}
+
+impl LogCapture {
+    pub const fn new() -> Self {
+        Self { lines: Vec::new() }
+    }
+
+    /// Keep `line` if it is about graphics, once; the last [`MAX_LOG_LINES`].
+    pub fn push(&mut self, line: &str) {
+        if !is_graphics_log_line(line) {
+            return;
+        }
+        let line: String = line.trim_end().chars().take(MAX_LOG_LINE_CHARS).collect();
+        if self.lines.contains(&line) {
+            return;
+        }
+        // The latest lines win: a failure late in startup matters more.
+        if self.lines.len() == MAX_LOG_LINES {
+            self.lines.remove(0);
+        }
+        self.lines.push(line);
+    }
+
+    pub fn lines(&self) -> Vec<String> {
+        self.lines.clone()
+    }
+}
+
+/// Whether `line` is about graphics init, the adapter, DRM render nodes or
+/// the EGL/GLX platforms. The light's own log lines are excluded, so its
+/// startup warning is not quoted back (#963 review).
+pub fn is_graphics_log_line(line: &str) -> bool {
+    let trimmed = line.trim_start();
+    if trimmed.starts_with("possible cause:")
+        || trimmed.starts_with("detected GPU:")
+        || line.contains("GPU acceleration:")
+    {
+        return false;
+    }
+    const PHRASES: [&str; 5] = [
+        "loading up opengl",
+        "loading up direct3d",
+        "drm render node",
+        "failed to initialize video",
+        "graphics module",
+    ];
+    let lower = line.to_ascii_lowercase();
+    PHRASES.iter().any(|p| lower.contains(p))
+        || line
+            .split(|c: char| !(c.is_ascii_alphanumeric() || c == '_'))
+            .any(is_egl_or_glx_word)
+}
+
+/// `EGL`, `EGL_NOT_INITIALIZED`, `libEGL`, `egl`, `eglInitialize`, `GLX...`,
+/// `glXMakeCurrent`; not words that merely contain "egl" ("Negligible").
+fn is_egl_or_glx_word(word: &str) -> bool {
+    let word = word.strip_prefix("lib").unwrap_or(word);
+    let api_call = |prefix: &str| {
+        word.strip_prefix(prefix).is_some_and(|rest| {
+            rest.is_empty() || rest.starts_with(|c: char| c.is_ascii_uppercase())
+        })
+    };
+    word.starts_with("EGL") || word.starts_with("GLX") || api_call("egl") || api_call("glX")
+}
+
 /// Fewest one-second samples [`FrameStats::from_samples`] judges a window on.
 pub const MIN_FRAME_SAMPLES: usize = 5;
 

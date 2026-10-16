@@ -717,6 +717,11 @@ void OBSBasicStatusBar::ShowGpuStatusDialog()
 		text += "</ul>";
 	}
 
+	if (!info.logLines.isEmpty()) {
+		text += "<p><b>" + QTStr("Basic.StatusBar.GpuStatus.Log").toHtmlEscaped() + "</b></p><pre>" +
+			info.logLines.join("\n").toHtmlEscaped() + "</pre>";
+	}
+
 	QMessageBox box(info.state == GpuStatus::State::Green ? QMessageBox::Information : QMessageBox::Warning,
 			QTStr("Basic.StatusBar.GpuStatus.Title"), text, QMessageBox::Ok, this);
 	box.setTextFormat(Qt::RichText);

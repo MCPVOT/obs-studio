@@ -22,6 +22,7 @@
 #include <dialogs/OBSPermissions.hpp>
 #endif
 #include <utility/BaseLexer.hpp>
+#include <utility/GpuStatus.hpp>
 #include <utility/OBSTranslator.hpp>
 #include <utility/platform.hpp>
 
@@ -231,6 +232,7 @@ static void do_log(int log_level, const char *msg, va_list args, void *param)
 #endif
 
 	if (log_level <= LOG_INFO || log_verbose) {
+		GpuStatus::OnLogLine(str);
 #if !defined(_WIN32) && !defined(_DEBUG)
 		def_log_handler(log_level, msg, args2, nullptr);
 #endif

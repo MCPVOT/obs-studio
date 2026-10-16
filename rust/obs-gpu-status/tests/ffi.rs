@@ -2,7 +2,9 @@
 
 use std::ffi::{CStr, c_int};
 
-use obs_gpu_status::ffi::{obs_gpu_status_free, obs_gpu_status_report, obs_gpu_status_sample};
+use obs_gpu_status::ffi::{
+    obs_gpu_status_free, obs_gpu_status_log_line, obs_gpu_status_report, obs_gpu_status_sample,
+};
 
 const BUDGET: u64 = 33_333_333;
 
@@ -55,5 +57,20 @@ fn sampled_frames_drive_the_frame_budget() {
         report(Some(gpu), BUDGET).0,
         0,
         "one slow second among fast ones"
+    );
+}
+
+#[test]
+fn logged_graphics_lines_reach_the_report() {
+    // SAFETY: literal C strings, and null is ignored.
+    unsafe {
+        obs_gpu_status_log_line(c"Unable to open DRM render node.".as_ptr());
+        obs_gpu_status_log_line(c"Audio monitoring device:".as_ptr());
+        obs_gpu_status_log_line(std::ptr::null());
+    }
+    let (_, text) = report(Some(c"Mesa llvmpipe"), 0);
+    assert!(
+        text.contains("\"logLines\":[\"Unable to open DRM render node.\"]"),
+        "{text}"
     );
 }

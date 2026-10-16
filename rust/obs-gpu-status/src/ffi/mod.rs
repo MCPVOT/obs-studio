@@ -6,8 +6,29 @@
 use std::ffi::{CStr, CString, c_char, c_int};
 use std::sync::{Mutex, OnceLock};
 
-use crate::FrameWindow;
 use crate::report::Report;
+use crate::{FrameWindow, LogCapture};
+
+/// The graphics log lines [`obs_gpu_status_log_line`] kept.
+static LOG: Mutex<LogCapture> = Mutex::new(LogCapture::new());
+
+/// Offer one OBS log line; the ones about graphics are quoted in the
+/// dialog (#944). Null is ignored.
+///
+/// # Safety
+/// `line` is null or a NUL-terminated string.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn obs_gpu_status_log_line(line: *const c_char) {
+    if line.is_null() {
+        return;
+    }
+    // SAFETY: the caller passes a NUL-terminated string.
+    let line = unsafe { CStr::from_ptr(line) }.to_string_lossy();
+    // Every log line comes through here: filter before taking the lock.
+    if crate::is_graphics_log_line(&line) {
+        LOG.lock().unwrap_or_else(|e| e.into_inner()).push(&line);
+    }
+}
 
 /// The frame-time window [`obs_gpu_status_sample`] fills.
 static FRAMES: Mutex<FrameWindow> = Mutex::new(FrameWindow::new());
@@ -54,7 +75,8 @@ pub unsafe extern "C" fn obs_gpu_status_report(
         .stats(interval_ns);
     static DEVICES: OnceLock<Vec<crate::GpuDevice>> = OnceLock::new();
     let devices = DEVICES.get_or_init(crate::platform::system_devices).clone();
-    let report = Report::new(adapter.as_deref(), devices, frames);
+    let log_lines = LOG.lock().unwrap_or_else(|e| e.into_inner()).lines();
+    let report = Report::new(adapter.as_deref(), devices, frames).with_log_lines(log_lines);
     if !state.is_null() {
         // SAFETY: the caller passes a writable int.
         unsafe { *state = report.state as c_int };

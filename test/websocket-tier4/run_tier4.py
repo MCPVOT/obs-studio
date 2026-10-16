@@ -1201,6 +1201,10 @@ async def test_gpu_acceleration_software(log_path):
           # API name (#929, #943).
           and gpu.get("adapterIsApiName") is False,
           json.dumps(gpu)[:400])
+    check("stats:gpuAcceleration quotes the adapter log line",
+          any("Loading up OpenGL on adapter" in line
+              for line in gpu.get("logLines") or []),
+          json.dumps(gpu.get("logLines"))[:400])
     check("stats:gpuAcceleration not green on llvmpipe",
           gpu.get("state") in ("yellow", "red"), json.dumps(gpu)[:400])
     with open(log_path, errors="replace") as f:

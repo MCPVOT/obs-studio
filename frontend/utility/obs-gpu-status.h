@@ -23,6 +23,10 @@ char *obs_gpu_status_report(const char *adapter, uint64_t interval_ns, int *stat
 
 void obs_gpu_status_free(char *json);
 
+/* Offer one OBS log line; the ones about graphics (adapter, DRM render node,
+ * EGL/GLX, video init) are quoted in the dialog. NULL is ignored. */
+void obs_gpu_status_log_line(const char *line);
+
 #ifdef __cplusplus
 }
 #endif

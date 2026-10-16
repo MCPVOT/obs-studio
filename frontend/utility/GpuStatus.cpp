@@ -35,6 +35,9 @@ static Info Parse(int state, const char *json)
 	for (const QJsonValue &cause : obj["causes"].toArray()) {
 		info.causes << cause.toString();
 	}
+	for (const QJsonValue &line : obj["logLines"].toArray()) {
+		info.logLines << line.toString();
+	}
 	for (const QJsonValue &value : obj["detectedGpus"].toArray()) {
 		QJsonObject gpu = value.toObject();
 		QString name = gpu["name"].toString();
@@ -98,6 +101,15 @@ static std::string ActiveAdapterName()
 	return api ? api : "";
 }
 #endif
+
+void OnLogLine(const char *line)
+{
+#ifdef OBS_GPU_STATUS
+	obs_gpu_status_log_line(line);
+#else
+	(void)line;
+#endif
+}
 
 void Sample()
 {

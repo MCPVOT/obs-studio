@@ -17,12 +17,17 @@ struct Info {
 	QString summary;
 	QStringList causes;
 	QStringList gpus;
+	/* OBS log lines that explain the state. */
+	QStringList logLines;
 	/* The gpuAcceleration object obs-websocket returns in GetStats. */
 	std::string json;
 };
 
 /* False in builds without rust/obs-gpu-status; nothing is shown then. */
 bool Available();
+
+/* Offer one OBS log line (from the frontend's log handler). */
+void OnLogLine(const char *line);
 
 /* Record libobs' one-second average frame time; call once a second. */
 void Sample();
