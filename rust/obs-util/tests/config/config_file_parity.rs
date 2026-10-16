@@ -58,7 +58,7 @@ use obs_util::ffi::config_file::{
 };
 use proptest::prelude::*;
 
-mod common;
+use super::common;
 use common::ScratchDir;
 
 /// C callers hand us C strings; anything at/after a NUL is invisible to

@@ -25,7 +25,7 @@ use obs_util::ffi::config_file::{
 };
 use proptest::prelude::*;
 
-mod common;
+use super::common;
 use common::ScratchDir;
 
 const SECTIONS: [&str; 3] = ["s", "t", "u"];

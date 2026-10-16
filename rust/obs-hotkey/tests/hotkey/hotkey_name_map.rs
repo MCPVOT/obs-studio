@@ -12,7 +12,7 @@ const OBS_KEY_NONE: i32 = 0;
 
 /// The key list, in enum order, straight from the header the C uses.
 fn key_names() -> Vec<String> {
-    include_str!("../../../libobs/obs-hotkeys.h")
+    include_str!("../../../../libobs/obs-hotkeys.h")
         .lines()
         .filter_map(|l| {
             let l = l.trim();

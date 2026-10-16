@@ -173,6 +173,6 @@ fn default_log_format_matches_c_switch() {
 
 #[test]
 fn reentry_message_is_the_c_adapter_string() {
-    let src = include_str!("../../../libobs/util/base-variadic.c");
+    let src = include_str!("../../../../libobs/util/base-variadic.c");
     assert!(src.contains(CRASHED_IN_CRASH_HANDLER));
 }

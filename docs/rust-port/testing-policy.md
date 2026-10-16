@@ -104,7 +104,7 @@ cannot prove both, so every ported unit carries the four tiers below.
   symbol is listed in `libobs/cmake/rust-exports.d/<crate>-<ffi module>.txt`
   (one fragment per FFI module, so ports don't edit a shared list), which
   `libobs/cmake/rust.cmake` turns into `/EXPORT:` linker options.
-  `rust/obs-util/tests/export_list.rs` fails if a fragment and the
+  `rust/obs-util/tests/platform/export_list.rs` fails if a fragment and the
   `#[unsafe(no_mangle)]` functions in its `rust/<crate>/src/ffi/<module>.rs`
   differ.
 - macOS: `libobs/cmake/rust-unexports-macos.txt` hides Rust internals with
@@ -339,9 +339,10 @@ rust/
     src/ffi/bitstream.rs      # extern "C" shim, #[repr(C)] types (Tier 2)
     src/ffi/*.rs              # matching shims for the cores above
     src/platform/             # the only host-specific code (cfg_select!, unix/, windows/)
-    tests/bitstream.rs        # Tier 1: 1:1 port of test/cmocka/test_bitstream.c
-    tests/bitstream_layout.rs # Tier 2: struct layout vs. C header
-    tests/bitstream_parity.rs # Tier 3: proptest vs. C oracle
+    tests/containers/main.rs  # one test binary per category, <= 8 per crate (ci/test_binary_cap.py)
+    tests/containers/bitstream.rs        # Tier 1: 1:1 port of test/cmocka/test_bitstream.c
+    tests/containers/bitstream_layout.rs # Tier 2: struct layout vs. C header
+    tests/containers/bitstream_parity.rs # Tier 3: proptest vs. C oracle
   obs-graphics/               # ports of libobs/graphics/*
   obs-media-io/               # ports of libobs/media-io/*
   ../dylints/                 # repo Dylints run by ./lint (not workspace members)

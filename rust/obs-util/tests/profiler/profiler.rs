@@ -10,7 +10,6 @@
 use core::ffi::c_char;
 use std::ffi::CStr;
 use std::ptr;
-use std::sync::Mutex;
 
 use obs_c_oracle as _;
 use obs_util::ffi::profiler::profiler_name_store_free;
@@ -36,7 +35,7 @@ static ROOT_NAME: &CStr = c"test_root";
 static CHILD_NAME: &CStr = c"test_child";
 static OTHER_NAME: &CStr = c"test_other";
 
-static TEST_LOCK: Mutex<()> = Mutex::new(());
+pub(crate) use super::PROFILER_LOCK as TEST_LOCK;
 
 fn name_of(entry: &SnapshotEntry) -> &str {
     assert!(!entry.name.is_null());

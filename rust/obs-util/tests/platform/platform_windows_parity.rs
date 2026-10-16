@@ -21,7 +21,7 @@ use obs_c_oracle::platform_windows as c;
 use obs_util::ffi::bmem::bfree;
 use obs_util::ffi::platform_windows as r;
 
-mod common;
+use super::common;
 use common::ScratchDir;
 
 static PARITY: Mutex<()> = Mutex::new(());

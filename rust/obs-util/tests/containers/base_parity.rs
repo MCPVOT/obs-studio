@@ -341,7 +341,7 @@ fn blog_output(which: &str, level: c_int, body: &str) -> (Vec<u8>, Vec<u8>) {
     let output = std::process::Command::new(exe)
         .args([
             "--exact",
-            "default_handler_capture_worker",
+            "base_parity::default_handler_capture_worker",
             "--test-threads=1",
         ])
         .env("BASE_CAPTURE_WHICH", which)

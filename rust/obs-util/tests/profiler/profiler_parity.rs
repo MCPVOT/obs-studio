@@ -10,7 +10,6 @@
 
 use core::ffi::c_char;
 use std::slice;
-use std::sync::Mutex;
 
 use obs_c_oracle::profiler::{
     oracle_profile_end, oracle_profile_reenable_thread, oracle_profile_register_root,
@@ -39,7 +38,7 @@ enum Op {
 }
 
 /// Oracle statics, the scripted clock, and the Rust profiler are process-global.
-static PARITY_LOCK: Mutex<()> = Mutex::new(());
+pub(crate) use super::PROFILER_LOCK as PARITY_LOCK;
 
 fn name(id: u8) -> *const c_char {
     match id % 3 {

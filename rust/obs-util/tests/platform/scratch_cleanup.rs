@@ -1,7 +1,7 @@
 //! The shared scratch guard must leave nothing behind in the temp dir
 //! (obs-rust/obs-studio#769).
 
-mod common;
+use super::common;
 
 use common::ScratchDir;
 use std::panic::{AssertUnwindSafe, catch_unwind};

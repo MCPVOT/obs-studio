@@ -32,7 +32,7 @@ use obs_c_oracle::platform_nix as c;
 use obs_util::ffi::bmem::bfree;
 use obs_util::ffi::platform_nix as rs;
 
-mod common;
+use super::common;
 use common::ScratchDir;
 
 fn c_path(path: &Path) -> CString {
