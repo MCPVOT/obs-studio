@@ -96,6 +96,35 @@ jobs:
     needs: cache-cleanup
     secrets: inherit
 
+  report-nightly-failure:
+    name: Report Nightly Failure 🚨
+    # The fast PR path (#992) skips Rust tests, Tier 2 and the app builds, so
+    # this nightly full run is what catches a break that slipped through.
+    # On failure, open an issue, or comment on the open one.
+    needs: build-project
+    if: failure() && github.event_name == 'schedule'
+    runs-on: ubuntu-26.04
+    permissions:
+      issues: write
+    steps:
+      - name: Open or Update the Nightly Failure Issue 📝
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SHA: ${{ github.sha }}
+        run: |
+          title='ci: Nightly full run failed on master'
+          body="The scheduled full run failed on ${SHA}: ${RUN_URL}
+
+          PRs skip these checks (#992), so a recent merge may have broken them."
+          existing=$(gh issue list --state open --search "in:title \"${title}\"" --json number --jq '.[0].number')
+          if [ -n "${existing}" ]; then
+            gh issue comment "${existing}" --body "${body}"
+          else
+            gh issue create --title "${title}" --body "${body}"
+          fi
+
   analyze-project:
     name: Analyze 🔬
     uses: ./.github/workflows/analyze-project.yaml
