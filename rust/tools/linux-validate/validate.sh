@@ -35,6 +35,22 @@ if [ -n "$tests" ] && [ "$repeat" -eq 0 ]; then
   exit 2
 fi
 
+# OBS_TIER2_STAGE: all (default) builds and tests each mode here. CI splits
+# it (#937): one job runs "build" for both modes (checks, the OFF/ON export
+# comparison, and OBS_TIER2_PACK=<dir> tars each tree), then "test" jobs
+# unpack a tree at the same path and run one OBS_CTEST_SHARD=<i>/<n> of it.
+stage="${OBS_TIER2_STAGE:-all}"
+case "$stage" in
+all | build | test) ;;
+*) echo "FAIL: OBS_TIER2_STAGE must be all, build or test, got '$stage'"; exit 2 ;;
+esac
+shard_args=()
+if [ -n "${OBS_CTEST_SHARD:-}" ]; then
+  shard_index=${OBS_CTEST_SHARD%/*}
+  shard_count=${OBS_CTEST_SHARD#*/}
+  shard_args=(-I "$shard_index,,$shard_count")
+fi
+
 # Roots: the container paths run.sh sets up, unless OBS_TIER2_SRC names a
 # checkout to build in place, as the CI job does on the runner (#966).
 SRC="${OBS_TIER2_SRC:-/src}"
@@ -110,6 +126,9 @@ has_mode() { grep -qw "$1" <<<"$modes"; }
 
 for mode in $modes; do
   build="$BUILD/rust-$mode"
+  if [ "$stage" = test ]; then
+    [ -f "$build/CTestTestfile.cmake" ] || { echo "FAIL: no $mode build tree at $build for OBS_TIER2_STAGE=test"; exit 1; }
+  else
   reset_stale_build "$build" "$rustc_version"
   echo "== [$mode] configure + build"
   cmake -S "$SRC" -B "$build" -G Ninja \
@@ -133,7 +152,9 @@ for mode in $modes; do
     echo "== [$mode] warnings"
     grep -E ': warning: ' "$build.build.log" | sort -u || true
   fi
+  fi
 
+  if [ "$stage" != build ]; then
   # ctest starts the longest tests first only when it knows their past run
   # times (Testing/Temporary/CTestCostData.txt). A fresh CI container has
   # none, so the 83 s test_deinterlace_2x_field_order could start last; carry
@@ -148,11 +169,11 @@ for mode in $modes; do
     fi
   fi
 
-  echo "== [$mode] ctest"
+  echo "== [$mode] ctest${OBS_CTEST_SHARD:+ shard $OBS_CTEST_SHARD}"
   # xvfb-run gives display tests an X server; the PipeWire tests start their
   # own private PipeWire daemon and D-Bus bus (#776).
   ctest_status=0
-  "${test_env[@]}" xvfb-run -a ctest --test-dir "$build" --output-on-failure -j "${OBS_CTEST_JOBS:-1}" 2>&1 | tee "$build.ctest.log" ||
+  "${test_env[@]}" xvfb-run -a ctest --test-dir "$build" --output-on-failure -j "${OBS_CTEST_JOBS:-1}" "${shard_args[@]}" 2>&1 | tee "$build.ctest.log" ||
     ctest_status=$?
   # Keep the timings even when a test failed: they are still right.
   if [ -n "$cost_cache" ] && [ -s "$cost_file" ]; then
@@ -167,7 +188,9 @@ for mode in $modes; do
     "${test_env[@]}" xvfb-run -a ctest --test-dir "$build" --output-on-failure \
       --repeat "until-fail:$repeat" ${tests:+-R "$tests"}
   fi
+  fi
 
+  [ "$stage" = test ] && continue
   lib=$(ls "$build"/libobs/libobs.so.* | head -1)
   nm -D --defined-only "$lib" | awk '{print $3}' | sort >"$BUILD/exports-$mode.txt"
   # $EXPORTS: run.sh mounts OBS_TIER2_EXPORTS_DIR there, or the CI job names a
@@ -208,7 +231,22 @@ for mode in $modes; do
     exit 1
   fi
   echo "== [$mode] obs-nvenc.so built with $want"
+
+  if [ -n "${OBS_TIER2_PACK:-}" ]; then
+    # What ctest needs at the same path on a test runner: binaries, libs,
+    # plugins, CTestTestfile.cmake. Objects, archives and cargo's target dir
+    # are build inputs only.
+    mkdir -p "$OBS_TIER2_PACK"
+    tar --zstd -cf "$OBS_TIER2_PACK/tier2-tree-$mode.tar.zst" -C "$BUILD" \
+      --exclude='*.o' --exclude='*.a' --exclude='*.rlib' --exclude='*.rmeta' \
+      --exclude="rust-$mode/cargo" "rust-$mode"
+    echo "== [$mode] packed $(du -h "$OBS_TIER2_PACK/tier2-tree-$mode.tar.zst" | cut -f1)"
+  fi
 done
+
+if [ "$stage" = test ]; then
+  exit 0
+fi
 
 # Issue #80: panic=abort is set only for [profile.release], so libobs must
 # link the release-profile staticlib even for Debug builds; a dev-profile

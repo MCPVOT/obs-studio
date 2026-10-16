@@ -28,7 +28,7 @@ WORKFLOW = ROOT / ".github" / "workflows" / "build-project.yaml"
 class CostDataTest(unittest.TestCase):
     def setUp(self):
         self.text = VALIDATE.read_text(encoding="utf-8")
-        start = self.text.index('echo "== [$mode] ctest"')
+        start = self.text.index('echo "== [$mode] ctest')
         self.around_ctest = self.text[start - 1500 : start + 1500]
 
     def test_cost_data_is_restored_before_ctest(self):

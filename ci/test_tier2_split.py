@@ -1,5 +1,8 @@
 #!/usr/bin/env -S uv run --script
-"""Tier 2 Linux runs ENABLE_RUST_LIBOBS=OFF and =ON as parallel jobs (#930 A2).
+"""validate.sh runs a chosen set of ENABLE_RUST_LIBOBS modes (#930 A2).
+
+The CI layout this introduced (one job per mode) is superseded by #937's
+build-once, shard-the-tests jobs, pinned in ci/test_tier2_fanout.py.
 
     uv run python -m unittest ci/test_tier2_split.py
 
@@ -21,38 +24,11 @@ VALIDATE = ROOT / "rust" / "tools" / "linux-validate" / "validate.sh"
 RUN = ROOT / "rust" / "tools" / "linux-validate" / "run.sh"
 
 
-def job(text: str, name: str) -> str:
+def _unused_job(text: str, name: str) -> str:
     m = re.search(rf"^  {re.escape(name)}:\n(.*?)(?=^  [a-z0-9-]+:\n|\Z)", text, re.S | re.M)
     if not m:
         raise AssertionError(f"no job {name}")
     return m.group(1)
-
-
-class WorkflowTest(unittest.TestCase):
-    def setUp(self):
-        text = WORKFLOW.read_text(encoding="utf-8")
-        self.tier2 = job(text, "rust-linux-tier2")
-        self.exports = job(text, "rust-linux-tier2-exports")
-
-    def test_modes_run_as_a_matrix(self):
-        self.assertRegex(self.tier2, r"mode:\s*\[\s*OFF,\s*ON\s*\]")
-        self.assertIn("fail-fast: false", self.tier2)
-        self.assertIn("OBS_TIER2_MODES: ${{ matrix.mode }}", self.tier2)
-
-    def test_each_mode_keeps_its_own_ccache(self):
-        self.assertIn("tier2-ccache-linux-${{ matrix.mode }}-${{ github.sha }}", self.tier2)
-
-    def test_each_mode_uploads_its_exports(self):
-        self.assertIn("name: tier2-exports-${{ matrix.mode }}", self.tier2)
-
-    def test_exports_job_compares_both_lists(self):
-        self.assertIn("needs: [check-event, lane-proofs, rust-linux-tier2]", self.exports)
-        self.assertIn("pattern: tier2-exports-*", self.exports)
-        self.assertRegex(self.exports, r"diff\s+\S*exports-OFF\.txt\s+\S*exports-ON\.txt")
-
-    def test_lane_proof_is_published_only_after_both_modes(self):
-        self.assertNotIn("Upload Lane Proof", self.tier2)
-        self.assertIn("Upload Lane Proof", self.exports)
 
 
 class HarnessTest(unittest.TestCase):

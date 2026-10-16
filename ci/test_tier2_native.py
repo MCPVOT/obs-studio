@@ -24,16 +24,20 @@ WORKFLOW = ROOT / ".github" / "workflows" / "build-project.yaml"
 
 
 def tier2_job() -> str:
+    """The Tier 2 Linux build job and test jobs (#937), together."""
     text = WORKFLOW.read_text(encoding="utf-8")
-    m = re.search(r"^  rust-linux-tier2:\n(.*?)(?=^  [a-z0-9-]+:\n)", text, re.S | re.M)
-    assert m, "no rust-linux-tier2 job"
-    return m.group(1)
+    out = []
+    for name in ("rust-linux-tier2-build", "rust-linux-tier2"):
+        m = re.search(rf"^  {name}:\n(.*?)(?=^  [a-z0-9-]+:\n)", text, re.S | re.M)
+        assert m, f"no {name} job"
+        out.append(m.group(1))
+    return "\n".join(out)
 
 
 class PackageListTest(unittest.TestCase):
     def test_list_has_the_test_runtime(self):
         names = PACKAGES.read_text(encoding="utf-8").split()
-        for pkg in ("libcmocka-dev", "xvfb", "xauth", "pipewire", "dbus-daemon", "ccache", "ninja-build"):
+        for pkg in ("libcmocka-dev", "xvfb", "xauth", "pipewire", "dbus-daemon", "ccache", "ninja-build", "zstd"):
             self.assertIn(pkg, names)
 
     def test_dockerfile_installs_the_shared_list(self):

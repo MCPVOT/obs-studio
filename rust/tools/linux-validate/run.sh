@@ -61,6 +61,18 @@ if [ -n "${OBS_TIER2_EXPORTS_DIR:-}" ]; then
   mkdir -p "$OBS_TIER2_EXPORTS_DIR"
   env+=(-v "$OBS_TIER2_EXPORTS_DIR:/exports")
 fi
+# OBS_TIER2_STAGE (all/build/test), OBS_CTEST_SHARD (<i>/<n>) and
+# OBS_TIER2_PACK_DIR (a host dir for the build-tree tarballs) reproduce the
+# CI build and shard jobs (#937); see validate.sh.
+for var in OBS_TIER2_STAGE OBS_CTEST_SHARD; do
+  if [ -n "${!var:-}" ]; then
+    env+=(-e "$var=${!var}")
+  fi
+done
+if [ -n "${OBS_TIER2_PACK_DIR:-}" ]; then
+  mkdir -p "$OBS_TIER2_PACK_DIR"
+  env+=(-v "$OBS_TIER2_PACK_DIR:/pack" -e OBS_TIER2_PACK=/pack)
+fi
 # OBS_EXTRA_CFLAGS: extra C/C++ compiler flags for the CMake builds, e.g. to
 # measure a stricter warning set (obs-rust/obs-studio#516).
 if [ -n "${OBS_EXTRA_CFLAGS:-}" ]; then

@@ -944,23 +944,23 @@ jobs:
   # ENABLE_RUST_LIBOBS=OFF and =ON build and test in parallel jobs (#930 A2);
   # rust-linux-tier2-exports compares their libobs exports and publishes the
   # lane proof once both pass.
-  rust-linux-tier2:
-    name: Rust Tier 2 Linux 🐧 (${{ matrix.mode }})
+  # Tier 2 Linux builds once and fans the tests out (#937): the build job
+  # builds ENABLE_RUST_LIBOBS=OFF and =ON, runs the checks (including the
+  # enforced OFF/ON export comparison, so a mismatch fails before any test)
+  # and uploads each build tree; mode x shard jobs run one ctest slice each
+  # on the same paths; rust-linux-tier2-done publishes the lane proof.
+  rust-linux-tier2-build:
+    name: Rust Tier 2 Linux 🐧 (build)
     runs-on: ubuntu-26.04
     # A stock image, no Dockerfile or image build (#966): run directly on the
     # runner, two group tests failed while passing in a container with the
     # same libraries, compiler, flags and CPU (#982). Packages install below.
     container:
       image: ubuntu:26.04@sha256:f144425ff09be612d6d9ad965196e9cdc23dae1f42110a8a11a3e9a8198759f7
-    # A hung test held a runner for 4.5 h without this (#983); a normal run
-    # is about 13 min.
+    # A hung test held a runner for 4.5 h without a timeout (#983).
     timeout-minutes: 30
     needs: [check-event, ci-mode, lane-proofs]
     if: needs.check-event.outputs.deferred != 'true' && needs.ci-mode.outputs.skip_rust-linux-tier2 != 'true' && needs.lane-proofs.outputs.tier2-linux_hit != 'true'
-    strategy:
-      fail-fast: false
-      matrix:
-        mode: [OFF, ON]
     defaults:
       run:
         shell: bash
@@ -978,26 +978,22 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
-      # PRs restore the compiler cache; only master pushes save it (a cache
-      # saved from a PR ref is unreachable by other PRs). One cache per mode:
-      # the two jobs would otherwise race to save the same key.
-      - uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        with:
-          path: ${{ github.workspace }}/.tier2-ccache
-          key: tier2-ccache-linux-${{ matrix.mode }}-${{ github.sha }}
-          restore-keys: |
-            tier2-ccache-linux-${{ matrix.mode }}-
-            tier2-ccache-linux-
-
-      # Native on the runner, no Docker image built per job (#966): the
-      # package list is shared with the local Docker harness (run.sh), and
-      # `bosn ci run --workflow build-project.yaml --job rust-linux-tier2`
-      # runs this job locally through act2.
+      # The package list is shared with the local Docker harness (run.sh).
       - name: Install Tier 2 Packages 📦
         run: |
           sudo apt-get update -qq
           grep -v '^#' rust/tools/linux-validate/apt-packages.txt |
             xargs "${GITHUB_WORKSPACE}/.github/scripts/retry" sudo apt-get install -y --no-install-recommends
+
+      # PRs restore the compiler cache; only master pushes save it (a cache
+      # saved from a PR ref is unreachable by other PRs).
+      - uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ github.workspace }}/.tier2-ccache
+          key: tier2-ccache-linux-both-${{ github.sha }}
+          restore-keys: |
+            tier2-ccache-linux-both-
+            tier2-ccache-linux-
 
       # The ENABLE_RUST_LIBOBS=ON build runs cargo through Corrosion; the
       # shims put soldr's cargo/rustc (rust-toolchain.toml) on PATH.
@@ -1008,31 +1004,32 @@ jobs:
           shims: true
 
       # GATE-001 mirror (local-gate.toml): the same validate.sh the local
-      # gate's tier2-linux lane runs in Docker (both modes in one go).
-      - name: Validate Tier 2 (ENABLE_RUST_LIBOBS=${{ matrix.mode }}) ✅
+      # gate's tier2-linux lane runs in Docker (build and test in one go).
+      - name: Build Tier 2 (ENABLE_RUST_LIBOBS OFF and ON) 🧱
         env:
           OBS_TIER2_SRC: ${{ github.workspace }}
           OBS_TIER2_BUILD: ${{ runner.temp }}/tier2
-          OBS_TIER2_EXPORTS: ${{ runner.temp }}/tier2-exports
+          OBS_TIER2_PACK: ${{ runner.temp }}/tier2-pack
           CCACHE_DIR: ${{ github.workspace }}/.tier2-ccache
-          OBS_TIER2_MODES: ${{ matrix.mode }}
-          # ccache already hits ~99.8%; the time is the ctest run, which
-          # validate.sh orders longest-first from cached cost data (#931).
-          # More than 4 jobs is not free: CPU-heavy timing tests
-          # (test_encoder_join_keyframe's AV1 encode, test_media_gif_last_frame)
-          # failed under -j8 while passing alone (#938).
-          OBS_CTEST_JOBS: 4
-        run: |
-          mkdir -p "$OBS_TIER2_EXPORTS"
-          bash rust/tools/linux-validate/validate.sh
+          OBS_TIER2_MODES: "OFF ON"
+          OBS_TIER2_STAGE: build
+        run: bash rust/tools/linux-validate/validate.sh
 
-
-      - name: Upload Exports 🧾
+      - name: Upload Tier 2 Tree (OFF) 🧾
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: tier2-exports-${{ matrix.mode }}
-          path: ${{ runner.temp }}/tier2-exports/exports-${{ matrix.mode }}.txt
-          retention-days: 3
+          name: tier2-tree-OFF
+          path: ${{ runner.temp }}/tier2-pack/tier2-tree-OFF.tar.zst
+          retention-days: 1
+          compression-level: 0
+          if-no-files-found: error
+      - name: Upload Tier 2 Tree (ON) 🧾
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: tier2-tree-ON
+          path: ${{ runner.temp }}/tier2-pack/tier2-tree-ON.tar.zst
+          retention-days: 1
+          compression-level: 0
           if-no-files-found: error
 
       - name: Save Tier 2 ccache 💾
@@ -1040,27 +1037,76 @@ jobs:
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
         with:
           path: ${{ github.workspace }}/.tier2-ccache
-          key: tier2-ccache-linux-${{ matrix.mode }}-${{ github.sha }}
+          key: tier2-ccache-linux-both-${{ github.sha }}
 
-  rust-linux-tier2-exports:
-    name: Rust Tier 2 Linux 🐧 (exports)
+  rust-linux-tier2:
+    name: Rust Tier 2 Linux 🐧 (${{ matrix.mode }} ${{ matrix.shard }}/3)
     runs-on: ubuntu-26.04
-    needs: [check-event, lane-proofs, rust-linux-tier2]
+    # A stock image, no Dockerfile or image build (#966): run directly on the
+    # runner, two group tests failed while passing in a container with the
+    # same libraries, compiler, flags and CPU (#982). Packages install below.
+    container:
+      image: ubuntu:26.04@sha256:f144425ff09be612d6d9ad965196e9cdc23dae1f42110a8a11a3e9a8198759f7
+    timeout-minutes: 30
+    needs: [check-event, ci-mode, lane-proofs, rust-linux-tier2-build]
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [OFF, ON]
+        shard: [1, 2, 3]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      # checkout needs git for tags and submodules; sudo keeps the shared
+      # install step below the same as on a plain runner.
+      - name: Install Git 📦
+        run: |
+          apt-get update -qq
+          apt-get install -y --no-install-recommends git ca-certificates curl sudo
+
+      # fetch-depth 0: versionconfig.cmake derives the OBS version from tags.
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      # The package list is shared with the local Docker harness (run.sh).
+      - name: Install Tier 2 Packages 📦
+        run: |
+          sudo apt-get update -qq
+          grep -v '^#' rust/tools/linux-validate/apt-packages.txt |
+            xargs "${GITHUB_WORKSPACE}/.github/scripts/retry" sudo apt-get install -y --no-install-recommends
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: tier2-tree-${{ matrix.mode }}
+          path: ${{ runner.temp }}/tier2-pack
+      - name: Unpack Tier 2 Tree 📂
+        run: |
+          mkdir -p "$RUNNER_TEMP/tier2"
+          tar --zstd -xf "$RUNNER_TEMP/tier2-pack/tier2-tree-${{ matrix.mode }}.tar.zst" -C "$RUNNER_TEMP/tier2"
+
+      - name: Test Tier 2 (ENABLE_RUST_LIBOBS=${{ matrix.mode }}, shard ${{ matrix.shard }}/3) ✅
+        env:
+          OBS_TIER2_SRC: ${{ github.workspace }}
+          OBS_TIER2_BUILD: ${{ runner.temp }}/tier2
+          OBS_TIER2_MODES: ${{ matrix.mode }}
+          OBS_TIER2_STAGE: test
+          OBS_CTEST_SHARD: ${{ matrix.shard }}/3
+          # More than 4 jobs is not free: CPU-heavy timing tests
+          # (test_encoder_join_keyframe's AV1 encode, test_media_gif_last_frame)
+          # failed under -j8 while passing alone (#938).
+          OBS_CTEST_JOBS: 4
+        run: bash rust/tools/linux-validate/validate.sh
+
+  rust-linux-tier2-done:
+    name: Rust Tier 2 Linux 🐧
+    runs-on: ubuntu-latest
+    needs: [lane-proofs, rust-linux-tier2]
     if: needs.rust-linux-tier2.result == 'success'
     timeout-minutes: 5
     steps:
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          pattern: tier2-exports-*
-          merge-multiple: true
-          path: exports
-      # libobs must export exactly the same dynamic symbols with
-      # ENABLE_RUST_LIBOBS=ON as with OFF (testing-policy.md, Tier 2).
-      - name: Compare libobs Exports, OFF vs ON 🔍
-        run: |
-          diff exports/exports-OFF.txt exports/exports-ON.txt
-          echo "IDENTICAL ($(wc -l <exports/exports-ON.txt) symbols)"
-
       # Publish the pass as a lane proof (ci/lane_proof.py), only for a lane
       # that ran here and passed; the name carries the lane's input key.
       - name: Mark Lane Proof 🧾
