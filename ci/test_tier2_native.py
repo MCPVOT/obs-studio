@@ -86,6 +86,22 @@ class ContainerTest(unittest.TestCase):
         self.assertRegex(tier2_job(), r"container:\n\s+image: ubuntu:26\.04@sha256:[0-9a-f]{64}")
 
 
+class GitOwnershipTest(unittest.TestCase):
+    def test_source_is_a_safe_git_directory_in_every_harness(self):
+        """In CI's job container git runs as root on a checkout owned by the
+        runner user; CMake then failed to read the version tag ("dubious
+        ownership") and Tier 2 failed on master (#1019)."""
+        text = (HERE / "validate.sh").read_text(encoding="utf-8")
+        line = 'git config --global --add safe.directory "$SRC"'
+        self.assertIn(line, text)
+        before = text[: text.index(line)]
+        self.assertNotIn('if [ -z "${OBS_TIER2_SRC:-}" ]; then', before.splitlines()[-1])
+        self.assertLess(text.index(line), text.index('if [ -z "${OBS_TIER2_SRC:-}" ]; then'))
+
+    def test_no_temporary_diagnostic_left(self):
+        self.assertNotIn("Diagnose Group Tests", WORKFLOW.read_text(encoding="utf-8"))
+
+
 class TimeoutTest(unittest.TestCase):
     def test_tier2_jobs_time_out(self):
         """A hung Tier 2 test held a scarce ubuntu-26.04 runner for 4.5 h

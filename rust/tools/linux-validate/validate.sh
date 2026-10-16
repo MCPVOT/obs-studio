@@ -40,8 +40,11 @@ fi
 SRC="${OBS_TIER2_SRC:-/src}"
 BUILD="${OBS_TIER2_BUILD:-/build}"
 EXPORTS="${OBS_TIER2_EXPORTS:-/exports}"
+# git runs as root inside the container (Docker harness or CI's job
+# container) on a checkout owned by another user; without this, CMake can't
+# read the version tag ("dubious ownership").
+git config --global --add safe.directory "$SRC"
 if [ -z "${OBS_TIER2_SRC:-}" ]; then
-  git config --global --add safe.directory "$SRC"
   mkdir -p "$SRC"
   rsync -a --delete --exclude /target /ro/ "$SRC/"
 fi

@@ -1026,31 +1026,6 @@ jobs:
           mkdir -p "$OBS_TIER2_EXPORTS"
           bash rust/tools/linux-validate/validate.sh
 
-      # TEMPORARY (#982): the group tests failed natively but pass in the
-      # container. On failure, rerun them alone and show what libobs loads,
-      # to tell a library difference from interference with other tests.
-      - name: Diagnose Group Tests 🔬
-        if: failure()
-        run: |
-          b="$RUNNER_TEMP/tier2/rust-${{ matrix.mode }}"
-          for i in 1 2 3; do
-            HOME="$RUNNER_TEMP/tier2/test-home" xvfb-run -a ctest --test-dir "$b" \
-              -R '^(test_group_empty_bounds|test_scene_dup_group_children)$' --output-on-failure 2>&1 |
-              grep -E 'Test +#|expected \(|moved' || true
-          done
-          ldd "$b"/libobs/libobs.so.* | sort
-          echo "== as root"
-          sudo -E env HOME=/root xvfb-run -a ctest --test-dir "$b" \
-            -R '^(test_group_empty_bounds|test_scene_dup_group_children)$' --output-on-failure 2>&1 |
-            grep -E 'Test +#|expected \(|moved' || true
-          echo "== cpu"; grep -m1 'model name' /proc/cpuinfo; grep -m1 -o -w 'avx512f\|fma\|avx2' /proc/cpuinfo | sort -u | tr '\n' ' '; echo
-          echo "== env"; env | sort | grep -vE 'TOKEN|SECRET|KEY|PASSWORD' | cut -c1-200
-          echo "== versions (compare with the container's dpkg-query)"
-          dpkg-query -W -f='${Package} ${Version}\n' libc6 libgl1-mesa-dri libegl-mesa0 libgbm1 \
-            libjansson4 libgcc-s1 libstdc++6 xvfb libx11-6 || true
-          ls /usr/lib/x86_64-linux-gnu/libLLVM* 2>/dev/null | head -3
-          echo "== obs-scene.c compile command"
-          ninja -C "$b" -t commands libobs | grep -m1 'obs-scene\.c' | tr ' ' '\n' | grep -E '^-[DfmOW]|^-std' | sort -u
 
       - name: Upload Exports 🧾
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
