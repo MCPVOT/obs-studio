@@ -37,8 +37,10 @@ class CostDataTest(unittest.TestCase):
         self.assertNotEqual(restore, -1, "validate.sh never mentions CTestCostData.txt")
         self.assertLess(restore, ctest, "cost data must be in place before ctest runs")
 
-    def test_cost_data_lives_in_the_ccache_dir_per_mode(self):
-        self.assertRegex(self.around_ctest, r"\$\{?CCACHE_DIR\}?/[^\s\"]*\$\{?mode\}?")
+    def test_cost_data_lives_per_mode_in_the_cost_dir(self):
+        # OBS_TIER2_COST_DIR, defaulting to the ccache dir (#930).
+        self.assertIn('cost_dir="${OBS_TIER2_COST_DIR:-${CCACHE_DIR:-}}"', self.around_ctest)
+        self.assertIn('cost_cache="$cost_dir/ctest-cost-$mode.txt"', self.around_ctest)
 
     def test_cost_data_is_saved_after_ctest(self):
         ctest = self.text.find("xvfb-run -a ctest")

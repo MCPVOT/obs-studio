@@ -163,11 +163,14 @@ for mode in $modes; do
   # ctest starts the longest tests first only when it knows their past run
   # times (Testing/Temporary/CTestCostData.txt). A fresh CI container has
   # none, so the 83 s test_deinterlace_2x_field_order could start last; carry
-  # the file per mode in the ccache directory, which CI restores (#931).
+  # the file per mode in OBS_TIER2_COST_DIR (default: the ccache directory,
+  # #931); CI shards upload it and master merges it back (#930).
+  cost_dir="${OBS_TIER2_COST_DIR:-${CCACHE_DIR:-}}"
   cost_file="$build/Testing/Temporary/CTestCostData.txt"
   cost_cache=
-  if [ -n "${CCACHE_DIR:-}" ]; then
-    cost_cache="$CCACHE_DIR/ctest-cost-$mode.txt"
+  if [ -n "$cost_dir" ]; then
+    mkdir -p "$cost_dir"
+    cost_cache="$cost_dir/ctest-cost-$mode.txt"
     if [ -s "$cost_cache" ]; then
       mkdir -p "${cost_file%/*}"
       cp "$cost_cache" "$cost_file"
@@ -249,7 +252,7 @@ for mode in $modes; do
   if [ -n "${OBS_TIER2_SHARDS:-}" ]; then
     names="$BUILD/tier2-names-$mode.txt"
     ctest --test-dir "$build" -N | sed -nE 's/^ *Test +#[0-9]+: +([^ ]+)$/\1/p' >"$names"
-    costs="${CCACHE_DIR:-}/ctest-cost-$mode.txt"
+    costs="${OBS_TIER2_COST_DIR:-${CCACHE_DIR:-}}/ctest-cost-$mode.txt"
     [ -s "$costs" ] || costs=/dev/null
     echo "== [$mode] shard plan ($(wc -l <"$names") tests, costs from ${costs})"
     "$SRC"/rust/tools/linux-validate/shard-plan.sh "$costs" "$names" "$OBS_TIER2_SHARDS" "$build/tier2-shards"
