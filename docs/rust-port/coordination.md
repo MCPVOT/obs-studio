@@ -173,12 +173,17 @@ inputs did not change.
 for pull requests only (`gh pr merge <N> --admin --squash`; direct pushes
 stay blocked). It is for a maintainer landing a small, low-risk PR (docs, a
 bot or CI tweak) that should not wait for a CI run. It skips CI, and it moves
-master under every queued group, which then rebuilds, so check the queue
-first and prefer it when the queue is busy. A queued PR that only needs to
-go first can jump to the front instead, keeping CI:
+master under every queued group, which then rebuilds. So bypass only when
+the queue is empty (`gh pr list --search "is:queued"` shows nothing);
+otherwise queue the PR and, if it must go first, jump it to the front,
+keeping CI (#930 E2):
 `gh api graphql -f query='mutation{enqueuePullRequest(input:{pullRequestId:"<node id>",jump:true}){mergeQueueEntry{position}}}'`
 (the PR's own `CI Gate ✅` must already be green; GitHub refuses a PR whose
 checks are pending or failing).
+
+Each queue run's `CI Gate ✅` job summary shows its wall time, runner time
+and attempt number (`ci/queue_report.py`); an attempt 2 or later is a
+rebuild. If rebuilds after bypasses show up there, tighten this rule.
 
 In an emergency an administrator may set the ruleset's enforcement to
 "disabled", land the fix, and enable it again, saying so in the PR.
