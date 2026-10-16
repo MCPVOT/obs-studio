@@ -72,7 +72,16 @@ if [ "$(wc -w <<<"$ported_objs")" -lt 20 ]; then
 fi
 echo "== ported objects checked with ENABLE_RUST_LIBOBS=ON: $(wc -w <<<"$ported_objs")"
 
-for mode in OFF ON; do
+# OBS_TIER2_MODES: which ENABLE_RUST_LIBOBS builds to run (default both). CI
+# runs OFF and ON as parallel jobs and compares their exports in a third
+# (#930 A2); locally both run here and are compared below.
+modes="${OBS_TIER2_MODES:-OFF ON}"
+for mode in $modes; do
+  case "$mode" in OFF | ON) ;; *) echo "FAIL: OBS_TIER2_MODES must list OFF and/or ON, got '$modes'"; exit 1 ;; esac
+done
+has_mode() { grep -qw "$1" <<<"$modes"; }
+
+for mode in $modes; do
   build="/build/rust-$mode"
   reset_stale_build "$build" "$rustc_version"
   echo "== [$mode] configure + build"
@@ -134,6 +143,10 @@ for mode in OFF ON; do
 
   lib=$(ls "$build"/libobs/libobs.so.* | head -1)
   nm -D --defined-only "$lib" | awk '{print $3}' | sort >"/build/exports-$mode.txt"
+  # run.sh mounts OBS_TIER2_EXPORTS_DIR here so a CI job can hand the list on.
+  if [ -d /exports ]; then
+    cp "/build/exports-$mode.txt" /exports/
+  fi
 
   # Query the current Ninja build graph, not the filesystem: the /build volume
   # persists across runs, so a stale .o from an older checkout would linger.
@@ -173,6 +186,7 @@ done
 # link the release-profile staticlib even for Debug builds; a dev-profile
 # (panic=unwind) archive would let a shim panic unwind across the C ABI.
 # Configure-only check: inspect which archive the Debug link line uses.
+if has_mode ON; then
 echo "== [ON/Debug] Rust staticlib profile"
 dbg=/build/rust-ON-debug
 reset_stale_build "$dbg" "$rustc_version"
@@ -189,10 +203,13 @@ if [ -z "$rust_archives" ] || grep -qv '/release/liblibobs_rust\.a$' <<<"$rust_a
   echo "FAIL: Debug libobs links a non-release (panic=unwind) Rust staticlib"
   exit 1
 fi
+fi
 
-echo "== libobs exported symbols, OFF vs ON"
-diff /build/exports-OFF.txt /build/exports-ON.txt
-echo "IDENTICAL ($(wc -l </build/exports-ON.txt) symbols)"
+if has_mode OFF && has_mode ON; then
+  echo "== libobs exported symbols, OFF vs ON"
+  diff /build/exports-OFF.txt /build/exports-ON.txt
+  echo "IDENTICAL ($(wc -l </build/exports-ON.txt) symbols)"
+fi
 
 echo "== ccache"
 ccache -s | grep -E "Hits|Misses|Cache size" || true
