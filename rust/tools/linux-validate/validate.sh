@@ -91,7 +91,7 @@ for mode in OFF ON; do
   # -k 0: keep going after a failed target, so one run reports every compile
   # error (a warning ratchet otherwise took a round trip per file; #634).
   cmake --build "$build" --target libobs cmocka-tests decklink obs-nvenc -- -k 0 \
-    >"$build.build.log" 2>&1 || { grep -E ": (fatal )?error|FAILED:" "$build.build.log" | sort -u | head -80; exit 1; }
+    >"$build.build.log" 2>&1 || { /src/rust/tools/linux-validate/build-errors.sh "$build.build.log"; exit 1; }
   if [ -n "${OBS_EXTRA_CFLAGS:-}" ]; then
     # Measuring extra flags: show what they report (#516).
     echo "== [$mode] warnings"
