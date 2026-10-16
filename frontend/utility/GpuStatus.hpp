@@ -24,7 +24,10 @@ struct Info {
 /* False in builds without rust/obs-gpu-status; nothing is shown then. */
 bool Available();
 
-/* Classify the current adapter, detected GPUs and frame time. */
+/* Record libobs' one-second average frame time; call once a second. */
+void Sample();
+
+/* Classify the current adapter, detected GPUs and recent frame times. */
 Info Query();
 
 /* Call once after video is reset: logs a warning when the state is yellow

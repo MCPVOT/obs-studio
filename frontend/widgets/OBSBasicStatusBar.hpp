@@ -63,6 +63,7 @@ private:
 
 	QPointer<QPushButton> gpuStatusButton;
 	QPointer<QTimer> gpuStatusTimer;
+	int gpuStatusTicks = 0;
 
 	QPointer<QTimer> refreshTimer;
 	QPointer<QTimer> messageTimer;
@@ -94,6 +95,7 @@ private slots:
 	void UpdateStatusBar();
 	void UpdateCurrentFPS();
 	void UpdateIcons();
+	void GpuStatusTick();
 	void UpdateGpuStatus();
 	void ShowGpuStatusDialog();
 

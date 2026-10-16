@@ -13,6 +13,7 @@
 static constexpr int bitrateUpdateSeconds = 2;
 static constexpr int congestionUpdateSeconds = 4;
 static constexpr int gpuStatusUpdateSeconds = 5;
+static constexpr int gpuStatusSampleMs = 1000;
 static constexpr float excellentThreshold = 0.0f;
 static constexpr float goodThreshold = 0.3333f;
 static constexpr float mediocreThreshold = 0.6667f;
@@ -52,8 +53,8 @@ OBSBasicStatusBar::OBSBasicStatusBar(QWidget *parent)
 		addPermanentWidget(gpuStatusButton);
 
 		gpuStatusTimer = new QTimer(this);
-		connect(gpuStatusTimer, &QTimer::timeout, this, &OBSBasicStatusBar::UpdateGpuStatus);
-		gpuStatusTimer->start(gpuStatusUpdateSeconds * 1000);
+		connect(gpuStatusTimer, &QTimer::timeout, this, &OBSBasicStatusBar::GpuStatusTick);
+		gpuStatusTimer->start(gpuStatusSampleMs);
 	}
 
 	addPermanentWidget(statusWidget, 1);
@@ -659,6 +660,18 @@ static QColor GpuStatusColor(GpuStatus::State state)
 		break;
 	}
 	return QColor(0xd9, 0x30, 0x25);
+}
+
+void OBSBasicStatusBar::GpuStatusTick()
+{
+	if (!obs_get_video()) {
+		return;
+	}
+	GpuStatus::Sample();
+	/* Refresh the light on the first tick, then every few seconds. */
+	if (gpuStatusTicks++ % gpuStatusUpdateSeconds == 0) {
+		UpdateGpuStatus();
+	}
 }
 
 void OBSBasicStatusBar::UpdateGpuStatus()

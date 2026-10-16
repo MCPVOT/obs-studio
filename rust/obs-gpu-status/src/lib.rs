@@ -74,6 +74,39 @@ pub struct FrameStats {
     pub interval_ns: u64,
 }
 
+/// Fewest one-second samples [`FrameStats::from_samples`] judges a window on.
+pub const MIN_FRAME_SAMPLES: usize = 5;
+
+impl FrameStats {
+    /// The median of one-second frame-time averages (`obs_get_average_frame_time_ns`
+    /// sampled once a second), or `None` with fewer than [`MIN_FRAME_SAMPLES`]
+    /// samples or no interval. A median keeps one slow second, such as the
+    /// first one after launch, from turning the light red.
+    pub fn from_samples(samples: &[u64], interval_ns: u64) -> Option<Self> {
+        if interval_ns == 0 || samples.len() < MIN_FRAME_SAMPLES {
+            return None;
+        }
+        Some(Self {
+            median_frame_ns: median(samples)?,
+            interval_ns,
+        })
+    }
+}
+
+/// The median of `values`, or `None` when it is empty. An even count gives
+/// the midpoint of the two middle values, rounded down; `u64::midpoint`
+/// computes it without overflowing.
+pub fn median(values: &[u64]) -> Option<u64> {
+    let mut sorted = values.to_vec();
+    sorted.sort_unstable();
+    let mid = sorted.len() / 2;
+    match sorted.len() {
+        0 => None,
+        n if n % 2 == 1 => Some(sorted[mid]),
+        _ => Some(sorted[mid - 1].midpoint(sorted[mid])),
+    }
+}
+
 /// Whether `adapter` names a software renderer (llvmpipe, softpipe,
 /// Microsoft Basic Render Driver, SwiftShader).
 pub fn is_software_renderer(adapter: &str) -> bool {

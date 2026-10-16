@@ -9,19 +9,21 @@ use std::sync::OnceLock;
 use crate::FrameStats;
 use crate::report::Report;
 
-/// Build the report for `adapter` (null when
-/// graphics init failed) and the system's GPUs, probed once per process
-/// (`nvidia-smi` is too slow to run on every refresh). `interval_ns == 0` means no frame timings. Writes
+/// Build the report for `adapter` (null when graphics init failed) and the
+/// system's GPUs, probed once per process (`nvidia-smi` is too slow to run
+/// on every refresh). `frame_ns` holds `count` one-second frame-time
+/// samples, judged by their median ([`FrameStats::from_samples`]). Writes
 /// 0 (green), 1 (yellow) or 2 (red) to `state` when it is not null, and
 /// returns the `gpuAcceleration` JSON, freed with [`obs_gpu_status_free`].
 ///
 /// # Safety
-/// `adapter` is null or a NUL-terminated string; `state` is null or
-/// writable.
+/// `adapter` is null or a NUL-terminated string; `frame_ns` is null or
+/// points to `count` readable values; `state` is null or writable.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn obs_gpu_status_report(
     adapter: *const c_char,
-    median_frame_ns: u64,
+    frame_ns: *const u64,
+    count: usize,
     interval_ns: u64,
     state: *mut c_int,
 ) -> *mut c_char {
@@ -35,10 +37,13 @@ pub unsafe extern "C" fn obs_gpu_status_report(
                 .into_owned(),
         )
     };
-    let frames = (interval_ns != 0).then_some(FrameStats {
-        median_frame_ns,
-        interval_ns,
-    });
+    let samples: &[u64] = if frame_ns.is_null() || count == 0 {
+        &[]
+    } else {
+        // SAFETY: the caller passes `count` readable values.
+        unsafe { std::slice::from_raw_parts(frame_ns, count) }
+    };
+    let frames = FrameStats::from_samples(samples, interval_ns);
     static DEVICES: OnceLock<Vec<crate::GpuDevice>> = OnceLock::new();
     let devices = DEVICES.get_or_init(crate::platform::system_devices).clone();
     let report = Report::new(adapter.as_deref(), devices, frames);
