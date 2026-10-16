@@ -22,10 +22,11 @@ pub mod report;
 pub enum State {
     /// The active adapter is a hardware GPU.
     Green,
-    /// A hardware GPU is present, but rendering runs on a software renderer.
+    /// No GPU on the machine; rendering on a software renderer is expected
+    /// (a VM or headless box, #1005).
     Yellow,
-    /// Software rendering with no usable GPU, graphics init failed, or
-    /// frames are behind budget.
+    /// A GPU is present but OBS renders in software, graphics init failed,
+    /// or frames are behind budget.
     Red,
 }
 
@@ -253,8 +254,10 @@ pub fn classify(adapter: Option<&str>, devices: &[GpuDevice], frames: Option<Fra
     }
     match (is_software_renderer(adapter), devices.is_empty()) {
         (false, _) => State::Green,
-        (true, false) => State::Yellow,
-        (true, true) => State::Red,
+        // A GPU OBS can't use is the problem to fix; a machine with no GPU
+        // rendering in software is expected (#1005).
+        (true, false) => State::Red,
+        (true, true) => State::Yellow,
     }
 }
 

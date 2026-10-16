@@ -66,8 +66,10 @@ fn software_and_microsoft_adapters_are_not_gpus() {
 }
 
 #[test]
-fn amd_only_machine_on_basic_render_is_yellow_not_red() {
-    // The #942 bug: no nvidia-smi on an AMD-only machine meant no GPUs and red.
+fn amd_only_machine_on_basic_render_counts_its_gpu() {
+    // The #942 bug: no nvidia-smi on an AMD-only machine meant no GPUs. DXGI
+    // finds the AMD GPU, so this is "a GPU OBS can't use": red (#1005), not
+    // the yellow of a machine with no GPU.
     let devices = devices_from_dxgi(&[
         adapter("AMD Radeon RX 6600", 0x1002, 0x73ff, 0),
         adapter(
@@ -79,7 +81,7 @@ fn amd_only_machine_on_basic_render_is_yellow_not_red() {
     ]);
     assert_eq!(
         classify(Some("Microsoft Basic Render Driver"), &devices, None),
-        State::Yellow
+        State::Red
     );
 }
 

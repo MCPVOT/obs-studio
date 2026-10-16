@@ -37,15 +37,17 @@ const SOFTWARE: [&str; 5] = [
     "Mesa LLVMPIPE (LLVM 15.0.7, 128 bits)",
 ];
 
+// #1005: a GPU OBS cannot use is the problem to fix (red); a machine with
+// no GPU rendering in software is expected (yellow).
 #[test]
-fn software_with_gpu_present_is_yellow() {
+fn software_with_gpu_present_is_red() {
     for vendor in [Vendor::Nvidia, Vendor::Amd, Vendor::Intel] {
         let d = GpuDevice { vendor, ..nv() };
         for a in SOFTWARE {
             assert!(is_software_renderer(a), "{a}");
             assert_eq!(
                 classify(Some(a), std::slice::from_ref(&d), None),
-                State::Yellow,
+                State::Red,
                 "{a}"
             );
         }
@@ -53,9 +55,9 @@ fn software_with_gpu_present_is_yellow() {
 }
 
 #[test]
-fn software_without_gpu_is_red() {
+fn software_without_gpu_is_yellow() {
     for a in SOFTWARE {
-        assert_eq!(classify(Some(a), &[], None), State::Red, "{a}");
+        assert_eq!(classify(Some(a), &[], None), State::Yellow, "{a}");
     }
 }
 
@@ -85,10 +87,7 @@ fn frame_budget_overrun_is_red() {
     assert_eq!(classify(Some(SOFTWARE[0]), &[nv()], Some(over)), State::Red);
     assert_eq!(classify(Some(hw), &[nv()], Some(at)), State::Green);
     assert_eq!(classify(Some(hw), &[nv()], Some(fast)), State::Green);
-    assert_eq!(
-        classify(Some(SOFTWARE[0]), &[nv()], Some(fast)),
-        State::Yellow
-    );
+    assert_eq!(classify(Some(SOFTWARE[0]), &[nv()], Some(fast)), State::Red);
 }
 
 #[test]

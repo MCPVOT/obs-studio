@@ -5,6 +5,7 @@
 #include "obs-gpu-status.h"
 #endif
 
+#include <OBSApp.hpp>
 #include <obs.h>
 
 #include <QJsonArray>
@@ -23,6 +24,21 @@ bool Available()
 }
 
 #ifdef OBS_GPU_STATUS
+/* The locale string for `key` with %1, %2, ... filled from `args`, or
+ * `english` (from Rust) if the locale has no such key (#945). */
+static QString Localized(const QJsonValue &key, const QJsonArray &args, const QString &english)
+{
+	const char *text = nullptr;
+	if (!key.isString() || !App()->TranslateString(key.toString().toUtf8().constData(), &text) || !text) {
+		return english;
+	}
+	QString out = QString::fromUtf8(text);
+	for (const QJsonValue &arg : args) {
+		out = out.arg(arg.toString());
+	}
+	return out;
+}
+
 static Info Parse(int state, const char *json)
 {
 	Info info;
@@ -31,9 +47,11 @@ static Info Parse(int state, const char *json)
 
 	QJsonObject obj = QJsonDocument::fromJson(QByteArray(info.json.c_str())).object();
 	info.adapter = obj["adapter"].toString();
-	info.summary = obj["summary"].toString();
-	for (const QJsonValue &cause : obj["causes"].toArray()) {
-		info.causes << cause.toString();
+	info.summary = Localized(obj["summaryKey"], obj["summaryArgs"].toArray(), obj["summary"].toString());
+	QJsonArray causes = obj["causes"].toArray();
+	QJsonArray causeKeys = obj["causeKeys"].toArray();
+	for (qsizetype i = 0; i < causes.size(); i++) {
+		info.causes << Localized(causeKeys.at(i), {}, causes.at(i).toString());
 	}
 	for (const QJsonValue &line : obj["logLines"].toArray()) {
 		info.logLines << line.toString();

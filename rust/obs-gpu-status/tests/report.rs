@@ -32,9 +32,9 @@ fn green_has_no_causes() {
 }
 
 #[test]
-fn yellow_names_the_gpu_and_the_renderer() {
+fn red_names_the_unused_gpu_and_the_renderer() {
     let r = Report::new(Some(LLVMPIPE), vec![rtx3060()], None);
-    assert_eq!(r.state, State::Yellow);
+    assert_eq!(r.state, State::Red);
     assert!(
         r.summary
             .contains("Your GPU (NVIDIA GeForce RTX 3060) was detected"),
@@ -68,7 +68,11 @@ fn yellow_without_a_name_uses_the_vendor() {
 #[test]
 fn red_cases_explain_themselves() {
     let r = Report::new(Some(LLVMPIPE), vec![], None);
-    assert_eq!(r.state, State::Red);
+    assert_eq!(
+        r.state,
+        State::Yellow,
+        "no GPU at all: software rendering is expected"
+    );
     assert!(r.summary.contains("No GPU was detected"), "{}", r.summary);
 
     let r = Report::new(None, vec![rtx3060()], None);
@@ -94,7 +98,7 @@ fn json_shape() {
     let r = Report::new(Some("Mesa \"llvmpipe\" a\\b"), vec![rtx3060()], None);
     let j = r.to_json();
     assert!(
-        j.starts_with("{\"state\":\"yellow\",\"adapter\":\"Mesa \\\"llvmpipe\\\" a\\\\b\","),
+        j.starts_with("{\"state\":\"red\",\"adapter\":\"Mesa \\\"llvmpipe\\\" a\\\\b\","),
         "{j}"
     );
     assert!(
