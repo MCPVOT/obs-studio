@@ -73,7 +73,10 @@ def cache_keys() -> list[tuple[str, str]]:
                     if not m:
                         continue
                     if m.group(2) in ("|", ">"):
-                        values += [s.strip() for s in step[k + 1 :] if s.strip()][:3]
+                        for s in step[k + 1 :]:
+                            if not s.strip() or s.strip().startswith("#") or re.match(r"\s+[a-z-]+:", s):
+                                break
+                            values.append(s.strip())
                     else:
                         values.append(m.group(2))
             values += [m.group(1) for line in step for m in [re.search(r"cache_key='([^']*)'", line)] if m]

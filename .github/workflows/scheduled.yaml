@@ -66,7 +66,7 @@ jobs:
               fi
             fi
           done <<< \
-          "$(gh api repos/${GITHUB_REPOSITORY}/actions/caches \
+          "$(gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/caches?per_page=100" \
             --jq '.actions_caches.[] | select(.ref|test("refs/heads/master")) | select(.key|test("(^|-)(z?ccache|xcode)-")) | {id, key} | join(";")')"
           echo '::endgroup::'
 
@@ -86,7 +86,7 @@ jobs:
               fi
             fi
           done <<< \
-            "$(gh api repos/${GITHUB_REPOSITORY}/actions/caches \
+            "$(gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/caches?per_page=100" \
               --jq '.actions_caches.[] | select(.ref|test("refs/heads/master")|not) | select(.key|test("(^|-)z?ccache-")) | {id, key, ref} | join(";")')"
           echo '::endgroup::'
 

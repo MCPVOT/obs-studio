@@ -5,7 +5,9 @@ run-name: AppImage build and portability test (${{ github.ref_name }}) 📦
 #   workflow_call   -> release-rust.yaml builds it for the daily beta and, with
 #                      publish_continuous, refreshes the rolling "continuous"
 #                      pre-release (daily, not per master push: #436)
-#   PR / dispatch   -> artifact only
+#   PR / dispatch   -> artifact only (PRs reach it through pr-pull.yaml's
+#                      appimage job: zackees/ci.yml GEN-008 keeps
+#                      pull_request in one workflow file)
 on:
   push:
     tags:
@@ -39,10 +41,6 @@ on:
         type: boolean
         required: false
         default: false
-  pull_request:
-    paths:
-      - 'build-aux/appimage/**'
-      - '.github/workflows/appimage.yaml'
   workflow_dispatch:
     inputs:
       rust_libobs:
