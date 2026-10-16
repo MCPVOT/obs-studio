@@ -28,7 +28,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* Winsock or BSD sockets: platform/<os>/, picked by CMake. */
+/* Winsock or BSD sockets: hosts/<os>/, picked by CMake. */
 #include "happy-eyeballs-platform.h"
 
 /* ------------------------------------------------------------------------- */

@@ -34,7 +34,7 @@
 
 #pragma once
 
-/* Winsock or BSD sockets (SOCKET, sockaddr_storage): platform/<os>/, picked
+/* Winsock or BSD sockets (SOCKET, sockaddr_storage): hosts/<os>/, picked
  * by CMake. */
 #include "happy-eyeballs-socket.h"
 #include <stdint.h>

@@ -15,17 +15,16 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-/* Platform defaults for the FreeType text source. One implementation per OS
- * (text-freetype2-platform-{windows,cocoa,unix}.c), picked by CMake. */
-#pragma once
+#include <obs-module.h>
+#include "text-freetype2-host.h"
 
-#include <stdint.h>
+/* macOS. */
+uint32_t ft2_platform_source_flags(void)
+{
+	return 0;
+}
 
-/* Extra obs_source_info output flags for this platform. */
-uint32_t ft2_platform_source_flags(void);
-
-/* The default font face. */
-/* The bundled data/fonts face, the default on every OS (obs-rust/obs-studio#1012). */
-#define FT2_DEFAULT_FACE "JetBrainsMono Nerd Font"
-
-const char *ft2_platform_default_face(void);
+const char *ft2_platform_default_face(void)
+{
+	return FT2_DEFAULT_FACE;
+}

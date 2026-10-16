@@ -16,12 +16,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
 #include <obs-module.h>
-#include "text-freetype2-platform.h"
+#include "text-freetype2-host.h"
 
-/* Linux and the BSDs. */
+/* Windows has the GDI+ text source, so this one is deprecated there. */
 uint32_t ft2_platform_source_flags(void)
 {
-	return 0;
+	return OBS_SOURCE_DEPRECATED;
 }
 
 const char *ft2_platform_default_face(void)

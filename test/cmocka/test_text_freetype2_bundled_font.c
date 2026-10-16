@@ -8,7 +8,7 @@
 #include <obs-module.h>
 
 #include "find-font.h"
-#include "text-freetype2-platform.h"
+#include "text-freetype2-host.h"
 
 /* The Text (FreeType 2) source defaults to JetBrainsMono Nerd Font on every
  * OS and bundles it (obs-rust/obs-studio#1012), so the default face must

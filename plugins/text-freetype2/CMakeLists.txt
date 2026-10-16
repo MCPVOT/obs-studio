@@ -31,10 +31,10 @@ target_sources(
     obs-convenience.c
     obs-convenience.h
     text-freetype2.c
-    text-freetype2-platform.h
-    $<$<PLATFORM_ID:Windows>:text-freetype2-platform-windows.c>
-    $<$<PLATFORM_ID:Darwin>:text-freetype2-platform-cocoa.c>
-    $<$<PLATFORM_ID:Linux,FreeBSD,OpenBSD>:text-freetype2-platform-unix.c>
+    text-freetype2-host.h
+    $<$<PLATFORM_ID:Windows>:text-freetype2-host-windows.c>
+    $<$<PLATFORM_ID:Darwin>:text-freetype2-host-macos.c>
+    $<$<PLATFORM_ID:Linux,FreeBSD,OpenBSD>:text-freetype2-host-posix.c>
     text-file.c
     text-file.h
     text-freetype2.h

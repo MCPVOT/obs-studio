@@ -5,7 +5,7 @@ if(OS_LINUX AND TARGET OBS::text-freetype2)
     test_text_freetype2_bundled_font
     test_text_freetype2_bundled_font.c
     "${CMAKE_SOURCE_DIR}/plugins/text-freetype2/find-font-unix.c"
-    "${CMAKE_SOURCE_DIR}/plugins/text-freetype2/text-freetype2-platform-unix.c"
+    "${CMAKE_SOURCE_DIR}/plugins/text-freetype2/text-freetype2-host-posix.c"
   )
   target_compile_definitions(
     test_text_freetype2_bundled_font

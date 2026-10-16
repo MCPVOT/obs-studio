@@ -4,7 +4,7 @@ if(OS_LINUX OR OS_FREEBSD OR OS_OPENBSD)
   add_executable(
     test_text_freetype2_platform
     test_text_freetype2_platform.c
-    "${CMAKE_SOURCE_DIR}/plugins/text-freetype2/text-freetype2-platform-unix.c"
+    "${CMAKE_SOURCE_DIR}/plugins/text-freetype2/text-freetype2-host-posix.c"
   )
   target_include_directories(
     test_text_freetype2_platform

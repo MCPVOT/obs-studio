@@ -16,7 +16,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
 #include <obs-module.h>
-#include "text-freetype2-platform.h"
+#include "text-freetype2-host.h"
 #include <util/platform.h>
 #include <ft2build.h>
 #include FT_FREETYPE_H

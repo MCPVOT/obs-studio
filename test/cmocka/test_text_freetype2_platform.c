@@ -4,7 +4,7 @@
 #include <cmocka.h>
 
 #include <util/c99defs.h>
-#include "text-freetype2-platform.h"
+#include "text-freetype2-host.h"
 
 /*
  * The FreeType text source's per-platform defaults (obs-rust/obs-studio#863)

@@ -204,7 +204,7 @@ class OsLaneTest(unittest.TestCase):
         self.assertEqual(self.os("rust/obs-util/src/platform/macos/mod.rs"), {"macos"})
         self.assertEqual(self.os("rust/obs-util/src/platform/linux/mod.rs"), {"linux"})
         self.assertEqual(self.os("rust/obs-util/src/platform/posix/mod.rs"), {"linux", "macos"})
-        self.assertEqual(self.os("plugins/text-freetype2/text-freetype2-platform-windows.c"), {"windows"})
+        self.assertEqual(self.os("plugins/text-freetype2/text-freetype2-host-windows.c"), {"windows"})
         self.assertEqual(self.os("shared/ipc-util/platform/posix/pipe.c"), {"linux", "macos"})
 
     def test_core_is_linux_only(self):

@@ -7,19 +7,19 @@ target_sources(
   happy-eyeballs
   PRIVATE
     happy-eyeballs.c
-    $<$<PLATFORM_ID:Windows>:${CMAKE_CURRENT_SOURCE_DIR}/platform/windows/happy-eyeballs-platform.h>
-    $<$<NOT:$<PLATFORM_ID:Windows>>:${CMAKE_CURRENT_SOURCE_DIR}/platform/posix/happy-eyeballs-platform.h>
+    $<$<PLATFORM_ID:Windows>:${CMAKE_CURRENT_SOURCE_DIR}/hosts/windows/happy-eyeballs-platform.h>
+    $<$<NOT:$<PLATFORM_ID:Windows>>:${CMAKE_CURRENT_SOURCE_DIR}/hosts/posix/happy-eyeballs-platform.h>
   PUBLIC
     happy-eyeballs.h
-    $<$<PLATFORM_ID:Windows>:${CMAKE_CURRENT_SOURCE_DIR}/platform/windows/happy-eyeballs-socket.h>
-    $<$<NOT:$<PLATFORM_ID:Windows>>:${CMAKE_CURRENT_SOURCE_DIR}/platform/posix/happy-eyeballs-socket.h>
+    $<$<PLATFORM_ID:Windows>:${CMAKE_CURRENT_SOURCE_DIR}/hosts/windows/happy-eyeballs-socket.h>
+    $<$<NOT:$<PLATFORM_ID:Windows>>:${CMAKE_CURRENT_SOURCE_DIR}/hosts/posix/happy-eyeballs-socket.h>
 )
 
-# The platform layer (Winsock or BSD sockets) lives in platform/<os>/ so the
+# The platform layer (Winsock or BSD sockets) lives in hosts/<os>/ so the
 # shared files have no platform conditionals (#847).
 target_include_directories(
   happy-eyeballs
-  PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/platform/$<IF:$<PLATFORM_ID:Windows>,windows,posix>"
+  PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/hosts/$<IF:$<PLATFORM_ID:Windows>,windows,posix>"
 )
 
 target_link_libraries(happy-eyeballs PUBLIC OBS::libobs)
