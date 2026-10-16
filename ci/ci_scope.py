@@ -5,8 +5,9 @@
 
 One table (LANES) maps path globs to lanes; a lane runs only when a changed
 file matches its row, otherwise its job is skipped and passes CI Gate. No
-label changes what runs (#992): master push, schedule, workflow_dispatch and
-releases run everything. Lanes:
+label changes what runs (#992). A master push adds the lanes a PR defers;
+schedule, workflow_dispatch, tags and the release gate run everything (#436).
+Lanes:
 - lint:    always (fmt, clippy, Dylint, formatters, unit tests of the crates
            the diff touches, ci/rust_scope.py): the Fast Gate job;
 - tier2:   libobs, the crates linked into libobs (derived from
@@ -16,8 +17,8 @@ releases run everything. Lanes:
            targets of those modules (one configure, ENABLE_FRONTEND=OFF, no
            Qt); untouched modules are not built, nothing touched skips the job;
 - full:    never from a PR path: every OBS app build (Ubuntu, macOS, Windows,
-           Flatpak) runs on master push, schedule, workflow_dispatch, tags and
-           the release gate only. Platform and Qt files are costly: macOS and
+           Flatpak) runs on schedule, workflow_dispatch, tags and the release gate
+           (#436); a master push builds them only for paths that select them. Platform and Qt files are costly: macOS and
            Windows start only for a file of that platform or a shared build
            file (cmake/common, cmake/finders, libobs/cmake, root CMake; NOT
            .github/, whose edits run the ci/ self-tests and the changed jobs
@@ -185,7 +186,7 @@ def is_shared(path: str, exists: Callable[[str], bool]) -> bool:
 
 
 # The Linux Qt frontend job (#992) runs only when the change can break the Qt
-# frontend build or a Qt-linked unit test; master, schedule and release runs always
+# frontend build or a Qt-linked unit test; master pushes, schedule and release runs always
 # run it (build-project.yaml).
 QT_PREFIXES = ("frontend/", "shared/qt/", "shared/properties-view/", "plugins/frontend-tools/", "ci/linux_qt_frontend")
 QT_FILES = {

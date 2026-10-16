@@ -100,9 +100,10 @@ jobs:
         id: native
         run: |
           : Check Change Scope 🧭
-          # No label changes what runs (#992). Master push, schedule,
-          # workflow_dispatch, tags, release branches and the release gate
-          # (inputs.full) run everything; a PR or merge-queue run runs the
+          # No label changes what runs (#992). Schedule, workflow_dispatch,
+          # tags, release branches and the release gate (inputs.full) run
+          # everything (#436); a master push runs its paths' lanes plus the
+          # ones a PR defers (below); a PR or merge-queue run runs the
           # lanes its changed paths select (ci/ci_scope.py's LANES table).
           event_full=false
           if [[ "${{ inputs.full }}" == true ]] \

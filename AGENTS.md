@@ -52,7 +52,7 @@ errors (soldr permissions, disk, Docker, host FFmpeg): see
 - To let CI skip the Linux unit-test jobs, commit, then run
   `uvx --from git+https://github.com/zackees/ci.yml@1a970f01574447d681571ff3d0b8de56cb983dcc ci-lint local-gate run`.
   It runs every lane in `local-gate.toml` (unchanged lanes are cached) and stamps HEAD with attestation trailers. Push the stamped commit as-is; any later change invalidates the stamp.
-- A PR runs only the lanes its changed paths select (the `LANES` table in `ci/ci_scope.py`: Fast Gate always, Tier 2 for libobs/linked crates/`test/cmocka/`, Qt for `frontend/`, a Linux build of only the touched `plugins/<x>`/`shared/<x>` targets; macOS/Windows only for their own platform files). The full OBS app builds never run from a PR path. No label changes what runs; master, schedule and releases run everything.
+- A PR runs only the lanes its changed paths select (the `LANES` table in `ci/ci_scope.py`: Fast Gate always, Tier 2 for libobs/linked crates/`test/cmocka/`, Qt for `frontend/`, a Linux build of only the touched `plugins/<x>`/`shared/<x>` targets; macOS/Windows only for their own platform files). The full OBS app builds never run from a PR path. No label changes what runs. A master push adds every lane a PR defers (Tier 2, Qt, the workspace tests) but builds macOS, Windows and Flatpak only for paths that select them; schedule, workflow_dispatch, tags and the release gate run everything (#436).
 
 ## Quick rules
 
