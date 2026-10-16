@@ -5,8 +5,7 @@ run-name: ${{ github.event.pull_request.title || github.ref_name }} pull request
 on:
   workflow_dispatch:
   pull_request:
-    # grind/** : goal PRs land on a grind feature branch before master.
-    branches: [master, 'grind/**']
+    branches: [master]
     types: [ opened, synchronize, reopened ]
   merge_group:
 permissions:

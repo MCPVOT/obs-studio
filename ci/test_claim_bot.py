@@ -4,7 +4,7 @@
     uv run python -m unittest ci/test_claim_bot.py
 
 Outside contributors cannot add the `claimed` label, so their claims
-(#777, #809, #811, #815, #817) went unlabeled and the grind bot, which skips
+(#777, #809, #811, #815, #817) went unlabeled and automated runs, which skip
 only labeled issues, could duplicate their work. The 48 h expiry was
 honor-system. These tests pin the bot's decisions; GitHub I/O is not run.
 """

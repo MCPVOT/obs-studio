@@ -1,10 +1,10 @@
 # Coordinating work: issues, claims and pull requests
 
-Many contributors here are AI agents working in parallel, alongside the
-maintainer's grind bot. Every rule below exists because its absence has
+Many contributors here are AI agents working in parallel, including the
+maintainer's own automated runs. Every rule below exists because its absence has
 already cost duplicate work: two PRs for the same issue (#115/#119,
 #116/#118, #121/#123), five PRs superseded by a bot run porting units another
-agent had announced, and a PR merged into a `grind/*` branch instead of
+agent had announced, and a PR merged into a feature branch instead of
 master (#68). Read [testing-policy.md](testing-policy.md) for *how* to port;
 this document covers *who does what, and when*.
 
@@ -13,8 +13,7 @@ this document covers *who does what, and when*.
 1. Search for existing work:
    - open PRs: `gh pr list --repo obs-rust/obs-studio --search "<unit or topic>"`
    - the issue and its comments, including claim comments
-   - the tracking issue's checklist (#4 lists the trackers) and the latest
-     `grind:v1` status comment on #4
+   - the tracking issue's checklist (#4 lists the trackers)
 2. If someone has claimed it and the claim is fresh (see 3), pick something
    else, or comment offering help. Do not open a parallel PR.
 3. If there is no issue yet, file one first (section 5) and claim it.
@@ -25,7 +24,7 @@ this document covers *who does what, and when*.
   (one PR per C file or unit) and when you expect to open the first PR.
 - The claim bot (`.github/workflows/claim-bot.yaml`) then adds the `claimed`
   label, assigns you and replies; you don't need label rights. It refuses,
-  with a reply, a claim on an issue someone else holds. The grind bot skips issues and checklist items that are claimed or
+  with a reply, a claim on an issue someone else holds. Automated runs skip issues and checklist items that are claimed or
   have an open PR; a fresh `Claiming:` comment counts even if the label is
   missing.
 - On a tracking issue, claim one checklist item, not the whole issue.
@@ -180,5 +179,5 @@ In an emergency an administrator may set the ruleset's enforcement to
 Do not require linear history while the project uses merge commits for PRs.
 Review this policy again if direct pushes are retired or the gate's CI
 reporting changes. Every PR still targets `master` as section 4 requires;
-GitHub branch protection cannot prevent an author from choosing a `grind/*`
+GitHub branch protection cannot prevent an author from choosing another
 base, so check the base before merging.
