@@ -268,12 +268,21 @@ def lane_tier2_linux(fix: bool) -> None:
 
 LANES = {"lint": lane_lint, "rust-test": lane_rust_test, "cross": lane_cross, "tier2-linux": lane_tier2_linux}
 
+# The lint lane's formatter checks on their own, for CI's format jobs: the
+# same pinned tools and files as `./lint`, so the two cannot disagree (#427).
+CHECKS = {"clang-format": clang_format, "gersemi": gersemi}
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--lane", choices=sorted(LANES), action="append", help="run only this lane (repeatable)")
     parser.add_argument("--fix", action="store_true", help="lint: rewrite files instead of checking")
+    parser.add_argument("--only", choices=sorted(CHECKS), help="run only this formatter check (CI format jobs)")
     args = parser.parse_args()
+    if args.only:
+        CHECKS[args.only](tracked_files(), args.fix)
+        print(f"== {args.only}: ok", flush=True)
+        return 0
     for name in args.lane or list(LANES):
         start = time.monotonic()
         print(f"== lane {name}", flush=True)
