@@ -153,7 +153,7 @@ merge queue (#692)", squash merges). Queue a green PR with
 `gh pr merge <N>`. Agents and contributors never use `gh pr merge --admin`
 and never push to master.
 The queue reruns PR CI on the merge result with current master, and the one
-required check is `CI Gate ✅` (`pr-pull.yaml`). That job always reports: it
+required check is `CI Gate ✅` (`ci.yml`). That job always reports: it
 passes when every other job passed or was skipped (out of scope, attested by
 the local gate on the PR, or covered by a lane proof) and fails when any job
 failed or was cancelled.

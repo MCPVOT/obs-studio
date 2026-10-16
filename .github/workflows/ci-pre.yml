@@ -1,6 +1,6 @@
 name: CI Pre
 # zackees/ci.yml's fast first workflow (docs/policy-general.md, GEN-014..018):
-# pr-pull.yaml calls it as its first job. Concurrency is per job here, never
+# ci.yml calls it as its first job. Concurrency is per job here, never
 # workflow-wide, and nothing is installed: ci_lint is stdlib-only python3.
 #
 # cache-janitor deletes Actions caches that ci.toml's [cache.family] entries

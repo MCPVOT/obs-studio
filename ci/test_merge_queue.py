@@ -6,7 +6,7 @@
 The master ruleset queues merges and requires the `CI Gate ✅` check, so the
 required checks run on the merge result instead of a stale PR head. That only
 works if:
-- pr-pull.yaml runs on `merge_group` and on every PR (no paths-ignore, or a
+- ci.yml runs on `merge_group` and on every PR (no paths-ignore, or a
   docs-only PR would never get the required check);
 - one always-running job (`CI Gate ✅`) fails when any other job failed or was
   cancelled, so the ruleset needs a single, stable check name;
@@ -22,7 +22,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-PULL = (ROOT / ".github" / "workflows" / "pr-pull.yaml").read_text()
+PULL = (ROOT / ".github" / "workflows" / "ci.yml").read_text()
 BUILD = (ROOT / ".github" / "workflows" / "build-project.yaml").read_text()
 
 

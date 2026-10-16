@@ -8,7 +8,7 @@ workflow_call-only workflow with read-only top-level permissions and no
 workflow-level concurrency. Its cache-janitor job holds actions: write, runs
 on the repo-wide non-cancelling `cache-janitor` group, checks out ci_lint at
 the pinned SHA without credentials and runs it with stdlib python3 (no
-installs). pr-pull.yaml calls it as its first job and every other job runs
+installs). ci.yml calls it as its first job and every other job runs
 after it.
 
 The janitor is maintenance, not a check: its group lets GitHub cancel a
@@ -27,7 +27,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 WORKFLOWS = ROOT / ".github" / "workflows"
 CI_PRE = WORKFLOWS / "ci-pre.yml"
-PULL = WORKFLOWS / "pr-pull.yaml"
+PULL = WORKFLOWS / "ci.yml"
 PIN = "1a970f01574447d681571ff3d0b8de56cb983dcc"
 
 
