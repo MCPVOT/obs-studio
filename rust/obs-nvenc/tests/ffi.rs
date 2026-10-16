@@ -160,19 +160,28 @@ fn long_messages_are_truncated_and_terminated() {
 }
 
 #[test]
-fn plugin_cmake_swaps_the_c_loader_for_the_shim() {
+fn plugin_cmake_builds_the_c_loader_and_a_rust_twin() {
+    // obs-nvenc (installed) keeps the C loader; obs-nvenc-with-rust, built
+    // beside it and never installed, swaps in the shim (#1065).
     let cmake = std::fs::read_to_string(
         std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../plugins/obs-nvenc/CMakeLists.txt"),
     )
     .unwrap();
     assert!(
-        cmake.contains("$<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:cuda-load.c>"),
-        "cuda-load.c must be dropped when ENABLE_RUST_LIBOBS is ON"
+        cmake.contains("target_sources(obs-nvenc PRIVATE ${_obs_nvenc_sources} cuda-load.c)"),
+        "the installed plugin must build cuda-load.c"
     );
     assert!(
-        cmake.contains("$<$<BOOL:${ENABLE_RUST_LIBOBS}>:cuda-load-rust.c>"),
-        "cuda-load-rust.c must be built when ENABLE_RUST_LIBOBS is ON"
+        cmake.contains(
+            "add_library(obs-nvenc-with-rust MODULE ${_obs_nvenc_sources} cuda-load-rust.c)"
+        ),
+        "the Rust twin must build cuda-load-rust.c"
+    );
+    assert!(
+        cmake
+            .contains("target_link_libraries(obs-nvenc-with-rust PRIVATE obs_nvenc_plugin-static)"),
+        "only the Rust twin links the obs-nvenc-plugin staticlib"
     );
 }
 

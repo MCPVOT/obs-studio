@@ -5,14 +5,14 @@ include_guard(DIRECTORY)
 # rust/obs-gpu-status-frontend (like obs-nvenc links obs-nvenc-plugin), so
 # libobs' exported symbols do not change.
 #
-# It is built whenever cargo is available, with ENABLE_RUST_LIBOBS ON or OFF
-# (#946): the crate has no crates.io dependencies. A build without cargo (the
-# Flatpak sandbox) configures without the light and says so.
+# It is built whenever cargo is available (#946): the crate has no crates.io
+# dependencies. A build without cargo (the Flatpak sandbox) configures without
+# the light and says so.
 option(ENABLE_GPU_STATUS "Build the GPU acceleration status light (needs cargo)" ON)
 
 if(ENABLE_GPU_STATUS AND NOT COMMAND corrosion_import_crate)
-  # ENABLE_RUST_LIBOBS fetches Corrosion in libobs/cmake/rust.cmake; an OFF
-  # build fetches the same version here.
+  # libobs/cmake/rust.cmake fetches Corrosion whenever libobs-with-rust is
+  # built; otherwise this fetches the same version.
   find_program(OBS_GPU_STATUS_CARGO cargo)
   if(OBS_GPU_STATUS_CARGO)
     include(FetchContent)

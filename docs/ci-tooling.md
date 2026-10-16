@@ -104,6 +104,10 @@ cmake --build build_cross_win-x64
 cmake --build build --target cross-win-x64      # cross-mac-arm64, cross-mac-x64, cross-all
 ```
 
+- **Only Docker on the host:** `cmake/cross/docker.sh mac-arm64 win-x64` runs the same check in a container (through `ci/docker-task.sh`).
+  - The checkout is a copy-on-write overlay at `/src`.
+  - Writable caches are named volumes the next run reattaches: `/build` per checkout; soldr's LLVM and SDKs and the prebuilt deps shared.
+  - `--clean` starts the build volume over.
 - **Warnings** are reported; `-DOBS_CROSS_WERROR=ON` makes them errors.
 - **Getting soldr:** `cmake/common/soldr.cmake` uses soldr from `PATH`, or downloads the version CI pins and checks its SHA256 (`ci/test_soldr_pin.py` keeps that pin equal to the workflows').
 - **Finding the toolchain:** it runs `soldr toolchain prepare`, then finds LLVM and the SDK under soldr's root. That changes to `soldr cc --target <triple>` once soldr exposes Apple and MSVC there.
@@ -161,7 +165,7 @@ and cargo caches live in bosn volumes, and the AppImage lands in
 
 Tier 2 Linux in CI runs natively on the runner (#966): the
 `rust-linux-tier2` job installs `rust/tools/linux-validate/apt-packages.txt`
-and runs `validate.sh` directly, one job per `ENABLE_RUST_LIBOBS` mode. The
+and runs `validate.sh` directly: one build, then one job per libobs (C or with Rust) and shard. The
 intended local equivalent is bosn running that same job through act2:
 
 ```sh
@@ -222,7 +226,7 @@ the paths that select them, so a change only triggers the tests it can affect.
   - `cross`: clippy, dylint, and a link of every test binary
     (`test --no-run`) for the Windows and macOS targets, cross-compiled from
     Linux with soldr;
-  - `tier2-linux`: the cmocka suite with `ENABLE_RUST_LIBOBS` OFF and ON, in
+  - `tier2-linux`: the cmocka suite against libobs and libobs-with-rust, in
     Docker.
 - **`ci/ci_scope.py`** maps changed paths to jobs, by path alone (#897). Linux
   Rust tests and Tier 2 always run. A changed file that belongs to a platform

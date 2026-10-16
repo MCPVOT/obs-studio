@@ -5,7 +5,7 @@ Fixes #  <!-- or Refs # when this does not complete the issue -->
 
 ### RED → GREEN
 - RED commit: <!-- SHA, and how it fails (test names / counts) -->
-- GREEN: <!-- result, e.g. Tier 2 N/N with ENABLE_RUST_LIBOBS OFF and ON -->
+- GREEN: <!-- result, e.g. Tier 2 N/N against libobs and libobs-with-rust -->
 - Real app (UI, protocol output or logging changes): <!-- Tier 4 run or manual run, and what it showed -->
 
 ### Checklist

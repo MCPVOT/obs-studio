@@ -34,8 +34,11 @@ class PinnedEnvTest(unittest.TestCase):
         self.assertIn('test_home="$BUILD/test-home"', self.text)
         for var in ("HOME", "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME"):
             self.assertRegex(self.text, rf'{var}="\$test_home')
+        # Each mode's environment starts from test_env (mode ON adds
+        # LD_LIBRARY_PATH for libobs-with-rust, #1065).
+        self.assertIn('mode_env=("${test_env[@]}")', self.text)
         for line in re.findall(r"^.*xvfb-run -a ctest.*$", self.text, re.M):
-            self.assertIn('"${test_env[@]}"', line, line)
+            self.assertIn('"${mode_env[@]}"', line, line)
 
     def test_environment_fingerprint_is_printed(self):
         self.assertIn("== environment:", self.text)

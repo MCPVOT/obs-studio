@@ -4,11 +4,11 @@ find_package(X11_XCB REQUIRED)
 find_package(XCB REQUIRED XCB OPTIONAL_COMPONENTS XINPUT)
 find_package(Gio)
 
-libobs_add_host_sources(libobs LINUX)
+libobs_add_host_sources(LINUX)
 
 target_compile_definitions(
-  libobs
-  PRIVATE
+  libobs-objects
+  PUBLIC
     OBS_INSTALL_PREFIX="${OBS_INSTALL_PREFIX}"
     $<$<COMPILE_LANG_AND_ID:C,GNU>:ENABLE_DARRAY_TYPE_TEST>
     $<$<COMPILE_LANG_AND_ID:CXX,GNU>:ENABLE_DARRAY_TYPE_TEST>
@@ -17,7 +17,7 @@ target_compile_definitions(
 if(CMAKE_C_COMPILER_ID STREQUAL GNU)
   # * Silence type-limits warning in line 292 of libobs/utils/utf8.c
   if(CMAKE_C_COMPILER_VERSION VERSION_GREATER_EQUAL 12.3.0)
-    target_compile_options(libobs PRIVATE -Wno-error=type-limits)
+    target_compile_options(libobs-objects PUBLIC -Wno-error=type-limits)
   endif()
 endif()
 
@@ -34,8 +34,8 @@ if(NOT HAVE_UUID_HEADER)
 endif()
 
 target_link_libraries(
-  libobs
-  PRIVATE
+  libobs-objects
+  PUBLIC
     X11::X11
     X11::XCB
     XCB::XCB
@@ -49,7 +49,7 @@ if(ENABLE_PULSEAUDIO)
   find_package(PulseAudio REQUIRED)
 
   target_sources(
-    libobs
+    libobs-objects
     PRIVATE
       audio-monitoring/pulse/pulseaudio-enum-devices.c
       audio-monitoring/pulse/pulseaudio-monitoring-available.c
@@ -60,32 +60,32 @@ if(ENABLE_PULSEAUDIO)
       audio-monitoring/pulse/pulseaudio-wrapper.h
   )
 
-  target_link_libraries(libobs PRIVATE PulseAudio::PulseAudio)
+  target_link_libraries(libobs-objects PUBLIC PulseAudio::PulseAudio)
   target_enable_feature(libobs "PulseAudio audio monitoring (Linux)")
 else()
-  target_sources(libobs PRIVATE audio-monitoring/null/null-audio-monitoring.c)
+  target_sources(libobs-objects PRIVATE audio-monitoring/null/null-audio-monitoring.c)
   target_disable_feature(libobs "PulseAudio audio monitoring (Linux)")
 endif()
 
 if(TARGET gio::gio)
-  target_sources(libobs PRIVATE util/platform-nix-dbus.c util/platform-nix-portal.c)
-  target_link_libraries(libobs PRIVATE gio::gio)
+  target_sources(libobs-objects PRIVATE util/platform-nix-dbus.c util/platform-nix-portal.c)
+  target_link_libraries(libobs-objects PUBLIC gio::gio)
 endif()
 
 if(ENABLE_WAYLAND)
   find_package(Wayland REQUIRED Client)
   find_package(Xkbcommon REQUIRED)
 
-  target_sources(libobs PRIVATE obs-nix-hotkey-state.c obs-nix-hotkey-state.h obs-nix-wayland.c)
-  target_link_libraries(libobs PRIVATE Wayland::Client xkbcommon::xkbcommon)
+  target_sources(libobs-objects PRIVATE obs-nix-hotkey-state.c obs-nix-hotkey-state.h obs-nix-wayland.c)
+  target_link_libraries(libobs-objects PUBLIC Wayland::Client xkbcommon::xkbcommon)
 
   if(TARGET gio::gio)
-    target_sources(libobs PRIVATE obs-nix-portal-shortcuts.c obs-nix-portal-shortcuts.h)
-    target_compile_definitions(libobs PRIVATE HAVE_GLOBAL_SHORTCUTS_PORTAL)
+    target_sources(libobs-objects PRIVATE obs-nix-portal-shortcuts.c obs-nix-portal-shortcuts.h)
+    target_compile_definitions(libobs-objects PUBLIC HAVE_GLOBAL_SHORTCUTS_PORTAL)
   endif()
   target_enable_feature(libobs "Wayland compositor support (Linux)")
 else()
   target_disable_feature(libobs "Wayland compositor support (Linux)")
 endif()
 
-set_target_properties(libobs PROPERTIES OUTPUT_NAME obs)
+set_target_properties(${LIBOBS_SHARED_TARGETS} PROPERTIES OUTPUT_NAME obs)

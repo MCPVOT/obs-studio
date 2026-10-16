@@ -4,9 +4,9 @@
 #
 # Per list:
 # - LIBOBS_SOURCES: built on every host, no Rust port.
-# - LIBOBS_PORTED_SOURCES: C with a Rust port in rust/libobs-rust. The C build
-#   compiles them; ENABLE_RUST_LIBOBS links the staticlib instead.
-# - LIBOBS_RUST_SOURCES: the C halves only the Rust build adds (C variadics).
+# - LIBOBS_PORTED_SOURCES: C with a Rust port in rust/libobs-rust. libobs
+#   compiles them; libobs-with-rust links the staticlib instead (#1065).
+# - LIBOBS_RUST_SOURCES: the C halves only libobs-with-rust adds (C variadics).
 # - LIBOBS_<HOST>_SOURCES / _PORTED_SOURCES: the same split, per host.
 # - LIBOBS_<HOST>_NOOP_SOURCES: obs-host/noop/<capability>.c for each libobs
 #   core host capability that host's own file doesn't implement (#1051).
@@ -292,11 +292,10 @@ set(
   obs-host/noop/shared-texture.c
 )
 
-# Adds a host's lists to `target`: its sources, its no-ops, and either its
-# ported C or, with ENABLE_RUST_LIBOBS, nothing (the staticlib replaces them).
-macro(libobs_add_host_sources target host)
-  target_sources(${target} PRIVATE ${LIBOBS_${host}_SOURCES} ${LIBOBS_${host}_NOOP_SOURCES})
-  if(NOT ENABLE_RUST_LIBOBS)
-    target_sources(${target} PRIVATE ${LIBOBS_${host}_PORTED_SOURCES})
-  endif()
+# Adds a host's lists (libobs/CMakeLists.txt): its sources and no-ops to the
+# objects both libobs binaries share, its ported C to libobs only
+# (libobs-with-rust gets the staticlib instead).
+macro(libobs_add_host_sources host)
+  target_sources(libobs-objects PRIVATE ${LIBOBS_${host}_SOURCES} ${LIBOBS_${host}_NOOP_SOURCES})
+  target_sources(libobs PRIVATE ${LIBOBS_${host}_PORTED_SOURCES})
 endmacro()

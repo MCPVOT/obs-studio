@@ -48,7 +48,7 @@ errors (soldr permissions, disk, Docker, host FFmpeg): see
 [docs/rust-port/troubleshooting.md](docs/rust-port/troubleshooting.md).
 
 - `./lint` (8 s): clang-format 22.1.3 and gersemi 0.25.0 pinned via uvx, rustfmt, clippy, and the repo Dylints (`dylints/*`). `./lint --fix` rewrites files.
-- `./unittest`: Rust Tiers 1-3, then Tier 2 (cmocka with `ENABLE_RUST_LIBOBS` OFF/ON in Docker; ~30-40 s warm thanks to ccache).
+- `./unittest`: Rust Tiers 1-3, then Tier 2 (cmocka against the C libobs and libobs-with-rust, one build in Docker; ~30-40 s warm thanks to ccache).
 - To let CI skip the Linux unit-test jobs, commit, then run
   `uvx --from git+https://github.com/zackees/ci.yml@1a970f01574447d681571ff3d0b8de56cb983dcc ci-lint local-gate run`.
   It runs every lane in `local-gate.toml` (unchanged lanes are cached) and stamps HEAD with attestation trailers. Push the stamped commit as-is; any later change invalidates the stamp.

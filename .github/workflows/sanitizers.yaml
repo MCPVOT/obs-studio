@@ -21,7 +21,7 @@ on:
         type: number
         default: 45
       rust_libobs:
-        description: Build with ENABLE_RUST_LIBOBS=ON
+        description: Run the tests and app against libobs-with-rust instead of the C libobs
         type: boolean
         default: false
       fail_on_findings:

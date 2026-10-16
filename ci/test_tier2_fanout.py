@@ -4,9 +4,10 @@
     uv run python -m unittest ci/test_tier2_fanout.py
 
 Builds are about 1 min of Tier 2; the two ctest runs were 9.4 min. One job
-now builds both ENABLE_RUST_LIBOBS modes (and compares their exports, so a
-mismatch fails before any test runs), then hands each build tree to
-`mode x shard` test jobs that run `ctest -I <shard>,,<N>` on it.
+builds one tree holding both libobs binaries (#1065: libobs and
+libobs-with-rust; it compares their exports, so a mismatch fails before any
+test runs), then hands the tree to `mode x shard` test jobs that run one
+shard of ctest against one libobs.
 """
 
 from __future__ import annotations
@@ -62,12 +63,12 @@ class ValidateStagesTest(unittest.TestCase):
 
 
 class WorkflowTest(unittest.TestCase):
-    def test_build_job_builds_both_modes_and_uploads_trees(self):
+    def test_build_job_builds_one_tree_and_uploads_it(self):
         b = job("rust-linux-tier2-build")
         self.assertIn("OBS_TIER2_STAGE: build", b)
         self.assertIn('OBS_TIER2_MODES: "OFF ON"', b)
-        self.assertIn("name: tier2-tree-OFF", b)
-        self.assertIn("name: tier2-tree-ON", b)
+        self.assertIn("name: tier2-tree\n", b)
+        self.assertNotIn("tier2-tree-OFF", b)
 
     def test_test_jobs_are_a_mode_by_shard_matrix(self):
         t = job("rust-linux-tier2")
@@ -76,7 +77,8 @@ class WorkflowTest(unittest.TestCase):
         self.assertRegex(t, r"shard:\s*\[\s*1,\s*2,\s*3\s*\]")
         self.assertIn("OBS_TIER2_STAGE: test", t)
         self.assertIn("OBS_CTEST_SHARD: ${{ matrix.shard }}/3", t)
-        self.assertIn("name: tier2-tree-${{ matrix.mode }}", t)
+        self.assertIn("name: tier2-tree\n", t)
+        self.assertIn("OBS_TIER2_MODES: ${{ matrix.mode }}", t)
 
     def test_lane_proof_waits_for_every_shard(self):
         d = job("rust-linux-tier2-done")

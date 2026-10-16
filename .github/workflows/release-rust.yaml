@@ -1,6 +1,7 @@
 name: Release OBS-Studio-Rust
 run-name: Daily OBS-Studio-Rust beta 🦀
-# Daily beta: builds OBS-Studio-Rust (ENABLE_RUST_LIBOBS=ON) for Linux, macOS
+# Daily beta: builds OBS-Studio-Rust (ENABLE_RUST_LIBOBS=ON: the identity; libobs
+# is the C build, the Rust ports are built and tested but not shipped, #1065) for Linux, macOS
 # and Windows from master, plus the Linux AppImage (appimage.yaml), and
 # publishes a GitHub pre-release (macOS signed/notarized when credentials exist) tagged
 # obs-studio-rust-v<rust/libobs-rust version>-beta.<YYYYMMDD>.
@@ -504,7 +505,7 @@ jobs:
           sha256sum "${files[@]}" >SHA256SUMS
           cat SHA256SUMS
           cat >notes.md <<EOF
-          Daily beta of OBS-Studio-Rust $VERSION: OBS Studio built with \`ENABLE_RUST_LIBOBS=ON\`, so the ported libobs internals run from Rust. Built from [\`${SHA:0:9}\`](https://github.com/$GITHUB_REPOSITORY/commit/$SHA).
+          Daily beta of OBS-Studio-Rust $VERSION. It ships the C libobs; the Rust ports of its internals are built and tested on every build but not shipped yet (#1065). Built from [\`${SHA:0:9}\`](https://github.com/$GITHUB_REPOSITORY/commit/$SHA).
 
           **Daily beta.** macOS packages are signed and notarized when the project's release credentials are configured. For an unnotarized download, copy OBS-Studio-Rust.app to Applications and try opening it, then choose **System Settings → Privacy & Security → Open Anyway**. For a download you trust, the Terminal alternative is \`xattr -dr com.apple.quarantine /Applications/OBS-Studio-Rust.app\`; it removes quarantine from that app only. See [Apple's guidance](https://support.apple.com/102445).
 

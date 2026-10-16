@@ -36,7 +36,7 @@ An earlier mockup of the dialog for a machine with no GPU (the styling is approx
   `platform-osx.mm`.
 - Light and dialog: `frontend/utility/GpuStatus.cpp` and
   `frontend/widgets/OBSBasicStatusBar.cpp`. They are built whenever cargo
-  is available, with `ENABLE_RUST_LIBOBS` ON or OFF
+  is available, whatever `ENABLE_RUST_LIBOBS` (the app's name) says
   (`frontend/cmake/feature-gpu-status.cmake`, option `ENABLE_GPU_STATUS`).
   A build without cargo, such as the Flatpak sandbox today, configures
   without the light and prints a warning (#946).

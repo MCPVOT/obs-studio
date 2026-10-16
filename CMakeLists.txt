@@ -11,7 +11,11 @@ if(CMAKE_HOST_SYSTEM_NAME MATCHES "Windows")
   endif()
 endif()
 
-option(ENABLE_RUST_LIBOBS "Replace ported libobs internals with their Rust implementations" OFF)
+# Product identity only (#1065): ON names the app OBS-Studio-Rust (name, app ID,
+# install paths, version string; cmake/common/app-identity.cmake). It no longer
+# picks a libobs: every build links the C libobs and also builds, never links,
+# libobs-with-rust for Tier 2 (libobs/CMakeLists.txt).
+option(ENABLE_RUST_LIBOBS "Name the app OBS-Studio-Rust; libobs is always the C build" OFF)
 
 include(compilerconfig)
 include(app-identity)

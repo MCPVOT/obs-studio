@@ -15,7 +15,7 @@ on:
   workflow_call:
     inputs:
       rust_libobs:
-        description: Build libobs with the Rust ports (ENABLE_RUST_LIBOBS)
+        description: Build as OBS-Studio-Rust (ENABLE_RUST_LIBOBS identity; libobs is the C build, #1065)
         type: boolean
         required: false
         default: true
@@ -46,7 +46,7 @@ on:
   workflow_dispatch:
     inputs:
       rust_libobs:
-        description: Build libobs with the Rust ports (ENABLE_RUST_LIBOBS)
+        description: Build as OBS-Studio-Rust (ENABLE_RUST_LIBOBS identity; libobs is the C build, #1065)
         type: boolean
         default: true
       qsv:

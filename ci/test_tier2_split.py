@@ -1,5 +1,5 @@
 #!/usr/bin/env -S uv run --script
-"""validate.sh runs a chosen set of ENABLE_RUST_LIBOBS modes (#930 A2).
+"""validate.sh runs a chosen set of modes: which libobs the tests load (#930 A2, #1065).
 
 The CI layout this introduced (one job per mode) is superseded by #937's
 build-once, shard-the-tests jobs, pinned in ci/test_tier2_fanout.py.

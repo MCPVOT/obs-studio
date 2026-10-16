@@ -49,7 +49,7 @@ tools = ["soldr"]
 exclude = ["**"]
 keep = ["rust/**", "dylints/**", "Cargo.toml", "Cargo.lock", "rust-toolchain.toml", ".cargo/**", "libobs/**", "plugins/obs-nvenc/**", "deps/**"]
 
-# Tier 2: libobs + cmocka with ENABLE_RUST_LIBOBS OFF and ON in Docker
+# Tier 2: cmocka against libobs and libobs-with-rust (one build) in Docker
 # (ubuntu-26.04, the CI image), exported-symbol diff.
 [gate.lanes.tier2-linux]
 run = ["uv", "run", "ci/local_gate.py", "--lane", "tier2-linux"]

@@ -12,7 +12,7 @@ Lanes:
            the diff touches, ci/rust_scope.py): the Fast Gate job;
 - tier2:   libobs, the crates linked into libobs (derived from
            rust/libobs-rust/Cargo.toml), test/cmocka, deps, the validate
-           tooling -> Tier 2 Linux (cmocka, ENABLE_RUST_LIBOBS OFF/ON);
+           tooling -> Tier 2 Linux (cmocka against libobs and libobs-with-rust);
 - linux_targets: plugins/<x>/ and shared/<x>/ touched -> the Linux CMake
            targets of those modules (one configure, ENABLE_FRONTEND=OFF, no
            Qt); untouched modules are not built, nothing touched skips the job;

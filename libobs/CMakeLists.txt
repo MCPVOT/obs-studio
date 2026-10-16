@@ -9,8 +9,6 @@ endif()
 
 include(cmake/obs-core-modules.cmake)
 
-option(ENABLE_RUST_LIBOBS "Replace ported libobs internals with their Rust implementations" OFF)
-
 find_package(SIMDe REQUIRED)
 find_package(Threads REQUIRED)
 
@@ -24,17 +22,38 @@ if(NOT TARGET OBS::caption)
   add_subdirectory("${CMAKE_SOURCE_DIR}/deps/libcaption" "${CMAKE_BINARY_DIR}/deps/libcaption")
 endif()
 
+# Two libobs binaries share one compile of every unported source (#1065):
+# - libobs: those objects + the C of each ported unit. The one everything links
+#   against, installs and packages.
+# - libobs-with-rust: those objects + the rust/libobs-rust staticlib in place
+#   of the ported C (cmake/rust.cmake). Same file name and SONAME, in its own
+#   directory, never installed or linked: Tier 2 runs the unchanged C tests
+#   against it by pointing the loader at that directory. Built whenever cargo is
+#   available (the Flatpak sandbox has none).
+add_library(libobs-objects OBJECT)
 add_library(libobs SHARED)
 add_library(OBS::libobs ALIAS libobs)
 
+find_program(OBS_LIBOBS_CARGO cargo)
+if(OBS_LIBOBS_CARGO)
+  add_library(libobs-with-rust SHARED)
+  set(LIBOBS_SHARED_TARGETS libobs libobs-with-rust)
+else()
+  message(WARNING "cargo not found: building libobs without its Rust-linked twin (libobs-with-rust, #1065)")
+  set(LIBOBS_SHARED_TARGETS libobs)
+endif()
+
 include(cmake/sources.cmake)
 
-target_sources(libobs PRIVATE ${LIBOBS_SOURCES})
-if(ENABLE_RUST_LIBOBS)
-  target_sources(libobs PRIVATE ${LIBOBS_RUST_SOURCES})
-else()
-  target_sources(libobs PRIVATE ${LIBOBS_PORTED_SOURCES})
-endif()
+set_target_properties(libobs-objects PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
+target_sources(libobs-objects PRIVATE ${LIBOBS_SOURCES})
+target_sources(libobs PRIVATE ${LIBOBS_PORTED_SOURCES})
+# libobs-version and libobs-core-modules are object libraries too, and CMake
+# adds an object library's objects only to targets that link it directly, so
+# each shared library links them itself (libobs-objects gets their headers).
+foreach(target IN LISTS LIBOBS_SHARED_TARGETS)
+  target_link_libraries(${target} PRIVATE libobs-objects OBS::libobs-core-modules OBS::libobs-version)
+endforeach()
 
 # Temporarily disables deprecation warnings while obs_data_autoselect_* is deprecated.
 if(CMAKE_C_COMPILER_ID STREQUAL "MSVC")
@@ -47,19 +66,29 @@ elseif(
   set_source_files_properties(obs-data.c PROPERTIES COMPILE_OPTIONS "-Wno-deprecated-declarations")
 endif()
 
-target_compile_features(libobs PUBLIC cxx_std_17)
+# Usage requirements on libobs-objects are PUBLIC so they reach both shared
+# libraries' own sources and link lines; the ones plugins also need are
+# repeated on libobs's interface below.
+target_compile_features(libobs-objects PUBLIC cxx_std_17)
+target_compile_features(libobs INTERFACE cxx_std_17)
 
 target_compile_definitions(
-  libobs
-  PRIVATE IS_LIBOBS
+  libobs-objects
   PUBLIC
+    IS_LIBOBS
+    $<BUILD_INTERFACE:$<$<BOOL:${ENABLE_HEVC}>:ENABLE_HEVC>>
+    $<BUILD_INTERFACE:$<$<BOOL:${ENABLE_FFMPEG_MUX_DEBUG}>:SHOW_SUBPROCESSES>>
+)
+target_compile_definitions(
+  libobs
+  INTERFACE
     $<BUILD_INTERFACE:$<$<BOOL:${ENABLE_HEVC}>:ENABLE_HEVC>>
     $<BUILD_INTERFACE:$<$<BOOL:${ENABLE_FFMPEG_MUX_DEBUG}>:SHOW_SUBPROCESSES>>
 )
 
 target_link_libraries(
-  libobs
-  PRIVATE
+  libobs-objects
+  PUBLIC
     OBS::caption
     OBS::libobs-core-modules
     OBS::libobs-version
@@ -71,10 +100,13 @@ target_link_libraries(
     jansson::jansson
     Uthash::Uthash
     ZLIB::ZLIB
-  PUBLIC SIMDe::SIMDe Threads::Threads
+    SIMDe::SIMDe
+    Threads::Threads
 )
+target_link_libraries(libobs INTERFACE SIMDe::SIMDe Threads::Threads)
 
-if(ENABLE_RUST_LIBOBS)
+if(TARGET libobs-with-rust)
+  target_sources(libobs-with-rust PRIVATE ${LIBOBS_RUST_SOURCES})
   include(cmake/rust.cmake)
 endif()
 
@@ -90,10 +122,12 @@ endif()
 
 configure_file(obsconfig.h.in "${CMAKE_BINARY_DIR}/config/obsconfig.h" @ONLY)
 
-target_include_directories(
-  libobs
-  PUBLIC "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/config>" "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>"
-)
+foreach(target libobs-objects libobs)
+  target_include_directories(
+    ${target}
+    PUBLIC "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/config>" "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>"
+  )
+endforeach()
 
 set(
   public_headers
@@ -211,3 +245,30 @@ set_target_properties_obs(
 )
 
 target_export(libobs)
+
+# libobs-with-rust takes libobs's final file name and ABI version, which each
+# platform's set_target_properties_obs decides (Linux: SOVERSION 30, not the
+# OBS major version), so it loads in libobs's place (#1065).
+if(TARGET libobs-with-rust)
+  foreach(
+    property
+    VERSION
+    SOVERSION
+    OUTPUT_NAME
+    PREFIX
+    FRAMEWORK
+    FRAMEWORK_VERSION
+    MACOSX_FRAMEWORK_IDENTIFIER
+    INSTALL_NAME_DIR
+    BUILD_WITH_INSTALL_NAME_DIR
+  )
+    get_target_property(value libobs ${property})
+    if(property STREQUAL "OUTPUT_NAME" AND value MATCHES "-NOTFOUND$")
+      # No OUTPUT_NAME (macOS): the file name is the target name, libobs.
+      set(value libobs)
+    endif()
+    if(NOT value MATCHES "-NOTFOUND$")
+      set_property(TARGET libobs-with-rust PROPERTY ${property} "${value}")
+    endif()
+  endforeach()
+endif()

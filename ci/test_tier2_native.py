@@ -51,12 +51,13 @@ class ValidatePathsTest(unittest.TestCase):
         self.text = (HERE / "validate.sh").read_text(encoding="utf-8")
 
     def test_roots_are_configurable(self):
-        self.assertIn('SRC="${OBS_TIER2_SRC:-/src}"', self.text)
+        # /ro: run.sh mounts the checkout read-only there and builds out of source.
+        self.assertIn('SRC="${OBS_TIER2_SRC:-/ro}"', self.text)
         self.assertIn('BUILD="${OBS_TIER2_BUILD:-/build}"', self.text)
 
     def test_no_hardcoded_container_paths_remain(self):
         body = "\n".join(l for l in self.text.splitlines() if not l.lstrip().startswith("#"))
-        body = body.replace('"${OBS_TIER2_SRC:-/src}"', "").replace('"${OBS_TIER2_BUILD:-/build}"', "")
+        body = body.replace('"${OBS_TIER2_SRC:-/ro}"', "").replace('"${OBS_TIER2_BUILD:-/build}"', "")
         self.assertIsNone(re.search(r"(?<![\w$}])/(src|build)\b", body), "use $SRC / $BUILD")
 
 
@@ -98,9 +99,9 @@ class GitOwnershipTest(unittest.TestCase):
         text = (HERE / "validate.sh").read_text(encoding="utf-8")
         line = 'git config --global --add safe.directory "$SRC"'
         self.assertIn(line, text)
-        before = text[: text.index(line)]
-        self.assertNotIn('if [ -z "${OBS_TIER2_SRC:-}" ]; then', before.splitlines()[-1])
-        self.assertLess(text.index(line), text.index('if [ -z "${OBS_TIER2_SRC:-}" ]; then'))
+        # Unconditional (not inside an if), and before the first git command.
+        self.assertTrue(text.splitlines()[text[: text.index(line)].count("\n")].startswith("git config"))
+        self.assertLess(text.index(line), text.index("git submodule update"))
 
     def test_no_temporary_diagnostic_left(self):
         self.assertNotIn("Diagnose Group Tests", WORKFLOW.read_text(encoding="utf-8"))

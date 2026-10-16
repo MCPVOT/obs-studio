@@ -217,6 +217,10 @@ function(obs_soldr_cross_toolchain alias toolchain_file)
     string(APPEND content "set(CMAKE_OSX_ARCHITECTURES ${processor})\n")
     string(APPEND content "set(CMAKE_OSX_DEPLOYMENT_TARGET 13.0)\n")
   else()
+    # CMake's Windows-Clang platform requires a resource compiler (CMake 4.2
+    # fails without one). soldr's LLVM has no llvm-rc and the check compiles
+    # no .rc file, so any existing program satisfies it.
+    string(APPEND content "set(CMAKE_RC_COMPILER \"${CMAKE_COMMAND}\")\n")
     # -idirafter, not -isystem: clang's own intrin.h/arm_acle.h must come before
     # the MSVC CRT's, or the ARM64 intrinsics are declared twice.
     set(flags "-fms-compatibility -fms-extensions")
@@ -236,5 +240,9 @@ function(obs_soldr_cross_toolchain alias toolchain_file)
   endif()
   string(APPEND content "set(CMAKE_FIND_ROOT_PATH \"${sysroot}\")\n")
   string(APPEND content "set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)\n")
-  file(WRITE "${toolchain_file}" "${content}")
+  # Only touch the file when its content changes: rewriting it unchanged
+  # (its mtime) kept CMake resetting the cache of an existing build tree.
+  file(WRITE "${toolchain_file}.new" "${content}")
+  file(COPY_FILE "${toolchain_file}.new" "${toolchain_file}" ONLY_IF_DIFFERENT)
+  file(REMOVE "${toolchain_file}.new")
 endfunction()
