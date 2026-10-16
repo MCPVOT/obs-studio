@@ -10,35 +10,9 @@ target_link_libraries(
     "$<LINK_LIBRARY:FRAMEWORK,IOKit.framework>"
 )
 
-target_sources(
-  libobs
-  PRIVATE
-    audio-monitoring/osx/coreaudio-enum-devices.c
-    audio-monitoring/osx/coreaudio-monitoring-available.c
-    audio-monitoring/osx/coreaudio-output.c
-    audio-monitoring/osx/mac-helpers.h
-    obs-cocoa.m
-    util/apple/cfstring-utils.h
-    $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:util/pipe-posix.c>
-    $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:util/platform-cocoa.m>
-    $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:util/platform-nix.c>
-    $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:util/threading-posix.c>
-    util/threading-posix.h
-)
+libobs_add_host_sources(libobs MACOS)
 
 target_compile_options(libobs PUBLIC "$<$<NOT:$<COMPILE_LANGUAGE:Swift>>:-Wno-strict-prototypes;-Wno-shorten-64-to-32>")
 
 set_property(SOURCE obs-cocoa.m util/platform-cocoa.m PROPERTY COMPILE_OPTIONS -fobjc-arc)
 set_property(TARGET libobs PROPERTY FRAMEWORK TRUE)
-
-# libobs core host facade (#1051): the no-op version of each obs-host/ capability
-# this host doesn't implement in its own file.
-target_sources(
-  libobs
-  PRIVATE
-    obs-host/noop/com.c
-    obs-host/noop/display-clear-workaround.c
-    obs-host/noop/graphics-thread-hooks.c
-    obs-host/noop/module-symbols.c
-    obs-host/noop/shared-texture.c
-)

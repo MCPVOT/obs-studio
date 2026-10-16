@@ -106,16 +106,18 @@ export CCACHE_BASEDIR="$SRC" CCACHE_COMPRESS=1 CCACHE_MAXSIZE="${CCACHE_MAXSIZE:
 export CCACHE_SLOPPINESS=time_macros,include_file_mtime,include_file_ctime
 ccache -z >/dev/null
 
-# Every libobs C file the Rust build replaces, derived from the
-# ENABLE_RUST_LIBOBS guards (a NOT around the option means "left out when
-# ON") instead of a hand-kept list (obs-rust/obs-studio#137). Included-when-ON
-# files such as util/base-variadic.c have no NOT and are skipped. Paths stay
-# relative to libobs/ and are matched under libobs.dir/, because libobs also
-# links same-named files from deps (deps/libcaption/src/utf8.c).
-ported_objs=$(grep -hE 'ENABLE_RUST_LIBOBS' "$SRC"/libobs/CMakeLists.txt "$SRC"/libobs/cmake/os-linux.cmake |
-  grep 'NOT:' | grep -oE ':[A-Za-z0-9_./-]+\.c>' | sed -E 's|^:||; s|>$||; s|$|.o|' | sort -u)
+# Every libobs C file the Rust build replaces: LIBOBS_PORTED_SOURCES and
+# LIBOBS_LINUX_PORTED_SOURCES in libobs/cmake/sources.cmake, instead of a
+# hand-kept list (obs-rust/obs-studio#137). Paths stay relative to libobs/ and
+# are matched under libobs.dir/, because libobs also links same-named files
+# from deps (deps/libcaption/src/utf8.c).
+ported_objs=$(awk '/^set\($/ { getline name; inlist = (name ~ /^ *LIBOBS_(LINUX_)?PORTED_SOURCES$/); next }
+  /^set\(LIBOBS_(LINUX_)?PORTED_SOURCES / { for (i = 2; i <= NF; i++) print $i; next }
+  inlist && /^\)/ { inlist = 0 } inlist { print $1 }
+  /list\(APPEND LIBOBS_PORTED_SOURCES / { print $3 }' "$SRC"/libobs/cmake/sources.cmake |
+  tr -d ')' | grep -E '\.c$' | sed 's|$|.o|' | sort -u)
 if [ "$(wc -w <<<"$ported_objs")" -lt 20 ]; then
-  echo "FAIL: derived only $(wc -w <<<"$ported_objs") ported objects from the ENABLE_RUST_LIBOBS guards"
+  echo "FAIL: derived only $(wc -w <<<"$ported_objs") ported objects from libobs/cmake/sources.cmake"
   exit 1
 fi
 echo "== ported objects checked with ENABLE_RUST_LIBOBS=ON: $(wc -w <<<"$ported_objs")"

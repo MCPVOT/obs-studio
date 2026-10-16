@@ -36,29 +36,8 @@ endif()
 
 configure_file(cmake/windows/obs-module.rc.in libobs.rc)
 
-target_sources(
-  libobs
-  PRIVATE
-    audio-monitoring/win32/wasapi-enum-devices.c
-    audio-monitoring/win32/wasapi-monitoring-available.c
-    audio-monitoring/win32/wasapi-output.c
-    audio-monitoring/win32/wasapi-output.h
-    libobs.rc
-    obs-win-crash-handler.c
-    obs-windows.c
-    $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:util/pipe-windows.c>
-    $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:util/platform-windows.c>
-    $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:util/threading-windows.c>
-    util/threading-windows.h
-    util/windows/CoTaskMemPtr.hpp
-    util/windows/device-enum.c
-    util/windows/device-enum.h
-    util/windows/HRError.hpp
-    util/windows/win-registry.h
-    util/windows/win-version.h
-    util/windows/window-helpers.c
-    util/windows/window-helpers.h
-)
+target_sources(libobs PRIVATE libobs.rc)
+libobs_add_host_sources(libobs WINDOWS)
 
 target_compile_options(libobs PRIVATE $<$<COMPILE_LANGUAGE:C,CXX>:/EHc->)
 
@@ -84,14 +63,3 @@ target_link_libraries(
 target_link_options(libobs PRIVATE /IGNORE:4098 /SAFESEH:NO)
 
 set_target_properties(libobs PROPERTIES PREFIX "" OUTPUT_NAME "obs")
-
-# libobs core host facade (#1051): the no-op version of each obs-host/ capability
-# this host doesn't implement in its own file.
-target_sources(
-  libobs
-  PRIVATE
-    obs-host/noop/default-monitoring-device.c
-    obs-host/noop/display-srgb-clear.c
-    obs-host/noop/graphics-thread.c
-    obs-host/noop/module-paths.c
-)

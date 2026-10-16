@@ -17,6 +17,7 @@ include(compilerconfig)
 include(app-identity)
 include(defaults)
 include(helpers)
+include(cross-targets)
 
 option(ENABLE_FRONTEND "Enable building with UI (requires Qt)" ON)
 option(ENABLE_SCRIPTING "Enable scripting support" ON)

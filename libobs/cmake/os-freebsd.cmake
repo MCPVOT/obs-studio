@@ -18,20 +18,7 @@ if(NOT HAVE_UUID_HEADER)
   message(FATAL_ERROR "Required system header <uuid/uuid.h> not found.")
 endif()
 
-target_sources(
-  libobs
-  PRIVATE
-    obs-nix-platform.c
-    obs-nix-platform.h
-    obs-nix-x11-keymap.h
-    obs-nix-x11.c
-    obs-nix.c
-    $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:util/pipe-posix.c>
-    $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:util/platform-nix.c>
-    util/platform-nix-inhibit.c
-    $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:util/threading-posix.c>
-    util/threading-posix.h
-)
+libobs_add_host_sources(libobs LINUX)
 
 target_compile_definitions(
   libobs
@@ -97,19 +84,3 @@ else()
 endif()
 
 set_target_properties(libobs PROPERTIES OUTPUT_NAME obs)
-
-# libobs core host facade (#1051): the no-op version of each obs-host/ capability
-# this host doesn't implement in its own file.
-target_sources(
-  libobs
-  PRIVATE
-    obs-host/noop/com.c
-    obs-host/noop/default-monitoring-device.c
-    obs-host/noop/display-clear-workaround.c
-    obs-host/noop/display-srgb-clear.c
-    obs-host/noop/graphics-thread.c
-    obs-host/noop/graphics-thread-hooks.c
-    obs-host/noop/module-paths.c
-    obs-host/noop/module-symbols.c
-    obs-host/noop/shared-texture.c
-)

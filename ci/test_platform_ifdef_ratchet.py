@@ -368,17 +368,20 @@ class FacadeTest(unittest.TestCase):
                 self.assertEqual(r.findings(path, file.read_text(encoding="utf-8")), [])
 
     def test_every_capability_has_a_noop_and_every_host_builds_one_of_each(self):
-        """obs-host/<cap>.h has obs-host/noop/<cap>.c, and each
-        libobs/cmake/os-<os>.cmake either builds that no-op or its host file
-        defines the capability's functions."""
+        """obs-host/<cap>.h has obs-host/noop/<cap>.c, and each host's
+        LIBOBS_<HOST>_NOOP_SOURCES (libobs/cmake/sources.cmake) either lists
+        that no-op or its host file defines the capability's functions."""
         import re
 
         caps = sorted(p.stem for p in (r.ROOT / "libobs/obs-host").glob("*.h") if p.stem != "defs")
         noops = sorted(p.stem for p in (r.ROOT / "libobs/obs-host/noop").glob("*.c"))
         self.assertEqual(caps, noops)
-        host_file = {"windows": "obs-windows.c", "macos": "obs-cocoa.m", "linux": "obs-nix.c", "freebsd": "obs-nix.c"}
+        sources = (r.ROOT / "libobs/cmake/sources.cmake").read_text()
+        host_file = {"WINDOWS": "obs-windows.c", "MACOS": "obs-cocoa.m", "LINUX": "obs-nix.c"}
         for os_name, source in host_file.items():
-            cmake = (r.ROOT / f"libobs/cmake/os-{os_name}.cmake").read_text()
+            block = re.search(rf"set\(\s*LIBOBS_{os_name}_NOOP_SOURCES\b(.*?)\)", sources, re.S)
+            self.assertIsNotNone(block, os_name)
+            cmake = block.group(1)
             impl = (r.ROOT / "libobs" / source).read_text()
             for cap in caps:
                 header = (r.ROOT / f"libobs/obs-host/{cap}.h").read_text()

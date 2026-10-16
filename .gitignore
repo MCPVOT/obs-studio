@@ -7,6 +7,9 @@
 /out/
 /release/
 CMakeUserPresets.json
+# Prebuilt dependencies the Windows/macOS builds and the cross-compile check
+# (cmake/cross/) download from CMakePresets.json
+/.deps/
 /cmake/.CMakeBuildNumber
 compile_commands.json
 

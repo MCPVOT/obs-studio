@@ -89,6 +89,26 @@ cargo with `SOLDR_RUSTC_WRAPPER=none` (`OBS_GATE_ZCCACHE=1` opts back in). If a
 build behaves impossibly, retry with that variable set before debugging the
 code.
 
+#### Cross-compile check: Windows and macOS C from any host
+
+`cmake/cross/` compiles libobs for another OS on this machine, with no Windows or macOS runner.
+- **Toolchain:** soldr's LLVM and the SDK soldr provisions for that OS (the Apple SDK, or the xwin MSVC CRT + Windows SDK).
+- **Dependencies:** the same prebuilt Windows/macOS dependencies the real build uses (pinned in `CMakePresets.json`, unpacked into `.deps/`).
+- **Sources:** the same file lists as the real build (`libobs/cmake/sources.cmake`), including both the C build's ported files and the Rust build's C halves.
+- **Output:** objects only; it compiles and links nothing.
+
+```sh
+cmake -S cmake/cross -B build_cross_win-x64 -G Ninja -DOBS_CROSS_TARGET=win-x64
+cmake --build build_cross_win-x64
+# or from a configured OBS build:
+cmake --build build --target cross-win-x64      # cross-mac-arm64, cross-mac-x64, cross-all
+```
+
+- **Warnings** are reported; `-DOBS_CROSS_WERROR=ON` makes them errors.
+- **Getting soldr:** `cmake/common/soldr.cmake` uses soldr from `PATH`, or downloads the version CI pins and checks its SHA256 (`ci/test_soldr_pin.py` keeps that pin equal to the workflows').
+- **Finding the toolchain:** it runs `soldr toolchain prepare`, then finds LLVM and the SDK under soldr's root. That changes to `soldr cc --target <triple>` once soldr exposes Apple and MSVC there.
+- **No `win-arm64`:** `util/threading-windows.h` uses MSVC-only ARM64 intrinsics that clang lacks.
+
 ### setup-soldr: soldr in GitHub Actions
 
 [zackees/setup-soldr](https://github.com/zackees/setup-soldr) is the action
