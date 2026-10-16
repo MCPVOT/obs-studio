@@ -70,9 +70,15 @@ class GateTest(unittest.TestCase):
 
         gate = importlib.import_module("local_gate")
         env = {k: v for k, v in os.environ.items() if k != "OBS_GATE_SKIP_SELF_TEST"}
-        with mock.patch.object(gate, "run") as run, mock.patch.dict(os.environ, env, clear=True):
+        done = subprocess.CompletedProcess([], 0, "", "")
+        # The default path runs each ci/test_*.py in its own process (#949);
+        # mock that, or this test reruns the whole suite, itself included.
+        with mock.patch.object(gate.subprocess, "run", return_value=done) as run, mock.patch.dict(
+            os.environ, env, clear=True
+        ):
             gate.self_test()
-        run.assert_called_once()
+        files = sorted(p.name for p in (ROOT / "ci").glob("test_*.py"))
+        self.assertEqual(sorted(c.args[0][-1] for c in run.call_args_list), files)
 
 
 if __name__ == "__main__":

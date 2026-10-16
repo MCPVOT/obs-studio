@@ -32,7 +32,7 @@ import re
 import subprocess
 import sys
 import time
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -139,19 +139,70 @@ def toolchain_gcc_ld() -> str:
 # ci/ tests that need soldr on PATH (they skip without it).
 SOLDR_SELF_TESTS = "test_local_gate_probe.py"
 
+SELF_TEST_MAX_WORKERS = 8
+SELF_TEST_TIMEOUT = 600
+
+
+def self_test_workers() -> int:
+    """CPUs this process may use (cgroup and affinity aware), at most 8."""
+    usable = getattr(os, "process_cpu_count", os.cpu_count)() or 1
+    return max(1, min(SELF_TEST_MAX_WORKERS, usable))
+
 
 def self_test() -> None:
     """The gate's and the repo layout's unit tests: every ci/test_*.py.
 
     CI runs them in the Checks job (check-format.yaml) and sets
     OBS_GATE_SKIP_SELF_TEST=1 for the lint step on the scarce ubuntu-26.04
-    runner (#427); locally they always run."""
+    runner (#427); locally they always run.
+
+    One process per file, run in parallel: run serially they took about
+    164 s of ./lint (#949). Each file's result prints as it finishes;
+    failures are repeated with their full output at the end.
+    """
     if os.environ.get("OBS_GATE_SKIP_SELF_TEST") == "1":
         # Only the tests that need this runner's soldr; the rest run in ci-self-test.
         print("+ ci/ self-tests: soldr-dependent only (OBS_GATE_SKIP_SELF_TEST=1; the Checks job runs the rest)", flush=True)
         run([sys.executable, "-m", "unittest", "discover", "-s", "ci", "-p", SOLDR_SELF_TESTS])
         return
-    run([sys.executable, "-m", "unittest", "discover", "-s", "ci", "-p", "test_*.py"])
+    files = sorted((ROOT / "ci").glob("test_*.py"))
+
+    def one(path: Path) -> tuple[str, int, str, float]:
+        start = time.monotonic()
+        try:
+            result = subprocess.run(
+                [sys.executable, "-m", "unittest", "discover", "-s", "ci", "-p", path.name],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+                errors="replace",
+                timeout=SELF_TEST_TIMEOUT,
+            )
+        except subprocess.TimeoutExpired as e:
+            output = (e.stdout or "") + (e.stderr or "")
+            if isinstance(output, bytes):
+                output = output.decode(errors="replace")
+            return path.name, 1, f"{output}\ntimed out after {SELF_TEST_TIMEOUT} s", time.monotonic() - start
+        # 5: the file has no tests (as the old single discover allowed).
+        code = 0 if result.returncode == 5 else result.returncode
+        return path.name, code, result.stdout + result.stderr, time.monotonic() - start
+
+    workers = self_test_workers()
+    print(f"+ unittest: {len(files)} ci/test_*.py files, {workers} at a time", flush=True)
+    failed = []
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        for future in as_completed([pool.submit(one, path) for path in files]):
+            name, code, output, secs = future.result()
+            print(f"  {'ok  ' if code == 0 else 'FAIL'} {secs:6.1f}s {name}", flush=True)
+            if code:
+                failed.append((name, output))
+    for name, output in failed:
+        print(f"==== {name}", flush=True)
+        print(output, flush=True)
+        for hint in hints_for(output):
+            print(hint, flush=True)
+    if failed:
+        raise subprocess.CalledProcessError(1, ["unittest", *(name for name, _ in failed)])
 
 
 def platform_ifdef_ratchet() -> None:

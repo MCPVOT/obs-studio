@@ -62,16 +62,48 @@ class SoldrCacheTest(unittest.TestCase):
 
 
 class SelfTestTest(unittest.TestCase):
-    def test_runs_every_ci_test_module(self):
+    """Every ci/test_*.py runs, one process per file, in parallel (#949)."""
+
+    def fake_run(self, failing=()):
+        calls = []
+
+        def fake(cmd, **kw):
+            calls.append(cmd)
+            name = cmd[cmd.index("-p") + 1]
+            code = 1 if name in failing else 0
+            return subprocess.CompletedProcess(cmd, code, f"output of {name}\n", "")
+
+        return calls, fake
+
+    def test_runs_every_ci_test_module_in_its_own_process(self):
         # Every ci/test_*.py, not just this file, so new checks (tier 2
         # volume, toolchain pin, registration fragments) run in the gate.
-        calls = []
-        with mock.patch.object(local_gate, "run", side_effect=lambda cmd, **kw: calls.append(cmd)):
+        calls, fake = self.fake_run()
+        with mock.patch.object(local_gate.subprocess, "run", side_effect=fake):
             local_gate.self_test()
-        self.assertEqual(len(calls), 1)
-        cmd = calls[0]
-        self.assertIn("discover", cmd)
-        self.assertIn("test_*.py", cmd)
+        names = sorted(cmd[cmd.index("-p") + 1] for cmd in calls)
+        expected = sorted(p.name for p in (local_gate.ROOT / "ci").glob("test_*.py"))
+        self.assertEqual(names, expected)
+        self.assertGreater(len(names), 1)
+        self.assertTrue(all("discover" in cmd for cmd in calls))
+
+    def test_a_failing_module_fails_the_step_and_prints_its_output(self):
+        calls, fake = self.fake_run(failing={"test_local_gate.py"})
+        printed = []
+        with (
+            mock.patch.object(local_gate.subprocess, "run", side_effect=fake),
+            mock.patch("builtins.print", side_effect=lambda *a, **k: printed.append(" ".join(map(str, a)))),
+            self.assertRaises(subprocess.CalledProcessError),
+        ):
+            local_gate.self_test()
+        self.assertTrue(any("output of test_local_gate.py" in line for line in printed), printed)
+
+    def test_workers_follow_usable_cpus_capped(self):
+        # 164 s of serial self-tests made ./lint slow (#949); a CPU-limited
+        # container must not start every file at once.
+        for usable, want in ((None, 1), (1, 1), (4, 4), (64, local_gate.SELF_TEST_MAX_WORKERS)):
+            with mock.patch.object(local_gate.os, "process_cpu_count", create=True, return_value=usable):
+                self.assertEqual(local_gate.self_test_workers(), want, usable)
 
 
 class EnvironmentHintTest(unittest.TestCase):
