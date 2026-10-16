@@ -12,9 +12,21 @@ cfg_select! {
             devices
         }
     }
+    windows => {
+        #[allow(unsafe_code)] // DXGI COM calls; see the module docs
+        mod windows;
+
+        /// GPUs on this machine: DXGI's hardware adapters, then `nvidia-smi`
+        /// (obs-rust/obs-studio#942).
+        pub fn system_devices() -> Vec<GpuDevice> {
+            let mut devices = crate::dxgi::devices_from_dxgi(&windows::dxgi_adapters());
+            crate::merge_devices(&mut devices, crate::query_nvidia_smi());
+            devices
+        }
+    }
     _ => {
-        /// GPUs on this machine. There is no sysfs here (DXGI enumeration on
-        /// Windows is a follow-up), so only `nvidia-smi` is consulted.
+        /// GPUs on this machine. macOS has no sysfs or DXGI, so only
+        /// `nvidia-smi` is consulted.
         pub fn system_devices() -> Vec<GpuDevice> {
             crate::query_nvidia_smi()
         }

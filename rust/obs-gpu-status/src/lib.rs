@@ -11,6 +11,7 @@
 use std::path::Path;
 use std::process::Command;
 
+pub mod dxgi;
 #[allow(unsafe_code)]
 pub mod ffi;
 pub mod platform;
@@ -263,14 +264,20 @@ pub fn query_nvidia_smi() -> Vec<GpuDevice> {
 }
 
 /// Add `extra` devices not already in `devices` (same vendor and device ID);
-/// a match fills in the missing name instead.
+/// a match fills in its name if it has none.
 pub fn merge_devices(devices: &mut Vec<GpuDevice>, extra: Vec<GpuDevice>) {
     for e in extra {
+        // The same GPU (vendor and device ID) is listed once; a match only
+        // fills in a missing name (DXGI names its GPUs, sysfs does not).
         match devices
             .iter_mut()
-            .find(|d| d.vendor == e.vendor && d.device_id == e.device_id && d.name.is_none())
+            .find(|d| d.vendor == e.vendor && d.device_id == e.device_id)
         {
-            Some(d) => d.name = e.name,
+            Some(d) => {
+                if d.name.is_none() {
+                    d.name = e.name;
+                }
+            }
             None => devices.push(e),
         }
     }
