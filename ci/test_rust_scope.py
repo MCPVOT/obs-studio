@@ -41,11 +41,15 @@ class FastGateWorkflowTest(unittest.TestCase):
         m = re.search(rf"^  {name}:\n(.*?)(?=^  [a-z0-9-]+:\n|\Z)", BUILD.read_text(), re.S | re.M)
         return m.group(1)
 
-    def test_fast_gate_has_no_qt(self):
-        lines = [l for l in self.job("rust-tests-linux").lower().splitlines() if not l.lstrip().startswith("#")]
-        text = "\n".join(lines).replace("^qt6", "").replace("qt xml", "")
-        self.assertNotIn("qt", text)
-        self.assertIn("-denable_decklink=off", text)  # decklink-captions requires Qt6
+    def test_fast_gate_runs_no_qt_lane(self):
+        # Distro Qt is installed only so CMake configure passes (frontend-tools is a
+        # core module with find_package(Qt6 REQUIRED)); the gate never fetches the
+        # prebuilt Qt, builds the frontend or runs the Qt-linked tests.
+        j = self.job("rust-tests-linux").lower()
+        for qt_lane in ("linux_qt_frontend", "fetch_libs_asset", "qt6-6.11", "-denable_frontend=on"):
+            self.assertNotIn(qt_lane, j)
+        self.assertIn("-denable_decklink=off", j)  # decklink-captions requires Qt6 Widgets
+        self.assertIn("-denable_frontend=off", j)
 
     def test_costly_lanes_wait_for_the_fast_gate(self):
         for name in ("rust-tests", "rust-tier2", "linux-qt-frontend", "rust-linux-tier2-build", "rust-cross-lint"):

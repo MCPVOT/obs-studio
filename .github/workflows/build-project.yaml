@@ -856,8 +856,10 @@ jobs:
         run: |
           git submodule update --init --recursive -q
           sudo apt-get update -qq
-          # No Qt here: drop the qt6 packages and the Qt-requiring decklink plugins.
-          grep -v '^#\|^qt6' rust/tools/linux-validate/apt-packages.txt |
+          # Distro Qt headers only so configure passes: plugins/frontend-tools is a
+          # core module that calls find_package(Qt6 REQUIRED). Nothing Qt is built
+          # or tested here (only the touched targets); that is the Qt lane's job.
+          grep -v '^#' rust/tools/linux-validate/apt-packages.txt |
             xargs "${GITHUB_WORKSPACE}/.github/scripts/retry" sudo apt-get install -y --no-install-recommends
           cmake -S . -B "${RUNNER_TEMP}/targets" -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
