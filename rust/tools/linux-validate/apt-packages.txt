@@ -69,7 +69,6 @@ librist-dev
 libsrt-openssl-dev
 extra-cmake-modules
 rsync
-ccache
 xvfb
 xauth
 pipewire

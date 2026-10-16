@@ -308,6 +308,9 @@ jobs:
     defaults:
       run:
         shell: bash
+    env:
+      # zccache is the ubuntu-ci preset's compiler launcher (setup_zccache).
+      ZCCACHE_CACHE_DIR: ${{ github.workspace }}/.zccache
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -318,15 +321,24 @@ jobs:
       # commit so the cache follows master instead of freezing at its first save.
       - uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
-          path: ${{ github.workspace }}/.ccache
-          key: ${{ runner.os }}-${{ matrix.os }}-ccache-x86_64-rust${{ matrix.rust }}-${{ needs.check-event.outputs.config }}-${{ github.sha }}
+          path: ${{ github.workspace }}/.zccache
+          key: zccache-ubuntu-${{ matrix.os }}-x86_64-rust${{ matrix.rust }}-${{ needs.check-event.outputs.config }}-${{ github.sha }}
           restore-keys: |
-            ${{ runner.os }}-${{ matrix.os }}-ccache-x86_64-rust${{ matrix.rust }}-${{ needs.check-event.outputs.config }}-
-            ${{ runner.os }}-${{ matrix.os }}-ccache-x86_64-rust${{ matrix.rust }}-
+            zccache-ubuntu-${{ matrix.os }}-x86_64-rust${{ matrix.rust }}-${{ needs.check-event.outputs.config }}-
+            zccache-ubuntu-${{ matrix.os }}-x86_64-rust${{ matrix.rust }}-
 
-      - name: Record Start Time ⏱️
-        id: start
-        run: echo "epoch=$(date +%s)" >> "${GITHUB_OUTPUT}"
+      # zccache has no age-based eviction (ccache --evict-older-than), so a
+      # master push drops a restored cache over 2 GiB and rebuilds it cold:
+      # the saved cache stays about the size of one build.
+      - name: Bound zccache 🧹
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+        run: |
+          : Bound zccache 🧹
+          dir="${{ github.workspace }}/.zccache"
+          if [ -d "$dir" ] && [ "$(du -sm "$dir" | cut -f1)" -gt 2048 ]; then
+            echo "zccache dir is $(du -sh "$dir" | cut -f1); starting cold"
+            rm -rf "$dir"
+          fi
 
       - name: Build OBS Studio 🧱
         uses: ./.github/actions/build-obs
@@ -410,19 +422,12 @@ jobs:
         timeout-minutes: 15
         run: uv run --with websockets==13.1 test/websocket-tier4/run_tier4.py --obs /usr/bin/obs-studio-rust-gui
 
-      # Drop entries this build did not use so the saved cache stays the size
-      # of one build.
-      - name: Prune ccache 🧹
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
-        run: |
-          ccache --evict-older-than "$(( $(date +%s) - ${{ steps.start.outputs.epoch }} + 60 ))s"
-          ccache --show-stats
-
+      # build-obs's summary step stopped the zccache daemon, flushing its index.
       - uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
         with:
-          path: ${{ github.workspace }}/.ccache
-          key: ${{ runner.os }}-${{ matrix.os }}-ccache-x86_64-rust${{ matrix.rust }}-${{ needs.check-event.outputs.config }}-${{ github.sha }}
+          path: ${{ github.workspace }}/.zccache
+          key: zccache-ubuntu-${{ matrix.os }}-x86_64-rust${{ matrix.rust }}-${{ needs.check-event.outputs.config }}-${{ github.sha }}
 
   flatpak-build:
     name: Flatpak 📦
@@ -1103,11 +1108,23 @@ jobs:
       # saved from a PR ref is unreachable by other PRs).
       - uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
-          path: ${{ github.workspace }}/.tier2-ccache
-          key: tier2-ccache-linux-both-${{ github.sha }}
+          path: ${{ github.workspace }}/.tier2-zccache
+          key: tier2-zccache-linux-both-${{ github.sha }}
           restore-keys: |
-            tier2-ccache-linux-both-
-            tier2-ccache-linux-
+            tier2-zccache-linux-both-
+            tier2-zccache-linux-
+      # zccache has no age-based eviction (ccache --evict-older-than), so a
+      # master push drops a restored cache over 2 GiB and rebuilds it cold:
+      # the saved cache stays about the size of one build.
+      - name: Bound zccache 🧹
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+        run: |
+          : Bound zccache 🧹
+          dir="${{ github.workspace }}/.tier2-zccache"
+          if [ -d "$dir" ] && [ "$(du -sm "$dir" | cut -f1)" -gt 2048 ]; then
+            echo "zccache dir is $(du -sh "$dir" | cut -f1); starting cold"
+            rm -rf "$dir"
+          fi
 
       # libobs-with-rust builds the Rust ports with cargo through Corrosion;
       # the shims put soldr's cargo/rustc (rust-toolchain.toml) on PATH.
@@ -1135,12 +1152,20 @@ jobs:
 
       # GATE-001 mirror (local-gate.toml): the same validate.sh the local
       # gate's tier2-linux lane runs in Docker (build and test in one go).
+      # The compiler launcher validate.sh configures (BUILD.md, #957): the
+      # pinned, checksummed zccache release.
+      - name: Install zccache 📦
+        run: |
+          : Install zccache 📦
+          sh rust/tools/linux-validate/install-zccache.sh "$HOME/.local/bin"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
       - name: Build Tier 2 (libobs and libobs-with-rust) 🧱
         env:
           OBS_TIER2_SRC: ${{ github.workspace }}
           OBS_TIER2_BUILD: ${{ runner.temp }}/tier2
           OBS_TIER2_PACK: ${{ runner.temp }}/tier2-pack
-          CCACHE_DIR: ${{ github.workspace }}/.tier2-ccache
+          ZCCACHE_CACHE_DIR: ${{ github.workspace }}/.tier2-zccache
           OBS_TIER2_COST_DIR: ${{ github.workspace }}/.tier2-cost
           OBS_TIER2_MODES: "OFF ON"
           OBS_TIER2_STAGE: build
@@ -1157,12 +1182,13 @@ jobs:
           compression-level: 0
           if-no-files-found: error
 
-      - name: Save Tier 2 ccache 💾
+      # validate.sh stops the zccache daemon on exit, flushing its index.
+      - name: Save Tier 2 zccache 💾
         uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
         with:
-          path: ${{ github.workspace }}/.tier2-ccache
-          key: tier2-ccache-linux-both-${{ github.sha }}
+          path: ${{ github.workspace }}/.tier2-zccache
+          key: tier2-zccache-linux-both-${{ github.sha }}
 
   rust-linux-tier2:
     name: Rust Tier 2 Linux 🐧 (${{ matrix.mode }} ${{ matrix.shard }}/3)

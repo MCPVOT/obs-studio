@@ -26,7 +26,7 @@ mode = "shadow"
 # only prepare their environment.
 mirrors = ["build-project.yaml:rust-tests-linux", "build-project.yaml:rust-linux-tier2"]
 # The lane-proof steps only publish a pass (ci/lane_proof.py, #699).
-setup-steps = ["Save Tier 2 ccache 💾", "Mark Lane Proof 🧾", "Upload Lane Proof 🧾"]
+setup-steps = ["Save Tier 2 zccache 💾", "Mark Lane Proof 🧾", "Upload Lane Proof 🧾"]
 
 # clang-format 22.1.3 + gersemi 0.25.0 (pinned via uvx, same files as
 # build-aux/run-clang-format and run-gersemi), rustfmt, clippy -D warnings.

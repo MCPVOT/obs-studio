@@ -69,10 +69,8 @@ jobs:
     outputs:
       rust: ${{ steps.configure.outputs.rust }}
     env:
-      CCACHE_DIR: ${{ github.workspace }}/.ccache
-      CCACHE_BASEDIR: ${{ github.workspace }}
-      CCACHE_COMPRESS: '1'
-      CCACHE_MAXSIZE: 2G
+      # zccache is the ubuntu-ci preset's compiler launcher (build.py deps).
+      ZCCACHE_CACHE_DIR: ${{ github.workspace }}/.zccache
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -84,12 +82,12 @@ jobs:
       # Caches are restored on every run and saved even when a later step fails, so a
       # red build still leaves its compiled objects behind for the next attempt.
       # Keys carry the run id (caches are immutable); restore-keys pick the newest.
-      - name: Restore ccache
+      - name: Restore zccache
         uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
-          path: .ccache
-          key: ccache-appimage-${{ github.run_id }}
-          restore-keys: ccache-appimage-
+          path: .zccache
+          key: zccache-appimage-${{ github.run_id }}
+          restore-keys: zccache-appimage-
 
       - name: Restore cargo
         uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
@@ -132,12 +130,12 @@ jobs:
       - name: Build 🧱
         run: build-aux/appimage/manylinux/run.sh uv run build-aux/appimage/build.py --base manylinux --steps build
 
-      - name: Save ccache
+      - name: Save zccache
         if: always()
         uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
-          path: .ccache
-          key: ccache-appimage-${{ github.run_id }}
+          path: .zccache
+          key: zccache-appimage-${{ github.run_id }}
 
       - name: Save cargo
         if: always()

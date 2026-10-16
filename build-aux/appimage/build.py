@@ -55,7 +55,7 @@ mkdir -p .apt-cache/partial
 # and client.conf (pipewire-bin). assemble-appdir.sh fails without them
 # (obs-rust/obs-studio#426).
 sudo -E apt-get install -y --no-install-recommends -o DPkg::Lock::Timeout=120 -o Dir::Cache::archives="$PWD/.apt-cache" \
-  build-essential cmake ninja-build ccache pkg-config git curl ca-certificates \
+  build-essential cmake ninja-build pkg-config git curl ca-certificates \
   patchelf desktop-file-utils file squashfs-tools zsync \
   libglib2.0-dev extra-cmake-modules libcurl4-openssl-dev \
   libavcodec-dev libavdevice-dev libavfilter-dev libavformat-dev libavutil-dev \
@@ -74,6 +74,8 @@ sudo -E apt-get install -y --no-install-recommends -o DPkg::Lock::Timeout=120 -o
   libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 \
   libxcb-shape0 libxcb-xkb1 libxcb-sync1 libxcb-xinerama0
 sudo chown -R "$(id -u):$(id -g)" .apt-cache # apt ran as root; the cache action must read it
+# The ubuntu-ci preset's compiler launcher, pinned and checksum-verified.
+sudo rust/tools/linux-validate/install-zccache.sh /usr/local/bin
 """
 
 LIBAVUTIL = r"""
@@ -123,7 +125,8 @@ cmake --preset ubuntu-ci \
 
 BUILD = r"""
 cmake --build build_ubuntu
-ccache -s
+zccache status || true
+zccache stop || true # flush the cache index before the workflow saves it
 """
 
 APPDIR = r"""

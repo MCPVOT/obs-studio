@@ -158,7 +158,7 @@ The repo's `bosn.toml` declares one stack so far: `appimage`, an Ubuntu 26.04
 image (`build-aux/appimage/Dockerfile`) with the AppImage build dependencies
 preinstalled. `bosn run --task appimage` builds the AppImage locally by
 running `build-aux/appimage/build.py`, the same script the AppImage workflow
-calls, with no act and no GitHub involved. The source is bind-mounted, ccache
+calls, with no act and no GitHub involved. The source is bind-mounted, the zccache
 and cargo caches live in bosn volumes, and the AppImage lands in
 `build_appimage/` (#899). (`bosn ci run` can't run that job through act: its
 `ubuntu-26.04` label isn't supported there.)

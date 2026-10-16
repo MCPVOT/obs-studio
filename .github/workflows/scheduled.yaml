@@ -38,11 +38,11 @@ jobs:
     permissions:
       actions: write
     steps:
-      - name: Remove Stale Ccache Caches
+      - name: Remove Stale Compiler Caches
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          : Remove Stale Ccache Caches
+          : Remove Stale Compiler Caches
 
           # The jq expressions below use multiple 'select' calls to filter
           # each item in the array with the 'actions_caches' key.
@@ -67,7 +67,7 @@ jobs:
             fi
           done <<< \
           "$(gh api repos/${GITHUB_REPOSITORY}/actions/caches \
-            --jq '.actions_caches.[] | select(.ref|test("refs/heads/master")) | select(.key|test(".*-(ccache|xcode)-*")) | {id, key} | join(";")')"
+            --jq '.actions_caches.[] | select(.ref|test("refs/heads/master")) | select(.key|test("(^|-)(z?ccache|xcode)-")) | {id, key} | join(";")')"
           echo '::endgroup::'
 
 
@@ -87,7 +87,7 @@ jobs:
             fi
           done <<< \
             "$(gh api repos/${GITHUB_REPOSITORY}/actions/caches \
-              --jq '.actions_caches.[] | select(.ref|test("refs/heads/master")|not) | select(.key|test(".*-ccache-*")) | {id, key, ref} | join(";")')"
+              --jq '.actions_caches.[] | select(.ref|test("refs/heads/master")|not) | select(.key|test("(^|-)z?ccache-")) | {id, key, ref} | join(";")')"
           echo '::endgroup::'
 
   build-project:

@@ -9,7 +9,7 @@
 FROM quay.io/pypa/manylinux_2_28_x86_64@sha256:4131ddd7acb9c6c966af02fe7e71edc51e078c2d41f475966697676430bfa2ae
 
 RUN dnf install -y --setopt=install_weak_deps=False \
-        which patchelf file desktop-file-utils squashfs-tools ccache zstd \
+        which patchelf file desktop-file-utils squashfs-tools zstd \
         libX11-devel libXext-devel libXfixes-devel libXrender-devel libXcomposite-devel \
         libXinerama-devel libXrandr-devel libXi-devel libXcursor-devel libxshmfence-devel libXScrnSaver-devel \
         libxcb-devel xcb-util-devel xcb-util-wm-devel xcb-util-image-devel xcb-util-keysyms-devel \
@@ -26,6 +26,10 @@ RUN dnf install -y --setopt=install_weak_deps=False \
 
 # ninja from PyPI (AlmaLinux 8 has 1.8, older than the CMake presets need), and
 # SWIG 4 for the Lua scripting bindings (AlmaLinux 8 has 3.0); both build-time only.
+# The ubuntu-ci preset's compiler launcher (#957), pinned and checksum-verified;
+# this image skips build.py's deps step, which installs it on Ubuntu.
+COPY rust/tools/linux-validate/install-zccache.sh /tmp/install-zccache.sh
+RUN sh /tmp/install-zccache.sh /usr/local/bin && rm /tmp/install-zccache.sh
 RUN /opt/python/cp312-cp312/bin/pip install --no-cache-dir ninja==1.11.1.4 swig==4.2.1 \
  && ln -sf /opt/python/cp312-cp312/bin/ninja /usr/local/bin/ninja \
  && ln -sf /opt/python/cp312-cp312/bin/swig /usr/local/bin/swig

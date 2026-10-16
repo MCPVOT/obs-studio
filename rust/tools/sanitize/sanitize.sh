@@ -46,7 +46,13 @@ mkdir -p "$root" || exit 1
 [ -n "${SKIP_TESTS:-}" ] || rm -rf "$out"
 mkdir -p "$out"
 [ -n "${OBS_VERSION_OVERRIDE:-}" ] || OBS_VERSION_OVERRIDE=$(git -C "$src" describe --always --tags --match "[0-9]*.[0-9]*.[0-9]*" 2>/dev/null || true)
-export CCACHE_BASEDIR=$src
+# Compiler launcher: the pinned zccache (install-zccache.sh checks its
+# SHA-256). ZCCACHE_CACHE_DIR is the dir CI restores and saves; stop the
+# daemon on exit so its index is flushed there first.
+"$src/rust/tools/linux-validate/install-zccache.sh" "$root/bin" >/dev/null || exit 1
+PATH="$root/bin:$PATH"
+export ZCCACHE_CACHE_DIR="${ZCCACHE_CACHE_DIR:-$root/zccache}"
+trap 'zccache stop >/dev/null 2>&1 || true' EXIT
 
 echo "== [$tool] configure + build (libobs ${RUST_LIBOBS:-OFF}: ON runs libobs-with-rust)"
 # Every build makes libobs-with-rust. Install the toolchain
@@ -54,7 +60,7 @@ echo "== [$tool] configure + build (libobs ${RUST_LIBOBS:-OFF}: ON runs libobs-w
 # auto-install (rust-lang/rustup#4836).
 (cd "$src" && rustup toolchain install) >"$out/rustup.log" 2>&1 || { tail -20 "$out/rustup.log"; exit 1; }
 cmake -S "$src" -B "$b" -G Ninja -DCMAKE_BUILD_TYPE=$type -DENABLE_UNIT_TESTS=ON \
-  -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+  -DCMAKE_C_COMPILER_LAUNCHER=zccache -DCMAKE_CXX_COMPILER_LAUNCHER=zccache \
   -DCMAKE_C_FLAGS="$flags" -DCMAKE_CXX_FLAGS="$flags" \
   -DCMAKE_EXE_LINKER_FLAGS="$flags -Wl,--enable-new-dtags" -DCMAKE_SHARED_LINKER_FLAGS="$flags -Wl,--enable-new-dtags" \
   -DCMAKE_MODULE_LINKER_FLAGS="$flags -Wl,--enable-new-dtags" \

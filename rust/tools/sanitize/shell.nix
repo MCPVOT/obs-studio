@@ -7,7 +7,7 @@
 pkgs.mkShell {
   inputsFrom = [ pkgs.obs-studio ];
   packages = with pkgs; [
-    cmocka valgrind xorg.xorgserver xvfb-run dbus mesa ninja ccache git rsync
+    cmocka valgrind xorg.xorgserver xvfb-run dbus mesa ninja curl git rsync
     pipewire wireplumber pulseaudio vlc
     simde uthash nlohmann_json websocketpp asio qrcodegencpp
   ];

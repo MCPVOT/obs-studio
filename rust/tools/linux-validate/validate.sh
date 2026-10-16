@@ -108,14 +108,14 @@ for sub in plugins/obs-browser plugins/obs-websocket; do
   fi
 done
 
-# Compiler cache: keeps cold builds (a fresh clone or another worktree, whose
-# mtimes differ, or a CI runner) from recompiling OBS. CCACHE_DIR defaults to
-# the build volume; run.sh points it at a host dir when OBS_CCACHE_DIR is set
-# (CI restores and saves that dir with actions/cache).
-export CCACHE_DIR="${CCACHE_DIR:-$BUILD/ccache}"
-export CCACHE_BASEDIR="$SRC" CCACHE_COMPRESS=1 CCACHE_MAXSIZE="${CCACHE_MAXSIZE:-2G}"
-export CCACHE_SLOPPINESS=time_macros,include_file_mtime,include_file_ctime
-ccache -z >/dev/null
+# Compiler cache: zccache as the CMake compiler launcher keeps cold builds (a
+# fresh clone or another worktree, whose mtimes differ, or a CI runner) from
+# recompiling OBS. ZCCACHE_CACHE_DIR defaults to the build volume; run.sh
+# points it at a host dir (OBS_ZCCACHE_DIR, which CI restores and saves with
+# actions/cache) or the shared zccache volume. The daemon starts on the first
+# compile; stop it on exit so its index is flushed to the cache dir.
+export ZCCACHE_CACHE_DIR="${ZCCACHE_CACHE_DIR:-$BUILD/zccache}"
+trap 'zccache stop >/dev/null 2>&1 || true' EXIT
 
 # Every libobs C file the Rust build replaces: the implementation files of
 # the unity groups (BUILD.md) in LIBOBS_PORTED_SOURCES and
@@ -159,7 +159,7 @@ else
   cmake -S "$SRC" -B "$build" -G Ninja \
     -DCMAKE_BUILD_TYPE=RelWithDebInfo \
     -DENABLE_UNIT_TESTS=ON \
-    -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+    -DCMAKE_C_COMPILER_LAUNCHER=zccache -DCMAKE_CXX_COMPILER_LAUNCHER=zccache \
     ${OBS_EXTRA_CFLAGS:+"-DCMAKE_C_FLAGS=$OBS_EXTRA_CFLAGS" "-DCMAKE_CXX_FLAGS=$OBS_EXTRA_CFLAGS"} \
     "${runpath_flags[@]}" \
     ${OBS_EXTRA_CMAKE_ARGS:-} \
@@ -248,12 +248,12 @@ else
   echo "== obs-nvenc.so built with cuda-load.c, obs-nvenc-with-rust with cuda-load-rust.c"
 
   # OBS_TIER2_SHARDS=<n>: plan n shards per mode by recorded test duration
-  # (ctest-cost-<mode>.txt in the ccache dir, #931) into the tree (#1048).
+  # (ctest-cost-<mode>.txt in the zccache dir, #931) into the tree (#1048).
   if [ -n "${OBS_TIER2_SHARDS:-}" ]; then
     names="$BUILD/tier2-names.txt"
     ctest --test-dir "$build" -N | sed -nE 's/^ *Test +#[0-9]+: +([^ ]+)$/\1/p' >"$names"
     for mode in $modes; do
-      costs="${OBS_TIER2_COST_DIR:-${CCACHE_DIR:-}}/ctest-cost-$mode.txt"
+      costs="${OBS_TIER2_COST_DIR:-${ZCCACHE_CACHE_DIR:-}}/ctest-cost-$mode.txt"
       [ -s "$costs" ] || costs=/dev/null
       echo "== [$mode] shard plan ($(wc -l <"$names") tests, costs from ${costs})"
       "$SRC"/rust/tools/linux-validate/shard-plan.sh "$costs" "$names" "$OBS_TIER2_SHARDS" "$build/tier2-shards/$mode"
@@ -294,9 +294,9 @@ if [ "$stage" != build ]; then
     # ctest starts the longest tests first only when it knows their past run
     # times (Testing/Temporary/CTestCostData.txt). A fresh CI container has
     # none, so the 83 s test_deinterlace_2x_field_order could start last; carry
-    # the file per mode in OBS_TIER2_COST_DIR (default: the ccache directory,
+    # the file per mode in OBS_TIER2_COST_DIR (default: the zccache directory,
     # #931); CI shards upload it and master merges it back (#930).
-    cost_dir="${OBS_TIER2_COST_DIR:-${CCACHE_DIR:-}}"
+    cost_dir="${OBS_TIER2_COST_DIR:-${ZCCACHE_CACHE_DIR:-}}"
     cost_file="$build/Testing/Temporary/CTestCostData.txt"
     cost_cache=
     rm -f "$cost_file"
@@ -365,5 +365,5 @@ if [ -z "$rust_archives" ] || grep -qv '/release/liblibobs_rust\.a$' <<<"$rust_a
   exit 1
 fi
 
-echo "== ccache"
-ccache -s | grep -E "Hits|Misses|Cache size" || true
+echo "== zccache"
+zccache status | grep -E "Compilations|Hit rate|Artifacts" || true

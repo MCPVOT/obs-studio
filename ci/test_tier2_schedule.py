@@ -38,8 +38,8 @@ class CostDataTest(unittest.TestCase):
         self.assertLess(restore, ctest, "cost data must be in place before ctest runs")
 
     def test_cost_data_lives_per_mode_in_the_cost_dir(self):
-        # OBS_TIER2_COST_DIR, defaulting to the ccache dir (#930).
-        self.assertIn('cost_dir="${OBS_TIER2_COST_DIR:-${CCACHE_DIR:-}}"', self.around_ctest)
+        # OBS_TIER2_COST_DIR, defaulting to the zccache dir (#930).
+        self.assertIn('cost_dir="${OBS_TIER2_COST_DIR:-${ZCCACHE_CACHE_DIR:-}}"', self.around_ctest)
         self.assertIn('cost_cache="$cost_dir/ctest-cost-$mode.txt"', self.around_ctest)
 
     def test_cost_data_is_saved_after_ctest(self):

@@ -7,6 +7,9 @@ RUN apt-get update && grep -v '^#' /tmp/apt-packages.txt | xargs apt-get install
 # libvpl-dev is amd64-only. validate.sh leaves QSV off, so an arm64 image skips it.
 # Install exactly the toolchain pinned in rust-toolchain.toml (run.sh passes it)
 # so corrosion/CMake finds it; rustup must not have to fetch it at run time.
+# Compiler launcher for the CMake builds: zccache, pinned with its checksum.
+COPY install-zccache.sh /tmp/install-zccache.sh
+RUN /tmp/install-zccache.sh /usr/local/bin && rm /tmp/install-zccache.sh
 ARG RUST_TOOLCHAIN
 RUN test -n "$RUST_TOOLCHAIN" \
  && curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain "$RUST_TOOLCHAIN" -c rustfmt -c clippy

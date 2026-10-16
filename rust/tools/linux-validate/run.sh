@@ -2,7 +2,7 @@
 # Usage: rust/tools/linux-validate/run.sh [--clean|--clean-all] [--wait]
 #                                         [--repeat N] [--tests REGEX]
 #   --clean        start this checkout's build volume over
-#   --clean-all    also drop the shared ccache and crate caches
+#   --clean-all    also drop the shared zccache and crate caches
 #   --wait         if this checkout's Tier 2 is already running, wait for it
 #                  (otherwise a second run refuses: exit 75)
 #   --repeat N     after the normal ctest run, rerun the tests (or those
@@ -18,11 +18,11 @@
 # source; volumes the next run reattaches:
 #   obs-rust-linux-validate-build-<id>  build trees: CMake, objects, cargo's
 #                                       target dir (override: OBS_TIER2_VOLUME)
-#   obs-rust-linux-validate-ccache      shared compiler cache
+#   obs-rust-linux-validate-zccache     shared compiler cache (zccache)
 #   obs-rust-linux-validate-cargo-registry, -cargo-git
 #                                       shared crate downloads
 # The image is tagged by content hash; only the newest three are kept. Each
-# volume has a size budget (build 8G, ccache 3G, crates 2G each): one over it
+# volume has a size budget (build 8G, zccache 3G, crates 2G each): one over it
 # after a run is removed, so the next run starts it cold instead of growing.
 # After every run, Corrosion's cargo target dirs keep only their newest
 # artifacts (soldr cache prune-target --keep-latest); incremental compilation
@@ -49,16 +49,16 @@ fi
 # branch's stale objects or Rust staticlib (obs-rust/obs-studio#135).
 # OBS_TIER2_VOLUME overrides its name.
 task=(--stack-volume "build:/build${OBS_TIER2_VOLUME:+:$OBS_TIER2_VOLUME}")
-# OBS_CCACHE_DIR: host directory for the compiler cache (CI restores/saves it
-# with actions/cache). Unset, every checkout shares one ccache volume, so a
+# OBS_ZCCACHE_DIR: host directory for the zccache compiler cache (CI restores/saves it
+# with actions/cache). Unset, every checkout shares one zccache volume, so a
 # new checkout does not start cold.
-if [ -n "${OBS_CCACHE_DIR:-}" ]; then
-  mkdir -p "$OBS_CCACHE_DIR"
-  task+=(--mount "$OBS_CCACHE_DIR:/ccache")
+if [ -n "${OBS_ZCCACHE_DIR:-}" ]; then
+  mkdir -p "$OBS_ZCCACHE_DIR"
+  task+=(--mount "$OBS_ZCCACHE_DIR:/zccache")
 else
-  task+=(--machine-volume ccache:/ccache)
+  task+=(--machine-volume zccache:/zccache)
 fi
-task+=(--env CCACHE_DIR=/ccache)
+task+=(--env ZCCACHE_CACHE_DIR=/zccache)
 # OBS_CTEST_JOBS: ctest parallelism (default 1). CI sets it: the 247 tests run
 # twice (OFF, ON) and serially took ~11 min each of a ~25 min job.
 if [ -n "${OBS_CTEST_JOBS:-}" ]; then
@@ -116,6 +116,6 @@ exec bash "$repo/ci/docker-task.sh" run --name obs-rust-linux-validate --repo "$
   --mount "$here/validate.sh:/validate.sh:ro" \
   --machine-volume cargo-registry:/root/.cargo/registry \
   --machine-volume cargo-git:/root/.cargo/git \
-  --budget build=8G --budget ccache=3G --budget cargo-registry=2G --budget cargo-git=2G \
+  --budget build=8G --budget zccache=3G --budget cargo-registry=2G --budget cargo-git=2G \
   --prune-cargo /build/tree/cargo/build --prune-cargo /build/tree-debug/cargo/build \
   "${task[@]}" -- /validate.sh ${args[@]+"${args[@]}"}

@@ -53,7 +53,9 @@ def job(workflow: str, name: str) -> str:
 def cache_steps(block: str) -> list[tuple[str, str]]:
     """(action, key) for every actions/cache step in a job."""
     out = []
-    for m in re.finditer(r"uses: actions/cache/(restore|save)@\S+.*\n((?:\s+(?!- ).*\n)*)", block):
+    # Each step's body is its indented, non-"- " lines (\s+ would run into
+    # the next step and hide every later key).
+    for m in re.finditer(r"uses: actions/cache/(restore|save)@\S+.*\n((?:[ \t]+(?![ \t]*- ).*\n)*)", block):
         key = re.search(r"^\s+key: (.*)$", m.group(2), re.M)
         out.append((m.group(1), key.group(1) if key else ""))
     return out
@@ -94,7 +96,7 @@ class ZccacheTest(unittest.TestCase):
     def test_cache_keys_name_zccache(self):
         jobs = [
             ("build-project.yaml", "ubuntu-build"),
-            ("build-project.yaml", "rust-linux-tier2"),
+            ("build-project.yaml", "rust-linux-tier2-build"),
             ("sanitizers.yaml", "sanitize"),
             ("appimage.yaml", "build"),
         ]
@@ -109,7 +111,7 @@ class ZccacheTest(unittest.TestCase):
 
     def test_only_master_pushes_save_ci_compiler_caches(self):
         # zackees/ci.yml cache policy: a PR-ref save is unreachable by other PRs.
-        for name in ("ubuntu-build", "rust-linux-tier2"):
+        for name in ("ubuntu-build", "rust-linux-tier2-build"):
             block = job("build-project.yaml", name)
             saves = re.findall(r"(?:if: (.*)\n\s+uses: actions/cache/save|uses: actions/cache/save@\S+.*\n\s+if: (.*))", block)
             with self.subTest(job=name):
@@ -120,7 +122,7 @@ class ZccacheTest(unittest.TestCase):
     def test_tier2_lane_setup_step_renamed(self):
         text = (ROOT / "local-gate.toml").read_text()
         self.assertIn("Save Tier 2 zccache 💾", text)
-        self.assertIn("name: Save Tier 2 zccache 💾", job("build-project.yaml", "rust-linux-tier2"))
+        self.assertIn("name: Save Tier 2 zccache 💾", job("build-project.yaml", "rust-linux-tier2-build"))
 
 
 if __name__ == "__main__":

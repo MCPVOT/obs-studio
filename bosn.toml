@@ -9,16 +9,13 @@ default = true
 workdir = "/src"
 
 [stack.appimage.env]
-CCACHE_DIR = "/ccache"
-CCACHE_BASEDIR = "/src"
-CCACHE_COMPRESS = "1"
-CCACHE_MAXSIZE = "2G"
+ZCCACHE_CACHE_DIR = "/zccache"
 
 [stack.appimage.mounts]
 src = { source = ".", destination = "/src" }
 
 [stack.appimage.volumes]
-ccache = { scope = "machine", destination = "/ccache" }
+zccache = { scope = "machine", destination = "/zccache" }
 cargo-registry = { scope = "machine", destination = "/usr/local/cargo/registry" }
 cargo-git = { scope = "machine", destination = "/usr/local/cargo/git" }
 build = { scope = "stack", destination = "/src/build_ubuntu" }
@@ -39,13 +36,10 @@ workdir = "/src"
 src = { source = ".", destination = "/src" }
 
 [stack.appimage-228.env]
-CCACHE_DIR = "/ccache"
-CCACHE_BASEDIR = "/src"
-CCACHE_COMPRESS = "1"
-CCACHE_MAXSIZE = "2G"
+ZCCACHE_CACHE_DIR = "/zccache"
 
 [stack.appimage-228.volumes]
-ccache = { scope = "machine", destination = "/ccache" }
+zccache = { scope = "machine", destination = "/zccache" }
 cargo-registry = { scope = "machine", destination = "/usr/local/cargo/registry" }
 cargo-git = { scope = "machine", destination = "/usr/local/cargo/git" }
 build = { scope = "stack", destination = "/src/build_ubuntu" }

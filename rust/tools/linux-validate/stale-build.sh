@@ -6,7 +6,7 @@
 
 # reset_stale_build BUILD_DIR RUSTC_VERSION
 # Removes BUILD_DIR unless BUILD_DIR.rustc records RUSTC_VERSION, then
-# records it. ccache keeps the C rebuild warm.
+# records it. zccache keeps the C rebuild warm.
 reset_stale_build() {
   local build=$1 version=$2
   if [ "$(cat "$build.rustc" 2>/dev/null)" != "$version" ]; then

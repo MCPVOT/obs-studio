@@ -32,7 +32,7 @@ at a time. To build the AppImage on your machine, under
 bosn run --task appimage
 ```
 
-The AppImage is written to `build_appimage/`. ccache and the cargo registry
+The AppImage is written to `build_appimage/`. The zccache compiler cache and the cargo registry
 persist in bosn volumes, as does `build_ubuntu/`; the other intermediates
 (`AppDir/`, `avutil-compat/`, `squashfs-root/`, `.apt-cache/`) are written
 into the checkout, owned by the container's root.

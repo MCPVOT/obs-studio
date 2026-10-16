@@ -13,6 +13,7 @@ RUN curl -fsSLo /tmp/uv.tar.gz "https://github.com/astral-sh/uv/releases/downloa
  && tar -xzf /tmp/uv.tar.gz -C /usr/local/bin --strip-components=1 \
  && rm /tmp/uv.tar.gz
 COPY build-aux/appimage/build.py /opt/obs-appimage/build-aux/appimage/build.py
+COPY rust/tools/linux-validate/install-zccache.sh /opt/obs-appimage/rust/tools/linux-validate/install-zccache.sh
 RUN cd /opt/obs-appimage && uv run build-aux/appimage/build.py --steps deps \
  && rm -rf /opt/obs-appimage
 # The toolchain pinned in rust-toolchain.toml, so CMake/corrosion find it

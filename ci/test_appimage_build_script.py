@@ -36,6 +36,21 @@ OLD_STEPS = {
     "appdir": "Assemble AppDir",
     "appimage": "Create AppImage",
 }
+# Deliberate changes to the scripts since the move, as (old, new) edits.
+LATER = {
+    # #957: zccache, installed pinned, replaces ccache as the compiler launcher.
+    "deps": [
+        ("ninja-build ccache pkg-config", "ninja-build pkg-config"),
+        ("# apt ran as root; the cache action must read it\n",
+         "# apt ran as root; the cache action must read it\n"
+         "# The ubuntu-ci preset's compiler launcher, pinned and checksum-verified.\n"
+         "sudo rust/tools/linux-validate/install-zccache.sh /usr/local/bin\n"),
+    ],
+    "build": [
+        ("ccache -s\n", "zccache status || true\n"
+         "zccache stop || true # flush the cache index before the workflow saves it\n"),
+    ],
+}
 
 TAGLESS_COMMENT = (
     "# It keeps the libobs API version: plugins compare the OBS version against the one\n"
@@ -88,6 +103,9 @@ class BuildScriptTest(unittest.TestCase):
                     + TAGLESS_COMMENT)
                 expected = expected.replace(
                     '  echo "OBS_VERSION=0.0.0-g${GITHUB_SHA::9}" >> "$GITHUB_ENV"\n', TAGLESS_FALLBACK)
+                for old_text, new_text in LATER.get(step.name, []):
+                    self.assertIn(old_text, expected)
+                    expected = expected.replace(old_text, new_text)
                 self.assertEqual(step.script.strip("\n"), expected.strip("\n"))
 
     def test_workflow_calls_every_step_in_order(self):
