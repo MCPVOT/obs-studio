@@ -1233,3 +1233,7 @@ struct obs_source_info nvidia_background_blur_filter_info = {
 	.video_tick = nvvfx_filter_tick,
 	.video_get_color_space = nvvfx_filter_get_color_space,
 };
+
+/* File-local macros: keep them out of the next source of a unity build. */
+#undef LOAD_SYM_FROM_LIB
+#undef do_log

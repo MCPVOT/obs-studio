@@ -122,13 +122,13 @@ static void fade_to_color_video_render(void *data, gs_effect_t *effect)
 	gs_set_linear_srgb(previous);
 }
 
-static float mix_a(void *data, float t)
+static float fade_to_color_mix_a(void *data, float t)
 {
 	struct fade_to_color_info *fade_to_color = data;
 	return ftc_mix_a(fade_to_color->switch_point, t);
 }
 
-static float mix_b(void *data, float t)
+static float fade_to_color_mix_b(void *data, float t)
 {
 	struct fade_to_color_info *fade_to_color = data;
 	return ftc_mix_b(fade_to_color->switch_point, t);
@@ -138,8 +138,8 @@ static bool fade_to_color_audio_render(void *data, uint64_t *ts_out, struct obs_
 				       uint32_t mixers, size_t channels, size_t sample_rate)
 {
 	struct fade_to_color_info *fade_to_color = data;
-	return obs_transition_audio_render(fade_to_color->source, ts_out, audio, mixers, channels, sample_rate, mix_a,
-					   mix_b);
+	return obs_transition_audio_render(fade_to_color->source, ts_out, audio, mixers, channels, sample_rate,
+					   fade_to_color_mix_a, fade_to_color_mix_b);
 }
 
 static obs_properties_t *fade_to_color_properties(void *data)

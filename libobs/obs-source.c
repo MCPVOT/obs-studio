@@ -980,7 +980,7 @@ bool obs_source_removed(const obs_source_t *source)
 	return obs_source_valid(source, "obs_source_removed") ? source->removed : true;
 }
 
-static inline obs_data_t *get_defaults(const struct obs_source_info *info)
+static inline obs_data_t *source_get_defaults(const struct obs_source_info *info)
 {
 	obs_data_t *settings = obs_data_create();
 	if (info->get_defaults2)
@@ -993,20 +993,20 @@ static inline obs_data_t *get_defaults(const struct obs_source_info *info)
 obs_data_t *obs_source_settings(const char *id)
 {
 	const struct obs_source_info *info = get_source_info(id);
-	return (info) ? get_defaults(info) : NULL;
+	return (info) ? source_get_defaults(info) : NULL;
 }
 
 obs_data_t *obs_get_source_defaults(const char *id)
 {
 	const struct obs_source_info *info = get_source_info(id);
-	return info ? get_defaults(info) : NULL;
+	return info ? source_get_defaults(info) : NULL;
 }
 
 obs_properties_t *obs_get_source_properties(const char *id)
 {
 	const struct obs_source_info *info = get_source_info(id);
 	if (info && (info->get_properties || info->get_properties2)) {
-		obs_data_t *defaults = get_defaults(info);
+		obs_data_t *defaults = source_get_defaults(info);
 		obs_properties_t *props;
 
 		if (info->get_properties2)
@@ -2966,7 +2966,7 @@ static const char *get_type_format(enum obs_source_type type)
 }
 #endif
 
-static inline void render_video(obs_source_t *source)
+static inline void source_render_video(obs_source_t *source)
 {
 	if (source->info.type != OBS_SOURCE_TYPE_FILTER && (source->info.output_flags & OBS_SOURCE_VIDEO) == 0) {
 		if (source->filter_parent)
@@ -3015,7 +3015,7 @@ void obs_source_video_render(obs_source_t *source)
 
 	source = obs_source_get_ref(source);
 	if (source) {
-		render_video(source);
+		source_render_video(source);
 		obs_source_release(source);
 	}
 }
@@ -6151,3 +6151,6 @@ obs_canvas_t *obs_source_get_canvas(const obs_source_t *source)
 {
 	return obs_weak_canvas_get_canvas(source->canvas);
 }
+
+/* File-local macros: keep them out of the next source of a unity build. */
+#undef get_weak

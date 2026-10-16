@@ -79,7 +79,7 @@ static bool upload_texture_3d(struct gs_texture_3d *tex, const uint8_t *const *d
 	return success;
 }
 
-static bool create_pixel_unpack_buffer(struct gs_texture_3d *tex)
+static bool create_pixel_unpack_buffer_3d(struct gs_texture_3d *tex)
 {
 	GLsizeiptr size;
 	bool success = true;
@@ -137,7 +137,7 @@ gs_texture_t *device_voltexture_create(gs_device_t *device, uint32_t width, uint
 		goto fail;
 
 	if (!tex->base.is_dummy) {
-		if (tex->base.is_dynamic && !create_pixel_unpack_buffer(tex))
+		if (tex->base.is_dynamic && !create_pixel_unpack_buffer_3d(tex))
 			goto fail;
 		if (!upload_texture_3d(tex, data))
 			goto fail;

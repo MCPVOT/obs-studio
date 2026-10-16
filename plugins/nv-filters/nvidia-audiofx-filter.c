@@ -866,3 +866,7 @@ struct obs_source_info nvidia_audiofx_filter = {
 	.get_defaults = nvidia_audio_defaults,
 	.get_properties = nvidia_audio_properties,
 };
+
+/* File-local macros: keep them out of the next source of a unity build. */
+#undef LOAD_SYM_FROM_LIB
+#undef do_log

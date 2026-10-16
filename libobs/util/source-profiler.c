@@ -88,7 +88,7 @@ static const size_t render_times_reservation = 2;
 
 pthread_rwlock_t hm_rwlock = PTHREAD_RWLOCK_INITIALIZER;
 
-static bool enabled = false;
+static bool sp_enabled = false;
 static bool gpu_enabled = false;
 /* These can be set from other threads, mark them volatile */
 static volatile bool enable_next = false;
@@ -264,13 +264,13 @@ void source_profiler_render_end(void)
 
 void source_profiler_frame_begin(void)
 {
-	if (!enabled && enable_next)
-		enabled = true;
+	if (!sp_enabled && enable_next)
+		sp_enabled = true;
 
-	if (!gpu_enabled && enabled && gpu_enable_next) {
+	if (!gpu_enabled && sp_enabled && gpu_enable_next) {
 		gpu_enabled = true;
 	} else if (gpu_enabled) {
-		/* Advance timer idx if gpu enabled */
+		/* Advance timer idx if gpu sp_enabled */
 		timer_idx = (timer_idx + 1) % FRAME_BUFFER_SIZE;
 	}
 }
@@ -283,7 +283,7 @@ static inline bool is_async_video_source(const struct obs_source *source)
 static const char *source_profiler_frame_collect_name = "source_profiler_frame_collect";
 void source_profiler_frame_collect(void)
 {
-	if (!enabled)
+	if (!sp_enabled)
 		return;
 
 	profile_start(source_profiler_frame_collect_name);
@@ -385,7 +385,7 @@ void source_profiler_frame_collect(void)
 
 	/* Apply updated states for next frame */
 	if (!enable_next) {
-		enabled = gpu_enabled = false;
+		sp_enabled = gpu_enabled = false;
 		profiler_shutdown();
 	} else if (!gpu_enable_next) {
 		gpu_enabled = false;
@@ -397,7 +397,7 @@ void source_profiler_frame_collect(void)
 
 void source_profiler_async_frame_received(obs_source_t *source)
 {
-	if (!enabled)
+	if (!sp_enabled)
 		return;
 
 	uint64_t ts = os_gettime_ns();
@@ -414,7 +414,7 @@ void source_profiler_async_frame_received(obs_source_t *source)
 
 uint64_t source_profiler_source_tick_start(void)
 {
-	if (!enabled)
+	if (!sp_enabled)
 		return 0;
 
 	return os_gettime_ns();
@@ -422,7 +422,7 @@ uint64_t source_profiler_source_tick_start(void)
 
 void source_profiler_source_tick_end(obs_source_t *source, uint64_t start)
 {
-	if (!enabled)
+	if (!sp_enabled)
 		return;
 
 	const uint64_t delta = os_gettime_ns() - start;
@@ -443,7 +443,7 @@ void source_profiler_source_tick_end(obs_source_t *source, uint64_t start)
 
 uint64_t source_profiler_source_render_begin(gs_timer_t **timer)
 {
-	if (!enabled)
+	if (!sp_enabled)
 		return 0;
 
 	if (gpu_enabled) {
@@ -458,7 +458,7 @@ uint64_t source_profiler_source_render_begin(gs_timer_t **timer)
 
 void source_profiler_source_render_end(obs_source_t *source, uint64_t start, gs_timer_t *timer)
 {
-	if (!enabled)
+	if (!sp_enabled)
 		return;
 	if (timer)
 		gs_timer_end(timer);
@@ -499,7 +499,7 @@ static void task_delete_source(void *key)
 
 void source_profiler_remove_source(obs_source_t *source)
 {
-	if (!enabled)
+	if (!sp_enabled)
 		return;
 	/* Schedule deletion task on graphics thread */
 	obs_queue_task(OBS_TASK_GRAPHICS, task_delete_source, source, false);
@@ -593,7 +593,7 @@ static inline void calculate_fps(const struct ucirclebuf *frames, double *avg, u
 
 bool source_profiler_fill_result(obs_source_t *source, struct profiler_result *result)
 {
-	if (!enabled || !result)
+	if (!sp_enabled || !result)
 		return false;
 
 	memset(result, 0, sizeof(struct profiler_result));

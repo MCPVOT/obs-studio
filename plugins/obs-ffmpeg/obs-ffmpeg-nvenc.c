@@ -251,7 +251,7 @@ static void on_init_error(void *data, int ret)
 	dstr_free(&error_message);
 }
 
-static void on_first_packet(void *data, AVPacket *pkt, struct darray *da)
+static void ffnvenc_on_first_packet(void *data, AVPacket *pkt, struct darray *da)
 {
 	struct nvenc_encoder *enc = data;
 
@@ -285,7 +285,7 @@ static void *nvenc_create_internal(obs_data_t *settings, obs_encoder_t *encoder,
 	enc->hevc = hevc;
 	if (hevc) {
 		if (!ffmpeg_video_encoder_init(&enc->ffve, enc, encoder, "hevc_nvenc", "nvenc_hevc", ENCODER_NAME_HEVC,
-					       on_init_error, on_first_packet))
+					       on_init_error, ffnvenc_on_first_packet))
 			goto fail;
 	} else
 #else
@@ -293,7 +293,7 @@ static void *nvenc_create_internal(obs_data_t *settings, obs_encoder_t *encoder,
 #endif
 	{
 		if (!ffmpeg_video_encoder_init(&enc->ffve, enc, encoder, "h264_nvenc", "nvenc_h264", ENCODER_NAME_H264,
-					       on_init_error, on_first_packet))
+					       on_init_error, ffnvenc_on_first_packet))
 			goto fail;
 	}
 
@@ -439,7 +439,7 @@ void av1_nvenc_defaults(obs_data_t *settings)
 	nvenc_defaults_base(CODEC_AV1, settings);
 }
 
-static bool rate_control_modified(obs_properties_t *ppts, obs_property_t *p, obs_data_t *settings)
+static bool ffnvenc_rate_control_modified(obs_properties_t *ppts, obs_property_t *p, obs_data_t *settings)
 {
 	const char *rc = obs_data_get_string(settings, "rate_control");
 	bool cqp = astrcmpi(rc, "CQP") == 0;
@@ -472,7 +472,7 @@ obs_properties_t *nvenc_properties_internal(enum codec_type codec)
 	obs_property_list_add_string(p, "VBR", "VBR");
 	obs_property_list_add_string(p, obs_module_text("Lossless"), "lossless");
 
-	obs_property_set_modified_callback(p, rate_control_modified);
+	obs_property_set_modified_callback(p, ffnvenc_rate_control_modified);
 
 	p = obs_properties_add_int(props, "bitrate", obs_module_text("Bitrate"), 50, 300000, 50);
 	obs_property_int_set_suffix(p, " Kbps");
@@ -609,3 +609,6 @@ struct obs_encoder_info hevc_nvenc_encoder_info = {
 	.caps = OBS_ENCODER_CAP_DYN_BITRATE,
 };
 #endif
+
+/* File-local macros: keep them out of the next source of a unity build. */
+#undef do_log

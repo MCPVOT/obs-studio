@@ -875,3 +875,6 @@ done:
 	array_output_serializer_free(&nals);
 	return size;
 }
+
+/* File-local macros: keep them out of the next source of a unity build. */
+#undef skip_bits

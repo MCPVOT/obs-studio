@@ -93,3 +93,6 @@ struct obs_source_info gain_filter = {
 	.get_defaults = gain_defaults,
 	.get_properties = gain_properties,
 };
+
+/* File-local macros: keep them out of the next source of a unity build. */
+#undef do_log

@@ -7,7 +7,7 @@
 #include <util/dstr.h>
 #include <util/pipe.h>
 
-static pthread_mutex_t init_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t nvenc_init_mutex = PTHREAD_MUTEX_INITIALIZER;
 NV_ENCODE_API_FUNCTION_LIST nv = {NV_ENCODE_API_FUNCTION_LIST_VER};
 NV_CREATE_INSTANCE_FUNC nv_create_instance = NULL;
 
@@ -18,7 +18,7 @@ static int num_devices;
 static int driver_version_major;
 static int driver_version_minor;
 
-#define error(format, ...) blog(LOG_ERROR, "[obs-nvenc] " format, ##__VA_ARGS__)
+#define nvh_error(format, ...) blog(LOG_ERROR, "[obs-nvenc] " format, ##__VA_ARGS__)
 
 bool nv_fail2(obs_encoder_t *encoder, void *session, const char *format, ...)
 {
@@ -43,7 +43,7 @@ bool nv_fail2(obs_encoder_t *encoder, void *session, const char *format, ...)
 
 	dstr_printf(&error_message, "NVENC Error: %s", message.array);
 	obs_encoder_set_last_error(encoder, error_message.array);
-	error("%s", error_message.array);
+	nvh_error("%s", error_message.array);
 
 	dstr_free(&error_message);
 	dstr_free(&message);
@@ -98,20 +98,20 @@ bool nv_failed2(obs_encoder_t *encoder, void *session, NVENCSTATUS err, const ch
 	}
 
 	if (nvenc_error && *nvenc_error) {
-		error("%s: %s failed: %d (%s): %s", func, call, (int)err, nv_error_name(err), nvenc_error);
+		nvh_error("%s: %s failed: %d (%s): %s", func, call, (int)err, nv_error_name(err), nvenc_error);
 	} else {
-		error("%s: %s failed: %d (%s)", func, call, (int)err, nv_error_name(err));
+		nvh_error("%s: %s failed: %d (%s)", func, call, (int)err, nv_error_name(err));
 	}
 	return true;
 }
 
-#define NV_FAILED(e, x) nv_failed2(e, NULL, x, __FUNCTION__, #x)
+#define NVH_FAILED(e, x) nv_failed2(e, NULL, x, __FUNCTION__, #x)
 
 static void *load_nv_func(const char *func)
 {
 	void *func_ptr = os_dlsym(nvenc_lib, func);
 	if (!func_ptr) {
-		error("Could not load function: %s", func);
+		nvh_error("Could not load function: %s", func);
 	}
 	return func_ptr;
 }
@@ -203,8 +203,8 @@ static inline bool init_nvenc_internal(obs_encoder_t *encoder)
 	if (ver < NVCODEC_CONFIGURED_VERSION) {
 		obs_encoder_set_last_error(encoder, obs_module_text("OutdatedDriver"));
 
-		error("Current driver version does not support this NVENC "
-		      "version, please upgrade your driver");
+		nvh_error("Current driver version does not support this NVENC "
+			  "version, please upgrade your driver");
 		return false;
 	}
 
@@ -215,7 +215,7 @@ static inline bool init_nvenc_internal(obs_encoder_t *encoder)
 		return false;
 	}
 
-	if (NV_FAILED(encoder, nv_create_instance(&nv))) {
+	if (NVH_FAILED(encoder, nv_create_instance(&nv))) {
 		return false;
 	}
 
@@ -227,9 +227,9 @@ bool init_nvenc(obs_encoder_t *encoder)
 {
 	bool success;
 
-	pthread_mutex_lock(&init_mutex);
+	pthread_mutex_lock(&nvenc_init_mutex);
 	success = init_nvenc_internal(encoder);
-	pthread_mutex_unlock(&init_mutex);
+	pthread_mutex_unlock(&nvenc_init_mutex);
 
 	return success;
 }
@@ -375,12 +375,12 @@ bool nvenc_supported(void)
 
 void obs_nvenc_load(void)
 {
-	pthread_mutex_init(&init_mutex, NULL);
+	pthread_mutex_init(&nvenc_init_mutex, NULL);
 	register_encoders();
 	register_compat_encoders();
 }
 
 void obs_nvenc_unload(void)
 {
-	pthread_mutex_destroy(&init_mutex);
+	pthread_mutex_destroy(&nvenc_init_mutex);
 }

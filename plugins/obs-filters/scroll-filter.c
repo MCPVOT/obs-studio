@@ -177,8 +177,8 @@ static void scroll_filter_tick(void *data, float seconds)
 	}
 }
 
-static const char *get_tech_name_and_multiplier(enum gs_color_space current_space, enum gs_color_space source_space,
-						float *multiplier)
+static const char *scroll_get_tech_name_and_multiplier(enum gs_color_space current_space,
+						       enum gs_color_space source_space, float *multiplier)
 {
 	const char *tech_name = "Draw";
 	*multiplier = 1.f;
@@ -360,7 +360,7 @@ static void scroll_filter_render(void *data, gs_effect_t *effect)
 	const enum gs_color_space source_space = obs_source_get_color_space(
 		obs_filter_get_target(filter->context), OBS_COUNTOF(preferred_spaces), preferred_spaces);
 	float multiplier;
-	const char *technique = get_tech_name_and_multiplier(gs_get_color_space(), source_space, &multiplier);
+	const char *technique = scroll_get_tech_name_and_multiplier(gs_get_color_space(), source_space, &multiplier);
 	const enum gs_color_format format = gs_get_format_from_space(source_space);
 
 	/* A source too large for one texture: draw only the visible window.

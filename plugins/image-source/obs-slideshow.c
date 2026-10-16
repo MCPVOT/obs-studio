@@ -1132,3 +1132,6 @@ struct obs_source_info slideshow_info = {
 	.media_get_state = ss_get_state,
 	.video_get_color_space = ss_video_get_color_space,
 };
+
+/* File-local macros: keep them out of the next source of a unity build. */
+#undef warn

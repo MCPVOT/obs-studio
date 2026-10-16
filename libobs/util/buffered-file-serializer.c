@@ -50,14 +50,14 @@ struct io_buffer {
 	size_t chunk_size;
 };
 
-struct file_output_data {
+struct buffered_file_output_data {
 	struct dstr filename;
 	struct io_buffer io;
 };
 
 static void *io_thread(void *opaque)
 {
-	struct file_output_data *out = opaque;
+	struct buffered_file_output_data *out = opaque;
 	os_set_thread_name("buffered writer i/o thread");
 
 	// Chunk collects the writes into a larger batch
@@ -207,9 +207,9 @@ error:
 /* ========================================================================== */
 /* Serializer Implementation                                                  */
 
-static int64_t file_output_seek(void *opaque, int64_t offset, enum serialize_seek_type seek_type)
+static int64_t buffered_file_output_seek(void *opaque, int64_t offset, enum serialize_seek_type seek_type)
 {
-	struct file_output_data *out = opaque;
+	struct buffered_file_output_data *out = opaque;
 
 	// If the output thread failed, signal that back up the stack
 	if (os_atomic_load_bool(&out->io.output_error))
@@ -249,9 +249,9 @@ static inline size_t min(size_t a, size_t b)
 }
 #endif
 
-static size_t file_output_write(void *opaque, const void *buf, size_t buf_size)
+static size_t buffered_file_output_write(void *opaque, const void *buf, size_t buf_size)
 {
-	struct file_output_data *out = opaque;
+	struct buffered_file_output_data *out = opaque;
 
 	if (!buf_size)
 		return 0;
@@ -312,9 +312,9 @@ static size_t file_output_write(void *opaque, const void *buf, size_t buf_size)
 	return buf_size - remaining;
 }
 
-static int64_t file_output_get_pos(void *opaque)
+static int64_t buffered_file_output_get_pos(void *opaque)
 {
-	struct file_output_data *out = opaque;
+	struct buffered_file_output_data *out = opaque;
 	// If thread failed return -1
 	if (os_atomic_load_bool(&out->io.output_error))
 		return -1;
@@ -329,7 +329,7 @@ bool buffered_file_serializer_init_defaults(struct serializer *s, const char *pa
 
 bool buffered_file_serializer_init(struct serializer *s, const char *path, size_t max_bufsize, size_t chunk_size)
 {
-	struct file_output_data *out;
+	struct buffered_file_output_data *out;
 
 	out = bzalloc(sizeof(*out));
 
@@ -360,15 +360,15 @@ bool buffered_file_serializer_init(struct serializer *s, const char *path, size_
 
 	s->data = out;
 	s->read = NULL;
-	s->write = file_output_write;
-	s->seek = file_output_seek;
-	s->get_pos = file_output_get_pos;
+	s->write = buffered_file_output_write;
+	s->seek = buffered_file_output_seek;
+	s->get_pos = buffered_file_output_get_pos;
 	return true;
 }
 
 void buffered_file_serializer_free(struct serializer *s)
 {
-	struct file_output_data *out = s->data;
+	struct buffered_file_output_data *out = s->data;
 
 	if (!out)
 		return;

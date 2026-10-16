@@ -67,7 +67,7 @@ fail:
 	return NULL;
 }
 
-static bool process_packet(struct ffmpeg_muxer *stream)
+static bool hls_process_packet(struct ffmpeg_muxer *stream)
 {
 	struct encoder_packet packet;
 	bool has_packet = false;
@@ -89,7 +89,7 @@ static bool process_packet(struct ffmpeg_muxer *stream)
 	return ret;
 }
 
-static void *write_thread(void *data)
+static void *hls_write_thread(void *data)
 {
 	struct ffmpeg_muxer *stream = data;
 
@@ -97,7 +97,7 @@ static void *write_thread(void *data)
 		if (os_event_try(stream->stop_event) == 0)
 			return NULL;
 
-		if (!process_packet(stream))
+		if (!hls_process_packet(stream))
 			break;
 	}
 
@@ -151,7 +151,7 @@ bool ffmpeg_hls_mux_start(void *data)
 		warn("Failed to create process pipe");
 		return false;
 	}
-	stream->mux_thread_joinable = pthread_create(&stream->mux_thread, NULL, write_thread, stream) == 0;
+	stream->mux_thread_joinable = pthread_create(&stream->mux_thread, NULL, hls_write_thread, stream) == 0;
 	if (!stream->mux_thread_joinable)
 		return false;
 
@@ -329,3 +329,6 @@ struct obs_output_info ffmpeg_hls_muxer = {
 	.get_total_bytes = ffmpeg_mux_total_bytes,
 	.get_dropped_frames = hls_stream_dropped_frames,
 };
+
+/* File-local macros: keep them out of the next source of a unity build. */
+#undef do_log

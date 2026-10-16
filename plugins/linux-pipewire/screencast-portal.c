@@ -234,7 +234,7 @@ static const char *capture_type_to_string(enum obs_portal_capture_type capture_t
 
 /* ------------------------------------------------- */
 
-static void on_pipewire_remote_opened_cb(GObject *source, GAsyncResult *res, void *user_data)
+static void screencast_on_pipewire_remote_opened_cb(GObject *source, GAsyncResult *res, void *user_data)
 {
 	struct obs_pipewire_connect_stream_info connect_info;
 	struct screencast_portal_capture *capture;
@@ -317,7 +317,7 @@ out:
 	obs_source_release(held_source);
 }
 
-static void open_pipewire_remote(struct screencast_portal_capture *capture)
+static void screencast_open_pipewire_remote(struct screencast_portal_capture *capture)
 {
 	GVariantBuilder builder;
 
@@ -326,7 +326,7 @@ static void open_pipewire_remote(struct screencast_portal_capture *capture)
 	g_dbus_proxy_call_with_unix_fd_list(get_screencast_portal_proxy(), "OpenPipeWireRemote",
 					    g_variant_new("(oa{sv})", capture->session_handle, &builder),
 					    G_DBUS_CALL_FLAGS_NONE, -1, NULL, capture->cancellable,
-					    on_pipewire_remote_opened_cb, capture);
+					    screencast_on_pipewire_remote_opened_cb, capture);
 }
 
 /* ------------------------------------------------- */
@@ -386,7 +386,7 @@ static void start_response_received(GVariant *parameters, struct screencast_port
 
 	blog(LOG_INFO, "[pipewire] source selected, setting up screencast");
 
-	open_pipewire_remote(capture);
+	screencast_open_pipewire_remote(capture);
 }
 
 static void on_start_response_received_cb(GVariant *parameters, void *user_data)

@@ -106,13 +106,13 @@ static void swipe_video_render(void *data, gs_effect_t *effect)
 	UNUSED_PARAMETER(effect);
 }
 
-static float mix_a(void *data, float t)
+static float swipe_mix_a(void *data, float t)
 {
 	UNUSED_PARAMETER(data);
 	return 1.0f - cubic_ease_in_out(t);
 }
 
-static float mix_b(void *data, float t)
+static float swipe_mix_b(void *data, float t)
 {
 	UNUSED_PARAMETER(data);
 	return cubic_ease_in_out(t);
@@ -122,7 +122,8 @@ static bool swipe_audio_render(void *data, uint64_t *ts_out, struct obs_source_a
 			       size_t channels, size_t sample_rate)
 {
 	struct swipe_info *swipe = data;
-	return obs_transition_audio_render(swipe->source, ts_out, audio, mixers, channels, sample_rate, mix_a, mix_b);
+	return obs_transition_audio_render(swipe->source, ts_out, audio, mixers, channels, sample_rate, swipe_mix_a,
+					   swipe_mix_b);
 }
 
 static obs_properties_t *swipe_properties(void *data)

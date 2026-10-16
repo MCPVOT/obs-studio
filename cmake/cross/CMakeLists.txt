@@ -49,7 +49,7 @@ if(NOT CMAKE_TOOLCHAIN_FILE OR CMAKE_TOOLCHAIN_FILE STREQUAL _toolchain)
 endif()
 
 if(OBS_CROSS_TARGET MATCHES "^mac-")
-  project(obs-cross LANGUAGES C CXX OBJC)
+  project(obs-cross LANGUAGES C CXX OBJC OBJCXX)
   set(_host MACOS)
   set(_deps_platform macos-universal)
   set(_deps_arch universal)
@@ -128,6 +128,14 @@ set(HAS_INTERPROCEDURAL_OPTIMIZATION OFF CACHE BOOL "" FORCE)
 set(CMAKE_COMPILE_WARNING_AS_ERROR ${OBS_CROSS_WERROR})
 include(compiler_common)
 
+# The same precompiled headers and unity batches as the native builds
+# (cmake/common/pch.cmake, unity.cmake): unity is on here by default, since
+# finding Windows and macOS sources' file-local name collisions from Linux is
+# what this check is for.
+set(ENABLE_UNITY_BUILD ON CACHE BOOL "Compile each target as batches of concatenated sources")
+include(pch)
+include(unity)
+
 set(_c_sources ${LIBOBS_SOURCES} ${LIBOBS_PORTED_SOURCES} ${LIBOBS_${_host}_SOURCES} ${LIBOBS_${_host}_PORTED_SOURCES})
 list(APPEND _c_sources ${LIBOBS_${_host}_NOOP_SOURCES})
 if(_host STREQUAL WINDOWS)
@@ -135,6 +143,7 @@ if(_host STREQUAL WINDOWS)
   list(APPEND _c_sources util/windows/obfuscate.c)
 endif()
 _obs_cross_object_library(libobs-cross ${_c_sources})
+set_target_properties(libobs-cross PROPERTIES OBS_PCH_PROFILE libobs)
 # The C halves only the Rust build adds; the Rust itself is checked by the
 # cross lane (ci/local_gate.py, `soldr cargo clippy --target`).
 _obs_cross_object_library(libobs-cross-rust-shims ${LIBOBS_RUST_SOURCES})
@@ -148,3 +157,175 @@ set_source_files_properties(
   "${OBS_SOURCE_ROOT}/libobs/obs-win-crash-handler.c"
   PROPERTIES COMPILE_DEFINITIONS OBS_VERSION="cross-check"
 )
+
+# The platform-only plugins, compile-only like libobs above: each one's own
+# sources with the libobs, shared/ and deps/ headers it builds against, through
+# the same precompiled headers and unity batches as the native build. This is
+# where Windows- and macOS-only file-local name collisions show up.
+function(_obs_cross_plugin name)
+  cmake_parse_arguments(PARSE_ARGV 1 _P "OBJC_ARC;OBJC_MODULES" "DIR" "SOURCES;INCLUDES;DEFINES")
+  list(TRANSFORM _P_SOURCES PREPEND "${OBS_SOURCE_ROOT}/${_P_DIR}/")
+  list(TRANSFORM _P_INCLUDES PREPEND "${OBS_SOURCE_ROOT}/")
+  add_library(${name} OBJECT ${_P_SOURCES})
+  target_include_directories(
+    ${name}
+    PRIVATE
+      "${OBS_SOURCE_ROOT}/${_P_DIR}"
+      "${CMAKE_BINARY_DIR}/${name}"
+      ${_P_INCLUDES}
+      "${OBS_SOURCE_ROOT}/libobs"
+      "${CMAKE_BINARY_DIR}/config"
+      "${OBS_CROSS_DEPS}/include"
+      $<$<STREQUAL:${_host},WINDOWS>:${OBS_SOURCE_ROOT}/deps/w32-pthreads>
+  )
+  target_compile_definitions(
+    ${name}
+    PRIVATE
+      ENABLE_HEVC
+      OBS_VERSION="cross-check"
+      ${_P_DEFINES}
+      $<$<STREQUAL:${_host},WINDOWS>:NOMINMAX;UNICODE;_UNICODE;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS>
+  )
+  target_compile_options(
+    ${name}
+    PRIVATE
+      "$<$<COMPILE_LANGUAGE:C,OBJC>:${_obs_clang_c_options}>"
+      "$<$<COMPILE_LANGUAGE:CXX,OBJCXX>:${_obs_clang_cxx_options}>"
+  )
+  # The Xcode settings the plugin's CMakeLists.txt sets
+  # (XCODE_ATTRIBUTE_CLANG_ENABLE_OBJC_ARC / _MODULES), as compiler flags.
+  if(_P_OBJC_ARC)
+    target_compile_options(${name} PRIVATE "$<$<COMPILE_LANGUAGE:OBJC,OBJCXX>:-fobjc-arc>")
+  endif()
+  if(_P_OBJC_MODULES)
+    target_compile_options(${name} PRIVATE "$<$<COMPILE_LANGUAGE:OBJC,OBJCXX>:-fmodules>")
+  endif()
+  set_target_properties(
+    ${name}
+    PROPERTIES
+      C_STANDARD 17
+      C_STANDARD_REQUIRED TRUE
+      CXX_STANDARD 17
+      CXX_STANDARD_REQUIRED TRUE
+      COMPILE_WARNING_AS_ERROR ${OBS_CROSS_WERROR}
+      OBS_PCH_PROFILE plugin
+  )
+endfunction()
+
+if(_host STREQUAL WINDOWS)
+  _obs_cross_plugin(
+    win-capture-cross
+    DIR plugins/win-capture
+    SOURCES
+      app-helpers.c
+      audio-helpers.c
+      compat-helpers.c
+      cursor-capture.c
+      dc-capture.c
+      duplicator-monitor-capture.c
+      game-capture-file-init.c
+      game-capture.c
+      load-graphics-offsets.c
+      monitor-capture.c
+      nt-stuff.c
+      plugin-main.c
+      window-capture.c
+    INCLUDES shared/obs-hook-config shared/obs-inject-library shared/ipc-util shared/file-updater libobs-winrt
+    DEFINES COMPAT_URL="cross-check"
+  )
+  set(COMPILE_D3D12_HOOK 1)
+  set(VULKAN_FOUND 1)
+  configure_file(
+    "${OBS_SOURCE_ROOT}/plugins/win-capture/graphics-hook/graphics-hook-config.h.in"
+    "${CMAKE_BINARY_DIR}/graphics-hook-cross/graphics-hook-config.h"
+  )
+  _obs_cross_plugin(
+    graphics-hook-cross
+    DIR plugins/win-capture/graphics-hook
+    SOURCES
+      d3d10-capture.cpp
+      d3d11-capture.cpp
+      d3d12-capture.cpp
+      d3d8-capture.cpp
+      d3d9-capture.cpp
+      dxgi-capture.cpp
+      gl-capture.c
+      graphics-hook.c
+      vulkan-capture.c
+    INCLUDES shared/obs-hook-config shared/ipc-util shared/obs-d3d8-api plugins/win-capture
+    DEFINES COMPILE_D3D12_HOOK COMPILE_VULKAN_HOOK
+  )
+  _obs_cross_plugin(
+    get-graphics-offsets-cross
+    DIR plugins/win-capture/get-graphics-offsets
+    SOURCES d3d8-offsets.cpp d3d9-offsets.cpp ddraw-offsets.cpp dxgi-offsets.cpp get-graphics-offsets.c
+    INCLUDES shared/obs-hook-config shared/obs-d3d8-api plugins/win-capture
+  )
+  # The hook and offsets helper don't link libobs: standard-library PCH, as
+  # in the native build.
+  set_target_properties(graphics-hook-cross get-graphics-offsets-cross PROPERTIES OBS_PCH_PROFILE std)
+  # As in their CMakeLists.txt: one Direct3D version per source, no unity.
+  set_target_properties(graphics-hook-cross get-graphics-offsets-cross PROPERTIES OBS_DISABLE_UNITY_BUILD ON)
+  _obs_cross_plugin(
+    win-wasapi-cross
+    DIR plugins/win-wasapi
+    SOURCES enum-wasapi.cpp plugin-main.cpp wasapi-notify.cpp win-wasapi.cpp
+  )
+  _obs_cross_plugin(
+    win-dshow-cross
+    DIR plugins/win-dshow
+    SOURCES dshow-plugin.cpp ffmpeg-decode.c win-dshow-encoder.cpp win-dshow.cpp
+    INCLUDES deps/libdshowcapture deps/libdshowcapture/src shared/obs-tiny-nv12-scale shared/obs-shared-memory-queue
+  )
+  _obs_cross_plugin(
+    obs-nvenc-cross
+    DIR plugins/obs-nvenc
+    SOURCES
+      cuda-helpers.c
+      cuda-load.c
+      nvenc-compat.c
+      nvenc-cuda.c
+      nvenc-d3d11.c
+      nvenc-helpers.c
+      nvenc-load.c
+      nvenc-opts-parser.c
+      nvenc-properties.c
+      nvenc.c
+      nvenc-override.c
+      obs-nvenc.c
+    INCLUDES shared/opts-parser
+  )
+  _obs_cross_plugin(coreaudio-encoder-cross DIR plugins/coreaudio-encoder SOURCES encoder.cpp)
+elseif(_host STREQUAL MACOS)
+  _obs_cross_plugin(
+    mac-capture-cross
+    DIR plugins/mac-capture
+    SOURCES
+      audio-device-enum.c
+      mac-audio.c
+      mac-display-capture.m
+      mac-sck-audio-capture.m
+      mac-sck-common.m
+      mac-sck-stop.c
+      mac-sck-video-capture.m
+      mac-window-capture.m
+      plugin-main.c
+      window-utils.m
+  )
+  _obs_cross_plugin(
+    mac-avcapture-cross
+    OBJC_ARC
+    OBJC_MODULES
+    DIR plugins/mac-avcapture
+    SOURCES
+      avcapture-audio-planes.c
+      legacy/av-capture.mm
+      OBSAVCapture.m
+      OBSAVCapturePresetInfo.m
+      AVCaptureDeviceFormat+OBSListable.m
+      plugin-main.m
+      plugin-properties.m
+  )
+  _obs_cross_plugin(mac-videotoolbox-cross DIR plugins/mac-videotoolbox SOURCES encoder.c)
+  _obs_cross_plugin(coreaudio-encoder-cross DIR plugins/coreaudio-encoder SOURCES encoder.cpp)
+endif()

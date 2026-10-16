@@ -26,7 +26,7 @@
 #define FIND_WINDOW_INTERVAL 2.0
 
 static Display *disp = NULL;
-static xcb_connection_t *conn = NULL;
+static xcb_connection_t *xcomp_conn = NULL;
 // Atoms used throughout our plugin
 xcb_atom_t ATOM_UTF8_STRING;
 xcb_atom_t ATOM_STRING;
@@ -511,8 +511,8 @@ static void xcompcap_get_hooked(void *data, calldata_t *cd)
 	calldata_set_bool(cd, "hooked", s->window_hooked);
 
 	if (s->window_hooked) {
-		struct dstr wname = xcomp_window_name(conn, disp, s->win);
-		struct dstr wcls = xcomp_window_class(conn, s->win);
+		struct dstr wname = xcomp_window_name(xcomp_conn, disp, s->win);
+		struct dstr wcls = xcomp_window_class(xcomp_conn, s->win);
 		calldata_set_string(cd, "name", wname.array);
 		calldata_set_string(cd, "class", wcls.array);
 		dstr_free(&wname);
@@ -554,7 +554,7 @@ static void *xcompcap_create(obs_data_t *settings, obs_source_t *source)
 	s->window_hooked = false;
 
 	obs_enter_graphics();
-	s->cursor = xcb_xcursor_init(conn);
+	s->cursor = xcb_xcursor_init(xcomp_conn);
 	obs_leave_graphics();
 
 	signal_handler_t *sh = obs_source_get_signal_handler(source);
@@ -576,7 +576,7 @@ static void xcompcap_destroy(void *data)
 	obs_enter_graphics();
 	pthread_mutex_lock(&s->lock);
 
-	watcher_unregister(conn, s);
+	watcher_unregister(xcomp_conn, s);
 	xcomp_cleanup_pixmap(disp, s);
 
 	if (s->cursor)
@@ -600,11 +600,11 @@ static void xcompcap_video_tick(void *data, float seconds)
 	pthread_mutex_lock(&s->lock);
 
 	xcb_generic_event_t *event;
-	while ((event = xcb_poll_for_queued_event(conn)))
+	while ((event = xcb_poll_for_queued_event(xcomp_conn)))
 		watcher_process(event);
 
 	// Send an unhooked signal if the window isn't found anymore
-	if (s->window_hooked && !xcomp_window_exists(conn, s->win)) {
+	if (s->window_hooked && !xcomp_window_exists(xcomp_conn, s->win)) {
 		s->window_hooked = false;
 
 		signal_handler_t *sh = obs_source_get_signal_handler(s->source);
@@ -616,23 +616,23 @@ static void xcompcap_video_tick(void *data, float seconds)
 
 	// Reacquire window after interval or immediately if reconfigured.
 	s->window_check_time += seconds;
-	bool window_lost = !xcomp_window_exists(conn, s->win) || !s->gltex;
+	bool window_lost = !xcomp_window_exists(xcomp_conn, s->win) || !s->gltex;
 	if ((window_lost && (double)s->window_check_time > FIND_WINDOW_INTERVAL) || s->window_changed) {
-		watcher_unregister(conn, s);
+		watcher_unregister(xcomp_conn, s);
 
 		s->window_changed = false;
 		s->window_check_time = 0.0;
-		s->win = xcomp_find_window(conn, disp, s->windowName);
+		s->win = xcomp_find_window(xcomp_conn, disp, s->windowName);
 
 		// Send a hooked signal if a new window has been found
-		if (!s->window_hooked && xcomp_window_exists(conn, s->win)) {
+		if (!s->window_hooked && xcomp_window_exists(xcomp_conn, s->win)) {
 			s->window_hooked = true;
 
 			signal_handler_t *sh = obs_source_get_signal_handler(s->source);
 			calldata_t signal_data = {0};
 			calldata_set_ptr(&signal_data, "source", s->source);
-			struct dstr wname = xcomp_window_name(conn, disp, s->win);
-			struct dstr wcls = xcomp_window_class(conn, s->win);
+			struct dstr wname = xcomp_window_name(xcomp_conn, disp, s->win);
+			struct dstr wcls = xcomp_window_class(xcomp_conn, s->win);
 			calldata_set_string(&signal_data, "name", wname.array);
 			calldata_set_string(&signal_data, "class", wcls.array);
 			signal_handler_signal(sh, "hooked", &signal_data);
@@ -641,12 +641,12 @@ static void xcompcap_video_tick(void *data, float seconds)
 			calldata_free(&signal_data);
 		}
 
-		watcher_register(conn, s);
+		watcher_register(xcomp_conn, s);
 		xcomp_cleanup_pixmap(disp, s);
 		// Avoid excessive logging. We expect this to fail while windows are
 		// minimized or on offscreen workspaces or already captured on NVIDIA.
-		xcomp_create_pixmap(conn, s, LOG_DEBUG);
-		xcb_xcursor_offset_win(conn, s->cursor, s->win);
+		xcomp_create_pixmap(xcomp_conn, s, LOG_DEBUG);
+		xcb_xcursor_offset_win(xcomp_conn, s->cursor, s->win);
 		xcb_xcursor_offset(s->cursor, s->cursor->x_org + s->crop_left, s->cursor->y_org + s->crop_top);
 	}
 
@@ -657,7 +657,7 @@ static void xcompcap_video_tick(void *data, float seconds)
 		goto done;
 
 	if (s->show_cursor) {
-		xcb_xcursor_update(conn, s->cursor);
+		xcb_xcursor_update(xcomp_conn, s->cursor);
 
 		s->cursor_outside = s->cursor->x < 0 || s->cursor->y < 0 || s->cursor->x > (int)xcompcap_get_width(s) ||
 				    s->cursor->y > (int)xcompcap_get_height(s);
@@ -769,14 +769,14 @@ static obs_properties_t *xcompcap_props(void *data)
 		}
 	}
 
-	struct darray windows = xcomp_top_level_windows(conn);
+	struct darray windows = xcomp_top_level_windows(xcomp_conn);
 	bool window_found = false;
 
 	for (size_t w = 0; w < windows.num; w++) {
 		xcb_window_t win = *(xcb_window_t *)darray_item(sizeof(xcb_window_t), &windows, w);
 
-		struct dstr name = xcomp_window_name(conn, disp, win);
-		struct dstr cls = xcomp_window_class(conn, win);
+		struct dstr name = xcomp_window_name(xcomp_conn, disp, win);
+		struct dstr cls = xcomp_window_class(xcomp_conn, win);
 
 		struct dstr desc = {0};
 		dstr_printf(&desc, "%d" WIN_STRING_DIV "%s" WIN_STRING_DIV "%s", win, name.array, cls.array);
@@ -877,15 +877,15 @@ static void xcompcap_update(void *data, obs_data_t *settings)
 	}
 	bfree(prev_name);
 
-	s->win = xcomp_find_window(conn, disp, s->windowName);
-	if (!s->window_hooked && xcomp_window_exists(conn, s->win)) {
+	s->win = xcomp_find_window(xcomp_conn, disp, s->windowName);
+	if (!s->window_hooked && xcomp_window_exists(xcomp_conn, s->win)) {
 		s->window_hooked = true;
 
 		signal_handler_t *sh = obs_source_get_signal_handler(s->source);
 		calldata_t signal_data = {0};
 		calldata_set_ptr(&signal_data, "source", s->source);
-		struct dstr wname = xcomp_window_name(conn, disp, s->win);
-		struct dstr wcls = xcomp_window_class(conn, s->win);
+		struct dstr wname = xcomp_window_name(xcomp_conn, disp, s->win);
+		struct dstr wcls = xcomp_window_class(xcomp_conn, s->win);
 		calldata_set_string(&signal_data, "name", wname.array);
 		calldata_set_string(&signal_data, "class", wcls.array);
 		signal_handler_signal(sh, "hooked", &signal_data);
@@ -895,8 +895,8 @@ static void xcompcap_update(void *data, obs_data_t *settings)
 	}
 
 	if (s->win && s->windowName) {
-		struct dstr wname = xcomp_window_name(conn, disp, s->win);
-		struct dstr wcls = xcomp_window_class(conn, s->win);
+		struct dstr wname = xcomp_window_name(xcomp_conn, disp, s->win);
+		struct dstr wcls = xcomp_window_class(xcomp_conn, s->win);
 		blog(LOG_INFO,
 		     "[window-capture: '%s'] update settings:\n"
 		     "\ttitle: %s\n"
@@ -906,10 +906,10 @@ static void xcompcap_update(void *data, obs_data_t *settings)
 		dstr_free(&wcls);
 	}
 
-	watcher_register(conn, s);
+	watcher_register(xcomp_conn, s);
 	xcomp_cleanup_pixmap(disp, s);
-	xcomp_create_pixmap(conn, s, LOG_ERROR);
-	xcb_xcursor_offset_win(conn, s->cursor, s->win);
+	xcomp_create_pixmap(xcomp_conn, s, LOG_ERROR);
+	xcb_xcursor_offset_win(xcomp_conn, s->cursor, s->win);
 	xcb_xcursor_offset(s->cursor, s->cursor->x_org + s->crop_left, s->cursor->y_org + s->crop_top);
 
 	pthread_mutex_unlock(&s->lock);
@@ -925,20 +925,21 @@ static const char *xcompcap_getname(void *data)
 void xcomposite_load(void)
 {
 	disp = XOpenDisplay(NULL);
-	conn = XGetXCBConnection(disp);
-	if (xcb_connection_has_error(conn)) {
+	xcomp_conn = XGetXCBConnection(disp);
+	if (xcb_connection_has_error(xcomp_conn)) {
 		blog(LOG_ERROR, "failed opening display");
 		return;
 	}
 
-	const xcb_query_extension_reply_t *xcomp_ext = xcb_get_extension_data(conn, &xcb_composite_id);
+	const xcb_query_extension_reply_t *xcomp_ext = xcb_get_extension_data(xcomp_conn, &xcb_composite_id);
 	if (!xcomp_ext->present) {
 		blog(LOG_ERROR, "Xcomposite extension not supported");
 		return;
 	}
 
-	xcb_composite_query_version_cookie_t version_cookie = xcb_composite_query_version(conn, 0, 2);
-	xcb_composite_query_version_reply_t *version = xcb_composite_query_version_reply(conn, version_cookie, NULL);
+	xcb_composite_query_version_cookie_t version_cookie = xcb_composite_query_version(xcomp_conn, 0, 2);
+	xcb_composite_query_version_reply_t *version =
+		xcb_composite_query_version_reply(xcomp_conn, version_cookie, NULL);
 	if (version->major_version == 0 && version->minor_version < 2) {
 		blog(LOG_ERROR, "Xcomposite extension is too old: %d.%d < 0.2", version->major_version,
 		     version->minor_version);
@@ -948,10 +949,10 @@ void xcomposite_load(void)
 	free(version);
 
 	// Must be done before other helpers called.
-	xcomp_gather_atoms(conn);
+	xcomp_gather_atoms(xcomp_conn);
 
-	xcb_screen_t *screen_default = xcb_get_screen(conn, DefaultScreen(disp));
-	if (!screen_default || !xcomp_check_ewmh(conn, screen_default->root)) {
+	xcb_screen_t *screen_default = xcb_get_screen(xcomp_conn, DefaultScreen(disp));
+	if (!screen_default || !xcomp_check_ewmh(xcomp_conn, screen_default->root)) {
 		blog(LOG_ERROR,
 		     "window manager does not support Extended Window Manager Hints (EWMH).\nXComposite capture disabled.");
 		return;
@@ -980,6 +981,6 @@ void xcomposite_unload(void)
 {
 	XCloseDisplay(disp);
 	disp = NULL;
-	conn = NULL;
+	xcomp_conn = NULL;
 	watcher_unload();
 }

@@ -81,7 +81,7 @@ static const char *color_key_name(void *unused)
 	return obs_module_text("ColorKeyFilter");
 }
 
-static inline void color_settings_update_v1(struct color_key_filter_data *filter, obs_data_t *settings)
+static inline void color_key_settings_update_v1(struct color_key_filter_data *filter, obs_data_t *settings)
 {
 	uint32_t opacity = (uint32_t)obs_data_get_int(settings, SETTING_OPACITY);
 	uint32_t color = 0xFFFFFF | (((opacity * 255) / 100) << 24);
@@ -102,7 +102,7 @@ static inline void color_settings_update_v1(struct color_key_filter_data *filter
 	vec4_from_rgba(&filter->color, color);
 }
 
-static inline void color_settings_update_v2(struct color_key_filter_data_v2 *filter, obs_data_t *settings)
+static inline void color_key_settings_update_v2(struct color_key_filter_data_v2 *filter, obs_data_t *settings)
 {
 	filter->opacity = (float)obs_data_get_double(settings, SETTING_OPACITY);
 
@@ -165,7 +165,7 @@ static void color_key_update_v1(void *data, obs_data_t *settings)
 {
 	struct color_key_filter_data *filter = data;
 
-	color_settings_update_v1(filter, settings);
+	color_key_settings_update_v1(filter, settings);
 	key_settings_update_v1(filter, settings);
 }
 
@@ -173,7 +173,7 @@ static void color_key_update_v2(void *data, obs_data_t *settings)
 {
 	struct color_key_filter_data_v2 *filter = data;
 
-	color_settings_update_v2(filter, settings);
+	color_key_settings_update_v2(filter, settings);
 	key_settings_update_v2(filter, settings);
 }
 
@@ -327,7 +327,7 @@ static void color_key_render_v2(void *data, gs_effect_t *effect)
 	}
 }
 
-static bool key_type_changed(obs_properties_t *props, obs_property_t *p, obs_data_t *settings)
+static bool color_key_type_changed(obs_properties_t *props, obs_property_t *p, obs_data_t *settings)
 {
 	const char *type = obs_data_get_string(settings, SETTING_COLOR_TYPE);
 	bool custom = strcmp(type, "custom") == 0;
@@ -350,7 +350,7 @@ static obs_properties_t *color_key_properties_v1(void *data)
 	obs_property_list_add_string(p, obs_module_text("Magenta"), "magenta");
 	obs_property_list_add_string(p, obs_module_text("CustomColor"), "custom");
 
-	obs_property_set_modified_callback(p, key_type_changed);
+	obs_property_set_modified_callback(p, color_key_type_changed);
 
 	obs_properties_add_color(props, SETTING_KEY_COLOR, TEXT_KEY_COLOR);
 	obs_properties_add_int_slider(props, SETTING_SIMILARITY, TEXT_SIMILARITY, 1, 1000, 1);
@@ -379,7 +379,7 @@ static obs_properties_t *color_key_properties_v2(void *data)
 	obs_property_list_add_string(p, obs_module_text("Magenta"), "magenta");
 	obs_property_list_add_string(p, obs_module_text("CustomColor"), "custom");
 
-	obs_property_set_modified_callback(p, key_type_changed);
+	obs_property_set_modified_callback(p, color_key_type_changed);
 
 	obs_properties_add_color(props, SETTING_KEY_COLOR, TEXT_KEY_COLOR);
 	obs_properties_add_int_slider(props, SETTING_SIMILARITY, TEXT_SIMILARITY, 1, 1000, 1);

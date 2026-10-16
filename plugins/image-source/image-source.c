@@ -318,7 +318,7 @@ uint64_t image_source_get_memory_usage(void *data)
 	return s->image.mem_usage;
 }
 
-static void missing_file_callback(void *src, const char *new_path, void *data)
+static void image_missing_file_callback(void *src, const char *new_path, void *data)
 {
 	struct image_source *s = src;
 
@@ -338,7 +338,7 @@ static obs_missing_files_t *image_source_missingfiles(void *data)
 
 	if (strcmp(s->file, "") != 0) {
 		if (!os_file_exists(s->file)) {
-			obs_missing_file_t *file = obs_missing_file_create(s->file, missing_file_callback,
+			obs_missing_file_t *file = obs_missing_file_create(s->file, image_missing_file_callback,
 									   OBS_MISSING_FILE_SOURCE, s->source, NULL);
 
 			obs_missing_files_add_file(files, file);
@@ -404,3 +404,6 @@ bool obs_module_load(void)
 	obs_register_source(&slideshow_info_mk2);
 	return true;
 }
+
+/* File-local macros: keep them out of the next source of a unity build. */
+#undef warn

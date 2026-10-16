@@ -18,25 +18,25 @@
 #include <inttypes.h>
 #include "obs-internal.h"
 
-static inline bool delay_active(const struct obs_output *output)
+static inline bool od_delay_active(const struct obs_output *output)
 {
 	return os_atomic_load_bool(&output->delay_active);
 }
 
-static inline bool delay_capturing(const struct obs_output *output)
+static inline bool od_delay_capturing(const struct obs_output *output)
 {
 	return os_atomic_load_bool(&output->delay_capturing);
 }
 
-static inline bool flag_encoded(const struct obs_output *output)
+static inline bool od_flag_encoded(const struct obs_output *output)
 {
 	return (output->info.flags & OBS_OUTPUT_ENCODED) != 0;
 }
 
-static inline bool log_flag_encoded(const struct obs_output *output, const char *func_name, bool inverse_log)
+static inline bool od_log_flag_encoded(const struct obs_output *output, const char *func_name, bool inverse_log)
 {
 	const char *prefix = inverse_log ? "n encoded" : " raw";
-	bool ret = flag_encoded(output);
+	bool ret = od_flag_encoded(output);
 	if ((!inverse_log && !ret) || (inverse_log && ret))
 		blog(LOG_WARNING, "Output '%s': Tried to use %s on a%s output", output->context.name, func_name,
 		     prefix);
@@ -64,7 +64,7 @@ static inline void process_delay_data(struct obs_output *output, struct delay_da
 {
 	switch (dd->msg) {
 	case DELAY_MSG_PACKET:
-		if (!delay_active(output) || !delay_capturing(output))
+		if (!od_delay_active(output) || !od_delay_capturing(output))
 			obs_encoder_packet_release(&dd->packet);
 		else
 			output->delay_callback(output, &dd->packet, dd->packet_time_valid ? &dd->packet_time : NULL);
@@ -145,7 +145,7 @@ bool obs_output_delay_start(obs_output_t *output)
 		.ts = os_gettime_ns(),
 	};
 
-	if (!delay_active(output)) {
+	if (!od_delay_active(output)) {
 		bool can_begin = obs_output_can_begin_data_capture(output, 0);
 		if (!can_begin)
 			return false;
@@ -162,7 +162,7 @@ bool obs_output_delay_start(obs_output_t *output)
 
 	os_atomic_inc_long(&output->delay_restart_refs);
 
-	if (delay_active(output)) {
+	if (od_delay_active(output)) {
 		do_output_signal(output, "starting");
 		return true;
 	}
@@ -193,7 +193,7 @@ void obs_output_set_delay(obs_output_t *output, uint32_t delay_sec, uint32_t fla
 {
 	if (!obs_output_valid(output, "obs_output_set_delay"))
 		return;
-	if (!log_flag_encoded(output, __FUNCTION__, false))
+	if (!od_log_flag_encoded(output, __FUNCTION__, false))
 		return;
 
 	output->delay_sec = delay_sec;

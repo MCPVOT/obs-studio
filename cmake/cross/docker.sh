@@ -5,6 +5,9 @@
 #
 #   cmake/cross/docker.sh [--clean|--clean-all] [--wait] <alias>...
 #   e.g. cmake/cross/docker.sh mac-arm64 win-x64
+#   OBS_CROSS_CMAKE_ARGS="-DOBS_UNITY_BUILD_BATCH_SIZE=0" cmake/cross/docker.sh win-x64
+#     (extra CMake arguments; batch size 0 puts each target in one unity
+#     batch, so every pair of its sources meets)
 #
 # Code and caches:
 #   /src           the checkout, copy-on-write overlay: read-only underneath,
@@ -39,7 +42,7 @@ script='set -e; cd /src
 for alias in "$@"; do
   echo "== cross $alias"
   # soldr itself is downloaded once into the shared soldr volume, not per alias.
-  OBS_CROSS_TARGET="$alias" cmake -S cmake/cross -B "/build/$alias" -G Ninja -DOBS_CROSS_TARGET="$alias" \
+  OBS_CROSS_TARGET="$alias" cmake -S cmake/cross -B "/build/$alias" -G Ninja -DOBS_CROSS_TARGET="$alias" ${OBS_CROSS_CMAKE_ARGS:-} \
     -DOBS_SOLDR_DOWNLOAD_DIR="/root/.soldr/obs-bootstrap/$SOLDR_VERSION"
   OBS_CROSS_TARGET="$alias" cmake --build "/build/$alias" -- -k 0
 done'
@@ -56,4 +59,5 @@ exec bash "$repo/ci/docker-task.sh" run --name obs-cross --repo "$repo" \
   --machine-volume deps:/src/.deps \
   --budget build=6G --budget soldr=12G --budget deps=2G \
   --env "SOLDR_VERSION=$soldr_version" \
+  --env "OBS_CROSS_CMAKE_ARGS=${OBS_CROSS_CMAKE_ARGS:-}" \
   ${task[@]+"${task[@]}"} -- bash -c "$script" cross "${aliases[@]}"

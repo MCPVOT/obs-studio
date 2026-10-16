@@ -22,7 +22,7 @@ struct dacast_ingest_info {
 
 struct dacast_ingest dacast_invalid_ingest = {"rtmp://dacast", "", "", "fake_key"};
 
-static DARRAY(struct dacast_ingest_info) cur_ingests;
+static DARRAY(struct dacast_ingest_info) dacast_cur_ingests;
 
 static void free_ingest(struct dacast_ingest ingest)
 {
@@ -32,21 +32,21 @@ static void free_ingest(struct dacast_ingest ingest)
 	bfree((void *)(uintptr_t)ingest.streamkey);
 }
 
-static void free_ingests(void)
+static void dacast_free_ingests(void)
 {
-	for (size_t i = 0; i < cur_ingests.num; i++) {
-		struct dacast_ingest_info *info = &cur_ingests.array[i];
+	for (size_t i = 0; i < dacast_cur_ingests.num; i++) {
+		struct dacast_ingest_info *info = &dacast_cur_ingests.array[i];
 		bfree(info->key);
 		free_ingest(info->ingest);
 	}
-	da_free(cur_ingests);
+	da_free(dacast_cur_ingests);
 }
 
-static struct dacast_ingest_info *find_ingest(const char *key)
+static struct dacast_ingest_info *dacast_find_ingest(const char *key)
 {
 	struct dacast_ingest_info *ret = NULL;
-	for (size_t i = 0; i < cur_ingests.num; i++) {
-		struct dacast_ingest_info *info = &cur_ingests.array[i];
+	for (size_t i = 0; i < dacast_cur_ingests.num; i++) {
+		struct dacast_ingest_info *info = &dacast_cur_ingests.array[i];
 		if (strcmp(info->key, key) == 0) {
 			ret = info;
 			break;
@@ -55,14 +55,14 @@ static struct dacast_ingest_info *find_ingest(const char *key)
 	return (struct dacast_ingest_info *)ret;
 }
 
-static bool load_ingests(const char *json, const char *key)
+static bool dacast_load_ingests(const char *json, const char *key)
 {
 	json_t *root;
 	json_t *stream;
 	bool success = false;
-	struct dacast_ingest_info *info = find_ingest(key);
+	struct dacast_ingest_info *info = dacast_find_ingest(key);
 	if (!info) {
-		info = da_push_back_new(cur_ingests);
+		info = da_push_back_new(dacast_cur_ingests);
 		info->key = bstrdup(key);
 	} else {
 		free_ingest(info->ingest);
@@ -109,7 +109,7 @@ static bool dacast_ingest_update(void *param, struct file_download_data *data)
 	bool success;
 
 	pthread_mutex_lock(&mutex);
-	success = load_ingests((const char *)data->buffer.array, (const char *)param);
+	success = dacast_load_ingests((const char *)data->buffer.array, (const char *)param);
 	pthread_mutex_unlock(&mutex);
 
 	if (success) {
@@ -122,14 +122,14 @@ static bool dacast_ingest_update(void *param, struct file_download_data *data)
 struct dacast_ingest *dacast_ingest(const char *key)
 {
 	pthread_mutex_lock(&mutex);
-	struct dacast_ingest_info *info = find_ingest(key);
+	struct dacast_ingest_info *info = dacast_find_ingest(key);
 	pthread_mutex_unlock(&mutex);
 	return info == NULL ? &dacast_invalid_ingest : &info->ingest;
 }
 
 void init_dacast_data(void)
 {
-	da_init(cur_ingests);
+	da_init(dacast_cur_ingests);
 	pthread_mutex_init(&mutex, NULL);
 }
 
@@ -169,6 +169,6 @@ void dacast_ingests_load_data(const char *server, const char *key)
 void unload_dacast_data(void)
 {
 	update_info_destroy(dacast_update_info);
-	free_ingests();
+	dacast_free_ingests();
 	pthread_mutex_destroy(&mutex);
 }

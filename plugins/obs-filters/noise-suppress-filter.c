@@ -549,3 +549,6 @@ struct obs_source_info noise_suppress_filter_v2 = {
 	.get_defaults = noise_suppress_defaults_v2,
 	.get_properties = noise_suppress_properties,
 };
+
+/* File-local macros: keep them out of the next source of a unity build. */
+#undef do_log

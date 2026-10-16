@@ -128,3 +128,6 @@ int v4l2_decode_frame(struct obs_source_frame *out, uint8_t *data, size_t length
 
 	return 0;
 }
+
+/* File-local macros: keep them out of the next source of a unity build. */
+#undef blog

@@ -35,13 +35,13 @@ struct portal_signal_call {
 #define REQUEST_PATH "/org/freedesktop/portal/desktop/request/%s/obs%u"
 #define SESSION_PATH "/org/freedesktop/portal/desktop/session/%s/obs%u"
 
-static GDBusConnection *connection = NULL;
+static GDBusConnection *portal_connection = NULL;
 
 static void ensure_connection(void)
 {
 	g_autoptr(GError) error = NULL;
-	if (!connection) {
-		connection = g_bus_get_sync(G_BUS_TYPE_SESSION, NULL, &error);
+	if (!portal_connection) {
+		portal_connection = g_bus_get_sync(G_BUS_TYPE_SESSION, NULL, &error);
 
 		if (error) {
 			blog(LOG_WARNING, "[portals] Error retrieving D-Bus connection: %s", error->message);
@@ -57,7 +57,7 @@ char *get_sender_name(void)
 
 	ensure_connection();
 
-	sender_name = bstrdup(g_dbus_connection_get_unique_name(connection) + 1);
+	sender_name = bstrdup(g_dbus_connection_get_unique_name(portal_connection) + 1);
 
 	/* Replace dots by underscores */
 	while ((aux = strstr(sender_name, ".")) != NULL)
@@ -69,7 +69,7 @@ char *get_sender_name(void)
 GDBusConnection *portal_get_dbus_connection(void)
 {
 	ensure_connection();
-	return connection;
+	return portal_connection;
 }
 
 void portal_create_request_path(char **out_path, char **out_token)

@@ -408,3 +408,6 @@ void gs_image_file_ex_update_texture(gs_image_file_ex_t *image)
 {
 	gs_image_file_ex_update_texture_internal(image, false);
 }
+
+/* File-local macros: keep them out of the next source of a unity build. */
+#undef blog

@@ -643,7 +643,7 @@ fail:
 
 /* ------------------------------------------------------------------------- */
 
-static inline bool stopping(struct ffmpeg_output *stream)
+static inline bool mpegts_stopping(struct ffmpeg_output *stream)
 {
 	return os_atomic_load_bool(&stream->stopping);
 }
@@ -690,7 +690,7 @@ fail:
 	return NULL;
 }
 
-static inline bool active(void *data)
+static inline bool mpegts_active(void *data)
 {
 	struct ffmpeg_output *stream = data;
 	return os_atomic_load_bool(&stream->running) && stream->write_thread_active;
@@ -764,7 +764,7 @@ static int mpegts_process_packet(struct ffmpeg_output *stream)
 	//     packet->size, packet->flags, packet->stream_index,
 	//     output->packets.num);
 
-	if (stopping(stream)) {
+	if (mpegts_stopping(stream)) {
 		uint64_t sys_ts = get_packet_sys_dts(stream, packet);
 		if (sys_ts >= stream->stop_ts) {
 			ret = 0;
@@ -1064,7 +1064,7 @@ static void ffmpeg_mpegts_full_stop(void *data)
 {
 	struct ffmpeg_output *stream = data;
 
-	if (active(stream)) {
+	if (mpegts_active(stream)) {
 		ffmpeg_mpegts_deactivate(stream);
 	}
 	ffmpeg_mpegts_data_free(stream, &stream->ff_data);
@@ -1074,7 +1074,7 @@ static void stop(void *data, bool signal, uint64_t ts)
 {
 	struct ffmpeg_output *stream = data;
 
-	if (active(stream)) {
+	if (mpegts_active(stream)) {
 		/* bypassed when called by destroy ==> no draining, instant stop */
 		if (ts > 0) {
 			/* this controls the draining of all packets in the write_threads when we stop */
@@ -1228,7 +1228,8 @@ static inline int64_t rescale_ts2(AVStream *stream, AVRational codec_time_base, 
  */
 void mpegts_write_packet(struct ffmpeg_output *stream, struct encoder_packet *encpacket)
 {
-	if (stopping(stream) || !stream->ff_data.video || !stream->ff_data.video_ctx || !stream->ff_data.audio_infos)
+	if (mpegts_stopping(stream) || !stream->ff_data.video || !stream->ff_data.video_ctx ||
+	    !stream->ff_data.audio_infos)
 		return;
 	bool is_video = encpacket->type == OBS_ENCODER_VIDEO;
 	if (!is_video) {
@@ -1337,7 +1338,7 @@ static void ffmpeg_mpegts_data(void *data, struct encoder_packet *packet)
 		ff_data->initialized = true;
 	}
 
-	if (!active(stream))
+	if (!mpegts_active(stream))
 		return;
 
 	/* encoder failure */
@@ -1347,7 +1348,7 @@ static void ffmpeg_mpegts_data(void *data, struct encoder_packet *packet)
 		return;
 	}
 
-	if (stopping(stream)) {
+	if (mpegts_stopping(stream)) {
 		if (packet->sys_dts_usec >= (int64_t)stream->stop_ts) {
 			ffmpeg_mpegts_stop_internal(stream, 0, false);
 			return;
@@ -1390,3 +1391,6 @@ struct obs_output_info ffmpeg_mpegts_muxer = {
 	.get_total_bytes = ffmpeg_mpegts_total_bytes,
 	.get_properties = ffmpeg_mpegts_properties,
 };
+
+/* File-local macros: keep them out of the next source of a unity build. */
+#undef do_log

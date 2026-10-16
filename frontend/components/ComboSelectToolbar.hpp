@@ -2,6 +2,8 @@
 
 #include "SourceToolbar.hpp"
 
+int FillPropertyCombo(QComboBox *c, obs_property_t *p, const std::string &cur_id, bool is_int = false);
+
 class Ui_DeviceSelectToolbar;
 
 class ComboSelectToolbar : public SourceToolbar {

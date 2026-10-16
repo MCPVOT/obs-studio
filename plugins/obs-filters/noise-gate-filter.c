@@ -194,3 +194,8 @@ struct obs_source_info noise_gate_filter = {
 	.get_defaults = noise_gate_defaults,
 	.get_properties = noise_gate_properties,
 };
+
+/* File-local macros: keep them out of the next source of a unity build. */
+#undef TEXT_ATTACK_TIME
+#undef TEXT_RELEASE_TIME
+#undef do_log

@@ -70,7 +70,7 @@ struct pw_portal_connection {
 	bool initializing;
 };
 
-struct pw_portal_connection *connection = NULL;
+struct pw_portal_connection *camera_connection = NULL;
 
 static void pw_portal_connection_free(struct pw_portal_connection *conn)
 {
@@ -264,7 +264,7 @@ static void stream_camera(struct camera_portal_source *camera_source)
 
 	g_clear_pointer(&camera_source->obs_pw_stream, obs_pipewire_stream_destroy);
 
-	device = g_hash_table_lookup(connection->devices, camera_source->device_id);
+	device = g_hash_table_lookup(camera_connection->devices, camera_source->device_id);
 
 	if (!device)
 		return;
@@ -304,8 +304,8 @@ static void stream_camera(struct camera_portal_source *camera_source)
 			.framerate = framerate,
 		}};
 
-	camera_source->obs_pw_stream =
-		obs_pipewire_connect_stream(connection->obs_pw, camera_source->source, device->id, &connect_info);
+	camera_source->obs_pw_stream = obs_pipewire_connect_stream(camera_connection->obs_pw, camera_source->source,
+								   device->id, &connect_info);
 }
 
 static double gcd(uint32_t m, uint32_t n)
@@ -652,13 +652,13 @@ static bool control_changed(void *data, obs_properties_t *props, obs_property_t 
 	}
 	param = spa_pod_builder_pop(&b, &f[0]);
 
-	if (!connection || !connection->obs_pw)
+	if (!camera_connection || !camera_connection->obs_pw)
 		return false;
 
 	/* The device table, the node proxies and their params belong to the
 	 * PipeWire thread: use them with its loop locked. */
-	obs_pipewire_lock(connection->obs_pw);
-	dev = g_hash_table_lookup(connection->devices, device_id);
+	obs_pipewire_lock(camera_connection->obs_pw);
+	dev = g_hash_table_lookup(camera_connection->devices, device_id);
 	/* A manual control whose automatic mode is on is ignored or refused
 	 * by the camera: it keeps its value for when that mode is off. */
 	if (dev && dev->proxy && !control_overridden(dev, props, settings, id))
@@ -667,7 +667,7 @@ static bool control_changed(void *data, obs_properties_t *props, obs_property_t 
 	 * manual ones: only then is the Properties window rebuilt. A
 	 * rebuild drops the slider that is being dragged. */
 	bool changed = dev && update_controls_enabled(dev, props, settings);
-	obs_pipewire_unlock(connection->obs_pw);
+	obs_pipewire_unlock(camera_connection->obs_pw);
 
 	if (dev == NULL)
 		blog(LOG_ERROR, "unknown device %s", device_id);
@@ -797,7 +797,7 @@ static bool device_selected(void *data, obs_properties_t *props, obs_property_t 
 	device_id = obs_data_get_string(settings, "device_id");
 	blog(LOG_INFO, "[camera-portal] selected camera '%s'", device_id);
 
-	device = g_hash_table_lookup(connection->devices, device_id);
+	device = g_hash_table_lookup(camera_connection->devices, device_id);
 	if (device == NULL)
 		return false;
 
@@ -990,7 +990,7 @@ static bool framerate_selected(void *data, obs_properties_t *properties, obs_pro
 	struct camera_device *device;
 	struct spa_fraction framerate;
 
-	device = g_hash_table_lookup(connection->devices, camera_source->device_id);
+	device = g_hash_table_lookup(camera_connection->devices, camera_source->device_id);
 	if (device == NULL)
 		return false;
 
@@ -1064,7 +1064,7 @@ static bool format_selected(void *data, obs_properties_t *properties, obs_proper
 
 	blog(LOG_INFO, "[camera-portal] Selected format for '%s'", camera_source->device_id);
 
-	device = g_hash_table_lookup(connection->devices, camera_source->device_id);
+	device = g_hash_table_lookup(camera_connection->devices, camera_source->device_id);
 	if (device == NULL)
 		return false;
 
@@ -1119,13 +1119,13 @@ static void populate_cameras_list(struct camera_portal_source *camera_source, ob
 	const char *device_id;
 	bool device_found;
 
-	if (!connection)
+	if (!camera_connection)
 		return;
 
 	obs_property_list_clear(device_list);
 
 	device_found = false;
-	g_hash_table_iter_init(&iter, connection->devices);
+	g_hash_table_iter_init(&iter, camera_connection->devices);
 	while (g_hash_table_iter_next(&iter, (gpointer *)(uintptr_t)&device_id, (gpointer *)&device)) {
 		const char *device_name;
 
@@ -1217,15 +1217,15 @@ static void on_destroy_proxy_cb(void *data)
  * linked: start it again without (stream_camera() drops it now). */
 static void restart_streams_on_unlisted_framerate(struct camera_device *device)
 {
-	if (!connection->sources)
+	if (!camera_connection->sources)
 		return;
 
-	for (size_t i = 0; i < connection->sources->len; i++) {
-		struct camera_portal_source *camera_source = g_ptr_array_index(connection->sources, i);
+	for (size_t i = 0; i < camera_connection->sources->len; i++) {
+		struct camera_portal_source *camera_source = g_ptr_array_index(camera_connection->sources, i);
 
 		if (!camera_source->obs_pw_stream || !camera_source->framerate.set || !camera_source->resolution.set ||
 		    !camera_source->device_id ||
-		    g_hash_table_lookup(connection->devices, camera_source->device_id) != device)
+		    g_hash_table_lookup(camera_connection->devices, camera_source->device_id) != device)
 			continue;
 
 		g_autoptr(GArray) framerates =
@@ -1266,7 +1266,7 @@ static void on_registry_global_cb(void *user_data, uint32_t id, uint32_t permiss
 	if (strcmp(type, PW_TYPE_INTERFACE_Node) != 0)
 		return;
 
-	registry = obs_pipewire_get_registry(connection->obs_pw);
+	registry = obs_pipewire_get_registry(camera_connection->obs_pw);
 	device_id = spa_dict_lookup(props, SPA_KEY_NODE_NAME);
 
 	blog(LOG_INFO, "[camera-portal] Found device %s", device_id);
@@ -1282,10 +1282,10 @@ static void on_registry_global_cb(void *user_data, uint32_t id, uint32_t permiss
 	device->node = (struct pw_node *)device->proxy;
 	pw_node_add_listener(device->node, &device->node_listener, &node_events, device);
 
-	g_hash_table_insert(connection->devices, bstrdup(device_id), device);
+	g_hash_table_insert(camera_connection->devices, bstrdup(device_id), device);
 
-	for (size_t i = 0; i < connection->sources->len; i++) {
-		struct camera_portal_source *camera_source = g_ptr_array_index(connection->sources, i);
+	for (size_t i = 0; i < camera_connection->sources->len; i++) {
+		struct camera_portal_source *camera_source = g_ptr_array_index(camera_connection->sources, i);
 		obs_source_update_properties(camera_source->source);
 		if (strcmp(camera_source->device_id, device_id) == 0)
 			stream_camera(camera_source);
@@ -1300,20 +1300,20 @@ static void on_registry_global_remove_cb(void *user_data, uint32_t id)
 	const char *device_id;
 	GHashTableIter iter;
 
-	g_hash_table_iter_init(&iter, connection->devices);
+	g_hash_table_iter_init(&iter, camera_connection->devices);
 	while (g_hash_table_iter_next(&iter, (gpointer *)(uintptr_t)&device_id, (gpointer *)&device)) {
 		if (device->id != id)
 			continue;
 		blog(LOG_INFO, "[pipewire-camera] Removed device %s", device_id);
 		g_hash_table_iter_remove(&iter);
 	}
-	for (size_t i = 0; i < connection->sources->len; i++) {
-		struct camera_portal_source *camera_source = g_ptr_array_index(connection->sources, i);
+	for (size_t i = 0; i < camera_connection->sources->len; i++) {
+		struct camera_portal_source *camera_source = g_ptr_array_index(camera_connection->sources, i);
 		obs_source_update_properties(camera_source->source);
 	}
 }
 
-static const struct pw_registry_events registry_events = {
+static const struct pw_registry_events camera_registry_events = {
 	PW_VERSION_REGISTRY_EVENTS,
 	.global = on_registry_global_cb,
 	.global_remove = on_registry_global_remove_cb,
@@ -1347,14 +1347,14 @@ static void on_pipewire_remote_opened_cb(GObject *source, GAsyncResult *res, voi
 		return;
 	}
 
-	connection->obs_pw = obs_pipewire_connect_fd(pipewire_fd);
-	if (!connection->obs_pw)
+	camera_connection->obs_pw = obs_pipewire_connect_fd(pipewire_fd);
+	if (!camera_connection->obs_pw)
 		return;
 
-	/* The registry callbacks use connection->obs_pw, so listen only once
+	/* The registry callbacks use camera_connection->obs_pw, so listen only once
 	 * it is set (obsproject/obs-studio#13971). */
-	obs_pipewire_add_registry_listener(connection->obs_pw, &registry_events, connection);
-	obs_pipewire_roundtrip(connection->obs_pw);
+	obs_pipewire_add_registry_listener(camera_connection->obs_pw, &camera_registry_events, camera_connection);
+	obs_pipewire_roundtrip(camera_connection->obs_pw);
 }
 
 static void open_pipewire_remote(void)
@@ -1365,7 +1365,7 @@ static void open_pipewire_remote(void)
 
 	g_dbus_proxy_call_with_unix_fd_list(get_camera_portal_proxy(), "OpenPipeWireRemote",
 					    g_variant_new("(a{sv})", &builder), G_DBUS_CALL_FLAGS_NONE, -1, NULL,
-					    connection->cancellable, on_pipewire_remote_opened_cb, NULL);
+					    camera_connection->cancellable, on_pipewire_remote_opened_cb, NULL);
 }
 
 /* ------------------------------------------------- */
@@ -1410,23 +1410,23 @@ static void access_camera(struct camera_portal_source *camera_source)
 	char *request_token;
 	char *request_path;
 
-	if (connection && connection->obs_pw) {
+	if (camera_connection && camera_connection->obs_pw) {
 		stream_camera(camera_source);
 		return;
 	}
 
-	if (!connection) {
-		connection = bzalloc(sizeof(struct pw_portal_connection));
-		connection->devices =
+	if (!camera_connection) {
+		camera_connection = bzalloc(sizeof(struct pw_portal_connection));
+		camera_connection->devices =
 			g_hash_table_new_full(g_str_hash, g_str_equal, bfree, (GDestroyNotify)camera_device_free);
-		connection->cancellable = g_cancellable_new();
-		connection->sources = g_ptr_array_new();
-		connection->initializing = false;
+		camera_connection->cancellable = g_cancellable_new();
+		camera_connection->sources = g_ptr_array_new();
+		camera_connection->initializing = false;
 	}
 
-	g_ptr_array_add(connection->sources, camera_source);
+	g_ptr_array_add(camera_connection->sources, camera_source);
 
-	if (connection->initializing)
+	if (camera_connection->initializing)
 		return;
 
 	portal_create_request_path(&request_path, &request_token);
@@ -1437,9 +1437,10 @@ static void access_camera(struct camera_portal_source *camera_source)
 	g_variant_builder_add(&builder, "{sv}", "handle_token", g_variant_new_string(request_token));
 
 	g_dbus_proxy_call(get_camera_portal_proxy(), "AccessCamera", g_variant_new("(a{sv})", &builder),
-			  G_DBUS_CALL_FLAGS_NONE, -1, connection->cancellable, on_access_camera_finished_cb, NULL);
+			  G_DBUS_CALL_FLAGS_NONE, -1, camera_connection->cancellable, on_access_camera_finished_cb,
+			  NULL);
 
-	connection->initializing = true;
+	camera_connection->initializing = true;
 
 	bfree(request_token);
 	bfree(request_path);
@@ -1509,8 +1510,8 @@ static void pipewire_camera_destroy(void *data)
 {
 	struct camera_portal_source *camera_source = data;
 
-	if (connection)
-		g_ptr_array_remove(connection->sources, camera_source);
+	if (camera_connection)
+		g_ptr_array_remove(camera_connection->sources, camera_source);
 
 	g_clear_pointer(&camera_source->obs_pw_stream, obs_pipewire_stream_destroy);
 	g_clear_pointer(&camera_source->device_id, bfree);
@@ -1628,5 +1629,5 @@ void camera_portal_load(void)
 
 void camera_portal_unload(void)
 {
-	g_clear_pointer(&connection, pw_portal_connection_free);
+	g_clear_pointer(&camera_connection, pw_portal_connection_free);
 }

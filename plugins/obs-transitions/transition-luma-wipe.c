@@ -186,13 +186,13 @@ void luma_wipe_video_render(void *data, gs_effect_t *effect)
 	UNUSED_PARAMETER(effect);
 }
 
-static float mix_a(void *data, float t)
+static float luma_wipe_mix_a(void *data, float t)
 {
 	UNUSED_PARAMETER(data);
 	return 1.0f - t;
 }
 
-static float mix_b(void *data, float t)
+static float luma_wipe_mix_b(void *data, float t)
 {
 	UNUSED_PARAMETER(data);
 	return t;
@@ -202,7 +202,8 @@ bool luma_wipe_audio_render(void *data, uint64_t *ts_out, struct obs_source_audi
 			    size_t channels, size_t sample_rate)
 {
 	struct luma_wipe_info *lwipe = data;
-	return obs_transition_audio_render(lwipe->source, ts_out, audio, mixers, channels, sample_rate, mix_a, mix_b);
+	return obs_transition_audio_render(lwipe->source, ts_out, audio, mixers, channels, sample_rate, luma_wipe_mix_a,
+					   luma_wipe_mix_b);
 }
 
 static enum gs_color_space luma_wipe_video_get_color_space(void *data, size_t count,

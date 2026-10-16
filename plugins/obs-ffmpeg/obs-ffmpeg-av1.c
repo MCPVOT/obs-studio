@@ -185,7 +185,7 @@ static void av1_destroy(void *data)
 	bfree(enc);
 }
 
-static void on_first_packet(void *data, AVPacket *pkt, struct darray *da)
+static void av1_on_first_packet(void *data, AVPacket *pkt, struct darray *da)
 {
 	struct av1_encoder *enc = data;
 
@@ -226,7 +226,7 @@ static void *av1_create_internal(obs_data_t *settings, obs_encoder_t *encoder, c
 	else if (strcmp(enc_lib, "libaom-av1") == 0)
 		enc->type = AV1_ENCODER_TYPE_AOM;
 
-	if (!ffmpeg_video_encoder_init(&enc->ffve, enc, encoder, enc_lib, NULL, enc_name, NULL, on_first_packet))
+	if (!ffmpeg_video_encoder_init(&enc->ffve, enc, encoder, enc_lib, NULL, enc_name, NULL, av1_on_first_packet))
 		goto fail;
 	if (!av1_update(enc, settings))
 		goto fail;
@@ -263,7 +263,7 @@ void av1_defaults(obs_data_t *settings)
 	obs_data_set_default_int(settings, "preset", 8);
 }
 
-static bool rate_control_modified(obs_properties_t *ppts, obs_property_t *p, obs_data_t *settings)
+static bool av1_rate_control_modified(obs_properties_t *ppts, obs_property_t *p, obs_data_t *settings)
 {
 	const char *rc = obs_data_get_string(settings, "rate_control");
 	bool cqp = astrcmpi(rc, "CQP") == 0;
@@ -290,7 +290,7 @@ obs_properties_t *av1_properties(enum av1_encoder_type type)
 	obs_property_list_add_string(p, "CQP", "CQP");
 	obs_property_list_add_string(p, "VBR", "VBR");
 
-	obs_property_set_modified_callback(p, rate_control_modified);
+	obs_property_set_modified_callback(p, av1_rate_control_modified);
 
 	p = obs_properties_add_int(props, "bitrate", obs_module_text("Bitrate"), 50, 300000, 50);
 	obs_property_int_set_suffix(p, " Kbps");
@@ -379,3 +379,6 @@ struct obs_encoder_info aom_av1_encoder_info = {
 	.get_video_info = av1_video_info,
 	.request_keyframe = av1_request_keyframe,
 };
+
+/* File-local macros: keep them out of the next source of a unity build. */
+#undef do_log

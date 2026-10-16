@@ -71,7 +71,7 @@ typedef struct Av1GetBitContext {
 	int size_in_bits_plus8;
 } Av1GetBitContext;
 
-static inline int init_get_bits_xe(Av1GetBitContext *s, const uint8_t *buffer, int bit_size)
+static inline int av1_init_get_bits_xe(Av1GetBitContext *s, const uint8_t *buffer, int bit_size)
 {
 	int buffer_size;
 	int ret = 0;
@@ -93,16 +93,16 @@ static inline int init_get_bits_xe(Av1GetBitContext *s, const uint8_t *buffer, i
 	return ret;
 }
 
-static inline int init_get_bits(Av1GetBitContext *s, const uint8_t *buffer, int bit_size)
+static inline int av1_init_get_bits(Av1GetBitContext *s, const uint8_t *buffer, int bit_size)
 {
-	return init_get_bits_xe(s, buffer, bit_size);
+	return av1_init_get_bits_xe(s, buffer, bit_size);
 }
 
-static inline int init_get_bits8(Av1GetBitContext *s, const uint8_t *buffer, int byte_size)
+static inline int av1_init_get_bits8(Av1GetBitContext *s, const uint8_t *buffer, int byte_size)
 {
 	if (byte_size > INT_MAX / 8 || byte_size < 0)
 		byte_size = -1;
-	return init_get_bits(s, buffer, byte_size * 8);
+	return av1_init_get_bits(s, buffer, byte_size * 8);
 }
 
 static inline unsigned int get_bit1(Av1GetBitContext *s)
@@ -120,7 +120,7 @@ static inline unsigned int get_bit1(Av1GetBitContext *s)
 	return result;
 }
 
-static inline unsigned int get_bits(Av1GetBitContext *s, unsigned int n)
+static inline unsigned int av1_get_bits(Av1GetBitContext *s, unsigned int n)
 {
 	unsigned int out = 0;
 	for (unsigned int i = 0; i < n; i++)
@@ -128,19 +128,19 @@ static inline unsigned int get_bits(Av1GetBitContext *s, unsigned int n)
 	return out;
 }
 
-#define skip_bits get_bits
+#define skip_bits av1_get_bits
 
-static inline int get_bits_count(Av1GetBitContext *s)
+static inline int av1_get_bits_count(Av1GetBitContext *s)
 {
 	return s->index;
 }
 
-static inline int get_bits_left(Av1GetBitContext *gb)
+static inline int av1_get_bits_left(Av1GetBitContext *gb)
 {
-	return gb->size_in_bits - get_bits_count(gb);
+	return gb->size_in_bits - av1_get_bits_count(gb);
 }
 
-#define get_bits_long get_bits
+#define get_bits_long av1_get_bits
 #define skip_bits_long get_bits_long
 
 static inline int64_t leb128(Av1GetBitContext *gb)
@@ -149,7 +149,7 @@ static inline int64_t leb128(Av1GetBitContext *gb)
 	int i;
 
 	for (i = 0; i < 8; i++) {
-		int byte = get_bits(gb, 8);
+		int byte = av1_get_bits(gb, 8);
 		ret |= (int64_t)(byte & 0x7f) << (i * 7);
 		if (!(byte & 0x80))
 			break;
@@ -161,8 +161,8 @@ static inline void uvlc(Av1GetBitContext *gb)
 {
 	int leading_zeros = 0;
 
-	while (get_bits_left(gb)) {
-		if (get_bits(gb, 1))
+	while (av1_get_bits_left(gb)) {
+		if (av1_get_bits(gb, 1))
 			break;
 		leading_zeros++;
 	}
@@ -180,21 +180,21 @@ static inline int parse_obu_header(const uint8_t *buf, int buf_size, int64_t *ob
 	int ret, extension_flag, has_size_flag;
 	size_t size;
 
-	ret = init_get_bits8(&gb, buf, min_i32(buf_size, MAX_OBU_HEADER_SIZE));
+	ret = av1_init_get_bits8(&gb, buf, min_i32(buf_size, MAX_OBU_HEADER_SIZE));
 	if (ret < 0)
 		return ret;
 
-	if (get_bits(&gb, 1) != 0) // obu_forbidden_bit
+	if (av1_get_bits(&gb, 1) != 0) // obu_forbidden_bit
 		return -1;
 
-	*type = get_bits(&gb, 4);
-	extension_flag = get_bits(&gb, 1);
-	has_size_flag = get_bits(&gb, 1);
+	*type = av1_get_bits(&gb, 4);
+	extension_flag = av1_get_bits(&gb, 1);
+	has_size_flag = av1_get_bits(&gb, 1);
 	skip_bits(&gb, 1); // obu_reserved_1bit
 
 	if (extension_flag) {
-		*temporal_id = get_bits(&gb, 3);
-		*spatial_id = get_bits(&gb, 2);
+		*temporal_id = av1_get_bits(&gb, 3);
+		*spatial_id = av1_get_bits(&gb, 2);
 		skip_bits(&gb, 3); // extension_header_reserved_3bits
 	} else {
 		*temporal_id = *spatial_id = 0;
@@ -202,10 +202,10 @@ static inline int parse_obu_header(const uint8_t *buf, int buf_size, int64_t *ob
 
 	*obu_size = has_size_flag ? leb128(&gb) : buf_size - 1 - extension_flag;
 
-	if (get_bits_left(&gb) < 0)
+	if (av1_get_bits_left(&gb) < 0)
 		return -1;
 
-	*start_pos = get_bits_count(&gb) / 8;
+	*start_pos = av1_get_bits_count(&gb) / 8;
 
 	size = (size_t)(*obu_size + *start_pos);
 
@@ -250,22 +250,22 @@ static inline int get_obu_bit_length(const uint8_t *buf, int size, int type)
 static int parse_color_config(AV1SequenceParameters *seq_params, Av1GetBitContext *gb)
 {
 	int twelve_bit = 0;
-	int high_bitdepth = get_bits(gb, 1);
+	int high_bitdepth = av1_get_bits(gb, 1);
 	if (seq_params->profile == FF_PROFILE_AV1_PROFESSIONAL && high_bitdepth)
-		twelve_bit = get_bits(gb, 1);
+		twelve_bit = av1_get_bits(gb, 1);
 
 	seq_params->bitdepth = 8 + (high_bitdepth * 2) + (twelve_bit * 2);
 
 	if (seq_params->profile == FF_PROFILE_AV1_HIGH)
 		seq_params->monochrome = 0;
 	else
-		seq_params->monochrome = get_bits(gb, 1);
+		seq_params->monochrome = av1_get_bits(gb, 1);
 
-	seq_params->color_description_present_flag = get_bits(gb, 1);
+	seq_params->color_description_present_flag = av1_get_bits(gb, 1);
 	if (seq_params->color_description_present_flag) {
-		seq_params->color_primaries = get_bits(gb, 8);
-		seq_params->transfer_characteristics = get_bits(gb, 8);
-		seq_params->matrix_coefficients = get_bits(gb, 8);
+		seq_params->color_primaries = av1_get_bits(gb, 8);
+		seq_params->transfer_characteristics = av1_get_bits(gb, 8);
+		seq_params->matrix_coefficients = av1_get_bits(gb, 8);
 	} else {
 		seq_params->color_primaries = 2;
 		seq_params->transfer_characteristics = 2;
@@ -273,7 +273,7 @@ static int parse_color_config(AV1SequenceParameters *seq_params, Av1GetBitContex
 	}
 
 	if (seq_params->monochrome) {
-		seq_params->color_range = get_bits(gb, 1);
+		seq_params->color_range = av1_get_bits(gb, 1);
 		seq_params->chroma_subsampling_x = 1;
 		seq_params->chroma_subsampling_y = 1;
 		seq_params->chroma_sample_position = 0;
@@ -283,7 +283,7 @@ static int parse_color_config(AV1SequenceParameters *seq_params, Av1GetBitContex
 		seq_params->chroma_subsampling_x = 0;
 		seq_params->chroma_subsampling_y = 0;
 	} else {
-		seq_params->color_range = get_bits(gb, 1);
+		seq_params->color_range = av1_get_bits(gb, 1);
 
 		if (seq_params->profile == FF_PROFILE_AV1_MAIN) {
 			seq_params->chroma_subsampling_x = 1;
@@ -293,9 +293,9 @@ static int parse_color_config(AV1SequenceParameters *seq_params, Av1GetBitContex
 			seq_params->chroma_subsampling_y = 0;
 		} else {
 			if (twelve_bit) {
-				seq_params->chroma_subsampling_x = get_bits(gb, 1);
+				seq_params->chroma_subsampling_x = av1_get_bits(gb, 1);
 				if (seq_params->chroma_subsampling_x)
-					seq_params->chroma_subsampling_y = get_bits(gb, 1);
+					seq_params->chroma_subsampling_y = av1_get_bits(gb, 1);
 				else
 					seq_params->chroma_subsampling_y = 0;
 			} else {
@@ -304,7 +304,7 @@ static int parse_color_config(AV1SequenceParameters *seq_params, Av1GetBitContex
 			}
 		}
 		if (seq_params->chroma_subsampling_x && seq_params->chroma_subsampling_y)
-			seq_params->chroma_sample_position = get_bits(gb, 2);
+			seq_params->chroma_sample_position = av1_get_bits(gb, 2);
 	}
 
 	skip_bits(gb, 1); // separate_uv_delta_q
@@ -323,56 +323,56 @@ static int parse_sequence_header(AV1SequenceParameters *seq_params, const uint8_
 	if (size_bits < 0)
 		return size_bits;
 
-	ret = init_get_bits(&gb, buf, size_bits);
+	ret = av1_init_get_bits(&gb, buf, size_bits);
 	if (ret < 0)
 		return ret;
 
 	memset(seq_params, 0, sizeof(*seq_params));
 
-	seq_params->profile = get_bits(&gb, 3);
+	seq_params->profile = av1_get_bits(&gb, 3);
 
 	skip_bits(&gb, 1); // still_picture
-	reduced_still_picture_header = get_bits(&gb, 1);
+	reduced_still_picture_header = av1_get_bits(&gb, 1);
 
 	if (reduced_still_picture_header) {
-		seq_params->level = get_bits(&gb, 5);
+		seq_params->level = av1_get_bits(&gb, 5);
 		seq_params->tier = 0;
 	} else {
 		int initial_display_delay_present_flag, operating_points_cnt_minus_1;
 		int decoder_model_info_present_flag, buffer_delay_length_minus_1;
 
-		if (get_bits(&gb, 1)) {          // timing_info_present_flag
+		if (av1_get_bits(&gb, 1)) {      // timing_info_present_flag
 			skip_bits_long(&gb, 32); // num_units_in_display_tick
 			skip_bits_long(&gb, 32); // time_scale
 
-			if (get_bits(&gb, 1)) // equal_picture_interval
-				uvlc(&gb);    // num_ticks_per_picture_minus_1
+			if (av1_get_bits(&gb, 1)) // equal_picture_interval
+				uvlc(&gb);        // num_ticks_per_picture_minus_1
 
-			decoder_model_info_present_flag = get_bits(&gb, 1);
+			decoder_model_info_present_flag = av1_get_bits(&gb, 1);
 			if (decoder_model_info_present_flag) {
-				buffer_delay_length_minus_1 = get_bits(&gb, 5);
+				buffer_delay_length_minus_1 = av1_get_bits(&gb, 5);
 				skip_bits_long(&gb, 32);
 				skip_bits(&gb, 10);
 			}
 		} else
 			decoder_model_info_present_flag = 0;
 
-		initial_display_delay_present_flag = get_bits(&gb, 1);
+		initial_display_delay_present_flag = av1_get_bits(&gb, 1);
 
-		operating_points_cnt_minus_1 = get_bits(&gb, 5);
+		operating_points_cnt_minus_1 = av1_get_bits(&gb, 5);
 		for (int i = 0; i <= operating_points_cnt_minus_1; i++) {
 			int seq_level_idx, seq_tier;
 
 			skip_bits(&gb, 12);
-			seq_level_idx = get_bits(&gb, 5);
+			seq_level_idx = av1_get_bits(&gb, 5);
 
 			if (seq_level_idx > 7)
-				seq_tier = get_bits(&gb, 1);
+				seq_tier = av1_get_bits(&gb, 1);
 			else
 				seq_tier = 0;
 
 			if (decoder_model_info_present_flag) {
-				if (get_bits(&gb, 1)) {
+				if (av1_get_bits(&gb, 1)) {
 					skip_bits_long(&gb, buffer_delay_length_minus_1 + 1);
 					skip_bits_long(&gb, buffer_delay_length_minus_1 + 1);
 					skip_bits(&gb, 1);
@@ -380,7 +380,7 @@ static int parse_sequence_header(AV1SequenceParameters *seq_params, const uint8_
 			}
 
 			if (initial_display_delay_present_flag) {
-				if (get_bits(&gb, 1))
+				if (av1_get_bits(&gb, 1))
 					skip_bits(&gb, 4);
 			}
 
@@ -391,15 +391,15 @@ static int parse_sequence_header(AV1SequenceParameters *seq_params, const uint8_
 		}
 	}
 
-	frame_width_bits_minus_1 = get_bits(&gb, 4);
-	frame_height_bits_minus_1 = get_bits(&gb, 4);
+	frame_width_bits_minus_1 = av1_get_bits(&gb, 4);
+	frame_height_bits_minus_1 = av1_get_bits(&gb, 4);
 
 	skip_bits(&gb, frame_width_bits_minus_1 + 1); // max_frame_width_minus_1
 	skip_bits(&gb,
 		  frame_height_bits_minus_1 + 1); // max_frame_height_minus_1
 
 	if (!reduced_still_picture_header) {
-		if (get_bits(&gb, 1)) // frame_id_numbers_present_flag
+		if (av1_get_bits(&gb, 1)) // frame_id_numbers_present_flag
 			skip_bits(&gb, 7);
 	}
 
@@ -411,17 +411,17 @@ static int parse_sequence_header(AV1SequenceParameters *seq_params, const uint8_
 
 		skip_bits(&gb, 4);
 
-		enable_order_hint = get_bits(&gb, 1);
+		enable_order_hint = av1_get_bits(&gb, 1);
 		if (enable_order_hint)
 			skip_bits(&gb, 2);
 
-		if (get_bits(&gb, 1)) // seq_choose_screen_content_tools
+		if (av1_get_bits(&gb, 1)) // seq_choose_screen_content_tools
 			seq_force_screen_content_tools = 2;
 		else
-			seq_force_screen_content_tools = get_bits(&gb, 1);
+			seq_force_screen_content_tools = av1_get_bits(&gb, 1);
 
 		if (seq_force_screen_content_tools) {
-			if (!get_bits(&gb, 1))     // seq_choose_integer_mv
+			if (!av1_get_bits(&gb, 1)) // seq_choose_integer_mv
 				skip_bits(&gb, 1); // seq_force_integer_mv
 		}
 
@@ -435,7 +435,7 @@ static int parse_sequence_header(AV1SequenceParameters *seq_params, const uint8_
 
 	skip_bits(&gb, 1); // film_grain_params_present
 
-	if (get_bits_left(&gb))
+	if (av1_get_bits_left(&gb))
 		return -1;
 
 	return 0;
@@ -527,13 +527,13 @@ static void compute_av1_keyframe_priority(const uint8_t *buf, bool *is_keyframe,
 
 	Av1GetBitContext gb;
 
-	init_get_bits8(&gb, buf, 1);
+	av1_init_get_bits8(&gb, buf, 1);
 
 	// show_existing_frame
 	if (get_bit1(&gb))
 		return;
 
-	enum frame_type type = get_bits(&gb, 2);
+	enum frame_type type = av1_get_bits(&gb, 2);
 	bool show_frame = get_bit1(&gb);
 
 	switch (type) {
@@ -601,3 +601,6 @@ void obs_parse_av1_packet(struct encoder_packet *av1_packet, const struct encode
 	av1_packet->size = output.bytes.num - sizeof(ref);
 	av1_packet->drop_priority = av1_packet->priority;
 }
+
+/* File-local macros: keep them out of the next source of a unity build. */
+#undef skip_bits

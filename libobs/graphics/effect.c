@@ -392,6 +392,7 @@ static inline void effect_setval_inline(gs_eparam_t *param, const void *data, si
 
 #ifndef min
 #define min(a, b) (((a) < (b)) ? (a) : (b))
+#define EFFECT_DEFINED_MIN
 #endif
 static inline void effect_getval_inline(gs_eparam_t *param, void *data, size_t size)
 {
@@ -554,3 +555,9 @@ void gs_effect_set_next_sampler(gs_eparam_t *param, gs_samplerstate_t *sampler)
 	if (param->type == GS_SHADER_PARAM_TEXTURE)
 		param->next_sampler = sampler;
 }
+
+/* Keep this file's min() out of the sources a unity build compiles after it. */
+#ifdef EFFECT_DEFINED_MIN
+#undef min
+#undef EFFECT_DEFINED_MIN
+#endif

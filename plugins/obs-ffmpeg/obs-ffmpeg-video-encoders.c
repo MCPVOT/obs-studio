@@ -176,7 +176,8 @@ bool ffmpeg_video_encoder_init(struct ffmpeg_video_encoder *enc, void *parent, o
 	return true;
 }
 
-static inline void copy_data(AVFrame *pic, const struct encoder_frame *frame, int height, enum AVPixelFormat format)
+static inline void video_encoders_copy_data(AVFrame *pic, const struct encoder_frame *frame, int height,
+					    enum AVPixelFormat format)
 {
 	int h_chroma_shift, v_chroma_shift;
 	av_pix_fmt_get_chroma_sub_sample(format, &h_chroma_shift, &v_chroma_shift);
@@ -215,7 +216,7 @@ bool ffmpeg_video_encode(struct ffmpeg_video_encoder *enc, struct encoder_frame 
 	if (!enc->start_ts)
 		enc->start_ts = cur_ts;
 
-	copy_data(enc->vframe, frame, enc->height, enc->context->pix_fmt);
+	video_encoders_copy_data(enc->vframe, frame, enc->height, enc->context->pix_fmt);
 
 	enc->vframe->pts = frame->pts;
 	/* An output joined (request_keyframe): the encoder library makes this
@@ -287,3 +288,7 @@ void ffmpeg_video_encoder_request_keyframe(struct ffmpeg_video_encoder *enc)
 {
 	os_atomic_set_bool(&enc->keyframe_requested, true);
 }
+
+/* File-local macros: keep them out of the next source of a unity build. */
+#undef SEC_TO_NSEC
+#undef do_log

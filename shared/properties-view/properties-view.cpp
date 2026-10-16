@@ -47,12 +47,12 @@
 
 using namespace std;
 
-static inline QColor color_from_int(long long val)
+static inline QColor pv_color_from_int(long long val)
 {
 	return QColor(val & 0xff, (val >> 8) & 0xff, (val >> 16) & 0xff, (val >> 24) & 0xff);
 }
 
-static inline long long color_to_int(QColor color)
+static inline long long pv_color_to_int(QColor color)
 {
 	auto shift = [&](unsigned val, int shift) {
 		return ((val & 0xff) << shift);
@@ -800,7 +800,7 @@ void OBSPropertiesView::AddColorInternal(obs_property_t *prop, QFormLayout *layo
 	QLabel *colorLabel = new QLabel;
 	const char *name = obs_property_name(prop);
 	long long val = obs_data_get_int(settings, name);
-	QColor color = color_from_int(val);
+	QColor color = pv_color_from_int(val);
 	QColor::NameFormat format;
 
 	if (!obs_property_enabled(prop)) {
@@ -1926,7 +1926,7 @@ bool WidgetInfo::ColorChangedInternal(const char *setting, bool supportAlpha)
 {
 	const char *desc = obs_property_description(property);
 	long long val = obs_data_get_int(view->settings, setting);
-	QColor color = color_from_int(val);
+	QColor color = pv_color_from_int(val);
 	QColor::NameFormat format;
 
 	QColorDialog::ColorDialogOptions options;
@@ -1968,7 +1968,7 @@ bool WidgetInfo::ColorChangedInternal(const char *setting, bool supportAlpha)
 				     .arg(palette.color(QPalette::Window).name(format))
 				     .arg(palette.color(QPalette::WindowText).name(format)));
 
-	obs_data_set_int(view->settings, setting, color_to_int(color));
+	obs_data_set_int(view->settings, setting, pv_color_to_int(color));
 
 	return true;
 }

@@ -513,7 +513,7 @@ void obs_encoder_set_name(obs_encoder_t *encoder, const char *name)
 		obs_context_data_setname(&encoder->context, name);
 }
 
-static inline obs_data_t *get_defaults(const struct obs_encoder_info *info)
+static inline obs_data_t *encoder_get_defaults(const struct obs_encoder_info *info)
 {
 	obs_data_t *settings = obs_data_create();
 	if (info->get_defaults) {
@@ -528,7 +528,7 @@ static inline obs_data_t *get_defaults(const struct obs_encoder_info *info)
 obs_data_t *obs_encoder_defaults(const char *id)
 {
 	const struct obs_encoder_info *info = find_encoder(id);
-	return (info) ? get_defaults(info) : NULL;
+	return (info) ? encoder_get_defaults(info) : NULL;
 }
 
 obs_data_t *obs_encoder_get_defaults(const obs_encoder_t *encoder)
@@ -536,14 +536,14 @@ obs_data_t *obs_encoder_get_defaults(const obs_encoder_t *encoder)
 	if (!obs_encoder_valid(encoder, "obs_encoder_defaults"))
 		return NULL;
 
-	return get_defaults(&encoder->info);
+	return encoder_get_defaults(&encoder->info);
 }
 
 obs_properties_t *obs_get_encoder_properties(const char *id)
 {
 	const struct obs_encoder_info *ei = find_encoder(id);
 	if (ei && (ei->get_properties || ei->get_properties2)) {
-		obs_data_t *defaults = get_defaults(ei);
+		obs_data_t *defaults = encoder_get_defaults(ei);
 		obs_properties_t *properties = NULL;
 
 		if (ei->get_properties2) {
@@ -2412,3 +2412,6 @@ uint32_t obs_encoder_get_priming_samples(const obs_encoder_t *encoder)
 
 	return 0;
 }
+
+/* File-local macros: keep them out of the next source of a unity build. */
+#undef get_weak

@@ -62,13 +62,13 @@ struct limiter_data {
 
 /* -------------------------------------------------------- */
 
-static void resize_env_buffer(struct limiter_data *cd, size_t len)
+static void limiter_resize_env_buffer(struct limiter_data *cd, size_t len)
 {
 	cd->envelope_buf_len = len;
 	cd->envelope_buf = brealloc(cd->envelope_buf, len * sizeof(float));
 }
 
-static inline float gain_coefficient(uint32_t sample_rate, float time)
+static inline float limiter_gain_coefficient(uint32_t sample_rate, float time)
 {
 	return (float)exp(-1.0f / (sample_rate * time));
 }
@@ -92,8 +92,8 @@ static void limiter_update(void *data, obs_data_t *s)
 
 	cd->threshold = (float)obs_data_get_double(s, S_FILTER_THRESHOLD);
 
-	cd->attack_gain = gain_coefficient(sample_rate, attack_time_ms / MS_IN_S_F);
-	cd->release_gain = gain_coefficient(sample_rate, release_time_ms / MS_IN_S_F);
+	cd->attack_gain = limiter_gain_coefficient(sample_rate, attack_time_ms / MS_IN_S_F);
+	cd->release_gain = limiter_gain_coefficient(sample_rate, release_time_ms / MS_IN_S_F);
 	cd->output_gain = db_to_mul(output_gain_db);
 	cd->num_channels = num_channels;
 	cd->sample_rate = sample_rate;
@@ -101,7 +101,7 @@ static void limiter_update(void *data, obs_data_t *s)
 
 	size_t sample_len = sample_rate * DEFAULT_AUDIO_BUF_MS / MS_IN_S;
 	if (cd->envelope_buf_len == 0)
-		resize_env_buffer(cd, sample_len);
+		limiter_resize_env_buffer(cd, sample_len);
 }
 
 static void *limiter_create(obs_data_t *settings, obs_source_t *filter)
@@ -121,10 +121,10 @@ static void limiter_destroy(void *data)
 	bfree(cd);
 }
 
-static void analyze_envelope(struct limiter_data *cd, float **samples, const uint32_t num_samples)
+static void limiter_analyze_envelope(struct limiter_data *cd, float **samples, const uint32_t num_samples)
 {
 	if (cd->envelope_buf_len < num_samples) {
-		resize_env_buffer(cd, num_samples);
+		limiter_resize_env_buffer(cd, num_samples);
 	}
 
 	const float attack_gain = cd->attack_gain;
@@ -150,7 +150,7 @@ static void analyze_envelope(struct limiter_data *cd, float **samples, const uin
 	cd->envelope = cd->envelope_buf[num_samples - 1];
 }
 
-static inline void process_compression(const struct limiter_data *cd, float **samples, uint32_t num_samples)
+static inline void limiter_process_compression(const struct limiter_data *cd, float **samples, uint32_t num_samples)
 {
 	for (size_t i = 0; i < num_samples; ++i) {
 		const float env_db = mul_to_db(cd->envelope_buf[i]);
@@ -174,8 +174,8 @@ static struct obs_audio_data *limiter_filter_audio(void *data, struct obs_audio_
 		return audio;
 
 	float **samples = (float **)audio->data;
-	analyze_envelope(cd, samples, num_samples);
-	process_compression(cd, samples, num_samples);
+	limiter_analyze_envelope(cd, samples, num_samples);
+	limiter_process_compression(cd, samples, num_samples);
 	return audio;
 }
 
@@ -212,3 +212,9 @@ struct obs_source_info limiter_filter = {
 	.get_defaults = limiter_defaults,
 	.get_properties = limiter_properties,
 };
+
+/* File-local macros: keep them out of the next source of a unity build. */
+#undef MIN_THRESHOLD_DB
+#undef TEXT_RELEASE_TIME
+#undef TEXT_THRESHOLD
+#undef do_log

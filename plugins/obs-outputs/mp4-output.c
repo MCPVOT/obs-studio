@@ -84,17 +84,17 @@ struct mp4_output {
 	DARRAY(struct encoder_packet) split_buffer;
 };
 
-static inline bool stopping(struct mp4_output *out)
+static inline bool mp4o_stopping(struct mp4_output *out)
 {
 	return os_atomic_load_bool(&out->stopping);
 }
 
-static inline bool active(struct mp4_output *out)
+static inline bool mp4o_active(struct mp4_output *out)
 {
 	return os_atomic_load_bool(&out->active);
 }
 
-static inline int64_t packet_pts_usec(struct encoder_packet *packet)
+static inline int64_t mp4o_packet_pts_usec(struct encoder_packet *packet)
 {
 	return packet->pts * 1000000 / packet->timebase_den;
 }
@@ -521,7 +521,7 @@ static void mp4_output_packet(void *data, struct encoder_packet *packet)
 
 	pthread_mutex_lock(&out->mutex);
 
-	if (!active(out))
+	if (!mp4o_active(out))
 		goto unlock;
 
 	if (!packet) {
@@ -529,7 +529,7 @@ static void mp4_output_packet(void *data, struct encoder_packet *packet)
 		goto unlock;
 	}
 
-	if (stopping(out)) {
+	if (mp4o_stopping(out)) {
 		if (packet->sys_dts_usec >= (int64_t)out->stop_ts) {
 			mp4_output_actual_stop(out, 0);
 			goto unlock;
@@ -545,9 +545,9 @@ static void mp4_output_packet(void *data, struct encoder_packet *packet)
 
 	if (out->split_file_enabled) {
 		if (out->split_buffer.num) {
-			int64_t pts_usec = packet_pts_usec(packet);
+			int64_t pts_usec = mp4o_packet_pts_usec(packet);
 			struct encoder_packet *first_pkt = out->split_buffer.array;
-			int64_t first_pts_usec = packet_pts_usec(first_pkt);
+			int64_t first_pts_usec = mp4o_packet_pts_usec(first_pkt);
 
 			if (pts_usec >= first_pts_usec) {
 				if (packet->type != OBS_ENCODER_AUDIO) {
@@ -634,3 +634,6 @@ struct obs_output_info mov_output_info = {
 	.get_properties = mp4_output_properties,
 	.get_total_bytes = mp4_output_total_bytes,
 };
+
+/* File-local macros: keep them out of the next source of a unity build. */
+#undef do_log

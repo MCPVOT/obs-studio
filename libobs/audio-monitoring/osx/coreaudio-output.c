@@ -119,7 +119,7 @@ static void on_audio_playback(void *param, obs_source_t *source, const struct au
 	pthread_mutex_unlock(&monitor->mutex);
 }
 
-static void buffer_audio(void *data, AudioQueueRef aq, AudioQueueBufferRef buf)
+static void coreaudio_buffer_audio(void *data, AudioQueueRef aq, AudioQueueBufferRef buf)
 {
 	struct audio_monitor *monitor = data;
 
@@ -182,7 +182,7 @@ static bool audio_monitor_init(struct audio_monitor *monitor, obs_source_t *sour
 		}
 	}
 
-	stat = AudioQueueNewOutput(&desc, buffer_audio, monitor, NULL, NULL, 0, &monitor->queue);
+	stat = AudioQueueNewOutput(&desc, coreaudio_buffer_audio, monitor, NULL, NULL, 0, &monitor->queue);
 	if (!success(stat, "AudioStreamBasicDescription")) {
 		return false;
 	}

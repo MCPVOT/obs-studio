@@ -346,7 +346,7 @@ static enum gs_color_space mask_filter_get_color_space(void *data, size_t count,
 	return source_space;
 }
 
-static void missing_file_callback(void *src, const char *new_path, void *data)
+static void mask_missing_file_callback(void *src, const char *new_path, void *data)
 {
 	struct mask_filter_data *filter = src;
 
@@ -365,7 +365,7 @@ static obs_missing_files_t *mask_filter_missing_files(void *data)
 	obs_missing_files_t *files = obs_missing_files_create();
 
 	if (filter->image_file && strcmp(filter->image_file, "") != 0 && !os_file_exists(filter->image_file)) {
-		obs_missing_file_t *file = obs_missing_file_create(filter->image_file, missing_file_callback,
+		obs_missing_file_t *file = obs_missing_file_create(filter->image_file, mask_missing_file_callback,
 								   OBS_MISSING_FILE_SOURCE, filter->context, NULL);
 
 		obs_missing_files_add_file(files, file);

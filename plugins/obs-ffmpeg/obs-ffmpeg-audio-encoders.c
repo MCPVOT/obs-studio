@@ -572,3 +572,6 @@ struct obs_encoder_info flac_encoder_info = {
 	.get_extra_data = enc_extra_data,
 	.get_audio_info = enc_audio_info,
 };
+
+/* File-local macros: keep them out of the next source of a unity build. */
+#undef do_log

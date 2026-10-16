@@ -678,7 +678,7 @@ skip:
 /**
  * Get plugin properties
  */
-static obs_properties_t *pulse_properties(bool input)
+static obs_properties_t *pulse_get_obs_properties(bool input)
 {
 	obs_properties_t *props = obs_properties_create();
 	obs_property_t *devices = obs_properties_add_list(props, "device_id", obs_module_text("Device"),
@@ -703,14 +703,14 @@ static obs_properties_t *pulse_input_properties(void *unused)
 {
 	UNUSED_PARAMETER(unused);
 
-	return pulse_properties(true);
+	return pulse_get_obs_properties(true);
 }
 
 static obs_properties_t *pulse_output_properties(void *unused)
 {
 	UNUSED_PARAMETER(unused);
 
-	return pulse_properties(false);
+	return pulse_get_obs_properties(false);
 }
 
 /**

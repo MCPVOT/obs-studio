@@ -121,7 +121,7 @@ clear:
 		memset(cd->sidechain_buf[i], 0, data_size);
 }
 
-static void resize_env_buffer(struct compressor_data *cd, size_t len)
+static void compressor_resize_env_buffer(struct compressor_data *cd, size_t len)
 {
 	cd->envelope_buf_len = len;
 	cd->envelope_buf = brealloc(cd->envelope_buf, len * sizeof(float));
@@ -130,7 +130,7 @@ static void resize_env_buffer(struct compressor_data *cd, size_t len)
 		cd->sidechain_buf[i] = brealloc(cd->sidechain_buf[i], len * sizeof(float));
 }
 
-static inline float gain_coefficient(uint32_t sample_rate, float time)
+static inline float compressor_gain_coefficient(uint32_t sample_rate, float time)
 {
 	return (float)exp(-1.0f / (sample_rate * time));
 }
@@ -191,8 +191,8 @@ static void compressor_update(void *data, obs_data_t *s)
 
 	cd->ratio = (float)obs_data_get_double(s, S_FILTER_RATIO);
 	cd->threshold = (float)obs_data_get_double(s, S_FILTER_THRESHOLD);
-	cd->attack_gain = gain_coefficient(sample_rate, attack_time_ms / MS_IN_S_F);
-	cd->release_gain = gain_coefficient(sample_rate, release_time_ms / MS_IN_S_F);
+	cd->attack_gain = compressor_gain_coefficient(sample_rate, attack_time_ms / MS_IN_S_F);
+	cd->release_gain = compressor_gain_coefficient(sample_rate, release_time_ms / MS_IN_S_F);
 	cd->output_gain = db_to_mul(output_gain_db);
 	cd->num_channels = num_channels;
 	cd->sample_rate = sample_rate;
@@ -240,7 +240,7 @@ static void compressor_update(void *data, obs_data_t *s)
 
 	size_t sample_len = sample_rate * DEFAULT_AUDIO_BUF_MS / MS_IN_S;
 	if (cd->envelope_buf_len == 0)
-		resize_env_buffer(cd, sample_len);
+		compressor_resize_env_buffer(cd, sample_len);
 }
 
 static void *compressor_create(obs_data_t *settings, obs_source_t *filter)
@@ -291,10 +291,10 @@ static void compressor_destroy(void *data)
 	bfree(cd);
 }
 
-static void analyze_envelope(struct compressor_data *cd, float **samples, const uint32_t num_samples)
+static void compressor_analyze_envelope(struct compressor_data *cd, float **samples, const uint32_t num_samples)
 {
 	if (cd->envelope_buf_len < num_samples) {
-		resize_env_buffer(cd, num_samples);
+		compressor_resize_env_buffer(cd, num_samples);
 	}
 
 	const float attack_gain = cd->attack_gain;
@@ -323,7 +323,7 @@ static void analyze_envelope(struct compressor_data *cd, float **samples, const 
 static void analyze_sidechain(struct compressor_data *cd, const uint32_t num_samples)
 {
 	if (cd->envelope_buf_len < num_samples) {
-		resize_env_buffer(cd, num_samples);
+		compressor_resize_env_buffer(cd, num_samples);
 	}
 
 	get_sidechain_data(cd, num_samples);
@@ -429,7 +429,7 @@ static struct obs_audio_data *compressor_filter_audio(void *data, struct obs_aud
 	if (weak_sidechain)
 		analyze_sidechain(cd, num_samples);
 	else
-		analyze_envelope(cd, samples, num_samples);
+		compressor_analyze_envelope(cd, samples, num_samples);
 
 	process_compression(cd, samples, num_samples);
 	return audio;
@@ -512,3 +512,17 @@ struct obs_source_info compressor_filter = {
 	.get_defaults = compressor_defaults,
 	.get_properties = compressor_properties,
 };
+
+/* File-local macros: keep them out of the next source of a unity build. */
+#undef MAX_ATK_MS
+#undef MAX_OUTPUT_GAIN_DB
+#undef MAX_RATIO
+#undef MIN_OUTPUT_GAIN_DB
+#undef MIN_RATIO
+#undef MIN_THRESHOLD_DB
+#undef TEXT_ATTACK_TIME
+#undef TEXT_OUTPUT_GAIN
+#undef TEXT_RATIO
+#undef TEXT_RELEASE_TIME
+#undef TEXT_THRESHOLD
+#undef do_log

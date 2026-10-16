@@ -127,8 +127,8 @@ static void cf_addew(struct cf_preprocessor *pp, const struct cf_token *token, c
 	}
 }
 
-static inline void cf_adderror(struct cf_preprocessor *pp, const struct cf_token *token, const char *error,
-			       const char *val1, const char *val2, const char *val3)
+static inline void cf_pp_adderror(struct cf_preprocessor *pp, const struct cf_token *token, const char *error,
+				  const char *val1, const char *val2, const char *val3)
 {
 	cf_addew(pp, token, error, LEX_ERROR, val1, val2, val3);
 }
@@ -139,28 +139,28 @@ static inline void cf_addwarning(struct cf_preprocessor *pp, const struct cf_tok
 	cf_addew(pp, token, warning, LEX_WARNING, val1, val2, val3);
 }
 
-static inline void cf_adderror_expecting(struct cf_preprocessor *pp, const struct cf_token *token,
-					 const char *expecting)
+static inline void cf_pp_adderror_expecting(struct cf_preprocessor *pp, const struct cf_token *token,
+					    const char *expecting)
 {
-	cf_adderror(pp, token, "Expected $1", expecting, NULL, NULL);
+	cf_pp_adderror(pp, token, "Expected $1", expecting, NULL, NULL);
 }
 
-static inline void cf_adderror_expected_newline(struct cf_preprocessor *pp, const struct cf_token *token)
+static inline void cf_pp_adderror_expected_newline(struct cf_preprocessor *pp, const struct cf_token *token)
 {
-	cf_adderror(pp, token,
-		    "Unexpected token after preprocessor, expected "
-		    "newline",
-		    NULL, NULL, NULL);
+	cf_pp_adderror(pp, token,
+		       "Unexpected token after preprocessor, expected "
+		       "newline",
+		       NULL, NULL, NULL);
 }
 
-static inline void cf_adderror_unexpected_endif_eof(struct cf_preprocessor *pp, const struct cf_token *token)
+static inline void cf_pp_adderror_unexpected_endif_eof(struct cf_preprocessor *pp, const struct cf_token *token)
 {
-	cf_adderror(pp, token, "Unexpected end of file before #endif", NULL, NULL, NULL);
+	cf_pp_adderror(pp, token, "Unexpected end of file before #endif", NULL, NULL, NULL);
 }
 
-static inline void cf_adderror_unexpected_eof(struct cf_preprocessor *pp, const struct cf_token *token)
+static inline void cf_pp_adderror_unexpected_eof(struct cf_preprocessor *pp, const struct cf_token *token)
 {
-	cf_adderror(pp, token, "Unexpected end of file", NULL, NULL, NULL);
+	cf_pp_adderror(pp, token, "Unexpected end of file", NULL, NULL, NULL);
 }
 
 static inline void insert_path(struct cf_preprocessor *pp, struct dstr *str_file)
@@ -207,7 +207,7 @@ static void cf_include_file(struct cf_preprocessor *pp, const struct cf_token *f
 
 	file = os_fopen(str_file.array, "rb");
 	if (!file) {
-		cf_adderror(pp, file_token, "Could not open file '$1'", file_token->str.array, NULL, NULL);
+		cf_pp_adderror(pp, file_token, "Could not open file '$1'", file_token->str.array, NULL, NULL);
 		goto exit;
 	}
 
@@ -248,7 +248,7 @@ static void cf_preprocess_include(struct cf_preprocessor *pp, struct cf_token **
 	next_token(&cur_token, true);
 
 	if (cur_token->type != CFTOKEN_STRING) {
-		cf_adderror_expecting(pp, cur_token, "string");
+		cf_pp_adderror_expecting(pp, cur_token, "string");
 		go_to_newline(&cur_token);
 		goto exit;
 	}
@@ -259,7 +259,7 @@ static void cf_preprocess_include(struct cf_preprocessor *pp, struct cf_token **
 		if (!pp->ignore_state)
 			cf_include_file(pp, cur_token);
 	} else {
-		cf_adderror(pp, cur_token, "Invalid or incomplete string", NULL, NULL, NULL);
+		cf_pp_adderror(pp, cur_token, "Invalid or incomplete string", NULL, NULL, NULL);
 		go_to_newline(&cur_token);
 		goto exit;
 	}
@@ -279,7 +279,7 @@ static bool cf_preprocess_macro_params(struct cf_preprocessor *pp, struct cf_def
 	do {
 		next_token(&cur_token, true);
 		if (cur_token->type != CFTOKEN_NAME) {
-			cf_adderror_expecting(pp, cur_token, "identifier");
+			cf_pp_adderror_expecting(pp, cur_token, "identifier");
 			go_to_newline(&cur_token);
 			goto exit;
 		}
@@ -290,7 +290,7 @@ static bool cf_preprocess_macro_params(struct cf_preprocessor *pp, struct cf_def
 		if (cur_token->type != CFTOKEN_OTHER ||
 		    (*cur_token->str.array != ',' && *cur_token->str.array != ')')) {
 
-			cf_adderror_expecting(pp, cur_token, "',' or ')'");
+			cf_pp_adderror_expecting(pp, cur_token, "',' or ')'");
 			go_to_newline(&cur_token);
 			goto exit;
 		}
@@ -393,7 +393,7 @@ static void cf_preprocess_define(struct cf_preprocessor *pp, struct cf_token **p
 
 	next_token(&cur_token, true);
 	if (cur_token->type != CFTOKEN_NAME) {
-		cf_adderror_expecting(pp, cur_token, "identifier");
+		cf_pp_adderror_expecting(pp, cur_token, "identifier");
 		go_to_newline(&cur_token);
 		goto exit;
 	}
@@ -447,7 +447,7 @@ static void cf_preprocess_undef(struct cf_preprocessor *pp, struct cf_token **p_
 
 	next_token(&cur_token, true);
 	if (cur_token->type != CFTOKEN_NAME) {
-		cf_adderror_expecting(pp, cur_token, "identifier");
+		cf_pp_adderror_expecting(pp, cur_token, "identifier");
 		go_to_newline(&cur_token);
 		goto exit;
 	}
@@ -477,7 +477,7 @@ static inline bool cf_preprocess_subblock(struct cf_preprocessor *pp, bool ignor
 
 	eof = ((*p_cur_token)->type == CFTOKEN_NONE);
 	if (eof)
-		cf_adderror_unexpected_endif_eof(pp, *p_cur_token);
+		cf_pp_adderror_unexpected_endif_eof(pp, *p_cur_token);
 	return !eof;
 }
 
@@ -491,7 +491,7 @@ static void cf_preprocess_if(struct cf_preprocessor *pp, struct cf_token **p_cur
 	next_token(&cur_token, true);
 	if ((cur_token->type != CFTOKEN_NAME || !cf_preprocess_get_def_value(pp, &cur_token->str, &value_a)) &&
 	    (cur_token->type != CFTOKEN_NUM || sscanf(cur_token->str.array, "%i", &value_a) != 1)) {
-		cf_adderror_expecting(pp, cur_token, "identifier or number");
+		cf_pp_adderror_expecting(pp, cur_token, "identifier or number");
 		go_to_newline(&cur_token);
 		goto exit;
 	}
@@ -502,7 +502,7 @@ static void cf_preprocess_if(struct cf_preprocessor *pp, struct cf_token **p_cur
 		cur_token--;
 	} else {
 		if (cur_token->type != CFTOKEN_OTHER) {
-			cf_adderror_expecting(pp, cur_token, "comparator");
+			cf_pp_adderror_expecting(pp, cur_token, "comparator");
 			go_to_newline(&cur_token);
 			goto exit;
 		}
@@ -516,7 +516,7 @@ static void cf_preprocess_if(struct cf_preprocessor *pp, struct cf_token **p_cur
 		next_token(&cur_token, true);
 		if ((cur_token->type != CFTOKEN_NAME || !cf_preprocess_get_def_value(pp, &cur_token->str, &value_b)) &&
 		    (cur_token->type != CFTOKEN_NUM || sscanf(cur_token->str.array, "%i", &value_b) != 1)) {
-			cf_adderror_expecting(pp, cur_token, "identifier or number");
+			cf_pp_adderror_expecting(pp, cur_token, "identifier or number");
 			go_to_newline(&cur_token);
 			goto exit;
 		}
@@ -534,7 +534,7 @@ static void cf_preprocess_if(struct cf_preprocessor *pp, struct cf_token **p_cur
 		} else if (strref_cmp(&comparator, ">") == 0) {
 			is_true = value_a > value_b;
 		} else {
-			cf_adderror_expecting(pp, cur_token, "comparator");
+			cf_pp_adderror_expecting(pp, cur_token, "comparator");
 			go_to_newline(&cur_token);
 			goto exit;
 		}
@@ -570,7 +570,7 @@ static void cf_preprocess_ifdef(struct cf_preprocessor *pp, bool ifnot, struct c
 
 	next_token(&cur_token, true);
 	if (cur_token->type != CFTOKEN_NAME) {
-		cf_adderror_expecting(pp, cur_token, "identifier");
+		cf_pp_adderror_expecting(pp, cur_token, "identifier");
 		go_to_newline(&cur_token);
 		goto exit;
 	}
@@ -629,10 +629,10 @@ static bool cf_preprocessor(struct cf_preprocessor *pp, bool if_block, struct cf
 		if (!if_block) {
 			struct dstr name;
 			dstr_init_copy_strref(&name, &cur_token->str);
-			cf_adderror(pp, cur_token,
-				    "#$1 outside of "
-				    "#if/#ifdef/#ifndef block",
-				    name.array, NULL, NULL);
+			cf_pp_adderror(pp, cur_token,
+				       "#$1 outside of "
+				       "#if/#ifdef/#ifndef block",
+				       name.array, NULL, NULL);
 			dstr_free(&name);
 			(*p_cur_token)++;
 
@@ -688,7 +688,7 @@ static void cf_preprocess_save_macro_param(struct cf_preprocessor *pp, struct cf
 	}
 
 	if (cur_token->type == CFTOKEN_NONE)
-		cf_adderror_unexpected_eof(pp, cur_token);
+		cf_pp_adderror_unexpected_eof(pp, cur_token);
 
 	append_space(pp, &param->tokens, base);
 	append_end_token(&param->tokens);
@@ -719,7 +719,7 @@ static void cf_preprocess_save_macro_params(struct cf_preprocessor *pp, struct c
 
 	next_token(&cur_token, false);
 	if (cur_token->type != CFTOKEN_OTHER || *cur_token->str.array != '(') {
-		cf_adderror_expecting(pp, cur_token, "'('");
+		cf_pp_adderror_expecting(pp, cur_token, "'('");
 		goto exit;
 	}
 
@@ -734,7 +734,7 @@ static void cf_preprocess_save_macro_params(struct cf_preprocessor *pp, struct c
 		    (*cur_token->str.array != ',' && *cur_token->str.array != ')')) {
 
 			macro_param_free(&param);
-			cf_adderror_expecting(pp, cur_token, "',' or ')'");
+			cf_pp_adderror_expecting(pp, cur_token, "',' or ')'");
 			goto exit;
 		}
 
@@ -755,7 +755,7 @@ static void cf_preprocess_save_macro_params(struct cf_preprocessor *pp, struct c
 	} while (*cur_token->str.array != ')');
 
 	if (count != def->params.num)
-		cf_adderror(pp, cur_token, "Mismatching number of macro parameters", NULL, NULL, NULL);
+		cf_pp_adderror(pp, cur_token, "Mismatching number of macro parameters", NULL, NULL, NULL);
 
 exit:
 	*p_cur_token = cur_token;
@@ -843,7 +843,7 @@ static void cf_preprocess_tokens(struct cf_preprocessor *pp, bool if_block, stru
 	while (cur_token->type != CFTOKEN_NONE) {
 		if (cur_token->type != CFTOKEN_SPACETAB && cur_token->type != CFTOKEN_NEWLINE) {
 			if (preprocessor_line) {
-				cf_adderror_expected_newline(pp, cur_token);
+				cf_pp_adderror_expected_newline(pp, cur_token);
 				if (!go_to_newline(&cur_token))
 					break;
 			}

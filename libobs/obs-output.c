@@ -610,7 +610,7 @@ uint32_t obs_get_output_flags(const char *id)
 	return info ? info->flags : 0;
 }
 
-static inline obs_data_t *get_defaults(const struct obs_output_info *info)
+static inline obs_data_t *output_get_defaults(const struct obs_output_info *info)
 {
 	obs_data_t *settings = obs_data_create();
 	if (info->get_defaults)
@@ -621,14 +621,14 @@ static inline obs_data_t *get_defaults(const struct obs_output_info *info)
 obs_data_t *obs_output_defaults(const char *id)
 {
 	const struct obs_output_info *info = find_output(id);
-	return (info) ? get_defaults(info) : NULL;
+	return (info) ? output_get_defaults(info) : NULL;
 }
 
 obs_properties_t *obs_get_output_properties(const char *id)
 {
 	const struct obs_output_info *info = find_output(id);
 	if (info && info->get_properties) {
-		obs_data_t *defaults = get_defaults(info);
+		obs_data_t *defaults = output_get_defaults(info);
 		obs_properties_t *properties;
 
 		properties = info->get_properties(NULL);
@@ -3587,3 +3587,6 @@ void obs_output_set_reconnect_callback(obs_output_t *output,
 		output->reconnect_callback.param = param;
 	}
 }
+
+/* File-local macros: keep them out of the next source of a unity build. */
+#undef get_weak

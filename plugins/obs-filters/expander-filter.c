@@ -493,3 +493,17 @@ struct obs_source_info upward_compressor_filter = {
 	.get_defaults = upward_compressor_defaults,
 	.get_properties = expander_properties,
 };
+
+/* File-local macros: keep them out of the next source of a unity build. */
+#undef MAX_ATK_MS
+#undef MAX_OUTPUT_GAIN_DB
+#undef MAX_RATIO
+#undef MIN_OUTPUT_GAIN_DB
+#undef MIN_RATIO
+#undef MIN_THRESHOLD_DB
+#undef TEXT_ATTACK_TIME
+#undef TEXT_OUTPUT_GAIN
+#undef TEXT_RATIO
+#undef TEXT_RELEASE_TIME
+#undef TEXT_THRESHOLD
+#undef do_log

@@ -17,7 +17,7 @@
 #include <ctype.h>
 #include "lexer.h"
 
-static const char *astrblank = "";
+static const char *lexer_astrblank = "";
 
 int strref_cmp(const struct strref *str1, const char *str2)
 {
@@ -26,7 +26,7 @@ int strref_cmp(const struct strref *str1, const char *str2)
 	if (strref_is_empty(str1))
 		return (!str2 || !*str2) ? 0 : -1;
 	if (!str2)
-		str2 = astrblank;
+		str2 = lexer_astrblank;
 
 	do {
 		char ch1, ch2;
@@ -50,7 +50,7 @@ int strref_cmpi(const struct strref *str1, const char *str2)
 	if (strref_is_empty(str1))
 		return (!str2 || !*str2) ? 0 : -1;
 	if (!str2)
-		str2 = astrblank;
+		str2 = lexer_astrblank;
 
 	do {
 		char ch1, ch2;

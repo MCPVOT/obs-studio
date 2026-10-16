@@ -1521,3 +1521,6 @@ struct obs_source_info v4l2_input = {
 	.get_properties = v4l2_properties,
 	.icon_type = OBS_ICON_TYPE_CAMERA,
 };
+
+/* File-local macros: keep them out of the next source of a unity build. */
+#undef blog

@@ -639,7 +639,8 @@ static void *hevc_vaapi_create_tex(obs_data_t *settings, obs_encoder_t *encoder)
 }
 #endif
 
-static inline void copy_data(AVFrame *pic, const struct encoder_frame *frame, int height, enum AVPixelFormat format)
+static inline void vaapi_copy_data(AVFrame *pic, const struct encoder_frame *frame, int height,
+				   enum AVPixelFormat format)
 {
 	int h_chroma_shift, v_chroma_shift;
 	av_pix_fmt_get_chroma_sub_sample(format, &h_chroma_shift, &v_chroma_shift);
@@ -774,7 +775,7 @@ static bool vaapi_encode_copy(void *data, struct encoder_frame *frame, struct en
 		goto fail;
 	}
 
-	copy_data(enc->vframe, frame, enc->height, enc->context->pix_fmt);
+	vaapi_copy_data(enc->vframe, frame, enc->height, enc->context->pix_fmt);
 
 	enc->vframe->pts = frame->pts;
 	hwframe->pts = frame->pts;
@@ -1012,7 +1013,7 @@ fail:
 	return true;
 }
 
-static bool rate_control_modified(obs_properties_t *ppts, obs_property_t *p, obs_data_t *settings)
+static bool vaapi_rate_control_modified(obs_properties_t *ppts, obs_property_t *p, obs_data_t *settings)
 {
 	UNUSED_PARAMETER(p);
 
@@ -1189,7 +1190,7 @@ static obs_properties_t *vaapi_properties_internal(enum codec_type codec)
 	list = obs_properties_add_list(props, "rate_control", obs_module_text("RateControl"), OBS_COMBO_TYPE_LIST,
 				       OBS_COMBO_FORMAT_STRING);
 
-	obs_property_set_modified_callback(list, rate_control_modified);
+	obs_property_set_modified_callback(list, vaapi_rate_control_modified);
 
 	obs_property_t *p;
 	p = obs_properties_add_int(props, "bitrate", obs_module_text("Bitrate"), 0, 300000, 50);
@@ -1355,3 +1356,6 @@ struct obs_encoder_info hevc_vaapi_encoder_tex_info = {
 	.request_keyframe = vaapi_request_keyframe,
 };
 #endif
+
+/* File-local macros: keep them out of the next source of a unity build. */
+#undef do_log

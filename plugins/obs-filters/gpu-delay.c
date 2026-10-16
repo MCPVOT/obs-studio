@@ -183,8 +183,8 @@ static void gpu_delay_filter_tick(void *data, float t)
 	check_interval(f);
 }
 
-static const char *get_tech_name_and_multiplier(enum gs_color_space current_space, enum gs_color_space source_space,
-						float *multiplier)
+static const char *gpu_delay_get_tech_name_and_multiplier(enum gs_color_space current_space,
+							  enum gs_color_space source_space, float *multiplier)
 {
 	const char *tech_name = "Draw";
 	*multiplier = 1.f;
@@ -237,7 +237,7 @@ static void draw_frame(struct gpu_delay_filter_data *f)
 
 	const enum gs_color_space current_space = gs_get_color_space();
 	float multiplier;
-	const char *technique = get_tech_name_and_multiplier(current_space, frame.space, &multiplier);
+	const char *technique = gpu_delay_get_tech_name_and_multiplier(current_space, frame.space, &multiplier);
 
 	gs_effect_t *effect = obs_get_base_effect(OBS_EFFECT_DEFAULT);
 	gs_texture_t *tex = gs_texrender_get_texture(frame.render);

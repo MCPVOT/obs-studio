@@ -102,7 +102,7 @@ static void openh264_destroy(void *data)
 	bfree(enc);
 }
 
-static void on_first_packet(void *data, AVPacket *pkt, struct darray *da)
+static void openh264_on_first_packet(void *data, AVPacket *pkt, struct darray *da)
 {
 	struct openh264_encoder *enc = data;
 
@@ -167,7 +167,8 @@ static void *h264_create_internal(obs_data_t *settings, obs_encoder_t *encoder, 
 	if (strcmp(enc_lib, "libopenh264") == 0)
 		enc->type = H264_ENCODER_TYPE_OH264;
 
-	if (!ffmpeg_video_encoder_init(&enc->ffve, enc, encoder, enc_lib, NULL, enc_name, NULL, on_first_packet))
+	if (!ffmpeg_video_encoder_init(&enc->ffve, enc, encoder, enc_lib, NULL, enc_name, NULL,
+				       openh264_on_first_packet))
 		goto fail;
 	if (!openh264_update(enc, settings))
 		goto fail;
@@ -248,3 +249,6 @@ struct obs_encoder_info openh264_encoder_info = {
 	.get_extra_data = openh264_extra_data,
 	.get_video_info = openh264_video_info,
 };
+
+/* File-local macros: keep them out of the next source of a unity build. */
+#undef do_log

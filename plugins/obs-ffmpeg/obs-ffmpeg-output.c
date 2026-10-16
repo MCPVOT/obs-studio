@@ -630,7 +630,7 @@ fail:
 
 /* ------------------------------------------------------------------------- */
 
-static inline bool stopping(struct ffmpeg_output *output)
+static inline bool output_stopping(struct ffmpeg_output *output)
 {
 	return os_atomic_load_bool(&output->stopping);
 }
@@ -952,11 +952,11 @@ static uint64_t get_packet_sys_dts(struct ffmpeg_output *output, AVPacket *packe
 
 /* Writes an encoded packet, unless it is from after the stop time, and frees
  * it. */
-static int write_packet(struct ffmpeg_output *output, AVPacket *packet)
+static int output_write_packet(struct ffmpeg_output *output, AVPacket *packet)
 {
 	int ret = 0;
 
-	if (stopping(output)) {
+	if (output_stopping(output)) {
 		uint64_t sys_ts = get_packet_sys_dts(output, packet);
 		if (sys_ts >= output->stop_ts) {
 			ret = 0;
@@ -988,7 +988,7 @@ static int process_packet(struct ffmpeg_output *output)
 	}
 	pthread_mutex_unlock(&output->write_mutex);
 
-	return packet ? write_packet(output, packet) : 0;
+	return packet ? output_write_packet(output, packet) : 0;
 }
 
 /* Encoders hold frames back (B-frames, lookahead: libx264, libvpx, SVT-AV1,
@@ -1012,7 +1012,7 @@ static void drain_encoder(struct ffmpeg_output *output, AVCodecContext *context,
 		packet->dts = rescale_ts(packet->dts, context, stream->time_base);
 		packet->duration = (int)av_rescale_q(packet->duration, context->time_base, stream->time_base);
 		packet->stream_index = stream->index;
-		write_packet(output, packet);
+		output_write_packet(output, packet);
 	}
 }
 
@@ -1277,7 +1277,7 @@ static void ffmpeg_deactivate(struct ffmpeg_output *output, bool drain)
 	/* the write thread has ended: the packets it had not written yet */
 	for (size_t i = 0; i < output->packets.num; i++) {
 		if (drain)
-			write_packet(output, output->packets.array[i]);
+			output_write_packet(output, output->packets.array[i]);
 		else
 			av_packet_free(output->packets.array + i);
 	}

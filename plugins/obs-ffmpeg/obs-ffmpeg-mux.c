@@ -1294,3 +1294,6 @@ struct obs_output_info replay_buffer = {
 	.get_total_bytes = ffmpeg_mux_total_bytes,
 	.get_defaults = replay_buffer_defaults,
 };
+
+/* File-local macros: keep them out of the next source of a unity build. */
+#undef do_log

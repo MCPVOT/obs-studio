@@ -28,6 +28,11 @@
 #include "effect-parser.h"
 #include "effect.h"
 
+/* <windows.h> defines near and far (NEAR and FAR expand to them); this file
+ * uses them as names. Save them and restore them at the end of the file, so
+ * the sources a unity build compiles after it still see the definitions. */
+#pragma push_macro("near")
+#pragma push_macro("far")
 #ifdef near
 #undef near
 #endif
@@ -3310,3 +3315,6 @@ void gs_unregister_loss_callbacks(void *data)
 }
 
 #endif
+
+#pragma pop_macro("far")
+#pragma pop_macro("near")

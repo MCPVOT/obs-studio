@@ -145,7 +145,7 @@ const char *obs_service_get_name(const obs_service_t *service)
 	return obs_service_valid(service, "obs_service_get_name") ? service->context.name : NULL;
 }
 
-static inline obs_data_t *get_defaults(const struct obs_service_info *info)
+static inline obs_data_t *service_get_defaults(const struct obs_service_info *info)
 {
 	obs_data_t *settings = obs_data_create();
 	if (info->get_defaults)
@@ -156,14 +156,14 @@ static inline obs_data_t *get_defaults(const struct obs_service_info *info)
 obs_data_t *obs_service_defaults(const char *id)
 {
 	const struct obs_service_info *info = find_service(id);
-	return (info) ? get_defaults(info) : NULL;
+	return (info) ? service_get_defaults(info) : NULL;
 }
 
 obs_properties_t *obs_get_service_properties(const char *id)
 {
 	const struct obs_service_info *info = find_service(id);
 	if (info && info->get_properties) {
-		obs_data_t *defaults = get_defaults(info);
+		obs_data_t *defaults = service_get_defaults(info);
 		obs_properties_t *properties;
 
 		properties = info->get_properties(NULL);
@@ -464,3 +464,6 @@ bool obs_service_can_try_to_connect(const obs_service_t *service)
 		return true;
 	return service->info.can_try_to_connect(service->context.data);
 }
+
+/* File-local macros: keep them out of the next source of a unity build. */
+#undef get_weak

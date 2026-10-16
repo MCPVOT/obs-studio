@@ -3,6 +3,7 @@
 include_guard(GLOBAL)
 
 include(ccache)
+include(zccache)
 include(compiler_common)
 
 option(ENABLE_COMPILER_TRACE "Enable Clang time-trace (requires Clang and Ninja)" OFF)

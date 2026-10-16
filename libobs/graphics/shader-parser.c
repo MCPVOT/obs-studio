@@ -569,7 +569,7 @@ static bool sp_get_var_specifiers(struct shader_parser *sp, bool *is_const, bool
 	return true;
 }
 
-static inline void report_invalid_func_keyword(struct shader_parser *sp, const char *name, bool val)
+static inline void sp_report_invalid_func_keyword(struct shader_parser *sp, const char *name, bool val)
 {
 	if (val)
 		cf_adderror(&sp->cfp,
@@ -595,8 +595,8 @@ static void sp_parse_other(struct shader_parser *sp)
 		goto error;
 
 	if (cf_token_is(&sp->cfp, "(")) {
-		report_invalid_func_keyword(sp, "const", is_const);
-		report_invalid_func_keyword(sp, "uniform", is_uniform);
+		sp_report_invalid_func_keyword(sp, "const", is_const);
+		sp_report_invalid_func_keyword(sp, "uniform", is_uniform);
 
 		sp_parse_function(sp, type, name);
 		return;

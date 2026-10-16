@@ -689,3 +689,6 @@ void audio_monitor_destroy(struct audio_monitor *monitor)
 		bfree(monitor);
 	}
 }
+
+/* File-local macros: keep them out of the next source of a unity build. */
+#undef blog

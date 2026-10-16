@@ -17,12 +17,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 /* Changes take obs->hotkeys.mutex so they land between two poll cycles of
  * the hotkey thread, which holds it for a whole cycle. */
-static inline void lock(void)
+static inline void hotkey_state_lock(void)
 {
 	pthread_mutex_lock(&obs->hotkeys.mutex);
 }
 
-static inline void unlock(void)
+static inline void hotkey_state_unlock(void)
 {
 	pthread_mutex_unlock(&obs->hotkeys.mutex);
 }
@@ -37,24 +37,24 @@ void obs_nix_hotkey_state_set_key(struct obs_nix_hotkey_state *state, obs_key_t 
 	if (key <= OBS_KEY_NONE || key >= OBS_KEY_LAST_VALUE)
 		return;
 
-	lock();
+	hotkey_state_lock();
 	state->focused_keys[key] = pressed;
-	unlock();
+	hotkey_state_unlock();
 }
 
 void obs_nix_hotkey_state_set_modifiers(struct obs_nix_hotkey_state *state, uint32_t modifiers)
 {
-	lock();
+	hotkey_state_lock();
 	state->focused_modifiers = modifiers;
-	unlock();
+	hotkey_state_unlock();
 }
 
 void obs_nix_hotkey_state_clear_keys(struct obs_nix_hotkey_state *state)
 {
-	lock();
+	hotkey_state_lock();
 	memset(state->focused_keys, 0, sizeof(state->focused_keys));
 	state->focused_modifiers = 0;
-	unlock();
+	hotkey_state_unlock();
 }
 
 static size_t find_shortcut(struct obs_nix_hotkey_state *state, obs_key_combination_t combo)
@@ -69,7 +69,7 @@ static size_t find_shortcut(struct obs_nix_hotkey_state *state, obs_key_combinat
 
 void obs_nix_hotkey_state_set_shortcut(struct obs_nix_hotkey_state *state, obs_key_combination_t combo, bool active)
 {
-	lock();
+	hotkey_state_lock();
 	size_t idx = find_shortcut(state, combo);
 	if (active) {
 		if (idx == DARRAY_INVALID) {
@@ -84,14 +84,14 @@ void obs_nix_hotkey_state_set_shortcut(struct obs_nix_hotkey_state *state, obs_k
 		else
 			state->shortcuts.array[idx].release_pending = true;
 	}
-	unlock();
+	hotkey_state_unlock();
 }
 
 bool obs_nix_hotkey_state_flush(struct obs_nix_hotkey_state *state)
 {
 	bool pending = false;
 
-	lock();
+	hotkey_state_lock();
 	for (size_t i = state->shortcuts.num; i > 0; i--) {
 		struct obs_nix_hotkey_shortcut *shortcut = &state->shortcuts.array[i - 1];
 		if (!shortcut->release_pending)
@@ -101,7 +101,7 @@ bool obs_nix_hotkey_state_flush(struct obs_nix_hotkey_state *state)
 		else
 			pending = true;
 	}
-	unlock();
+	hotkey_state_unlock();
 	return pending;
 }
 
@@ -129,9 +129,9 @@ bool obs_nix_hotkey_state_is_pressed(struct obs_nix_hotkey_state *state, obs_key
 	uint32_t modifier = modifier_for_key(key);
 	bool pressed;
 
-	/* The hotkey thread already holds the (recursive) lock for the whole
+	/* The hotkey thread already holds the (recursive) hotkey_state_lock for the whole
 	 * cycle, so every shortcut present now is seen by all of it. */
-	lock();
+	hotkey_state_lock();
 	pressed = modifier ? (state->focused_modifiers & modifier) != 0 : state->focused_keys[key];
 
 	for (size_t i = 0; i < state->shortcuts.num; i++) {
@@ -142,6 +142,6 @@ bool obs_nix_hotkey_state_is_pressed(struct obs_nix_hotkey_state *state, obs_key
 		else
 			pressed = pressed || shortcut->combo.key == key;
 	}
-	unlock();
+	hotkey_state_unlock();
 	return pressed;
 }

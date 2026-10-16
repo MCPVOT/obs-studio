@@ -199,14 +199,25 @@ else
 
   # Query the current Ninja build graph, not the filesystem: the /build volume
   # persists across runs, so a stale .o from an older checkout would linger.
-  c_objs=$(ninja -C "$build" -t inputs libobs | grep -E '\.c\.o$' || true)
-  rust_objs=$(ninja -C "$build" -t inputs libobs-with-rust | grep -E '\.c\.o$' || true)
+  # compiles <target> <source> <object>: <source> (a path below the source
+  # tree) is compiled into <target>, as its own <object> (the path Ninja
+  # names it by below <target>.dir) or, with ENABLE_UNITY_BUILD,
+  # inside one of the target's unity batches (<target>.dir/Unity/unity_N_c.c
+  # includes it). Queries the current Ninja graph and generated batches, not
+  # stale objects on the persistent /build volume.
+  compiles() {
+    local target=$1 src=$2 object=$3 unity
+    ninja -C "$build" -t inputs "$target" 2>/dev/null | grep -qF "$target.dir/$object" && return 0
+    unity=$(find "$build" -type d -path "*/CMakeFiles/$target.dir/Unity" | head -1)
+    [ -n "$unity" ] && sed -n 's/^#include "\(.*\)"$/\1/p' "$unity"/*.c 2>/dev/null | grep -q "/$src\$"
+  }
   for obj in $ported_objs; do
-    if grep -q "\.dir/$obj\$" <<<"$rust_objs"; then
+    src="libobs/${obj%.o}"
+    if compiles libobs-with-rust "$src" "$obj"; then
       echo "FAIL: $obj was compiled into libobs-with-rust"
       exit 1
     fi
-    if ! grep -q "libobs\.dir/$obj\$" <<<"$c_objs"; then
+    if ! compiles libobs "$src" "$obj"; then
       echo "FAIL: $obj was not compiled into libobs"
       exit 1
     fi
@@ -218,9 +229,8 @@ else
   # Issue #645: obs-nvenc uses cuda-load.c, its never-installed twin
   # obs-nvenc-with-rust cuda-load-rust.c (#592, #1065). Both must link.
   for target in obs-nvenc obs-nvenc-with-rust; do
-    objs=$(ninja -C "$build" -t inputs "$target" 2>/dev/null | grep -E '\.c\.o$' || true)
-    if [ "$target" = obs-nvenc ]; then want=cuda-load.c.o not=cuda-load-rust.c.o; else want=cuda-load-rust.c.o not=cuda-load.c.o; fi
-    if ! grep -q "/$want\$" <<<"$objs" || grep -q "/$not\$" <<<"$objs"; then
+    if [ "$target" = obs-nvenc ]; then want=cuda-load.c not=cuda-load-rust.c; else want=cuda-load-rust.c not=cuda-load.c; fi
+    if ! compiles "$target" "plugins/obs-nvenc/$want" "$want.o" || compiles "$target" "plugins/obs-nvenc/$not" "$not.o"; then
       echo "FAIL: $target must compile $want and not $not"
       exit 1
     fi

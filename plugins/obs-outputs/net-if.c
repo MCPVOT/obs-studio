@@ -263,3 +263,6 @@ void netif_get_addrs(struct netif_saddr_data *ifaddrs)
 	netif_get_addrs_nix(ifaddrs);
 #endif
 }
+
+/* File-local macros: keep them out of the next source of a unity build. */
+#undef do_log

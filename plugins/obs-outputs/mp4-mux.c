@@ -121,7 +121,7 @@ static size_t mp4_write_ftyp(struct mp4_mux *mux, bool fragmented)
 		for (size_t i = 0; i < mux->tracks.num; i++) {
 			struct mp4_track *track = &mux->tracks.array[i];
 			if (track->type == TRACK_VIDEO) {
-				if (track->codec == CODEC_H264)
+				if (track->codec == MP4_CODEC_H264)
 					s_write(s, "avc1", 4);
 				break;
 			}
@@ -853,7 +853,8 @@ static inline void mp4_write_audio_sample_entry(struct mp4_mux *mux, struct mp4_
 {
 	struct serializer *s = mux->serializer;
 	bool is_mov = mux->flavor == FLAVOR_MOV;
-	bool is_pcm = track->codec == CODEC_PCM_I16 || track->codec == CODEC_PCM_I24 || track->codec == CODEC_PCM_F32;
+	bool is_pcm = track->codec == MP4_CODEC_PCM_I16 || track->codec == MP4_CODEC_PCM_I24 ||
+		      track->codec == MP4_CODEC_PCM_F32;
 
 	// SampleEntry Box
 	s_w8(s, 0); // reserved
@@ -874,7 +875,7 @@ static inline void mp4_write_audio_sample_entry(struct mp4_mux *mux, struct mp4_
 	audio_t *audio = obs_encoder_audio(track->encoder);
 	uint32_t channels = (uint32_t)audio_output_get_channels(audio);
 	uint32_t sample_rate = track->timescale;
-	bool alac = track->codec == CODEC_ALAC;
+	bool alac = track->codec == MP4_CODEC_ALAC;
 
 	/* MOV specific version: https://developer.apple.com/documentation/quicktime-file-format/sound_sample_description_version_2 */
 	if (version == 2) {
@@ -1073,11 +1074,11 @@ static size_t mp4_write_pcmc(struct mp4_mux *mux, struct mp4_track *track)
 	s_w8(s, 1); // endianness, 1 = little endian
 
 	// bits per sample
-	if (track->codec == CODEC_PCM_I16)
+	if (track->codec == MP4_CODEC_PCM_I16)
 		s_w8(s, 16);
-	else if (track->codec == CODEC_PCM_I24)
+	else if (track->codec == MP4_CODEC_PCM_I24)
 		s_w8(s, 24);
-	else if (track->codec == CODEC_PCM_F32)
+	else if (track->codec == MP4_CODEC_PCM_F32)
 		s_w8(s, 32);
 
 	return write_box_size(s, start);
@@ -1090,7 +1091,7 @@ static size_t mp4_write_xpcm(struct mp4_mux *mux, struct mp4_track *track, uint8
 	int64_t start = serializer_get_pos(s);
 
 	/* Different box types for floating point and integer PCM*/
-	write_box(s, 0, track->codec == CODEC_PCM_F32 ? "fpcm" : "ipcm");
+	write_box(s, 0, track->codec == MP4_CODEC_PCM_F32 ? "fpcm" : "ipcm");
 
 	mp4_write_audio_sample_entry(mux, track, version);
 
@@ -1192,9 +1193,9 @@ static size_t mp4_write_wave(struct mp4_mux *mux, struct mp4_track *track, const
 	s_write(s, "frma", 4);
 	s_write(s, tag, 4);
 
-	if (track->codec == CODEC_AAC) {
+	if (track->codec == MP4_CODEC_AAC) {
 		mp4_write_esds(mux, track);
-	} else if (track->codec == CODEC_ALAC) {
+	} else if (track->codec == MP4_CODEC_ALAC) {
 		uint8_t *extradata;
 		size_t extradata_size;
 
@@ -1249,12 +1250,13 @@ static size_t mp4_write_mov_audio_tag(struct mp4_mux *mux, struct mp4_track *tra
 	/* More than 2 channels or samples rates above 65535 Hz requires v2 */
 	uint8_t version = (channels > 2 || sample_rate > UINT16_MAX) ? 2 : 1;
 
-	if (track->codec == CODEC_PCM_F32 || track->codec == CODEC_PCM_I16 || track->codec == CODEC_PCM_I24) {
+	if (track->codec == MP4_CODEC_PCM_F32 || track->codec == MP4_CODEC_PCM_I16 ||
+	    track->codec == MP4_CODEC_PCM_I24) {
 		tag = "lpcm";
 		version = 2; /* lpcm also requires v2 */
-	} else if (track->codec == CODEC_AAC) {
+	} else if (track->codec == MP4_CODEC_AAC) {
 		tag = "mp4a";
-	} else if (track->codec == CODEC_ALAC) {
+	} else if (track->codec == MP4_CODEC_ALAC) {
 		tag = "alac";
 	}
 
@@ -1292,8 +1294,8 @@ static size_t mp4_write_stsd(struct mp4_mux *mux, struct mp4_track *track)
 	uint8_t version = 0;
 
 	if (track->type == TRACK_AUDIO && mux->flavor != FLAVOR_MOV) {
-		bool is_pcm = track->codec == CODEC_PCM_I16 || track->codec == CODEC_PCM_I24 ||
-			      track->codec == CODEC_PCM_F32;
+		bool is_pcm = track->codec == MP4_CODEC_PCM_I16 || track->codec == MP4_CODEC_PCM_I24 ||
+			      track->codec == MP4_CODEC_PCM_F32;
 		if (is_pcm && track_needs_chnl(track))
 			version = 1;
 	}
@@ -1304,28 +1306,28 @@ static size_t mp4_write_stsd(struct mp4_mux *mux, struct mp4_track *track)
 
 	// codec specific boxes
 	if (track->type == TRACK_VIDEO) {
-		if (track->codec == CODEC_H264)
+		if (track->codec == MP4_CODEC_H264)
 			mp4_write_avc1(mux, track->encoder);
-		else if (track->codec == CODEC_HEVC)
+		else if (track->codec == MP4_CODEC_HEVC)
 			mp4_write_hvc1(mux, track->encoder);
-		else if (track->codec == CODEC_AV1)
+		else if (track->codec == MP4_CODEC_AV1)
 			mp4_write_av01(mux, track->encoder);
-		else if (track->codec == CODEC_PRORES)
+		else if (track->codec == MP4_CODEC_PRORES)
 			mp4_write_prores(mux, track->encoder);
 	} else if (track->type == TRACK_AUDIO) {
 		if (mux->flavor == FLAVOR_MOV) {
 			mp4_write_mov_audio_tag(mux, track);
 		} else {
-			if (track->codec == CODEC_AAC)
+			if (track->codec == MP4_CODEC_AAC)
 				mp4_write_mp4a(mux, track, version);
-			else if (track->codec == CODEC_OPUS)
+			else if (track->codec == MP4_CODEC_OPUS)
 				mp4_write_Opus(mux, track, version);
-			else if (track->codec == CODEC_FLAC)
+			else if (track->codec == MP4_CODEC_FLAC)
 				mp4_write_fLaC(mux, track, version);
-			else if (track->codec == CODEC_ALAC)
+			else if (track->codec == MP4_CODEC_ALAC)
 				mp4_write_alac(mux, track, version);
-			else if (track->codec == CODEC_PCM_I16 || track->codec == CODEC_PCM_I24 ||
-				 track->codec == CODEC_PCM_F32)
+			else if (track->codec == MP4_CODEC_PCM_I16 || track->codec == MP4_CODEC_PCM_I24 ||
+				 track->codec == MP4_CODEC_PCM_F32)
 				mp4_write_xpcm(mux, track, version);
 		}
 	} else if (track->type == TRACK_CHAPTERS) {
@@ -1650,7 +1652,7 @@ static size_t mp4_write_stbl(struct mp4_mux *mux, struct mp4_track *track, bool 
 	mp4_write_stts(mux, track, fragmented);
 
 	// stss (non-fragmented/non-prores only)
-	if (track->type == TRACK_VIDEO && !fragmented && track->codec != CODEC_PRORES)
+	if (track->type == TRACK_VIDEO && !fragmented && track->codec != MP4_CODEC_PRORES)
 		mp4_write_stss(mux, track);
 
 	// ctts (non-fragmented only)
@@ -1669,12 +1671,12 @@ static size_t mp4_write_stbl(struct mp4_mux *mux, struct mp4_track *track, bool 
 	if (!fragmented) {
 		/* AAC and Opus require a pre-roll to get correct decoder
 		 * output, sgpd and sbgp are used to create a "roll" group. */
-		if (track->codec == CODEC_AAC) {
+		if (track->codec == MP4_CODEC_AAC) {
 			// sgpd
 			mp4_write_sgpd_aac(mux);
 			// sbgp
 			mp4_write_sbgp_aac(mux, track);
-		} else if (track->codec == CODEC_OPUS) {
+		} else if (track->codec == MP4_CODEC_OPUS) {
 			// sgpd + sbgp
 			mp4_write_sbgp_sbgp_opus(mux, track);
 		}
@@ -2743,11 +2745,11 @@ static inline uint32_t get_sample_size(struct mp4_track *track)
 	uint32_t channels = get_audio_channels(info->speakers);
 
 	switch (track->codec) {
-	case CODEC_PCM_F32:
+	case MP4_CODEC_PCM_F32:
 		return channels * 4; // 4 bytes per sample (32-bit)
-	case CODEC_PCM_I24:
+	case MP4_CODEC_PCM_I24:
 		return channels * 3; // 3 bytes per sample (24-bit)
-	case CODEC_PCM_I16:
+	case MP4_CODEC_PCM_I16:
 		return channels * 2; // 2 bytes per sample (16-bit)
 	default:
 		return 0;
@@ -2759,29 +2761,29 @@ static inline enum mp4_codec get_codec(obs_encoder_t *enc)
 	const char *codec = obs_encoder_get_codec(enc);
 
 	if (strcmp(codec, "h264") == 0)
-		return CODEC_H264;
+		return MP4_CODEC_H264;
 	if (strcmp(codec, "hevc") == 0)
-		return CODEC_HEVC;
+		return MP4_CODEC_HEVC;
 	if (strcmp(codec, "av1") == 0)
-		return CODEC_AV1;
+		return MP4_CODEC_AV1;
 	if (strcmp(codec, "prores") == 0)
-		return CODEC_PRORES;
+		return MP4_CODEC_PRORES;
 	if (strcmp(codec, "aac") == 0)
-		return CODEC_AAC;
+		return MP4_CODEC_AAC;
 	if (strcmp(codec, "opus") == 0)
-		return CODEC_OPUS;
+		return MP4_CODEC_OPUS;
 	if (strcmp(codec, "flac") == 0)
-		return CODEC_FLAC;
+		return MP4_CODEC_FLAC;
 	if (strcmp(codec, "alac") == 0)
-		return CODEC_ALAC;
+		return MP4_CODEC_ALAC;
 	if (strcmp(codec, "pcm_s16le") == 0)
-		return CODEC_PCM_I16;
+		return MP4_CODEC_PCM_I16;
 	if (strcmp(codec, "pcm_s24le") == 0)
-		return CODEC_PCM_I24;
+		return MP4_CODEC_PCM_I24;
 	if (strcmp(codec, "pcm_f32le") == 0)
-		return CODEC_PCM_F32;
+		return MP4_CODEC_PCM_F32;
 
-	return CODEC_UNKNOWN;
+	return MP4_CODEC_UNKNOWN;
 }
 
 static inline void add_track(struct mp4_mux *mux, obs_encoder_t *enc)
@@ -2804,7 +2806,7 @@ static inline void add_track(struct mp4_mux *mux, obs_encoder_t *enc)
 	} else {
 		uint32_t sample_rate = obs_encoder_get_sample_rate(enc);
 		/* Opus is always 48 kHz */
-		if (track->codec == CODEC_OPUS)
+		if (track->codec == MP4_CODEC_OPUS)
 			sample_rate = 48000;
 		track->timebase_num = 1;
 		track->timebase_den = sample_rate;
@@ -2820,14 +2822,14 @@ static inline void add_chapter_track(struct mp4_mux *mux)
 {
 	mux->chapter_track = bzalloc(sizeof(struct mp4_track));
 	mux->chapter_track->type = TRACK_CHAPTERS;
-	mux->chapter_track->codec = CODEC_TEXT;
+	mux->chapter_track->codec = MP4_CODEC_TEXT;
 	mux->chapter_track->timescale = 1000;
 	mux->chapter_track->timebase_num = 1;
 	mux->chapter_track->timebase_den = 1000;
 	mux->chapter_track->track_id = ++mux->track_ctr;
 }
 
-static inline void free_packets(struct deque *dq)
+static inline void mp4_free_packets(struct deque *dq)
 {
 	size_t num = dq->size / sizeof(struct encoder_packet);
 
@@ -2845,7 +2847,7 @@ static inline void free_track(struct mp4_track *track)
 
 	obs_encoder_release(track->encoder);
 
-	free_packets(&track->packets);
+	mp4_free_packets(&track->packets);
 	deque_free(&track->packets);
 
 	da_free(track->sample_sizes);
@@ -2936,13 +2938,13 @@ bool mp4_mux_submit_packet(struct mp4_mux *mux, struct encoder_packet *pkt)
 	if (type == OBS_ENCODER_AUDIO) {
 		obs_encoder_packet_ref(&parsed_packet, pkt);
 	} else {
-		if (track->codec == CODEC_H264)
+		if (track->codec == MP4_CODEC_H264)
 			obs_parse_avc_packet(&parsed_packet, pkt);
-		else if (track->codec == CODEC_HEVC)
+		else if (track->codec == MP4_CODEC_HEVC)
 			obs_parse_hevc_packet(&parsed_packet, pkt);
-		else if (track->codec == CODEC_AV1)
+		else if (track->codec == MP4_CODEC_AV1)
 			obs_parse_av1_packet(&parsed_packet, pkt);
-		else if (track->codec == CODEC_PRORES)
+		else if (track->codec == MP4_CODEC_PRORES)
 			obs_encoder_packet_ref(&parsed_packet, pkt);
 
 		/* Set fragmentation PTS if packet is keyframe and PTS > 0 */
@@ -3039,3 +3041,6 @@ bool mp4_mux_finalise(struct mp4_mux *mux)
 	info("Final mdat size: %zu KiB", data_size / 1024);
 	return true;
 }
+
+/* File-local macros: keep them out of the next source of a unity build. */
+#undef do_log

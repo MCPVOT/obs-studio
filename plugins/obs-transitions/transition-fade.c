@@ -101,13 +101,13 @@ static void fade_video_render(void *data, gs_effect_t *effect)
 	gs_set_linear_srgb(previous);
 }
 
-static float mix_a(void *data, float t)
+static float fade_mix_a(void *data, float t)
 {
 	UNUSED_PARAMETER(data);
 	return 1.0f - t;
 }
 
-static float mix_b(void *data, float t)
+static float fade_mix_b(void *data, float t)
 {
 	UNUSED_PARAMETER(data);
 	return t;
@@ -117,7 +117,8 @@ static bool fade_audio_render(void *data, uint64_t *ts_out, struct obs_source_au
 			      size_t channels, size_t sample_rate)
 {
 	struct fade_info *fade = data;
-	return obs_transition_audio_render(fade->source, ts_out, audio, mixers, channels, sample_rate, mix_a, mix_b);
+	return obs_transition_audio_render(fade->source, ts_out, audio, mixers, channels, sample_rate, fade_mix_a,
+					   fade_mix_b);
 }
 
 static enum gs_color_space fade_video_get_color_space(void *data, size_t count,

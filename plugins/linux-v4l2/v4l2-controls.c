@@ -363,3 +363,6 @@ bool v4l2_controls_use_device(int_fast32_t dev, obs_data_t *settings, const char
 	obs_data_set_string(settings, V4L2_CONTROLS_DEVICE, identity);
 	return true;
 }
+
+/* File-local macros: keep them out of the next source of a unity build. */
+#undef blog

@@ -241,7 +241,7 @@ static void scene_destroy(void *data)
 	bfree(scene);
 }
 
-static inline bool transition_active(obs_source_t *transition)
+static inline bool scene_transition_active(obs_source_t *transition)
 {
 	return transition && (transition->transitioning_audio || transition->transitioning_video);
 }
@@ -264,9 +264,9 @@ static void scene_enum_sources(void *data, obs_source_enum_proc_t enum_callback,
 			 * scene (obs_sceneitem_do_transition), whatever the
 			 * item's visibility: hiding a group starts the hide
 			 * transitions of children that stay visible. */
-			if (transition_active(item->show_transition))
+			if (scene_transition_active(item->show_transition))
 				enum_callback(scene->source, item->show_transition, param);
-			else if (transition_active(item->hide_transition))
+			else if (scene_transition_active(item->hide_transition))
 				enum_callback(scene->source, item->hide_transition, param);
 			if (os_atomic_load_long(&item->active_refs) > 0)
 				enum_callback(scene->source, item->source, param);
@@ -878,9 +878,9 @@ static void render_empty_item_transition(struct obs_scene_item *item)
 {
 	obs_source_t *transition = NULL;
 
-	if (item->user_visible && transition_active(item->show_transition))
+	if (item->user_visible && scene_transition_active(item->show_transition))
 		transition = item->show_transition;
-	else if (!item->user_visible && transition_active(item->hide_transition))
+	else if (!item->user_visible && scene_transition_active(item->hide_transition))
 		transition = item->hide_transition;
 
 	if (!transition)
@@ -935,12 +935,12 @@ static inline void render_item(struct obs_scene_item *item)
 			gs_matrix_translate3f(-(float)(item->crop.left + item->bounds_crop.left),
 					      -(float)(item->crop.top + item->bounds_crop.top), 0.0f);
 
-			if (item->user_visible && transition_active(item->show_transition)) {
+			if (item->user_visible && scene_transition_active(item->show_transition)) {
 				const int show_cx = obs_source_get_width(item->source);
 				const int show_cy = obs_source_get_height(item->source);
 				obs_transition_set_size(item->show_transition, show_cx, show_cy);
 				obs_source_video_render(item->show_transition);
-			} else if (!item->user_visible && transition_active(item->hide_transition)) {
+			} else if (!item->user_visible && scene_transition_active(item->hide_transition)) {
 				const int hide_cx = obs_source_get_width(item->source);
 				const int hide_cy = obs_source_get_height(item->source);
 				obs_transition_set_size(item->hide_transition, hide_cx, hide_cy);
@@ -961,12 +961,12 @@ static inline void render_item(struct obs_scene_item *item)
 	gs_matrix_mul(&item->draw_transform);
 	if (item->item_render) {
 		render_item_texture(item, current_space, source_space);
-	} else if (item->user_visible && transition_active(item->show_transition)) {
+	} else if (item->user_visible && scene_transition_active(item->show_transition)) {
 		const int cx = obs_source_get_width(item->source);
 		const int cy = obs_source_get_height(item->source);
 		obs_transition_set_size(item->show_transition, cx, cy);
 		obs_source_video_render(item->show_transition);
-	} else if (!item->user_visible && transition_active(item->hide_transition)) {
+	} else if (!item->user_visible && scene_transition_active(item->hide_transition)) {
 		const int cx = obs_source_get_width(item->source);
 		const int cy = obs_source_get_height(item->source);
 		obs_transition_set_size(item->hide_transition, cx, cy);
@@ -1088,7 +1088,7 @@ static void scene_video_render(void *data, gs_effect_t *effect)
 
 	item = scene->first_item;
 	while (item) {
-		if (item->user_visible || transition_active(item->hide_transition))
+		if (item->user_visible || scene_transition_active(item->hide_transition))
 			render_item(item);
 
 		item = item->next;
@@ -1612,7 +1612,7 @@ static void mix_audio_with_buf(float *p_out, float *p_in, float *buf_in, size_t 
 		*(out++) += *(in++) * *(buf++);
 }
 
-static inline void mix_audio(float *p_out, float *p_in, size_t pos, size_t count)
+static inline void scene_mix_audio(float *p_out, float *p_in, size_t pos, size_t count)
 {
 	register float *out = p_out + pos;
 	register float *in = p_in;
@@ -1636,14 +1636,15 @@ static bool scene_audio_render(void *data, uint64_t *ts_out, struct obs_source_a
 	item = scene->first_item;
 	while (item) {
 		struct obs_source *source;
-		if (item->visible && transition_active(item->show_transition))
+		if (item->visible && scene_transition_active(item->show_transition))
 			source = item->show_transition;
-		else if (!item->visible && transition_active(item->hide_transition))
+		else if (!item->visible && scene_transition_active(item->hide_transition))
 			source = item->hide_transition;
 		else
 			source = item->source;
 
-		if (!obs_source_audio_pending(source) && (item->visible || transition_active(item->hide_transition))) {
+		if (!obs_source_audio_pending(source) &&
+		    (item->visible || scene_transition_active(item->hide_transition))) {
 			uint64_t source_ts = obs_source_get_audio_timestamp(source);
 
 			if (source_ts && (!timestamp || source_ts < timestamp))
@@ -1674,9 +1675,9 @@ static bool scene_audio_render(void *data, uint64_t *ts_out, struct obs_source_a
 		bool apply_buf;
 		struct obs_source *source;
 
-		if (item->visible && transition_active(item->show_transition))
+		if (item->visible && scene_transition_active(item->show_transition))
 			source = item->show_transition;
-		else if (!item->visible && transition_active(item->hide_transition))
+		else if (!item->visible && scene_transition_active(item->hide_transition))
 			source = item->hide_transition;
 		else
 			source = item->source;
@@ -1703,7 +1704,7 @@ static bool scene_audio_render(void *data, uint64_t *ts_out, struct obs_source_a
 
 		count = AUDIO_OUTPUT_FRAMES - pos;
 
-		if (!apply_buf && !item->visible && !transition_active(item->hide_transition)) {
+		if (!apply_buf && !item->visible && !scene_transition_active(item->hide_transition)) {
 			item = item->next;
 			continue;
 		}
@@ -1721,7 +1722,7 @@ static bool scene_audio_render(void *data, uint64_t *ts_out, struct obs_source_a
 					if (apply_buf)
 						mix_audio_with_buf(out, in, buf, pos, count);
 					else
-						mix_audio(out, in, pos, count);
+						scene_mix_audio(out, in, pos, count);
 				}
 			}
 		}
@@ -4184,7 +4185,7 @@ void obs_sceneitem_transition_stop(void *data, calldata_t *calldata)
  * still list it and deactivate it a second time. */
 static void stop_item_transition(obs_source_t *transition)
 {
-	if (!transition_active(transition))
+	if (!scene_transition_active(transition))
 		return;
 	obs_transition_force_stop(transition);
 	obs_transition_clear(transition);

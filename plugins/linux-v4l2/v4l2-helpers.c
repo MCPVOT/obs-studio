@@ -313,3 +313,6 @@ int_fast32_t v4l2_set_dv_timing(int_fast32_t dev, int *timing)
 
 	return 0;
 }
+
+/* File-local macros: keep them out of the next source of a unity build. */
+#undef blog

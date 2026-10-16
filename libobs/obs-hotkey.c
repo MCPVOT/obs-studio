@@ -1575,3 +1575,8 @@ void obs_hotkeys_set_sceneitem_hotkeys_translations(const char *show, const char
 	SET_T(hide);
 #undef SET_T
 }
+
+/* This file hashes integer keys (HASH_FUNCTION above); restore util/uthash.h's
+ * default for the sources a unity build compiles after it. */
+#undef HASH_FUNCTION
+#define HASH_FUNCTION HASH_SFH
