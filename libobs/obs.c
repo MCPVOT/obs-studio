@@ -1457,6 +1457,12 @@ void obs_shutdown(void)
 {
 	struct obs_module *module;
 
+	/* No core: never started, already shut down, or obs_startup() failed and
+	 * shut down itself, while the caller's error path shuts down too
+	 * (#1032). */
+	if (!obs)
+		return;
+
 	/* Destroying a scene queues the destruction of its items' sources
 	 * behind the wait marker, so a single wait returns while nested scenes,
 	 * groups and sources are still being destroyed. Wait until a pass
