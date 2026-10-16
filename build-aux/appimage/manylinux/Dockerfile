@@ -54,7 +54,7 @@ RUN git config --system --add safe.directory '*'
 # /opt/obs-deps/<tool> (the prefix it was built for). The CLI is pinned to a
 # commit of obs-studio-libs.
 COPY build-aux/appimage/manylinux/deps.lock.json /opt/deps/deps.lock.json
-RUN uvx --from "git+https://github.com/obs-rust/obs-studio-libs@b341097e2a9c6b0d3eee0fdc7611810e06b337b7" \
+RUN uvx --from "git+https://github.com/obs-rust/obs-studio-libs@b35437f2c34dc2468d4255a88a560073272f14db" \
         obs-studio-libs fetch --lock /opt/deps/deps.lock.json
 ENV CMAKE_PREFIX_PATH=/opt/obs-deps/qt6:/opt/obs-deps/ffmpeg:/opt/obs-deps/pipewire:/opt/obs-deps/glib:/opt/obs-deps/fdk-aac:/opt/obs-deps/qrcodegen:/opt/obs-deps/headers
 ENV PKG_CONFIG_PATH=/opt/obs-deps/qt6/lib/pkgconfig:/opt/obs-deps/ffmpeg/lib/pkgconfig:/opt/obs-deps/pipewire/lib/pkgconfig:/opt/obs-deps/glib/lib/pkgconfig:/opt/obs-deps/fdk-aac/lib/pkgconfig:/opt/obs-deps/qrcodegen/lib/pkgconfig:/opt/obs-deps/headers/lib/pkgconfig:/opt/obs-deps/headers/share/pkgconfig
