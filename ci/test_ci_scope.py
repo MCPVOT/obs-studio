@@ -105,6 +105,31 @@ class CiScopeTest(unittest.TestCase):
         self.check(["test/cmocka/tests.d/test_pipe_wait_error.cmake"])
 
 
+class QtScopeTest(unittest.TestCase):
+    FRAGMENTS = {
+        "test/cmocka/tests.d/test_source_select_list.cmake": "find_package(Qt6 QUIET COMPONENTS Core)",
+        "test/cmocka/tests.d/test_pipe_wait_error.cmake": "add_executable(test_pipe_wait_error ...)",
+    }
+
+    def qt(self, *files):
+        return scope(list(files), lambda p: False, lambda p: self.FRAGMENTS.get(p, "")).qt
+
+    def test_frontend_and_qt_tests_run_the_job(self):
+        self.assertTrue(self.qt("frontend/OBSApp.cpp"))
+        self.assertTrue(self.qt("shared/qt/wrappers/qt-wrappers.cpp"))
+        self.assertTrue(self.qt("test/cmocka/test_source_select_list.cpp"))
+        self.assertTrue(self.qt("test/cmocka/tests.d/test_source_select_list.cmake"))
+        self.assertTrue(self.qt("test/cmocka/CMakeLists.txt"))
+        self.assertTrue(self.qt(".github/workflows/build-project.yaml"))
+        self.assertTrue(self.qt("ci/linux_qt_frontend.sh"))
+
+    def test_other_changes_skip_the_job(self):
+        self.assertFalse(self.qt("docs/rust-port/naming.md"))
+        self.assertFalse(self.qt("libobs/obs-source.c", "rust/obs-util/src/dstr.rs"))
+        self.assertFalse(self.qt("test/cmocka/test_pipe_wait_error.c"))
+        self.assertFalse(self.qt("test/cmocka/tests.d/test_pipe_wait_error.cmake"))
+
+
 class PlatformPathsTest(unittest.TestCase):
     def test_classification(self):
         self.assertIsNone(platforms("libobs/obs.c"))

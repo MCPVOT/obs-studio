@@ -31,6 +31,7 @@ jobs:
       windows: ${{ steps.native.outputs.windows }}
       platform_os: ${{ steps.native.outputs.platform_os }}
       deferred: ${{ steps.native.outputs.deferred }}
+      qt: ${{ steps.native.outputs.qt }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -131,6 +132,12 @@ jobs:
             fi
             eval "$(uv run ci/ci_scope.py "${base}")"
           fi
+          # The Linux Qt frontend job (#992) runs on master, schedule and
+          # ci-full, and on a PR only when frontend/Qt code or a Qt-linked
+          # test changed (ci/ci_scope.py).
+          if [[ "${full}" == true || "${deferred}" != true ]]; then
+            qt=true
+          fi
           os=()
           [[ "${macos}" == true ]] && os+=('"macos-26"')
           [[ "${windows}" == true ]] && os+=('"windows-2025-vs2026"')
@@ -138,6 +145,7 @@ jobs:
             echo "core=${core}"
             echo "macos=${macos}"
             echo "windows=${windows}"
+            echo "qt=${qt:-false}"
             echo "platform_os=[$(IFS=,; echo "${os[*]}")]"
           } >> "${GITHUB_OUTPUT}"
           echo "full=${full} core=${core} macos=${macos} windows=${windows}"
@@ -994,6 +1002,90 @@ jobs:
           path: ${{ runner.temp }}/lane-proof
           retention-days: 3
           if-no-files-found: error
+
+  # Qt frontend on the Linux fast path (#992): configure, build and link the
+  # obs-studio app against PREBUILT Qt and FFmpeg (obs-rust/obs-studio-libs,
+  # pinned by tag and sha256, never compiled here), then run the Qt-linked
+  # cmocka tests. Runs when frontend/Qt code or a Qt-linked test changed
+  # (ci/ci_scope.py), on master and in ci-full; skipped, and passing CI Gate,
+  # otherwise.
+  linux-qt-frontend:
+    name: Qt Frontend Linux 🐧
+    runs-on: ubuntu-26.04
+    needs: check-event
+    if: fromJSON(needs.check-event.outputs.qt)
+    timeout-minutes: 30
+    env:
+      QT_TAG: qt6-6.11.1
+      QT_ASSET: qt6-6.11.1-linux-x86_64-glibc2.28-release.tar.zst
+      QT_SHA256: f0edfc3432bd57058bbb9a2cf18aacceb55a2564b018346778c34eb0e3369dbf
+      FFMPEG_TAG: ffmpeg-8.1.2
+      FFMPEG_ASSET: ffmpeg-8.1.2-linux-x86_64-glibc2.28-release.tar.zst
+      FFMPEG_SHA256: 8796ecdb273688c21f90b75a4e84acfc84ab35e69cacb551a6d8ed452961fcb4
+      CCACHE_DIR: ${{ github.workspace }}/.qt-ccache
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Set Up uv 🐍
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+
+      # Unpacked prefixes, keyed on the pinned sha256: a warm run skips the
+      # download.
+      - name: Cache Prebuilt Qt 💾
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ runner.temp }}/qt
+          key: libs-qt-${{ env.QT_SHA256 }}
+      - name: Cache Prebuilt FFmpeg 💾
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ runner.temp }}/ffmpeg
+          key: libs-ffmpeg-${{ env.FFMPEG_SHA256 }}
+      - name: Fetch Prebuilt Libs 📦
+        run: |
+          uv run ci/fetch_libs_asset.py "${QT_TAG}" "${QT_ASSET}" "${QT_SHA256}" "${{ runner.temp }}/qt"
+          uv run ci/fetch_libs_asset.py "${FFMPEG_TAG}" "${FFMPEG_ASSET}" "${FFMPEG_SHA256}" "${{ runner.temp }}/ffmpeg"
+
+      # PRs restore the compiler cache; only master pushes save it.
+      - uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ github.workspace }}/.qt-ccache
+          key: qt-ccache-linux-${{ github.sha }}
+          restore-keys: qt-ccache-linux-
+
+      # No distro Qt, FFmpeg or codec dev packages: the prebuilt prefixes
+      # supply them.
+      - name: Install Build Dependencies 📦
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake ninja-build pkg-config ccache git curl zstd \
+            libcurl4-openssl-dev libjansson-dev libx11-dev libx11-xcb-dev libxcb1-dev \
+            libxcb-randr0-dev libxcb-shm0-dev libxcb-xinerama0-dev libxcb-composite0-dev \
+            libxcb-xfixes0-dev libxcb-xinput-dev libxinerama-dev libxcomposite-dev libxdamage-dev \
+            libgl-dev libglvnd-dev libgles2-mesa-dev libwayland-dev libxkbcommon-dev \
+            libpulse-dev libasound2-dev libpipewire-0.3-dev libpci-dev libdrm-dev libudev-dev \
+            libv4l-dev libva-dev libfontconfig-dev libfreetype-dev libspeexdsp-dev libsimde-dev \
+            uthash-dev nlohmann-json3-dev libwebsocketpp-dev libasio-dev libqrcodegencpp-dev \
+            libcmocka-dev libxss-dev extra-cmake-modules xvfb xauth libdbus-1-dev \
+            libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 \
+            libxcb-xkb1 libxkbcommon-x11-0 libxcb-shape0 libxcb-sync1 libegl1
+
+      - name: Build Frontend and Run Qt Tests 🏗️
+        run: ci/linux_qt_frontend.sh "${{ runner.temp }}/qt" "${{ runner.temp }}/ffmpeg" "${{ runner.temp }}/qt-build"
+
+      - name: Save Qt ccache 💾
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+        with:
+          path: ${{ github.workspace }}/.qt-ccache
+          key: qt-ccache-linux-${{ github.sha }}
 
   rust-tier2:
     name: Rust Tier 2 ${{ matrix.os }}

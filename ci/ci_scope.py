@@ -8,6 +8,8 @@ The Linux Rust tests and Tier 2 always run. On top of them:
            tests and Tier 2;
 - windows: Windows code (or shared build/CI config) changed -> Windows Rust
            tests and Tier 2;
+- qt:      frontend/Qt code or a Qt-linked cmocka test changed -> the Linux
+           Qt frontend build and its unit tests (#992);
 - core:    libobs or the Rust workspace changed (informational).
 Platform is decided by path alone (#897, ci/platform_paths.py): a changed
 file of a platform (`win-capture/`, `platform-osx.mm`, `threading-posix.c`,
@@ -51,6 +53,7 @@ class Scope:
     core: bool
     macos: bool
     windows: bool
+    qt: bool = False
 
 
 def is_shared(path: str, exists: Callable[[str], bool]) -> bool:
@@ -60,10 +63,39 @@ def is_shared(path: str, exists: Callable[[str], bool]) -> bool:
     return bool(m) and any(exists(f"test/cmocka/{m.group(1)}.{ext}") for ext in ("cpp", "hpp"))
 
 
-def scope(files: list[str], exists: Callable[[str], bool] = lambda path: False) -> Scope:
-    """`exists(path)` says whether a file exists in the checkout."""
-    core = macos = windows = False
+# The Linux Qt frontend job (#992) runs only when the change can break the Qt
+# frontend build or a Qt-linked unit test; master, schedule and ci-full always
+# run it (build-project.yaml).
+QT_PREFIXES = ("frontend/", "shared/qt/", "shared/properties-view/", "plugins/frontend-tools/", "ci/linux_qt_frontend")
+QT_FILES = {
+    "ci/fetch_libs_asset.py",
+    "ci/test_qt_fastpath.py",
+    "test/cmocka/CMakeLists.txt",
+    ".github/workflows/build-project.yaml",
+    "cmake/finders/FindFFmpeg.cmake",
+}
+TEST_SOURCE = re.compile(r"^test/cmocka/([^/]+)\.(?:cpp|hpp|c|h)$")
+
+
+def is_qt(path: str, read: Callable[[str], str]) -> bool:
+    """Frontend/Qt code, the job's own files, or a Qt-linked cmocka test: a
+    tests.d fragment that finds Qt6, or the test source it registers."""
+    if path.startswith(QT_PREFIXES) or path in QT_FILES:
+        return True
+    m = TESTS_D.match(path) or TEST_SOURCE.match(path)
+    return bool(m) and "Qt6" in read(f"test/cmocka/tests.d/{m.group(1)}.cmake")
+
+
+def scope(
+    files: list[str],
+    exists: Callable[[str], bool] = lambda path: False,
+    read: Callable[[str], str] = lambda path: "",
+) -> Scope:
+    """`exists(path)` says whether a file exists in the checkout, `read(path)`
+    returns its text ("" when missing)."""
+    core = macos = windows = qt = False
     for path in files:
+        qt |= is_qt(path, read)
         if path.startswith(CORE_PREFIXES) or path in CORE_FILES:
             core = True
         if is_shared(path, exists):
@@ -72,7 +104,7 @@ def scope(files: list[str], exists: Callable[[str], bool] = lambda path: False) 
         found = platforms(path) or frozenset()
         macos |= MACOS in found
         windows |= WINDOWS in found
-    return Scope(core, macos, windows)
+    return Scope(core, macos, windows, qt)
 
 
 def changed_files(base: str) -> list[str]:
@@ -82,9 +114,16 @@ def changed_files(base: str) -> list[str]:
     return [line for line in out.splitlines() if line]
 
 
+def read_text(path: str) -> str:
+    try:
+        return Path(path).read_text()
+    except OSError:
+        return ""
+
+
 def main() -> int:
     files = changed_files(sys.argv[1])
-    result = scope(files, lambda path: Path(path).is_file())
+    result = scope(files, lambda path: Path(path).is_file(), read_text)
     lines = [f"{k}={str(v).lower()}" for k, v in vars(result).items()]
     print("\n".join(lines))
     if out := os.environ.get("GITHUB_OUTPUT"):
