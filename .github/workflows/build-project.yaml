@@ -776,6 +776,9 @@ jobs:
         with:
           # soldr 0.9.33 embeds zccache 1.15.4 (has zackees/zccache#1937).
           version: 0.9.33
+          # The lanes add x86_64-pc-windows-gnu mid-job; the toolchain cache
+          # would save it without its std (zackees/setup-soldr#507, #969).
+          solo-toolchain-cache: false
 
       # The lint lane pins clang-format and gersemi through uvx.
       - name: Set Up uv 🐍
@@ -824,6 +827,8 @@ jobs:
         uses: zackees/setup-soldr@b782f606a2f3beadc35b9e3bf5b4565e005f52ed # v0.9.86
         with:
           version: 0.9.33
+          # The cross lane adds targets mid-job (see the Rust Tests job, #969).
+          solo-toolchain-cache: false
 
       - name: Set Up uv 🐍
         uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
