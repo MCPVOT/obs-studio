@@ -3,7 +3,7 @@ on:
   workflow_call:
 jobs:
   clang-format:
-    runs-on: ubuntu-26.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       # The local gate's pinned uvx tool and file set (#427): brew update,
@@ -13,8 +13,35 @@ jobs:
       - name: clang-format Check 🐉
         run: uv run ci/local_gate.py --only clang-format
 
+  # swift-format needs a macOS runner, one of the 5 the plan allows; take it
+  # only when a Swift file changed (#427).
+  swift-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      swift: ${{ steps.diff.outputs.swift }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+      - name: Check for Swift Changes 🔎
+        id: diff
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+        run: |
+          if [ -z "$BASE" ]; then
+            swift=true
+          elif git diff --name-only "$BASE" HEAD -- '*.swift' | grep -q .; then
+            swift=true
+          else
+            swift=false
+          fi
+          echo "swift=$swift" >> "$GITHUB_OUTPUT"
+          echo "Swift files changed: $swift"
+
   swift-format:
     runs-on: macos-26
+    needs: swift-changes
+    if: needs.swift-changes.outputs.swift == 'true'
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -26,7 +53,7 @@ jobs:
           failCondition: error
 
   gersemi:
-    runs-on: ubuntu-26.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       # The local gate's pinned uvx tool and file set (#427): brew update,
@@ -37,7 +64,7 @@ jobs:
         run: uv run ci/local_gate.py --only gersemi
 
   flatpak-validator:
-    runs-on: ubuntu-26.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -49,7 +76,7 @@ jobs:
           failCondition: error
 
   qt-xml-validator:
-    runs-on: ubuntu-26.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
