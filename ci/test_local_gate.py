@@ -156,6 +156,21 @@ class EnvironmentHintTest(unittest.TestCase):
         self.assertIn("hint:", text)
 
 
+class CrossTargetsTest(unittest.TestCase):
+    """PR gate lints win-x64, mac-arm64 and linux-x64 (the host); the release
+    gate adds win-arm64, mac-x64 and linux-arm64 (obs-rust/obs-studio#955)."""
+
+    def test_pr_gate_targets(self):
+        self.assertEqual(local_gate.CROSS_TARGETS, ("x86_64-pc-windows-msvc", "aarch64-apple-darwin"))
+
+    def test_release_gate_targets(self):
+        self.assertEqual(
+            local_gate.RELEASE_CROSS_TARGETS,
+            ("aarch64-pc-windows-msvc", "x86_64-apple-darwin", "aarch64-unknown-linux-gnu"),
+        )
+        self.assertIn("cross-release", local_gate.LANES)
+
+
 if __name__ == "__main__":
     unittest.main()
 
