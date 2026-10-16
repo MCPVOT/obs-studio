@@ -8,6 +8,10 @@ no platform defines, so a change to it can't affect one platform alone.
 A path belongs to a platform through a path token (a directory or file-name
 component such as `win-capture/`, `platform-osx.mm`, `threading-posix.c`) or
 an extension (`.m`, `.rc`, ...). POSIX/Unix code also builds on macOS.
+A module whose name doesn't say its OSes is listed in _MODULES with its
+PLATFORMS from plugins/CMakeLists.txt; a file name inside it can still narrow
+it (coreaudio-encoder/windows-imports.h). Upstream names stay as they are:
+an ambiguous path gets an entry here, not a rename (#1051).
 """
 
 from __future__ import annotations
@@ -31,8 +35,36 @@ _WINDOWS_SUFFIXES = (".rc", ".manifest", ".ps1")
 _MACOS_TOO = {"libobs/util/platform-nix.c"}
 
 
+# Modules whose name doesn't say their OSes: PLATFORMS in plugins/CMakeLists.txt
+# (ci/test_ci_scope.py checks every PLATFORMS row against this classifier), and
+# directories only a Windows build adds.
+_MODULES = {
+    "plugins/coreaudio-encoder/": frozenset({MACOS, WINDOWS}),
+    "plugins/nv-filters/": frozenset({WINDOWS}),
+    "plugins/obs-nvenc/": frozenset({LINUX, WINDOWS}),
+    "plugins/obs-text/": frozenset({WINDOWS}),
+    "plugins/oss-audio/": frozenset({LINUX}),
+    # frontend/cmake/os-windows.cmake
+    "frontend/updater/": frozenset({WINDOWS}),
+    # plugins/obs-ffmpeg/cmake/dependencies.cmake (if OS_WINDOWS)
+    "plugins/obs-ffmpeg/obs-amf-test/": frozenset({WINDOWS}),
+    # plugins/obs-qsv11/CMakeLists.txt (if OS_WINDOWS)
+    "plugins/obs-qsv11/obs-qsv-test/": frozenset({WINDOWS}),
+    # only win-capture and win-dshow build these
+    "shared/obs-inject-library/": frozenset({WINDOWS}),
+    "shared/obs-shared-memory-queue/": frozenset({WINDOWS}),
+}
+
+
 def platforms(path: str) -> frozenset[str] | None:
     """The platforms `path` belongs to, or None for core (every platform)."""
+    for prefix, oses in _MODULES.items():
+        if path.startswith(prefix):
+            return _by_name(path[len(prefix) :]) or oses
+    return _by_name(path)
+
+
+def _by_name(path: str) -> frozenset[str] | None:
     found: set[str] = set()
     if path.startswith("cmake/macos/") or path.endswith(_MACOS_SUFFIXES) or _MACOS.search(path):
         found.add(MACOS)

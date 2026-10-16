@@ -37,7 +37,8 @@ Platform is decided by path alone (#897, ci/platform_paths.py): a changed
 file of a platform (`win-capture/`, `platform-osx.mm`, `threading-posix.c`,
 `rust/*/src/platform/windows/`, ...) starts that platform's jobs. Core files
 carry no platform defines (ci/platform_ifdef_ratchet.py), so a core change
-runs on Linux. `.github/`, `cmake/common/`, `cmake/finders/`, `libobs/cmake/`,
+runs on Linux. `.github/`, `cmake/common/`, `cmake/finders/`, `libobs/cmake/`
+(except `os-<os>.cmake`, which starts its own OS),
 the root CMake files, `platform/mod.rs` and the C++ cmocka tests (with their
 tests.d registrations) stay shared: every platform consumes them.
 Every OBS app build (Ubuntu, macOS, Windows, Flatpak) runs only in the
@@ -55,7 +56,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from platform_paths import LINUX, MACOS, WINDOWS, platforms as legacy_platforms
+from platform_paths import LINUX, MACOS, WINDOWS, platforms as name_platforms
 
 CORE_PREFIXES = ("libobs/", "rust/")
 CORE_FILES = {"Cargo.toml", "Cargo.lock", "rust-toolchain.toml"}
@@ -63,6 +64,8 @@ CORE_FILES = {"Cargo.toml", "Cargo.lock", "rust-toolchain.toml"}
 SHARED_PREFIXES = ("cmake/common/", "cmake/finders/", "libobs/cmake/")
 SHARED_FILES = {"CMakeLists.txt", "CMakePresets.json", "buildspec.json"}
 SHARED_PATTERN = re.compile(r"^rust/[^/]+/src/platform/mod\.rs$")
+# libobs/cmake/os-<os>.cmake picks one OS's sources: that OS only (#1051).
+OS_CMAKE = re.compile(r"^libobs/cmake/os-[a-z]+\.cmake$")
 # Every platform's Tier 2 compiles these with its own compiler and C++
 # library; plain C tests stay Linux-only (#610).
 SHARED_TEST = re.compile(r"^test/cmocka/(CMakeLists\.txt|[^/]+\.(cpp|hpp))$")
@@ -160,10 +163,10 @@ def path_platforms(path: str) -> frozenset[str] | None:
     m = PLATFORM_RULE.search("/" + path)
     if m:
         return {"windows": frozenset({WINDOWS}), "macos": frozenset({MACOS}), "linux": frozenset({LINUX}), "posix": frozenset({LINUX, MACOS})}[m.group(1)]
-    # TODO(obs-rust/obs-studio platform-rename issue): legacy tokens (win-capture/,
-    # mac-*, unix/nix/cocoa/osx names) until those paths follow the
-    # platform[/-]<os> layout; then delete this fallback.
-    return legacy_platforms(path)
+    # Upstream names (win-capture/, mac-*, obs-nix.c, platform-cocoa.m, ...)
+    # keep their paths, so this token classifier is permanent: an ambiguous
+    # path gets an entry in ci/platform_paths.py, never a rename (#1051).
+    return name_platforms(path)
 
 
 def os_lanes(path: str) -> frozenset[str]:
@@ -173,6 +176,8 @@ def os_lanes(path: str) -> frozenset[str]:
 
 
 def is_shared(path: str, exists: Callable[[str], bool]) -> bool:
+    if OS_CMAKE.match(path):
+        return False
     if path.startswith(SHARED_PREFIXES) or path in SHARED_FILES or SHARED_PATTERN.match(path) or SHARED_TEST.match(path):
         return True
     m = TESTS_D.match(path)

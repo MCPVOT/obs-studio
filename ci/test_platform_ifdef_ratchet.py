@@ -1,5 +1,6 @@
 #!/usr/bin/env -S uv run --script
-"""Platform conditionals in shared C/C++ only go down (#847, #848).
+"""Platform conditionals in shared C/C++ only go down (#847, #848), and a
+platform file names only its own OS (#1051).
 
     uv run python -m unittest ci/test_platform_ifdef_ratchet.py
 """
@@ -108,6 +109,9 @@ class PathTest(unittest.TestCase):
             "libobs/graphics/Foo.mm",
             "libobs-opengl/gl-wayland-egl.c",
             "libobs-opengl/gl-x11-glx.c",
+            # Same classifier as ci/ci_scope.py (ci/platform_paths.py, #1051).
+            "plugins/obs-ffmpeg/vaapi-utils.c",
+            "plugins/sndio/sndio-input.c",
         ]:
             with self.subTest(path=path):
                 self.assertTrue(r.is_platform_path(path))
@@ -122,6 +126,9 @@ class PathTest(unittest.TestCase):
             "plugins/obs-filters/macro-helpers.c",
             "shared/bpm/bpm.c",
             "libobs/util/platform.c",
+            # platform- names a shared facade, not an OS (#1051).
+            "libobs/util/platform-number.c",
+            "shared/ipc-util/ipc-util/platform-pipe.h",
         ]:
             with self.subTest(path=path):
                 self.assertFalse(r.is_platform_path(path))
@@ -136,6 +143,7 @@ class PathTest(unittest.TestCase):
             "plugins/obs-browser/x.cpp",
             "plugins/obs-outputs/librtmp/rtmp.c",
             "plugins/obs-filters/rnnoise/src/arch.h",
+            "plugins/decklink/mac/decklink-sdk/DeckLinkAPI.h",
             "cmake/x.c",
             "test/cmocka/x.c",
             "rust/obs-c-oracle/legacy/x.c",
@@ -146,6 +154,94 @@ class PathTest(unittest.TestCase):
         ]:
             with self.subTest(path=path):
                 self.assertFalse(r.in_scope(path))
+
+
+class StripTest(unittest.TestCase):
+    """Comments and strings never hide or invent a conditional (#1051)."""
+
+    def lines(self, text: str) -> list[int]:
+        return [n for n, _ in r.count_platform_conditionals(text)]
+
+    def test_macro_in_a_trailing_comment_is_not_counted(self):
+        self.assertEqual(self.lines("#ifdef FOO /* _WIN32 */\n#endif\n#if BAR // __APPLE__\n"), [])
+
+    def test_directive_inside_a_block_comment_is_not_counted(self):
+        self.assertEqual(self.lines("/*\n#ifdef _WIN32\n#endif\n*/\n#ifdef __APPLE__\n"), [5])
+
+    def test_comment_opener_in_a_string_hides_nothing(self):
+        self.assertEqual(self.lines('const char *s = "a/*b";\n#ifdef _WIN32\n#endif\n'), [2])
+        self.assertEqual(self.lines("char c = '\"';\n#ifdef _WIN32\n"), [2])
+
+    def test_raw_string_body_is_not_code(self):
+        self.assertEqual(self.lines('auto s = R"x(\n#ifdef _WIN32\n)x";\n#ifdef __APPLE__\n'), [4])
+
+    def test_continued_conditional_counts_at_its_first_line(self):
+        self.assertEqual(self.lines("int a;\n#if defined(FOO) || \\\n    defined(_WIN32)\n#endif\n"), [2])
+
+    def test_crlf_line_endings(self):
+        self.assertEqual(self.lines("int a;\r\n#if FOO || \\\r\n  _WIN32\r\n#endif\r\n"), [2])
+
+    def test_compiler_and_arch_macros_are_not_host_macros(self):
+        self.assertEqual(self.lines("#ifdef __GNUC__\n#if defined(__x86_64__)\n#if __clang__\n#ifdef NDEBUG\n"), [])
+
+
+class FindingsTest(unittest.TestCase):
+    """A host file may only name its own OS; shared files name none (#1051)."""
+
+    def lines(self, path: str, text: str) -> list[int]:
+        return [f[0] for f in r.findings(path, text)]
+
+    def test_shared_file_conditionals_count(self):
+        self.assertEqual(self.lines("libobs/obs.c", "#ifdef __APPLE__\n#endif\n"), [1])
+
+    def test_own_os_macro_in_a_host_file_is_fine(self):
+        self.assertEqual(self.lines("libobs/obs-cocoa.m", "#ifdef __APPLE__\n#endif\n"), [])
+        self.assertEqual(self.lines("plugins/win-capture/a.c", "#if defined(_WIN64)\n#endif\n"), [])
+        self.assertEqual(self.lines("libobs/obs-nix.c", "#if defined(__linux__) || defined(__FreeBSD__)\n"), [])
+
+    def test_other_os_macro_in_a_host_file_fails(self):
+        self.assertEqual(self.lines("libobs/obs-cocoa.m", "#ifdef _WIN32\n#endif\n"), [1])
+        self.assertEqual(self.lines("libobs/x.m", "int a;\n#ifndef _MSC_VER\n"), [2])
+        self.assertEqual(self.lines("libobs/obs-nix.c", "#ifdef __APPLE__\n"), [1])
+        self.assertEqual(self.lines("libobs/obs-windows.c", "#ifdef __linux__\n"), [1])
+
+    def test_posix_file_may_split_its_two_oses_one_at_a_time(self):
+        self.assertEqual(self.lines("libobs/util/threading-posix.c", "#ifdef __APPLE__\n#elif defined(__linux__)\n"), [])
+        self.assertEqual(self.lines("libobs/util/threading-posix.c", "#ifdef __unix__\n"), [])
+        self.assertEqual(self.lines("libobs/obs-nix.c", "#ifdef __unix__\n"), [])
+
+    def test_conditional_naming_two_oses_in_a_host_file_fails(self):
+        self.assertEqual(self.lines("libobs/obs-nix.c", "#if defined(_WIN32) || defined(__APPLE__)\n"), [1])
+        self.assertEqual(self.lines("libobs/util/threading-posix.c", "#if defined(__APPLE__) || defined(__linux__)\n"), [1])
+
+    def test_os_header_in_a_shared_file_counts(self):
+        self.assertEqual(self.lines("libobs/obs.c", "#include <windows.h>\n"), [1])
+        self.assertEqual(self.lines("libobs/obs.c", "#include <Windows.h>\n"), [1])
+        self.assertEqual(self.lines("libobs/obs.c", "#include <d3d11.h>\n#include <dxgi1_2.h>\n"), [1, 2])
+        self.assertEqual(self.lines("frontend/a.mm", "#import <AppKit/AppKit.h>\n"), [])
+        self.assertEqual(self.lines("frontend/a.cpp", "#import <AppKit/AppKit.h>\n"), [1])
+        self.assertEqual(self.lines("libobs/obs.c", "#include <X11/Xlib.h>\n#include <wayland-client.h>\n"), [1, 2])
+        self.assertEqual(self.lines("libobs/obs.c", "#include <unistd.h>\n#include <sys/mman.h>\n"), [1, 2])
+
+    def test_portable_or_quoted_headers_are_not_os_headers(self):
+        text = '#include <stdio.h>\n#include <pthread.h>\n#include <fcntl.h>\n#include "linux/decklink.h"\n#include "util/platform.h"\n'
+        self.assertEqual(self.lines("libobs/obs.c", text), [])
+
+    def test_os_header_in_the_right_host_file_is_fine(self):
+        self.assertEqual(self.lines("libobs/util/threading-posix.c", "#include <unistd.h>\n"), [])
+        self.assertEqual(self.lines("libobs/obs-nix.c", "#include <unistd.h>\n#include <X11/Xlib.h>\n"), [])
+        self.assertEqual(self.lines("libobs/obs-windows.c", "#include <windows.h>\n"), [])
+
+    def test_os_header_in_the_wrong_host_file_fails(self):
+        self.assertEqual(self.lines("libobs/obs-nix.c", "#include <windows.h>\n"), [1])
+        self.assertEqual(self.lines("libobs/obs-windows.c", "#include <unistd.h>\n"), [1])
+        self.assertEqual(self.lines("libobs/util/threading-posix.c", "#include <windows.h>\n"), [1])
+
+    def test_finding_says_why(self):
+        (_, text, why), = r.findings("libobs/obs-cocoa.m", "#ifdef _WIN32\n")
+        self.assertEqual(text, "#ifdef _WIN32")
+        self.assertIn("windows", why)
+        self.assertIn("macos", why)
 
 
 class CompareTest(unittest.TestCase):
@@ -185,14 +281,20 @@ class MainTest(unittest.TestCase):
         (self.root / "libobs" / "shared.c").write_text("#ifdef _WIN32\nint a;\n#endif\n#ifdef __APPLE__\n#endif\n")
         (self.root / "libobs" / "obs-nix.c").write_text("#ifdef __linux__\n#endif\n")
         self.baseline = self.root / "baseline.json"
+        self.exceptions = self.root / "exceptions.toml"
 
-    def run_main(self, *extra: str) -> int:
+    def write_exceptions(self, body: str) -> None:
+        self.exceptions.write_text(body)
+
+    def run_main(self, *extra: str, files: list[str] | None = None) -> int:
         import contextlib
         import io
 
+        files = files or ["libobs/shared.c", "libobs/obs-nix.c"]
         out = io.StringIO()
+        args = ["--root", str(self.root), "--baseline", str(self.baseline), "--exceptions", str(self.exceptions)]
         with contextlib.redirect_stdout(out), contextlib.redirect_stderr(out):
-            code = r.main(["--root", str(self.root), "--baseline", str(self.baseline), "--files", "libobs/shared.c", "libobs/obs-nix.c", *extra])
+            code = r.main([*args, "--files", *files, *extra])
         self.output = out.getvalue()
         return code
 
@@ -204,6 +306,32 @@ class MainTest(unittest.TestCase):
         self.assertEqual(self.run_main(), 1)
         self.assertIn("libobs/shared.c:5", self.output)
         self.assertIn("platform facade", self.output)
+
+    def test_wrong_os_in_a_host_file_fails(self):
+        self.assertEqual(self.run_main("--update"), 0)
+        (self.root / "libobs" / "obs-nix.c").write_text("#ifdef __linux__\n#endif\n#ifdef _WIN32\n#endif\n")
+        self.assertEqual(self.run_main(), 1)
+        self.assertIn("libobs/obs-nix.c:3", self.output)
+
+    def test_exception_skips_a_public_header(self):
+        (self.root / "libobs" / "c99defs.h").write_text("#ifdef _MSC_VER\n#endif\n")
+        self.write_exceptions('[[exception]]\npath = "libobs/c99defs.h"\nreason = "dllexport vs visibility"\n')
+        self.assertEqual(self.run_main("--update", files=["libobs/c99defs.h", "libobs/shared.c"]), 0)
+        self.assertEqual(json.loads(self.baseline.read_text()), {"libobs/shared.c": 2})
+
+    def test_exception_must_be_a_header_with_a_reason_and_findings(self):
+        (self.root / "libobs" / "clean.h").write_text("int a;\n")
+        for body, needle in [
+            ('[[exception]]\npath = "libobs/shared.c"\nreason = "x"\n', "header"),
+            ('[[exception]]\npath = "libobs/shared.h"\n', "reason"),
+            ('[[exception]]\npath = "libobs/missing.h"\nreason = "x"\n', "missing"),
+            ('[[exception]]\npath = "libobs/clean.h"\nreason = "x"\n', "remove"),
+        ]:
+            with self.subTest(body=body):
+                (self.root / "libobs" / "shared.h").write_text("#ifdef _WIN32\n#endif\n")
+                self.write_exceptions(body)
+                self.assertEqual(self.run_main(files=["libobs/shared.c", "libobs/clean.h", "libobs/shared.h"]), 1)
+                self.assertIn(needle, self.output)
 
     def test_decrease_passes_with_hint(self):
         self.baseline.write_text(json.dumps({"libobs/shared.c": 5}))

@@ -211,9 +211,14 @@ the paths that select them, so a change only triggers the tests it can affect.
   `.m`, `.rc`) starts that platform's Rust tests and Tier 2. POSIX/Unix files
   (`*-posix.c`, `unix/`, and `libobs/util/platform-nix.c`) belong to Linux
   and macOS, so changing one starts macOS too. Core files carry no platform
-  defines (`ci/platform_ifdef_ratchet.py` enforces it), so a core change runs
-  on Linux; file contents are never read. Shared and so every platform:
-  `.github/`, `cmake/common/`, `cmake/finders/`, `libobs/cmake/`, the root
+  defines or OS headers (`ci/platform_ifdef_ratchet.py` enforces it, and
+  fails a platform file that names another OS), so a core change runs on
+  Linux; file contents are never read. A module whose name doesn't say its OSes
+  (`coreaudio-encoder`, `obs-text`, ...) is listed in `ci/platform_paths.py`
+  with its `PLATFORMS` from `plugins/CMakeLists.txt`; upstream paths are
+  never renamed for this (#1051). `libobs/cmake/os-<os>.cmake` starts only
+  its OS. Shared and so every platform:
+  `.github/`, `cmake/common/`, `cmake/finders/`, the rest of `libobs/cmake/`, the root
   CMake files, `platform/mod.rs`, `test/cmocka/CMakeLists.txt` and the C++
   cmocka tests with their `tests.d` registrations (#610). Pushes and the
   merge queue are scoped the same way; every platform runs on master pushes, schedule, workflow_dispatch, tags,

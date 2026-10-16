@@ -48,7 +48,8 @@ class CiScopeTest(unittest.TestCase):
         self.check(["libobs/util/platform-cocoa.m"], core=True, macos=True)
         self.check(["libobs/util/apple/cfstring-utils.h"], core=True, macos=True)
         self.check(["cmake/macos/compilerconfig.cmake"], macos=True)
-        self.check(["plugins/coreaudio-encoder/encoder.cpp"], macos=True)
+        # coreaudio-encoder builds on Windows too (PLATFORMS WINDOWS MACOS, #1051).
+        self.check(["plugins/coreaudio-encoder/encoder.cpp"], macos=True, windows=True)
         self.check(["libobs/audio-monitoring/osx/coreaudio-output.c"], core=True, macos=True)
 
     def test_posix_code_reaches_macos(self):
@@ -140,6 +141,39 @@ class PlatformPathsTest(unittest.TestCase):
         self.assertEqual(platforms("libobs/util/platform-nix.c"), {LINUX, MACOS})
         self.assertEqual(platforms("plugins/linux-v4l2/v4l2-input.c"), {LINUX})
 
+    def test_modules_follow_their_cmake_platforms(self):
+        """A plugin's OSes are its PLATFORMS in plugins/CMakeLists.txt, also
+        when its name doesn't say them (#1051)."""
+        import re
+        from pathlib import Path
+
+        names = {"WINDOWS": WINDOWS, "MACOS": MACOS, "LINUX": LINUX, "FREEBSD": LINUX, "OPENBSD": LINUX}
+        every = {LINUX, MACOS, WINDOWS}
+        text = (Path(__file__).resolve().parent.parent / "plugins" / "CMakeLists.txt").read_text()
+        rows = re.findall(r"add_\w+\((\S+)\s+PLATFORMS\s+([A-Z ]+)", text)
+        self.assertGreater(len(rows), 10)
+        for module, declared in rows:
+            with self.subTest(module=module):
+                got = platforms(f"plugins/{module}/x.c") or every
+                self.assertEqual(set(got), {names[d] for d in declared.split() if d in names})
+
+    def test_file_name_inside_a_module_still_narrows(self):
+        self.assertEqual(platforms("plugins/coreaudio-encoder/encoder.cpp"), {MACOS, WINDOWS})
+        self.assertEqual(platforms("plugins/coreaudio-encoder/windows-imports.h"), {WINDOWS})
+        self.assertEqual(platforms("plugins/obs-text/gdiplus/obs-text.cpp"), {WINDOWS})
+
+    def test_windows_only_directories(self):
+        for path in (
+            "frontend/updater/updater.cpp",
+            "plugins/obs-ffmpeg/obs-amf-test/obs-amf-test.cpp",
+            "plugins/obs-qsv11/obs-qsv-test/obs-qsv-test.cpp",
+            "shared/obs-inject-library/inject-library.c",
+            "shared/obs-shared-memory-queue/shared-memory-queue.c",
+        ):
+            self.assertEqual(platforms(path), {WINDOWS}, path)
+        self.assertIsNone(platforms("plugins/obs-ffmpeg/obs-ffmpeg.c"))
+        self.assertIsNone(platforms("plugins/obs-qsv11/obs-qsv11.c"))
+
 
 LIBOBS_RUST = """[package]
 name = "libobs-rust"
@@ -227,6 +261,19 @@ class LaneTableTest(unittest.TestCase):
     def test_workflow_edits_start_no_platform_job(self):
         got = self.sc(".github/workflows/build-project.yaml")
         self.assertFalse(got.macos or got.windows or got.qt or got.tier2)
+
+    def test_libobs_os_cmake_starts_only_its_os(self):
+        # libobs/cmake/os-<os>.cmake picks one OS's sources (#1051).
+        win = self.sc("libobs/cmake/os-windows.cmake")
+        self.assertEqual((win.windows, win.macos, win.tier2), (True, False, False))
+        mac = self.sc("libobs/cmake/os-macos.cmake")
+        self.assertEqual((mac.windows, mac.macos, mac.tier2), (False, True, False))
+        for path in ("libobs/cmake/os-linux.cmake", "libobs/cmake/os-freebsd.cmake"):
+            got = self.sc(path)
+            self.assertEqual((got.windows, got.macos, got.tier2), (False, False, True), path)
+        # Every other libobs/cmake file stays shared.
+        got = self.sc("libobs/cmake/rust.cmake")
+        self.assertEqual((got.windows, got.macos, got.tier2), (True, True, True))
 
     def test_platform_only_libobs_file_skips_linux_tier2(self):
         self.assertFalse(self.sc("libobs/util/platform-windows.c").tier2)

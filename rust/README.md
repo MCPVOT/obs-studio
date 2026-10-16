@@ -6,12 +6,20 @@ scripting APIs) while its internals are rewritten in Rust. Every port follows
 
 ## Layout
 
+Which crate a C component's port goes in, and the repository layout policy,
+are in [docs/rust-port/naming.md](../docs/rust-port/naming.md#repository-layout-1051).
+
 | Path | What |
 |---|---|
 | `obs-util/` | Ports of `libobs/util/*`: safe cores at the crate root, C ABI shims in `src/ffi/` |
 | `obs-graphics/` | Ports of `libobs/graphics/*` |
 | `obs-codec/` | Ports of the libobs codec bitstream helpers (`obs-nal.c`, `obs-avc.c`, `obs-hevc.c`, `obs-av1.c`) |
 | `obs-media-io/` | Ports of `libobs/media-io/*` |
+| `obs-data/` | Port of `libobs/obs-data.c` |
+| `obs-properties/` | Port of `libobs/obs-properties.c` |
+| `obs-hotkey/` | Port of `libobs/obs-hotkey-name-map.c` |
+| `obs-nvenc/`, `obs-nvenc-plugin/` | Port of the `plugins/obs-nvenc` CUDA/NVENC loader, and the staticlib that plugin links |
+| `obs-gpu-status/`, `obs-gpu-status-frontend/` | GPU acceleration status (#846), and the staticlib the frontend links |
 | `obs-c-oracle/` | Test-only: original C sources compiled with `oracle_` symbols for layout and differential tests |
 | `libobs-rust/` | The single staticlib linked into libobs when `ENABLE_RUST_LIBOBS=ON` |
 | `obs-studio-rust/` | Standalone CLI that starts, stops and inspects OBS streaming over obs-websocket v5. Named after the product, with no release tags of its own (`docs/rust-port/naming.md`) |

@@ -63,6 +63,14 @@ errors (soldr permissions, disk, Docker, host FFmpeg): see
 - Name crates, binaries and tags per
   [docs/rust-port/naming.md](docs/rust-port/naming.md) (`ci/test_naming.py`
   checks crates): `obs-<area>` ports, product slug `obs-studio-rust`.
+- Don't move or rename upstream C/C++ files to restructure: the upstream tree
+  stays in place, Rust goes in the `rust/` workspace, and a fully ported C
+  component is deleted, not moved. See the layout section of
+  [docs/rust-port/naming.md](docs/rust-port/naming.md) (#1051).
+- C/C++ host code stays in OS-named files (`obs-nix.c`, `platform-windows.cpp`,
+  `win-capture/`, ...). `ci/platform_ifdef_ratchet.py` (in `./lint`) fails a
+  new host conditional or OS header in a shared file, and a platform file that
+  names another OS.
 - Host-specific code (`#[cfg(windows|unix|target_os..)]`, `cfg!()`, `std::os::*`,
   `libc::`, Win32) goes only in the crate's `src/platform/` (single
   `cfg_select!` in `platform/mod.rs`) or `src/ffi/`. A pre-expansion Dylint
