@@ -17,6 +17,8 @@ target_sources(
     media-playback/media-playback.h
     media-playback/media.c
     media-playback/media.h
+    media-playback/platform-decode-ffmpeg.h
+    media-playback/platform-media-ffmpeg.h
     media-playback/network-timeout.c
     media-playback/network-timeout.h
 )

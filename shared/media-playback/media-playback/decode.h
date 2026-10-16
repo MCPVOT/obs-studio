@@ -22,19 +22,8 @@ extern "C" {
 
 #include <util/deque.h>
 
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable : 4244)
-#pragma warning(disable : 4204)
-#endif
-
-#include <libavformat/avformat.h>
-#include <libavcodec/avcodec.h>
-#include <util/threading.h>
-
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
+/* ffmpeg headers, with MSVC warnings 4244/4204 silenced around them only. */
+#include "platform-decode-ffmpeg.h"
 
 struct mp_media;
 

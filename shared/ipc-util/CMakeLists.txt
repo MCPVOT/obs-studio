@@ -8,6 +8,8 @@ target_sources(
   INTERFACE
     "$<$<PLATFORM_ID:Windows>:${CMAKE_CURRENT_SOURCE_DIR}/ipc-util/pipe-windows.c>"
     ipc-util/pipe.h
+    ipc-util/platform-pipe-compat.h
+    ipc-util/platform-pipe.h
     "$<$<PLATFORM_ID:Windows>:${CMAKE_CURRENT_SOURCE_DIR}/ipc-util/pipe-windows.h>"
 )
 

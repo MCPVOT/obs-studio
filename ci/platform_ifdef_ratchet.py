@@ -37,7 +37,8 @@ MACRO = re.compile(rf"(?<![A-Za-z0-9_])(?:{MACROS})(?![A-Za-z0-9_])")
 SCOPE_DIRS = ("libobs", "frontend", "shared", "plugins")
 SOURCE_SUFFIXES = (".c", ".h", ".cpp", ".hpp", ".cc", ".hh", ".cxx", ".hxx", ".m", ".mm", ".inl")
 # Not ours to rewrite: submodules and vendored trees.
-EXCLUDED_PREFIXES = ("plugins/obs-websocket/", "plugins/obs-browser/", "deps/")
+# shared/obs-d3d8-api/ is a vendored Microsoft header (#886).
+EXCLUDED_PREFIXES = ("plugins/obs-websocket/", "plugins/obs-browser/", "deps/", "shared/obs-d3d8-api/")
 EXCLUDED_PARTS = ("deps", "vendor", "third_party", "third-party", "librtmp", "rnnoise")
 
 # Same idea as ci/ci_scope.py: a path token that marks a platform.
