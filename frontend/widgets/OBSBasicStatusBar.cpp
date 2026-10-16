@@ -4,6 +4,7 @@
 #include <utility/GpuStatus.hpp>
 #include <widgets/OBSBasic.hpp>
 
+#include <QBoxLayout>
 #include <QMessageBox>
 #include <QPainter>
 #include <QPushButton>
@@ -44,13 +45,19 @@ OBSBasicStatusBar::OBSBasicStatusBar(QWidget *parent)
 	statusWidget->ui->kbps->hide();
 
 	if (GpuStatus::Available()) {
-		gpuStatusButton = new QPushButton(this);
+		gpuStatusButton = new QPushButton(statusWidget);
 		gpuStatusButton->setObjectName("gpuStatusButton");
 		gpuStatusButton->setFlat(true);
 		gpuStatusButton->setText(QTStr("Basic.StatusBar.GpuStatus"));
 		gpuStatusButton->setAccessibleName(QTStr("Basic.StatusBar.GpuStatus"));
 		connect(gpuStatusButton, &QPushButton::clicked, this, &OBSBasicStatusBar::ShowGpuStatusDialog);
-		addPermanentWidget(gpuStatusButton);
+		/* Next to the CPU usage, where people look for performance (#1003). */
+		auto *row = qobject_cast<QBoxLayout *>(statusWidget->layout());
+		if (row) {
+			row->insertWidget(row->indexOf(statusWidget->ui->cpuFrame), gpuStatusButton);
+		} else {
+			addPermanentWidget(gpuStatusButton);
+		}
 
 		gpuStatusTimer = new QTimer(this);
 		connect(gpuStatusTimer, &QTimer::timeout, this, &OBSBasicStatusBar::GpuStatusTick);
