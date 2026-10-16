@@ -33,7 +33,7 @@ static QString Localized(const QJsonValue &key, const QJsonArray &args, const QS
 		return english;
 	}
 	QString out = QString::fromUtf8(text);
-	for (const QJsonValue &arg : args) {
+	for (const QJsonValue arg : args) {
 		out = out.arg(arg.toString());
 	}
 	return out;
@@ -53,10 +53,10 @@ static Info Parse(int state, const char *json)
 	for (qsizetype i = 0; i < causes.size(); i++) {
 		info.causes << Localized(causeKeys.at(i), {}, causes.at(i).toString());
 	}
-	for (const QJsonValue &line : obj["logLines"].toArray()) {
+	for (const QJsonValue line : obj["logLines"].toArray()) {
 		info.logLines << line.toString();
 	}
-	for (const QJsonValue &value : obj["detectedGpus"].toArray()) {
+	for (const QJsonValue value : obj["detectedGpus"].toArray()) {
 		QJsonObject gpu = value.toObject();
 		QString name = gpu["name"].toString();
 		if (name.isEmpty()) {
