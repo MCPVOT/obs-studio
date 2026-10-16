@@ -1282,10 +1282,65 @@ jobs:
           "${GITHUB_WORKSPACE}/.github/scripts/retry" brew install cmocka
           bash rust/tools/tier2-validate/validate.sh
 
-      - name: Validate Tier 2 on Windows (ENABLE_RUST_LIBOBS OFF vs ON) 🪟
+      # The windows-ci-x64 preset enables ccache (ENABLE_CCACHE) whenever it is
+      # on PATH, as the Windows OBS build does; without it both Tier 2 builds
+      # compiled cold, about 5.5 of 9.1 min (#1038). Only master pushes save.
+      - name: Restore Tier 2 ccache 🗄️
+        if: runner.os == 'Windows'
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ github.workspace }}/.ccache
+          key: windows-tier2-ccache-${{ github.sha }}
+          restore-keys: windows-tier2-ccache-
+
+      - name: Set Up ccache 🗄️
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
+          # Set Up ccache 🗄️ (same pinned build as windows-build)
+          $Version = '4.14.1'
+          $Hash = '6219f3865ca59aec41ee4b678df171d5d35855ecb2b6dbbbd20690b3a68af7b4'
+          $Name = "ccache-${Version}-windows-x86_64"
+          $Zip = "${env:RUNNER_TEMP}/${Name}.zip"
+
+          Invoke-WebRequest -Uri "https://github.com/ccache/ccache/releases/download/v${Version}/${Name}.zip" -OutFile $Zip
+          if ( (Get-FileHash -Algorithm SHA256 -Path $Zip).Hash -ne $Hash ) { throw "${Name}.zip checksum mismatch" }
+          Expand-Archive -Path $Zip -DestinationPath $env:RUNNER_TEMP
+
+          $CcacheHome = Join-Path $env:RUNNER_TEMP $Name
+          $env:CCACHE_DIR = Join-Path $env:GITHUB_WORKSPACE '.ccache'
+          $CcacheHome >> $env:GITHUB_PATH
+          @(
+            "CCACHE_DIR=${env:CCACHE_DIR}"
+            'CCACHE_MAXSIZE=2G'
+            'CCACHE_COMPILERCHECK=content'
+            'CCACHE_SLOPPINESS=include_file_mtime,include_file_ctime'
+          ) >> $env:GITHUB_ENV
+          & (Join-Path $CcacheHome 'ccache.exe') --zero-stats
+
+      # cmocka took 37 s to build from source through vcpkg every run.
+      - name: Cache vcpkg Binaries 🗄️
+        if: runner.os == 'Windows'
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ github.workspace }}/.vcpkg-bin
+          key: vcpkg-bin-cmocka-x64-windows-v1
+
+      - name: Validate Tier 2 on Windows (ENABLE_RUST_LIBOBS OFF vs ON) 🪟
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}/.vcpkg-bin,readwrite
+        run: |
+          New-Item -ItemType Directory -Force -Path "$env:GITHUB_WORKSPACE/.vcpkg-bin" | Out-Null
           vcpkg install cmocka:x64-windows
           if ($LASTEXITCODE -ne 0) { throw "vcpkg install failed ($LASTEXITCODE)" }
           ./rust/tools/tier2-validate/validate.ps1 -CMockaPrefix "$env:VCPKG_INSTALLATION_ROOT/installed/x64-windows"
+          ccache --show-stats
+
+      - name: Save Tier 2 ccache 💾
+        if: runner.os == 'Windows' && github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ github.workspace }}/.ccache
+          key: windows-tier2-ccache-${{ github.sha }}
