@@ -35,8 +35,11 @@ An earlier mockup of the dialog for a machine with no GPU (the styling is approx
   `frontend/utility/platform-x11.cpp`, `platform-windows.cpp` and
   `platform-osx.mm`.
 - Light and dialog: `frontend/utility/GpuStatus.cpp` and
-  `frontend/widgets/OBSBasicStatusBar.cpp`. They are built only with
-  `ENABLE_RUST_LIBOBS=ON`; other builds show no light.
+  `frontend/widgets/OBSBasicStatusBar.cpp`. They are built whenever cargo
+  is available, with `ENABLE_RUST_LIBOBS` ON or OFF
+  (`frontend/cmake/feature-gpu-status.cmake`, option `ENABLE_GPU_STATUS`).
+  A build without cargo, such as the Flatpak sandbox today, configures
+  without the light and prints a warning (#946).
 - `GetStats.gpuAcceleration`: obs-websocket reads it from the frontend's
   `get_gpu_status` proc, and it is `null` when nothing provides it.
 - Tier 4 check (OpenGL forced onto llvmpipe → not green):

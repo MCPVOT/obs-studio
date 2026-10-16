@@ -225,6 +225,15 @@ jobs:
           notarizationUser: ${{ secrets.MACOS_NOTARIZATION_USERNAME }}
           notarizationPassword: ${{ secrets.MACOS_NOTARIZATION_PASSWORD }}
 
+      # The GPU status light links Rust into every frontend build (#946).
+      # Install the toolchain rust-toolchain.toml pins (rustup's auto-install
+      # is deprecated); the x86_64 leg cross-builds on an arm64 runner and
+      # needs that target's standard library too.
+      - name: Install the Rust toolchain 🦀
+        run: |
+          rustup toolchain install
+          if [[ '${{ matrix.target }}' == x86_64 ]] rustup target add x86_64-apple-darwin
+
       - name: Build OBS Studio 🧱
         uses: ./.github/actions/build-obs
         env:
@@ -652,6 +661,15 @@ jobs:
           & (Join-Path $CcacheHome 'ccache.exe') --version | Select-Object -First 1
           & (Join-Path $CcacheHome 'ccache.exe') --zero-stats
           "epoch=$([DateTimeOffset]::UtcNow.ToUnixTimeSeconds())" >> $env:GITHUB_OUTPUT
+
+      # The GPU status light links Rust into every frontend build (#946).
+      # Install the toolchain rust-toolchain.toml pins (rustup's auto-install
+      # is deprecated); the arm64 leg cross-builds on an x64 runner and needs
+      # that target's standard library too.
+      - name: Install the Rust toolchain 🦀
+        run: |
+          rustup toolchain install
+          if ( '${{ matrix.architecture }}' -eq 'arm64' ) { rustup target add aarch64-pc-windows-msvc }
 
       - name: Build OBS Studio 🧱
         uses: ./.github/actions/build-obs
