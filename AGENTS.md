@@ -70,7 +70,10 @@ errors (soldr permissions, disk, Docker, host FFmpeg): see
 - C/C++ host code stays in OS-named files (`obs-nix.c`, `platform-windows.cpp`,
   `win-capture/`, ...). `ci/platform_ifdef_ratchet.py` (in `./lint`) fails a
   new host conditional or OS header in a shared file, and a platform file that
-  names another OS.
+  names another OS. Shared libobs core calls host code through one interface
+  per capability in `libobs/obs-host/<capability>.h` (`OBS_HOST_EXTERN`); a
+  host implements it in its OS file or builds `obs-host/noop/<capability>.c`,
+  picked in `libobs/cmake/os-<os>.cmake`.
 - Host-specific code (`#[cfg(windows|unix|target_os..)]`, `cfg!()`, `std::os::*`,
   `libc::`, Win32) goes only in the crate's `src/platform/` (single
   `cfg_select!` in `platform/mod.rs`) or `src/ffi/`. A pre-expansion Dylint

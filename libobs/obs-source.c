@@ -24,6 +24,7 @@
 #include "util/threading.h"
 #include "util/platform.h"
 #include "util/util_uint64.h"
+#include "obs-host/default-monitoring-device.h"
 #include "callback/calldata.h"
 #include "graphics/matrix3.h"
 #include "graphics/vec3.h"
@@ -430,20 +431,14 @@ void obs_source_audio_output_capture_device_changed(obs_source_t *src, const cha
 	const char *mon_id = audio->monitoring_device_id;
 	bool id_match = false;
 
-#ifdef __APPLE__
-	extern void get_desktop_default_id(char **p_id);
-	if (device_id && strcmp(device_id, "default") == 0) {
-		char *def_id = NULL;
-		get_desktop_default_id(&def_id);
+	char *def_id = NULL;
+	if (obs_host_default_monitoring_device(device_id, &def_id)) {
 		id_match = devices_match(def_id, mon_id);
 		if (def_id)
 			bfree(def_id);
 	} else {
 		id_match = devices_match(device_id, mon_id);
 	}
-#else
-	id_match = devices_match(device_id, mon_id);
-#endif
 	struct calldata cd;
 	uint8_t stack[128];
 	calldata_init_fixed(&cd, stack, sizeof(stack));

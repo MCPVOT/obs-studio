@@ -375,9 +375,8 @@ struct obs_core_video_mix {
 	gs_stagesurf_t *copy_surfaces[NUM_TEXTURES][NUM_CHANNELS];
 	gs_texture_t *convert_textures[NUM_CHANNELS];
 	gs_texture_t *convert_textures_encode[NUM_CHANNELS];
-#ifdef _WIN32
+	/* Staging for GPU-encode frames; only Windows creates them (obs-host.h). */
 	gs_stagesurf_t *copy_surfaces_encode[NUM_TEXTURES];
-#endif
 	gs_texture_t *render_texture;
 	gs_texture_t *output_texture;
 	enum gs_color_space render_space;
@@ -638,10 +637,6 @@ struct obs_graphics_context {
 
 extern void *obs_graphics_thread(void *param);
 extern bool obs_graphics_thread_loop(struct obs_graphics_context *context);
-#ifdef __APPLE__
-extern void *obs_graphics_thread_autorelease(void *param);
-extern bool obs_graphics_thread_loop_autorelease(struct obs_graphics_context *context);
-#endif
 
 extern gs_effect_t *obs_load_effect(gs_effect_t **effect, const char *file);
 

@@ -56,6 +56,16 @@ target_sources(
     obs-hotkey.c
     obs-hotkey.h
     obs-hotkeys.h
+    obs-host/com.h
+    obs-host/default-monitoring-device.h
+    obs-host/defs.h
+    obs-host/display-clear-workaround.h
+    obs-host/display-srgb-clear.h
+    obs-host/graphics-thread.h
+    obs-host/graphics-thread-hooks.h
+    obs-host/module-paths.h
+    obs-host/module-symbols.h
+    obs-host/shared-texture.h
     obs-interaction.h
     obs-internal.h
     obs-missing-files.c

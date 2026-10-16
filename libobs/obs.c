@@ -22,6 +22,9 @@
 
 #include "obs.h"
 #include "obs-internal.h"
+#include "obs-host/com.h"
+#include "obs-host/graphics-thread.h"
+#include "obs-host/shared-texture.h"
 
 struct obs_core *obs = NULL;
 
@@ -372,21 +375,10 @@ static bool obs_init_textures(struct obs_core_video_mix *video)
 	}
 
 	for (size_t i = 0; i < NUM_TEXTURES; i++) {
-#ifdef _WIN32
-		if (video->using_nv12_tex) {
-			video->copy_surfaces_encode[i] = gs_stagesurface_create_nv12(info->width, info->height);
-			if (!video->copy_surfaces_encode[i]) {
-				success = false;
-				break;
-			}
-		} else if (video->using_p010_tex) {
-			video->copy_surfaces_encode[i] = gs_stagesurface_create_p010(info->width, info->height);
-			if (!video->copy_surfaces_encode[i]) {
-				success = false;
-				break;
-			}
+		if (!obs_host_init_encode_copy_surface(video, info->width, info->height, i)) {
+			success = false;
+			break;
 		}
-#endif
 
 		if (video->gpu_conversion) {
 			if (!obs_init_gpu_copy_surfaces(video, i)) {
@@ -442,12 +434,10 @@ static bool obs_init_textures(struct obs_core_video_mix *video)
 					video->copy_surfaces[i][c] = NULL;
 				}
 			}
-#ifdef _WIN32
 			if (video->copy_surfaces_encode[i]) {
 				gs_stagesurface_destroy(video->copy_surfaces_encode[i]);
 				video->copy_surfaces_encode[i] = NULL;
 			}
-#endif
 		}
 
 		if (video->render_texture) {
@@ -742,15 +732,7 @@ static int obs_init_video(struct obs_video_info *ovi)
 	if (!restore_canvases())
 		return OBS_VIDEO_FAIL;
 
-	int errorcode;
-#ifdef __APPLE__
-	pthread_attr_t attr;
-	pthread_attr_init(&attr);
-	pthread_attr_set_qos_class_np(&attr, QOS_CLASS_USER_INTERACTIVE, 0);
-	errorcode = pthread_create(&video->video_thread, &attr, obs_graphics_thread_autorelease, obs);
-#else
-	errorcode = pthread_create(&video->video_thread, NULL, obs_graphics_thread, obs);
-#endif
+	int errorcode = obs_host_create_graphics_thread(&video->video_thread, obs);
 	if (errorcode != 0)
 		return OBS_VIDEO_FAIL;
 
@@ -801,12 +783,10 @@ static void obs_free_render_textures(struct obs_core_video_mix *video)
 
 			video->active_copy_surfaces[i][c] = NULL;
 		}
-#ifdef _WIN32
 		if (video->copy_surfaces_encode[i]) {
 			gs_stagesurface_destroy(video->copy_surfaces_encode[i]);
 			video->copy_surfaces_encode[i] = NULL;
 		}
-#endif
 	}
 
 	gs_texture_destroy(video->render_texture);
@@ -1334,12 +1314,6 @@ static bool obs_init(const char *locale, const char *module_config_path, profile
 	return true;
 }
 
-#ifdef _WIN32
-extern bool initialize_com(void);
-extern void uninitialize_com(void);
-static bool com_initialized = false;
-#endif
-
 /* Separate from actual context initialization
  * since this can be set before startup and persist
  * after shutdown. */
@@ -1397,21 +1371,15 @@ bool obs_startup(const char *locale, const char *module_config_path, profiler_na
 		return false;
 	}
 
-#ifdef _WIN32
-	com_initialized = initialize_com();
-#endif
+	obs_host_startup();
 
 	success = obs_init(locale, module_config_path, store);
 	profile_end(obs_startup_name);
 	if (!success) {
 		if (obs)
 			obs_shutdown();
-#ifdef _WIN32
-		else if (com_initialized) {
-			uninitialize_com();
-			com_initialized = false;
-		}
-#endif
+		else
+			obs_host_shutdown();
 	}
 
 	return success;
@@ -1555,10 +1523,7 @@ void obs_shutdown(void)
 	obs = NULL;
 	bfree(cmdline_args.argv);
 
-#ifdef _WIN32
-	if (com_initialized)
-		uninitialize_com();
-#endif
+	obs_host_shutdown();
 }
 
 bool obs_initialized(void)

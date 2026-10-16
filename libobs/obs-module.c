@@ -20,6 +20,8 @@
 #include "obs-defs.h"
 #include "obs-internal.h"
 #include "obs-module.h"
+#include "obs-host/module-paths.h"
+#include "obs-host/module-symbols.h"
 #include "util/dstr.h"
 #include "util/platform.h"
 
@@ -94,10 +96,6 @@ static inline char *get_module_name(const char *file)
 	return name.array;
 }
 
-#ifdef _WIN32
-extern void reset_win32_symbol_paths(void);
-#endif
-
 int obs_module_load_metadata(struct obs_module *mod)
 {
 	struct obs_module_metadata *md = NULL;
@@ -147,15 +145,8 @@ int obs_open_module(obs_module_t **module, const char *path, const char *data_pa
 	if (!module || !path || !obs)
 		return MODULE_ERROR;
 
-#ifdef __APPLE__
-	/* HACK: Do not load obsolete obs-browser build on macOS; the
-	 * obs-browser plugin used to live in the Application Support
-	 * directory. */
-	if (astrstri(path, "Library/Application Support/obs-studio") != NULL && astrstri(path, "obs-browser") != NULL) {
-		blog(LOG_WARNING, "Ignoring old obs-browser.so version");
+	if (obs_host_skip_module(path))
 		return MODULE_HARDCODED_SKIP;
-	}
-#endif
 
 	blog(LOG_DEBUG, "---------------------------------");
 
@@ -625,17 +616,9 @@ void obs_module_failure_info_free(struct obs_module_failure_info *mfi)
 	}
 }
 
-#ifdef _WIN32
-static const char *reset_win32_symbol_paths_name = "reset_win32_symbol_paths";
-#endif
-
 void obs_post_load_modules(void)
 {
-#ifdef _WIN32
-	profile_start(reset_win32_symbol_paths_name);
-	reset_win32_symbol_paths();
-	profile_end(reset_win32_symbol_paths_name);
-#endif
+	obs_host_post_load_modules();
 	for (obs_module_t *mod = obs->first_module; !!mod; mod = mod->next)
 		if (mod->post_load)
 			mod->post_load();
@@ -732,13 +715,7 @@ static bool parse_binary_from_directory(struct dstr *parsed_bin_path, const char
 
 	dstr_copy_dstr(parsed_bin_path, &directory);
 	dstr_cat(parsed_bin_path, file);
-#ifdef __APPLE__
-	if (!os_file_exists(parsed_bin_path->array)) {
-		dstr_cat(parsed_bin_path, ".so");
-	}
-#else
-	dstr_cat(parsed_bin_path, get_module_extension());
-#endif
+	obs_host_add_module_extension(parsed_bin_path);
 
 	if (!os_file_exists(parsed_bin_path->array)) {
 		/* Legacy fallback: Check for plugin with .so suffix*/

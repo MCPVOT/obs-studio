@@ -16,8 +16,13 @@
 ******************************************************************************/
 
 #include "util/dstr.h"
+#include "util/platform.h"
 #include "obs.h"
 #include "obs-internal.h"
+#include "obs-host/default-monitoring-device.h"
+#include "obs-host/display-srgb-clear.h"
+#include "obs-host/graphics-thread.h"
+#include "obs-host/module-paths.h"
 
 #include <unistd.h>
 #include <sys/types.h>
@@ -171,18 +176,67 @@ static bool dstr_from_cfstring(struct dstr *str, CFStringRef ref)
 
 // MARK: - Graphics Thread Wrappers
 
-void *obs_graphics_thread_autorelease(void *param)
+static void *obs_graphics_thread_autorelease(void *param)
 {
     @autoreleasepool {
         return obs_graphics_thread(param);
     }
 }
 
-bool obs_graphics_thread_loop_autorelease(struct obs_graphics_context *context)
+int obs_host_create_graphics_thread(pthread_t *thread, void *param)
+{
+    pthread_attr_t attr;
+    pthread_attr_init(&attr);
+    pthread_attr_set_qos_class_np(&attr, QOS_CLASS_USER_INTERACTIVE, 0);
+    return pthread_create(thread, &attr, obs_graphics_thread_autorelease, param);
+}
+
+bool obs_host_graphics_thread_loop(struct obs_graphics_context *context)
 {
     @autoreleasepool {
         return obs_graphics_thread_loop(context);
     }
+}
+
+// MARK: - libobs core host facade (obs-host/, #1051)
+
+bool obs_host_skip_module(const char *path)
+{
+    /* HACK: Do not load obsolete obs-browser build on macOS; the
+     * obs-browser plugin used to live in the Application Support
+     * directory. */
+    if (astrstri(path, "Library/Application Support/obs-studio") != NULL && astrstri(path, "obs-browser") != NULL) {
+        blog(LOG_WARNING, "Ignoring old obs-browser.so version");
+        return true;
+    }
+    return false;
+}
+
+void obs_host_add_module_extension(struct dstr *bin_path)
+{
+    if (!os_file_exists(bin_path->array)) {
+        dstr_cat(bin_path, ".so");
+    }
+}
+
+bool obs_host_display_clear_color_always_srgb(void)
+{
+#if defined(__aarch64__)
+    return true;
+#else
+    return false;
+#endif
+}
+
+extern void get_desktop_default_id(char **p_id);
+
+bool obs_host_default_monitoring_device(const char *device_id, char **def_id)
+{
+    if (!device_id || strcmp(device_id, "default") != 0)
+        return false;
+    *def_id = NULL;
+    get_desktop_default_id(def_id);
+    return true;
 }
 
 // MARK: - macOS Hotkey Management

@@ -18,18 +18,15 @@
 #include "graphics/vec4.h"
 #include "obs.h"
 #include "obs-internal.h"
+#include "obs-host/display-clear-workaround.h"
+#include "obs-host/display-srgb-clear.h"
 
 bool obs_display_init(struct obs_display *display, const struct gs_init_data *graphics_data)
 {
 	pthread_mutex_init_value(&display->draw_callbacks_mutex);
 	pthread_mutex_init_value(&display->draw_info_mutex);
 
-#if defined(_WIN32)
-	/* Conservative test for NVIDIA flickering in multi-GPU setups */
-	display->use_clear_workaround = gs_get_adapter_count() > 1 && !gs_can_adapter_fast_clear();
-#else
-	display->use_clear_workaround = false;
-#endif
+	display->use_clear_workaround = obs_host_display_clear_workaround();
 
 	if (graphics_data) {
 		display->swap = gs_swapchain_create(graphics_data);
@@ -194,14 +191,12 @@ static inline bool render_display_begin(struct obs_display *display, uint32_t cx
 		 * render pass that returns the clear color for every fragment, the color becomes subject to automatic sRGB
 		 * gamma encoding if the render target uses an sRGB color format.
 		 */
-#if defined(__APPLE__) && defined(__aarch64__)
-		vec4_from_rgba_srgb(&clear_color, display->background_color);
-#else
-		if (gs_get_color_space() == GS_CS_SRGB)
+		if (obs_host_display_clear_color_always_srgb())
+			vec4_from_rgba_srgb(&clear_color, display->background_color);
+		else if (gs_get_color_space() == GS_CS_SRGB)
 			vec4_from_rgba(&clear_color, display->background_color);
 		else
 			vec4_from_rgba_srgb(&clear_color, display->background_color);
-#endif
 		clear_color.w = 1.0f;
 
 		const bool use_clear_workaround = display->use_clear_workaround;

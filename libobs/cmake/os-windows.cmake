@@ -84,3 +84,14 @@ target_link_libraries(
 target_link_options(libobs PRIVATE /IGNORE:4098 /SAFESEH:NO)
 
 set_target_properties(libobs PROPERTIES PREFIX "" OUTPUT_NAME "obs")
+
+# libobs core host facade (#1051): the no-op version of each obs-host/ capability
+# this host doesn't implement in its own file.
+target_sources(
+  libobs
+  PRIVATE
+    obs-host/noop/default-monitoring-device.c
+    obs-host/noop/display-srgb-clear.c
+    obs-host/noop/graphics-thread.c
+    obs-host/noop/module-paths.c
+)

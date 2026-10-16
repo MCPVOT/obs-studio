@@ -21,6 +21,11 @@
 #include "util/dstr.h"
 #include "obs.h"
 #include "obs-internal.h"
+#include "obs-host/com.h"
+#include "obs-host/display-clear-workaround.h"
+#include "obs-host/graphics-thread-hooks.h"
+#include "obs-host/module-symbols.h"
+#include "obs-host/shared-texture.h"
 
 #include <windows.h>
 #include <wscapi.h>
@@ -1102,7 +1107,7 @@ void obs_key_combination_to_str(obs_key_combination_t combination, struct dstr *
 
 bool sym_initialize_called = false;
 
-void reset_win32_symbol_paths(void)
+static void reset_win32_symbol_paths(void)
 {
 	static BOOL(WINAPI * sym_initialize_w)(HANDLE, const wchar_t *, BOOL);
 	static BOOL(WINAPI * sym_set_search_path_w)(HANDLE, const wchar_t *);
@@ -1218,7 +1223,7 @@ void obs_init_win32_crash_handler(void)
 	initialize_crash_handler();
 }
 
-bool initialize_com(void)
+static bool initialize_com(void)
 {
 	const HRESULT hr = CoInitializeEx(0, COINIT_APARTMENTTHREADED);
 	const bool success = SUCCEEDED(hr);
@@ -1227,7 +1232,168 @@ bool initialize_com(void)
 	return success;
 }
 
-void uninitialize_com(void)
+static void uninitialize_com(void)
 {
 	CoUninitialize();
+}
+
+/* libobs core host facade (obs-host/, #1051) */
+
+static bool com_initialized = false;
+
+void obs_host_startup(void)
+{
+	com_initialized = initialize_com();
+}
+
+void obs_host_shutdown(void)
+{
+	if (com_initialized) {
+		uninitialize_com();
+		com_initialized = false;
+	}
+}
+
+static const char *reset_win32_symbol_paths_name = "reset_win32_symbol_paths";
+
+void obs_host_post_load_modules(void)
+{
+	profile_start(reset_win32_symbol_paths_name);
+	reset_win32_symbol_paths();
+	profile_end(reset_win32_symbol_paths_name);
+}
+
+bool obs_host_display_clear_workaround(void)
+{
+	/* Conservative test for NVIDIA flickering in multi-GPU setups */
+	return gs_get_adapter_count() > 1 && !gs_can_adapter_fast_clear();
+}
+
+bool obs_host_init_encode_copy_surface(struct obs_core_video_mix *video, uint32_t width, uint32_t height, size_t i)
+{
+	if (video->using_nv12_tex)
+		video->copy_surfaces_encode[i] = gs_stagesurface_create_nv12(width, height);
+	else if (video->using_p010_tex)
+		video->copy_surfaces_encode[i] = gs_stagesurface_create_p010(width, height);
+	else
+		return true;
+	return video->copy_surfaces_encode[i] != NULL;
+}
+
+void obs_host_gpu_encode_surfaces(struct obs_core_video_mix *video, gs_stagesurf_t *const **copy_surfaces,
+				  size_t *channel_count)
+{
+	*copy_surfaces = video->copy_surfaces_encode;
+	*channel_count = 1;
+}
+
+bool obs_host_nv12_planes_share_texture(void)
+{
+	return true;
+}
+
+void obs_host_tex_frame_acquire(struct obs_tex_frame *tf)
+{
+	gs_texture_acquire_sync(tf->tex, tf->lock_key, GS_WAIT_INFINITE);
+}
+
+void obs_host_tex_frame_release(struct obs_tex_frame *tf)
+{
+	tf->handle = gs_texture_get_shared_handle(tf->tex);
+	gs_texture_release_sync(tf->tex, ++tf->lock_key);
+}
+
+uint32_t obs_host_texture_shared_handle(gs_texture_t *tex)
+{
+	return gs_texture_get_shared_handle(tex);
+}
+
+struct winrt_exports {
+	void (*winrt_initialize)();
+	void (*winrt_uninitialize)();
+	struct winrt_disaptcher *(*winrt_dispatcher_init)();
+	void (*winrt_dispatcher_free)(struct winrt_disaptcher *dispatcher);
+	void (*winrt_capture_thread_start)();
+	void (*winrt_capture_thread_stop)();
+};
+
+#define WINRT_IMPORT(func)                                        \
+	do {                                                      \
+		exports->func = os_dlsym(module, #func);          \
+		if (!exports->func) {                             \
+			success = false;                          \
+			blog(LOG_ERROR,                           \
+			     "Could not load function '%s' from " \
+			     "module '%s'",                       \
+			     #func, module_name);                 \
+		}                                                 \
+	} while (false)
+
+static bool load_winrt_imports(struct winrt_exports *exports, void *module, const char *module_name)
+{
+	bool success = true;
+
+	WINRT_IMPORT(winrt_initialize);
+	WINRT_IMPORT(winrt_uninitialize);
+	WINRT_IMPORT(winrt_dispatcher_init);
+	WINRT_IMPORT(winrt_dispatcher_free);
+	WINRT_IMPORT(winrt_capture_thread_start);
+	WINRT_IMPORT(winrt_capture_thread_stop);
+
+	return success;
+}
+
+struct winrt_state {
+	bool loaded;
+	void *winrt_module;
+	struct winrt_exports exports;
+	struct winrt_disaptcher *dispatcher;
+};
+
+/* Owned by the graphics thread: obs_host_graphics_thread_begin and _end run
+ * on it, and only one graphics thread runs at a time. */
+static struct winrt_state graphics_thread_winrt;
+
+void obs_host_graphics_thread_begin(void)
+{
+	static const char *const module_name = "libobs-winrt";
+	struct winrt_state *winrt = &graphics_thread_winrt;
+
+	winrt->winrt_module = os_dlopen(module_name);
+	winrt->loaded = winrt->winrt_module && load_winrt_imports(&winrt->exports, winrt->winrt_module, module_name);
+	winrt->dispatcher = NULL;
+	if (winrt->loaded) {
+		winrt->exports.winrt_initialize();
+		winrt->dispatcher = winrt->exports.winrt_dispatcher_init();
+
+		gs_enter_context(obs->video.graphics);
+		winrt->exports.winrt_capture_thread_start();
+		gs_leave_context();
+	}
+}
+
+void obs_host_graphics_thread_end(void)
+{
+	struct winrt_state *winrt = &graphics_thread_winrt;
+
+	if (winrt->winrt_module) {
+		if (winrt->loaded) {
+			winrt->exports.winrt_capture_thread_stop();
+			if (winrt->dispatcher)
+				winrt->exports.winrt_dispatcher_free(winrt->dispatcher);
+			winrt->exports.winrt_uninitialize();
+		}
+
+		os_dlclose(winrt->winrt_module);
+	}
+	memset(winrt, 0, sizeof(*winrt));
+}
+
+void obs_host_pump_messages(void)
+{
+	MSG msg;
+	while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
+		TranslateMessage(&msg);
+		DispatchMessage(&msg);
+	}
 }

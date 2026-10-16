@@ -22,6 +22,14 @@ One name per thing, so releases, crates and tags can't be confused (#320).
   doesn't say gets an entry in `ci/platform_paths.py`, not a rename.
 - **All Rust lives in the `rust/` Cargo workspace**, one crate per ported
   component (`rust/tools/` is excluded). The table below is where a port goes.
+- **Host code in C** stays in the OS-named files upstream already has. Each
+  libobs area has one host facade: `util/platform.h` for `libobs/util/`, and
+  `libobs/obs-host/` for the libobs core, with one header per capability
+  (`com.h`, `graphics-thread.h`, `shared-texture.h`, ...). A host that has
+  the capability defines it in its own file (`obs-windows.c`, `obs-nix.c`,
+  `obs-cocoa.m`). A host that lacks it builds `obs-host/noop/<capability>.c`,
+  listed in `libobs/cmake/os-<os>.cmake`, so no `#ifdef` picks between them.
+  This is the C form of a crate's `src/platform/mod.rs`.
 - **When a C component is fully ported**, its C sources are deleted and its
   CMake target links the Rust staticlib. No moved copy of the C is kept.
 - **Later, not now:** once we stop merging upstream, the remaining C/C++

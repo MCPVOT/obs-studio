@@ -23,11 +23,9 @@
 #include "graphics/vec4.h"
 #include "media-io/format-conversion.h"
 #include "media-io/video-frame.h"
-
-#ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#endif
+#include "obs-host/graphics-thread.h"
+#include "obs-host/graphics-thread-hooks.h"
+#include "obs-host/shared-texture.h"
 
 static uint64_t tick_sources(uint64_t cur_time, uint64_t last_time)
 {
@@ -468,9 +466,7 @@ static inline bool queue_frame(struct obs_core_video_mix *video, bool raw_active
 	deque_pop_front(&video->gpu_encoder_avail_queue, &tf, sizeof(tf));
 
 	if (tf.released) {
-#ifdef _WIN32
-		gs_texture_acquire_sync(tf.tex, tf.lock_key, GS_WAIT_INFINITE);
-#endif
+		obs_host_tex_frame_acquire(&tf);
 		tf.released = false;
 	}
 
@@ -480,13 +476,12 @@ static inline bool queue_frame(struct obs_core_video_mix *video, bool raw_active
 	 * will ensure better performance. */
 	if (raw_active || vframe_info->count > 1) {
 		gs_copy_texture(tf.tex, video->convert_textures_encode[0]);
-#ifndef _WIN32
 		/* Y and UV textures are views of the same texture on D3D, and
 		 * gs_copy_texture will copy all views of the underlying
 		 * texture. On other platforms, these are two distinct textures
 		 * that must be copied separately. */
-		gs_copy_texture(tf.tex_uv, video->convert_textures_encode[1]);
-#endif
+		if (!obs_host_nv12_planes_share_texture())
+			gs_copy_texture(tf.tex_uv, video->convert_textures_encode[1]);
 	} else {
 		gs_texture_t *tex = video->convert_textures_encode[0];
 		gs_texture_t *tex_uv = video->convert_textures_encode[1];
@@ -501,10 +496,7 @@ static inline bool queue_frame(struct obs_core_video_mix *video, bool raw_active
 	tf.count = 1;
 	tf.timestamp = vframe_info->timestamp;
 	tf.released = true;
-#ifdef _WIN32
-	tf.handle = gs_texture_get_shared_handle(tf.tex);
-	gs_texture_release_sync(tf.tex, ++tf.lock_key);
-#endif
+	obs_host_tex_frame_release(&tf);
 	deque_push_back(&video->gpu_encoder_queue, &tf, sizeof(tf));
 
 	os_sem_post(video->gpu_encode_semaphore);
@@ -560,10 +552,7 @@ static inline void render_video(struct obs_core_video_mix *video, bool raw_activ
 
 		if (gpu_active) {
 			convert_textures = video->convert_textures_encode;
-#ifdef _WIN32
-			copy_surfaces = video->copy_surfaces_encode;
-			channel_count = 1;
-#endif
+			obs_host_gpu_encode_surfaces(video, &copy_surfaces, &channel_count);
 		}
 
 		if (video->gpu_conversion) {
@@ -973,83 +962,6 @@ static void execute_graphics_tasks(void)
 	pthread_mutex_unlock(&video->task_mutex);
 }
 
-#ifdef _WIN32
-
-struct winrt_exports {
-	void (*winrt_initialize)();
-	void (*winrt_uninitialize)();
-	struct winrt_disaptcher *(*winrt_dispatcher_init)();
-	void (*winrt_dispatcher_free)(struct winrt_disaptcher *dispatcher);
-	void (*winrt_capture_thread_start)();
-	void (*winrt_capture_thread_stop)();
-};
-
-#define WINRT_IMPORT(func)                                        \
-	do {                                                      \
-		exports->func = os_dlsym(module, #func);          \
-		if (!exports->func) {                             \
-			success = false;                          \
-			blog(LOG_ERROR,                           \
-			     "Could not load function '%s' from " \
-			     "module '%s'",                       \
-			     #func, module_name);                 \
-		}                                                 \
-	} while (false)
-
-static bool load_winrt_imports(struct winrt_exports *exports, void *module, const char *module_name)
-{
-	bool success = true;
-
-	WINRT_IMPORT(winrt_initialize);
-	WINRT_IMPORT(winrt_uninitialize);
-	WINRT_IMPORT(winrt_dispatcher_init);
-	WINRT_IMPORT(winrt_dispatcher_free);
-	WINRT_IMPORT(winrt_capture_thread_start);
-	WINRT_IMPORT(winrt_capture_thread_stop);
-
-	return success;
-}
-
-struct winrt_state {
-	bool loaded;
-	void *winrt_module;
-	struct winrt_exports exports;
-	struct winrt_disaptcher *dispatcher;
-};
-
-static void init_winrt_state(struct winrt_state *winrt)
-{
-	static const char *const module_name = "libobs-winrt";
-
-	winrt->winrt_module = os_dlopen(module_name);
-	winrt->loaded = winrt->winrt_module && load_winrt_imports(&winrt->exports, winrt->winrt_module, module_name);
-	winrt->dispatcher = NULL;
-	if (winrt->loaded) {
-		winrt->exports.winrt_initialize();
-		winrt->dispatcher = winrt->exports.winrt_dispatcher_init();
-
-		gs_enter_context(obs->video.graphics);
-		winrt->exports.winrt_capture_thread_start();
-		gs_leave_context();
-	}
-}
-
-static void uninit_winrt_state(struct winrt_state *winrt)
-{
-	if (winrt->winrt_module) {
-		if (winrt->loaded) {
-			winrt->exports.winrt_capture_thread_stop();
-			if (winrt->dispatcher)
-				winrt->exports.winrt_dispatcher_free(winrt->dispatcher);
-			winrt->exports.winrt_uninitialize();
-		}
-
-		os_dlclose(winrt->winrt_module);
-	}
-}
-
-#endif // #ifdef _WIN32
-
 static const char *tick_sources_name = "tick_sources";
 static const char *render_displays_name = "render_displays";
 static const char *output_frame_name = "output_frame";
@@ -1114,13 +1026,7 @@ bool obs_graphics_thread_loop(struct obs_graphics_context *context)
 	context->last_time = tick_sources(obs->video.video_time, context->last_time);
 	profile_end(tick_sources_name);
 
-#ifdef _WIN32
-	MSG msg;
-	while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
-		TranslateMessage(&msg);
-		DispatchMessage(&msg);
-	}
-#endif
+	obs_host_pump_messages();
 
 	source_profiler_render_begin();
 	profile_start(output_frame_name);
@@ -1162,10 +1068,7 @@ bool obs_graphics_thread_loop(struct obs_graphics_context *context)
 
 void *obs_graphics_thread(void *param)
 {
-#ifdef _WIN32
-	struct winrt_state winrt;
-	init_winrt_state(&winrt);
-#endif // #ifdef _WIN32
+	obs_host_graphics_thread_begin();
 
 	is_graphics_thread = true;
 
@@ -1189,16 +1092,10 @@ void *obs_graphics_thread(void *param)
 	context.last_time = 0;
 	context.video_thread_name = video_thread_name;
 
-#ifdef __APPLE__
-	while (obs_graphics_thread_loop_autorelease(&context))
-#else
-	while (obs_graphics_thread_loop(&context))
-#endif
+	while (obs_host_graphics_thread_loop(&context))
 		;
 
-#ifdef _WIN32
-	uninit_winrt_state(&winrt);
-#endif
+	obs_host_graphics_thread_end();
 
 	UNUSED_PARAMETER(param);
 	return NULL;

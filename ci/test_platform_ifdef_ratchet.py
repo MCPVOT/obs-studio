@@ -339,6 +339,59 @@ class MainTest(unittest.TestCase):
         self.assertIn("--update", self.output)
 
 
+# libobs core files whose host code moved behind libobs/obs-host.h (#1051).
+FACADED = (
+    "libobs/obs.c",
+    "libobs/obs-display.c",
+    "libobs/obs-internal.h",
+    "libobs/obs-module.c",
+    "libobs/obs-source.c",
+    "libobs/obs-video.c",
+    "libobs/obs-video-gpu-encode.c",
+)
+
+
+class FacadeTest(unittest.TestCase):
+    def test_libobs_core_files_have_no_host_code(self):
+        for path in FACADED:
+            with self.subTest(path=path):
+                text = (r.ROOT / path).read_text(encoding="utf-8")
+                self.assertEqual(r.findings(path, text), [])
+
+    def test_facade_and_noop_files_name_no_host(self):
+        files = sorted((r.ROOT / "libobs/obs-host").rglob("*.[ch]"))
+        self.assertGreater(len(files), 10)
+        for file in files:
+            path = file.relative_to(r.ROOT).as_posix()
+            with self.subTest(path=path):
+                self.assertIsNone(r.platforms(path))  # shared, not a host file
+                self.assertEqual(r.findings(path, file.read_text(encoding="utf-8")), [])
+
+    def test_every_capability_has_a_noop_and_every_host_builds_one_of_each(self):
+        """obs-host/<cap>.h has obs-host/noop/<cap>.c, and each
+        libobs/cmake/os-<os>.cmake either builds that no-op or its host file
+        defines the capability's functions."""
+        import re
+
+        caps = sorted(p.stem for p in (r.ROOT / "libobs/obs-host").glob("*.h") if p.stem != "defs")
+        noops = sorted(p.stem for p in (r.ROOT / "libobs/obs-host/noop").glob("*.c"))
+        self.assertEqual(caps, noops)
+        host_file = {"windows": "obs-windows.c", "macos": "obs-cocoa.m", "linux": "obs-nix.c", "freebsd": "obs-nix.c"}
+        for os_name, source in host_file.items():
+            cmake = (r.ROOT / f"libobs/cmake/os-{os_name}.cmake").read_text()
+            impl = (r.ROOT / "libobs" / source).read_text()
+            for cap in caps:
+                header = (r.ROOT / f"libobs/obs-host/{cap}.h").read_text()
+                funcs = re.findall(r"OBS_HOST_EXTERN [^;(]*?\b(obs_host_\w+)\(", header)
+                self.assertTrue(funcs, cap)
+                defined = [f for f in funcs if re.search(rf"^[^\s].*\b{f}\(", impl, re.M)]
+                with self.subTest(os=os_name, capability=cap):
+                    if f"obs-host/noop/{cap}.c" in cmake:
+                        self.assertEqual(defined, [], "both the no-op and the host file define it")
+                    else:
+                        self.assertEqual(defined, funcs, "neither the no-op nor the host file defines it")
+
+
 class RepoBaselineTest(unittest.TestCase):
     def test_committed_baseline_matches_the_tree(self):
         """The committed baseline is the tree's real counts (run by ./lint)."""

@@ -30,3 +30,15 @@ target_compile_options(libobs PUBLIC "$<$<NOT:$<COMPILE_LANGUAGE:Swift>>:-Wno-st
 
 set_property(SOURCE obs-cocoa.m util/platform-cocoa.m PROPERTY COMPILE_OPTIONS -fobjc-arc)
 set_property(TARGET libobs PROPERTY FRAMEWORK TRUE)
+
+# libobs core host facade (#1051): the no-op version of each obs-host/ capability
+# this host doesn't implement in its own file.
+target_sources(
+  libobs
+  PRIVATE
+    obs-host/noop/com.c
+    obs-host/noop/display-clear-workaround.c
+    obs-host/noop/graphics-thread-hooks.c
+    obs-host/noop/module-symbols.c
+    obs-host/noop/shared-texture.c
+)

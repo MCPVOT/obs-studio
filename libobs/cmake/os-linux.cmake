@@ -102,3 +102,19 @@ else()
 endif()
 
 set_target_properties(libobs PROPERTIES OUTPUT_NAME obs)
+
+# libobs core host facade (#1051): the no-op version of each obs-host/ capability
+# this host doesn't implement in its own file.
+target_sources(
+  libobs
+  PRIVATE
+    obs-host/noop/com.c
+    obs-host/noop/default-monitoring-device.c
+    obs-host/noop/display-clear-workaround.c
+    obs-host/noop/display-srgb-clear.c
+    obs-host/noop/graphics-thread.c
+    obs-host/noop/graphics-thread-hooks.c
+    obs-host/noop/module-paths.c
+    obs-host/noop/module-symbols.c
+    obs-host/noop/shared-texture.c
+)

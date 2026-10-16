@@ -16,6 +16,7 @@
 ******************************************************************************/
 
 #include "obs-internal.h"
+#include "obs-host/shared-texture.h"
 
 void handle_encoder_group_reconfigure_request(obs_encoder_t *encoder);
 
@@ -253,11 +254,7 @@ bool init_gpu_encoding(struct obs_core_video_mix *video)
 			return false;
 		}
 
-#ifdef _WIN32
-		uint32_t handle = gs_texture_get_shared_handle(tex);
-#else
-		uint32_t handle = (uint32_t)-1;
-#endif
+		uint32_t handle = obs_host_texture_shared_handle(tex);
 
 		struct obs_tex_frame frame = {.tex = tex, .tex_uv = tex_uv, .handle = handle};
 
