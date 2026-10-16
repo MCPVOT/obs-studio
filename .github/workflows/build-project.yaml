@@ -1032,7 +1032,7 @@ jobs:
       - name: Install Git 📦
         run: |
           apt-get update -qq
-          apt-get install -y --no-install-recommends git ca-certificates curl sudo
+          apt-get install -y --no-install-recommends git ca-certificates curl sudo zstd
 
       # fetch-depth 0: versionconfig.cmake derives the OBS version from tags.
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -1042,10 +1042,12 @@ jobs:
 
       # Reuse the 339 MB of .debs every Tier 2 job downloaded (#1055): keep
       # them (the stock image's docker-clean config deletes them after each
-      # install) and cache the archive dir, keyed on the list and the image.
+      # install) and restore the archive dir, keyed on the list and the image.
+      # zstd is installed above: the cache entry is versioned by compressor.
       - name: Keep apt Downloads 📦
         run: rm -f /etc/apt/apt.conf.d/docker-clean
-      - uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      - uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        id: apt-cache
         with:
           path: /var/cache/apt/archives
           key: tier2-apt-ubuntu2604-f144425f-${{ hashFiles('rust/tools/linux-validate/apt-packages.txt') }}
@@ -1056,6 +1058,13 @@ jobs:
           sudo apt-get update -qq
           grep -v '^#' rust/tools/linux-validate/apt-packages.txt |
             xargs "${GITHUB_WORKSPACE}/.github/scripts/retry" sudo apt-get install -y --no-install-recommends
+      # One saver, master only: per-PR entries overflowed the 10 GB cache.
+      - name: Save apt Downloads 💾
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master' && steps.apt-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: /var/cache/apt/archives
+          key: tier2-apt-ubuntu2604-f144425f-${{ hashFiles('rust/tools/linux-validate/apt-packages.txt') }}
 
       # PRs restore the compiler cache; only master pushes save it (a cache
       # saved from a PR ref is unreachable by other PRs).
@@ -1154,7 +1163,7 @@ jobs:
       - name: Install Git 📦
         run: |
           apt-get update -qq
-          apt-get install -y --no-install-recommends git ca-certificates curl sudo
+          apt-get install -y --no-install-recommends git ca-certificates curl sudo zstd
 
       # fetch-depth 0: versionconfig.cmake derives the OBS version from tags.
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -1164,10 +1173,12 @@ jobs:
 
       # Reuse the 339 MB of .debs every Tier 2 job downloaded (#1055): keep
       # them (the stock image's docker-clean config deletes them after each
-      # install) and cache the archive dir, keyed on the list and the image.
+      # install) and restore the archive dir, keyed on the list and the image.
+      # zstd is installed above: the cache entry is versioned by compressor.
       - name: Keep apt Downloads 📦
         run: rm -f /etc/apt/apt.conf.d/docker-clean
-      - uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      - uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        id: apt-cache
         with:
           path: /var/cache/apt/archives
           key: tier2-apt-ubuntu2604-f144425f-${{ hashFiles('rust/tools/linux-validate/apt-packages.txt') }}
