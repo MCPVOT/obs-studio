@@ -359,7 +359,7 @@ class InstalledAppIdentityTest(unittest.TestCase):
                 "Exec=obs-studio-rust-gui\nIcon=io.github.obs_rust.OBSStudioRust\nStartupWMClass=obs-studio-rust-gui\n"
             )
             script = (
-                'APPDIR="$1"\nID="$2"\nVERSION_ID="$3"\nVERSION_OUT="OBS-Studio-Rust 0.1.0"\n'
+                'APPDIR="$1"\nID="$2"\nVERSION_ID="$3"\nVERSION_OUT="OBS-Studio-Rust 0.1.0"\nVERSION_LINE="$VERSION_OUT"\n'
                 'FAILED=()\nfail() { FAILED+=("$*"); }\nfinish() { exit 7; }\n'
                 + block
                 + '\nprintf "%s\\n" "$ID"\n'
