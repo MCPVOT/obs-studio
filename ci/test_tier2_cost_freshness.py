@@ -70,6 +70,16 @@ class WorkflowTest(unittest.TestCase):
         self.assertIn("OBS_TIER2_COST_DIR", j)
         self.assertIn("name: tier2-cost-${{ matrix.mode }}-${{ matrix.shard }}", j)
 
+    def test_shards_start_from_the_merged_costs(self):
+        # ctest starts the longest tests first only with cost data; shards
+        # ran with an empty dir, so the 59 s and 35 s tests started last and
+        # shard 2 took 168 s for 228 s of work at -j4 (run 38892442457).
+        j = job("rust-linux-tier2")
+        restore = j.index("restore-keys: tier2-ctest-cost-")
+        self.assertLess(restore, j.index("- name: Test Tier 2 ("))
+        self.assertIn("path: .tier2-cost", j)
+        self.assertIn("OBS_TIER2_COST_DIR: ${{ github.workspace }}/.tier2-cost", j)
+
     def test_done_job_merges_and_caches_on_master(self):
         j = job("rust-linux-tier2-done")
         self.assertIn("pattern: tier2-cost-*", j)

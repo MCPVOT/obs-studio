@@ -1191,6 +1191,16 @@ jobs:
           mkdir -p "$RUNNER_TEMP/tier2"
           tar --zstd -xf "$RUNNER_TEMP/tier2-pack/tier2-tree.tar.zst" -C "$RUNNER_TEMP/tier2"
 
+      # ctest starts the longest tests first only when it has their past
+      # times; with none, the 59 s and 35 s tests started last and one shard
+      # took 168 s for 228 s of -j4 work (run 38892442457). Start from the
+      # timings the last master run merged (rust-linux-tier2-done, #930).
+      - uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: .tier2-cost
+          key: tier2-ctest-cost-${{ github.sha }}
+          restore-keys: tier2-ctest-cost-
+
       - name: Test Tier 2 (libobs ${{ matrix.mode == 'ON' && 'with Rust' || 'C' }}, shard ${{ matrix.shard }}/3) ✅
         env:
           OBS_TIER2_SRC: ${{ github.workspace }}
@@ -1202,15 +1212,16 @@ jobs:
           # (test_encoder_join_keyframe's AV1 encode, test_media_gif_last_frame)
           # failed under -j8 while passing alone (#938).
           OBS_CTEST_JOBS: 4
-          # This shard's timings, merged per mode by rust-linux-tier2-done.
-          OBS_TIER2_COST_DIR: ${{ runner.temp }}/tier2-cost
+          # Read before ctest, rewritten after: this shard's timings, merged
+          # per mode by rust-linux-tier2-done.
+          OBS_TIER2_COST_DIR: ${{ github.workspace }}/.tier2-cost
         run: bash rust/tools/linux-validate/validate.sh
       - name: Upload Test Timings ⏱️
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always() && github.event_name == 'push' && github.ref == 'refs/heads/master'
         with:
           name: tier2-cost-${{ matrix.mode }}-${{ matrix.shard }}
-          path: ${{ runner.temp }}/tier2-cost/ctest-cost-${{ matrix.mode }}.txt
+          path: .tier2-cost/ctest-cost-${{ matrix.mode }}.txt
           retention-days: 1
           if-no-files-found: ignore
 
