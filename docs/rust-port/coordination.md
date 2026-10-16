@@ -23,10 +23,12 @@ this document covers *who does what, and when*.
 - Comment on the issue: `Claiming: <item>` followed by a short numbered plan
   (one PR per C file or unit) and when you expect to open the first PR.
 - The claim bot (`.github/workflows/claim-bot.yaml`) then adds the `claimed`
-  label, assigns you and replies; you don't need label rights. It refuses,
-  with a reply, a claim on an issue someone else holds. Automated runs skip issues and checklist items that are claimed or
-  have an open PR; a fresh `Claiming:` comment counts even if the label is
-  missing.
+  label and reacts 🚀 to your comment; you don't need label rights. It is
+  silent unless it refuses: a claim on an issue someone else holds, a
+  takeover of a claim that isn't stale, or a `/reassign` from a
+  non-maintainer gets a reply that mentions you. Automated runs skip issues
+  and checklist items that are claimed or have an open PR; a fresh
+  `Claiming:` comment counts even if the label is missing.
 - On a tracking issue, claim one checklist item, not the whole issue.
 - Claim only what you are working on now. There is no per-account limit
   (several agents may share one account); stale claims expire (section 3).
@@ -47,14 +49,14 @@ this document covers *who does what, and when*.
   | normal | **48 hours** |
   | labeled `critical` (crash, data loss, broken release or CI-blocking; maintainers set it) | **8 hours** |
 
-  The bot warns 2 hours before, then removes the label and the assignee. Anyone
-  may take a stale claim by commenting `Taking over stale claim from @x`; the
-  bot moves it only if it is stale. Commits on the old draft PR stay
+  The hourly sweep then removes the label, without a comment. Anyone may take
+  a stale claim by commenting `Taking over stale claim from @x`; the bot
+  accepts it (🚀) only if the claim is stale. Commits on the old draft PR stay
   available: carry them over with `Co-Authored-By` (section 6).
 - Maintainers (owner, member, collaborator) can move any claim with
   `/reassign @user`. The bot leaves issues labeled `claim-locked` alone.
 - To stop, comment `Releasing <item>` and link any partial branch; the bot
-  removes the label.
+  removes the label (🚀).
 
 ## 4. Pull requests
 

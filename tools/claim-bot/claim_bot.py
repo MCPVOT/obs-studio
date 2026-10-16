@@ -3,9 +3,15 @@
 
 Usage:
   claim_bot.py comment [--dry-run]   handle the issue_comment event in $GITHUB_EVENT_PATH
-  claim_bot.py sweep [--dry-run]     warn about and expire stale claims
+  claim_bot.py sweep [--dry-run]     expire stale claims
 
 Needs the `gh` CLI, authenticated (GH_TOKEN in CI). Standard library only.
+
+Quiet by design: the only action that notifies anyone is a rejection,
+which replies to and mentions the person refused. Everything accepted is
+the `claimed` label plus a 🚀 reaction on the command comment; expiry just
+removes the label. Bot comments, assignments and @-mentions each sent a
+phone notification, and one maintainer's agents make many claims.
 
 Commands, read from the first line of an issue comment:
   Claiming: <item>                  claim the issue
@@ -16,12 +22,13 @@ Commands, read from the first line of an issue comment:
 A claim goes stale after STALE_HOURS (CRITICAL_STALE_HOURS on issues labeled
 `critical`) with no comment from the claimant on the issue and no commit,
 comment or review on an open PR they opened that references the issue. The
-sweep warns WARN_HOURS before that and then removes the claim. Issues labeled
-`claim-locked` are left alone.
+hourly sweep then removes the label. Issues labeled `claim-locked` are left
+alone.
 
-State lives in the visible history: the bot's own comments start with
-BOT_PREFIX and name the claimant. Claims made before the bot existed are
-read from the latest human `Claiming:` comment on an issue labeled `claimed`.
+State lives in the visible history: no `claimed` label means no claim;
+otherwise the latest command the bot reacted to with REACTION decides (see
+current_claim). Older bot comments that name the claimant still count, and
+claims made before the bot are read from the latest `Claiming:` comment.
 The functions above main() are pure and tested by ci/test_claim_bot.py.
 """
 
@@ -44,17 +51,16 @@ CRITICAL = "critical"
 LOCKED = "claim-locked"
 STALE_HOURS = 48
 CRITICAL_STALE_HOURS = 8
-WARN_HOURS = 2
 MAINTAINERS = {"OWNER", "MEMBER", "COLLABORATOR"}
+REACTION = "rocket"
 
 CLAIM_RE = re.compile(r"^\s*claiming\b", re.I)
 RELEASE_RE = re.compile(r"^\s*releasing\b", re.I)
 TAKEOVER_RE = re.compile(r"^\s*taking over stale claim from @([A-Za-z0-9-]+)", re.I)
 REASSIGN_RE = re.compile(r"^\s*/reassign\s+@([A-Za-z0-9-]+)", re.I)
-# The bot's own records. Each names the claimant after it, or none.
-BOT_CLAIM_RE = re.compile(re.escape(BOT_PREFIX) + r" (?:claimed by|claim moved to) @([A-Za-z0-9-]+)")
+# The bot's own records. Older ones wrote @login; current ones `login`.
+BOT_CLAIM_RE = re.compile(re.escape(BOT_PREFIX) + r" (?:claimed by|claim moved to) [@`]([A-Za-z0-9-]+)")
 BOT_CLEAR_RE = re.compile(re.escape(BOT_PREFIX) + r" claim (?:released|expired)")
-BOT_WARN_RE = re.compile(re.escape(BOT_PREFIX) + r" claim by @[A-Za-z0-9-]+ expires")
 
 
 @dataclass
@@ -63,6 +69,8 @@ class Comment:
     association: str
     body: str
     created: datetime
+    id: int = 0
+    granted: bool = False  # a Claiming: comment the bot reacted to
 
     def first_line(self) -> str:
         return self.body.strip().splitlines()[0] if self.body.strip() else ""
@@ -95,17 +103,30 @@ def is_bot(login: str) -> bool:
 
 
 def current_claim(issue: Issue) -> Claim | None:
-    """The claimant, from the bot's records, else a pre-bot `Claiming:` comment."""
+    """The claimant. No `claimed` label means no claim (release and expiry
+    only remove it). Otherwise the latest granted command decides: a granted
+    `Claiming:` or takeover gives it to its author, `/reassign @x` to x, and
+    a granted release clears it. Older bot comments (@login records) count
+    too; before the bot, the latest `Claiming:` comment."""
+    if CLAIMED not in issue.labels:
+        return None
     claim: Claim | None = None
-    seen_bot_record = False
+    seen_record = False
     for c in sorted(issue.comments, key=lambda c: c.created):
-        if c.author != BOT:
-            continue
-        if m := BOT_CLAIM_RE.match(c.body):
-            claim, seen_bot_record = Claim(m.group(1), c.created), True
-        elif BOT_CLEAR_RE.match(c.body):
-            claim, seen_bot_record = None, True
-    if seen_bot_record or CLAIMED not in issue.labels:
+        line = c.first_line()
+        if c.granted and not is_bot(c.author):
+            seen_record = True
+            if m := REASSIGN_RE.match(line):
+                claim = Claim(m.group(1), c.created)
+            elif RELEASE_RE.match(line):
+                claim = None
+            else:
+                claim = Claim(c.author, c.created)
+        elif c.author == BOT and (m := BOT_CLAIM_RE.match(c.body)):
+            claim, seen_record = Claim(m.group(1), c.created), True
+        elif c.author == BOT and BOT_CLEAR_RE.match(c.body):
+            claim, seen_record = None, True
+    if seen_record:
         return claim
     human = [c for c in issue.comments if not is_bot(c.author) and CLAIM_RE.match(c.first_line())]
     if not human:
@@ -133,9 +154,11 @@ def is_stale(issue: Issue, claim: Claim, now: datetime) -> bool:
 
 
 def decide_comment(issue: Issue, comment: Comment, now: datetime) -> list[tuple]:
-    """Actions for one new comment. There is no per-account claim limit:
-    several agents can share one maintainer's account, and expiry handles
-    hoarding."""
+    """Actions for one new comment. Only a rejection comments (and mentions
+    the person rejected); every accepted command is the label plus REACTION
+    on the command, so nobody is notified. There is no per-account claim
+    limit: several agents can share one maintainer's account, and expiry
+    handles hoarding."""
     if is_bot(comment.author) or LOCKED in issue.labels:
         return []
     line = comment.first_line()
@@ -144,77 +167,59 @@ def decide_comment(issue: Issue, comment: Comment, now: datetime) -> list[tuple]
 
     if m := REASSIGN_RE.match(line):
         if comment.association not in MAINTAINERS:
-            return [("comment", f"{BOT_PREFIX} only maintainers can `/reassign`.")]
-        return move(claim, m.group(1), f"reassigned by @{who}")
+            return reject(who, "only maintainers can `/reassign`.")
+        return accept(comment)
 
     if m := TAKEOVER_RE.match(line):
         if claim is None:
-            return grant(who, "the issue had no claim")
+            return accept(comment)
         if claim.user.lower() != m.group(1).lower():
-            return [("comment", f"{BOT_PREFIX} @{who}, the current claim is held by @{claim.user}, not @{m.group(1)}.")]
+            return reject(who, f"the current claim is held by {u(claim.user)}, not {u(m.group(1))}.")
         if not is_stale(issue, claim, now):
             left = timedelta(hours=stale_hours(issue)) - (now - last_activity(issue, claim))
-            return [("comment", f"{BOT_PREFIX} @{who}, the claim by @{claim.user} is still active; "
-                     f"it goes stale in {fmt_hours(left)} without progress.")]
-        return move(claim, who, f"stale claim taken over from @{claim.user}")
+            return reject(who, f"the claim by {u(claim.user)} is still active; "
+                          f"it goes stale in {fmt_hours(left)} without progress.")
+        return accept(comment)
 
     if CLAIM_RE.match(line):
         if claim and claim.user.lower() == who.lower():
             return []
         if claim and not is_stale(issue, claim, now):
-            return [("comment", f"{BOT_PREFIX} @{who}, this is already claimed by @{claim.user}. "
-                     "Pick something else or offer help here; once the claim goes stale, "
-                     f"comment `Taking over stale claim from @{claim.user}`.")]
-        if claim:
-            return move(claim, who, f"stale claim from @{claim.user}")
-        return grant(who, None)
+            return reject(who, f"this is already claimed by {u(claim.user)}. Pick something else or offer "
+                          "help here; once the claim goes stale, comment "
+                          f"`Taking over stale claim from @{claim.user}`.")
+        return accept(comment)
 
     if RELEASE_RE.match(line) and claim and claim.user.lower() == who.lower():
-        return [("unassign", claim.user), ("label_remove", CLAIMED),
-                ("comment", f"{BOT_PREFIX} claim released by @{who}.")]
+        return [("label_remove", CLAIMED), ("react", comment.id)]
     return []
 
 
-def grant(who: str, note: str | None) -> list[tuple]:
-    suffix = f" ({note})" if note else ""
-    return [("label_add", CLAIMED), ("assign", who),
-            ("comment", f"{BOT_PREFIX} claimed by @{who}{suffix}. {window_note()}")]
+def u(login: str) -> str:
+    """A login as code: GitHub sends no notification for it, unlike @login."""
+    return f"`{login}`"
 
 
-def move(claim: Claim | None, to: str, why: str) -> list[tuple]:
-    acts: list[tuple] = []
-    if claim and claim.user.lower() != to.lower():
-        acts.append(("unassign", claim.user))
-    acts += [("label_add", CLAIMED), ("assign", to),
-             ("comment", f"{BOT_PREFIX} claim moved to @{to} ({why}). {window_note()}")]
-    return acts
+def accept(comment: Comment) -> list[tuple]:
+    """Label and react: the record of the claim, and silent."""
+    return [("label_add", CLAIMED), ("react", comment.id)]
+
+
+def reject(who: str, why: str) -> list[tuple]:
+    """The one action that notifies: the person whose command was refused."""
+    return [("comment", f"{BOT_PREFIX} @{who}, {why}")]
 
 
 def decide_sweep(issue: Issue, now: datetime) -> list[tuple]:
-    """Warn WARN_HOURS before a claim goes stale, and expire it once it has."""
+    """Expire a claim that went stale by removing the label, silently."""
     if LOCKED in issue.labels:
         return []
     claim = current_claim(issue)
     if claim is None:
         return []
-    last = last_activity(issue, claim)
-    idle = now - last
-    limit = timedelta(hours=stale_hours(issue))
-    if idle >= limit:
-        return [("unassign", claim.user), ("label_remove", CLAIMED),
-                ("comment", f"{BOT_PREFIX} claim expired: no progress from @{claim.user} in "
-                 f"{stale_hours(issue)} h. Anyone may claim it now.")]
-    if idle >= limit - timedelta(hours=WARN_HOURS):
-        warned = any(c.author == BOT and BOT_WARN_RE.match(c.body) and c.created > last for c in issue.comments)
-        if not warned:
-            return [("comment", f"{BOT_PREFIX} claim by @{claim.user} expires in {fmt_hours(limit - idle)} "
-                     "unless there is progress (a comment here, or a push, comment or review on your PR).")]
+    if now - last_activity(issue, claim) >= timedelta(hours=stale_hours(issue)):
+        return [("label_remove", CLAIMED)]
     return []
-
-
-def window_note() -> str:
-    return (f"It expires after {STALE_HOURS} h ({CRITICAL_STALE_HOURS} h on `critical` issues) without "
-            "a progress comment here or a push, comment or review on a linked PR.")
 
 
 def fmt_hours(d: timedelta) -> str:
@@ -255,8 +260,15 @@ def load_pr(number: int) -> LinkedPR:
 
 def load_issue(number: int) -> Issue:
     raw = gh_json(f"repos/{REPO}/issues/{number}", paginate=False)
-    comments = [Comment(c["user"]["login"], c["author_association"], c["body"] or "", ts(c["created_at"]))
-                for c in gh_json(f"repos/{REPO}/issues/{number}/comments?per_page=100")]
+    comments = []
+    for c in gh_json(f"repos/{REPO}/issues/{number}/comments?per_page=100"):
+        com = Comment(c["user"]["login"], c["author_association"], c["body"] or "", ts(c["created_at"]), c["id"])
+        line = com.first_line()
+        command = any(r.match(line) for r in (CLAIM_RE, RELEASE_RE, TAKEOVER_RE, REASSIGN_RE))
+        if not is_bot(com.author) and command and c.get("reactions", {}).get(REACTION):
+            reactions = gh_json(f"repos/{REPO}/issues/comments/{c['id']}/reactions?content={REACTION}&per_page=100")
+            com.granted = any(r["user"]["login"] == BOT for r in reactions)
+        comments.append(com)
     prs = []
     for ev in gh_json(f"repos/{REPO}/issues/{number}/timeline?per_page=100"):
         src = (ev.get("source") or {}).get("issue") or {}
@@ -280,13 +292,11 @@ def apply(number: int, actions: list[tuple], dry_run: bool) -> None:
         cmd = {
             "label_add": base + ["--add-label", arg],
             "label_remove": base + ["--remove-label", arg],
-            "assign": base + ["--add-assignee", arg],
-            "unassign": base + ["--remove-assignee", arg],
+            "react": ["gh", "api", "-X", "POST", f"repos/{REPO}/issues/comments/{arg}/reactions",
+                      "-f", f"content={REACTION}"],
             "comment": ["gh", "issue", "comment", str(number), "--repo", REPO, "--body", arg],
         }[kind]
-        # Assigning someone GitHub won't accept must not stop the rest; the
-        # label and the bot's comment are the record of the claim.
-        subprocess.run(cmd, check=kind not in ("assign", "unassign"))
+        subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL)
 
 
 def main() -> int:
@@ -302,7 +312,7 @@ def main() -> int:
         if "pull_request" in event["issue"]:
             return 0
         c = event["comment"]
-        comment = Comment(c["user"]["login"], c["author_association"], c["body"] or "", ts(c["created_at"]))
+        comment = Comment(c["user"]["login"], c["author_association"], c["body"] or "", ts(c["created_at"]), c["id"])
         line = comment.first_line()
         if is_bot(comment.author) or not any(r.match(line) for r in (CLAIM_RE, RELEASE_RE, TAKEOVER_RE, REASSIGN_RE)):
             return 0
