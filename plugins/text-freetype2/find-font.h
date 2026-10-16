@@ -39,3 +39,6 @@ extern bool load_cached_os_font_list(void);
 extern void load_os_font_list(void);
 extern void free_os_font_list(void);
 extern const char *get_font_path(const char *family, uint16_t size, const char *style, uint32_t flags, FT_Long *idx);
+/* Makes the fonts bundled in `dir` (the plugin's data/fonts) findable by
+ * get_font_path, whether or not they are installed. */
+extern void load_bundled_fonts(const char *dir);

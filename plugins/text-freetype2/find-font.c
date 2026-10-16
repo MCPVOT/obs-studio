@@ -2,7 +2,9 @@
 #include <ctype.h>
 #include <time.h>
 #include <obs-module.h>
+#include <util/platform.h>
 #include "find-font.h"
+#include "text-freetype2.h"
 
 DARRAY(struct font_path_info) font_list;
 
@@ -317,6 +319,39 @@ void build_font_path_info(FT_Face face, FT_Long idx, const char *path)
 	}
 
 	da_free(family_names);
+}
+
+static bool is_font_file(const char *name)
+{
+	const char *ext = strrchr(name, '.');
+	return ext && (astrcmpi(ext, ".ttf") == 0 || astrcmpi(ext, ".otf") == 0);
+}
+
+void load_bundled_fonts(const char *dir)
+{
+	os_dir_t *d = dir ? os_opendir(dir) : NULL;
+	if (!d)
+		return;
+
+	struct os_dirent *ent;
+	struct dstr path = {0};
+	while ((ent = os_readdir(d)) != NULL) {
+		if (ent->directory || !is_font_file(ent->d_name))
+			continue;
+		dstr_printf(&path, "%s/%s", dir, ent->d_name);
+
+		FT_Face face;
+		FT_Long count = 1;
+		for (FT_Long idx = 0; idx < count; idx++) {
+			if (FT_New_Face(ft2_lib, path.array, idx, &face) != 0)
+				break;
+			count = face->num_faces;
+			build_font_path_info(face, idx, path.array);
+			FT_Done_Face(face);
+		}
+	}
+	dstr_free(&path);
+	os_closedir(d);
 }
 
 void free_os_font_list(void)

@@ -26,5 +26,5 @@ uint32_t ft2_platform_source_flags(void)
 
 const char *ft2_platform_default_face(void)
 {
-	return "Helvetica";
+	return FT2_DEFAULT_FACE;
 }

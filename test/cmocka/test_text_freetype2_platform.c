@@ -7,17 +7,17 @@
 #include "text-freetype2-platform.h"
 
 /*
- * The FreeType text source's per-platform defaults (obs-rust/obs-studio#863):
- * what the removed #ifdefs in text-freetype2.c chose on Linux and the BSDs.
- * The Windows (Arial, deprecated) and macOS (Helvetica) files are checked by
- * their native builds.
+ * The FreeType text source's per-platform defaults (obs-rust/obs-studio#863)
+ * on Linux and the BSDs. The default face is the bundled JetBrainsMono Nerd
+ * Font on every OS (obs-rust/obs-studio#1012); the Windows (deprecated) and
+ * macOS files are checked by their native builds.
  */
 
 static void test_unix_defaults(void **state)
 {
 	UNUSED_PARAMETER(state);
 
-	assert_string_equal(ft2_platform_default_face(), "Sans Serif");
+	assert_string_equal(ft2_platform_default_face(), "JetBrainsMono Nerd Font");
 	assert_int_equal(ft2_platform_source_flags(), 0);
 }
 

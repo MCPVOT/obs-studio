@@ -24,6 +24,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 void free_os_font_list(void) {}
 
+void load_bundled_fonts(const char *dir)
+{
+	if (!dir)
+		return;
+	if (!FcConfigAppFontAddDir(NULL, (const FcChar8 *)dir))
+		blog(LOG_WARNING, "FT2-text: could not add the bundled fonts in '%s'", dir);
+}
+
 bool load_cached_os_font_list(void)
 {
 	return true;

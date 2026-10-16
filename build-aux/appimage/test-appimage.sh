@@ -317,6 +317,15 @@ fi
 # bundled ELF file with the bundled loader directly are given it explicitly.
 LOADER_ARGS=()
 [ -d "$APPDIR/glibc" ] && LOADER_ARGS=(--library-path "$APPDIR/glibc")
+# The Text (FreeType 2) source's default face ships with it (obs-rust/obs-studio#1012).
+# Plugin data sits at $PACKAGE_DATA/obs-modules/core/<plugin>/; find it rather
+# than hard-code the layout.
+FT2_FONTS=$(find "$PACKAGE_DATA" -type d -path '*/text-freetype2/fonts' -print -quit)
+for f in JetBrainsMonoNerdFont-Regular.ttf JetBrainsMonoNerdFont-Bold.ttf \
+    JetBrainsMonoNerdFont-Italic.ttf JetBrainsMonoNerdFont-BoldItalic.ttf OFL.txt; do
+    [ -n "$FT2_FONTS" ] && [ -f "$FT2_FONTS/$f" ] ||
+        fail "text-freetype2's bundled font file $f is missing"
+done
 # Which C library AppRun picked for this run, written by AppRun (bundled|host);
 # empty before AppRun has run, or for an AppImage that always bundles it.
 DRIVER_STACK_RE='libGL\.|libGLX|libEGL|libOpenGL|libGLdispatch|libGLESv|libglapi|libgbm|libdrm|libvulkan|libva(\.so|-)|libwayland-(client|egl|server)|libgallium|libLLVM|libcuda|libnvidia'

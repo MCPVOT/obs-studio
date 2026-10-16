@@ -25,4 +25,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 uint32_t ft2_platform_source_flags(void);
 
 /* The default font face. */
+/* The bundled data/fonts face, the default on every OS (obs-rust/obs-studio#1012). */
+#define FT2_DEFAULT_FACE "JetBrainsMono Nerd Font"
+
 const char *ft2_platform_default_face(void);

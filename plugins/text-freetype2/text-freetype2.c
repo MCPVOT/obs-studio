@@ -105,6 +105,11 @@ static void init_plugin(void)
 	if (!load_cached_os_font_list())
 		load_os_font_list();
 
+	/* The default face ships with the plugin (obs-rust/obs-studio#1012). */
+	char *fonts = obs_module_file("fonts");
+	load_bundled_fonts(fonts);
+	bfree(fonts);
+
 	plugin_initialized = true;
 }
 
