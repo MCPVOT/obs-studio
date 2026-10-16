@@ -129,6 +129,52 @@ jobs:
           mkdir -p "$cas"
           echo "XCODE_CAS_PATH=$cas" >>"$GITHUB_ENV"
 
+      # Restore, read-only, the compiler caches build-project.yaml's app builds
+      # save on master (same target, RelWithDebInfo): the release compiled
+      # every C file cold, Windows x64 15m34s at 0/716 ccache hits against
+      # 3m08s in the scheduled build (#782). Never saved here, so the release's
+      # Rust-libobs objects cannot grow or skew the app builds' caches.
+      - name: Restore Xcode Cache 🗄️
+        if: matrix.os == 'macos'
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ env.XCODE_CAS_PATH }}
+          key: macOS-xcode-${{ matrix.target }}-RelWithDebInfo-${{ needs.check.outputs.sha }}
+          restore-keys: macOS-xcode-${{ matrix.target }}-RelWithDebInfo-
+      - name: Restore ccache 🗄️
+        if: matrix.os == 'windows'
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ github.workspace }}/.ccache
+          key: windows-ccache-${{ matrix.target }}-RelWithDebInfo-${{ needs.check.outputs.sha }}
+          restore-keys: windows-ccache-${{ matrix.target }}-RelWithDebInfo-
+      # The windows-ci presets enable ccache (ENABLE_CCACHE) when it is on PATH;
+      # same pinned build as build-project.yaml's windows-build.
+      - name: Set Up ccache 🗄️
+        if: matrix.os == 'windows'
+        shell: pwsh
+        run: |
+          # Set Up ccache 🗄️
+          $Version = '4.14.1'
+          $Hash = '6219f3865ca59aec41ee4b678df171d5d35855ecb2b6dbbbd20690b3a68af7b4'
+          $Name = "ccache-${Version}-windows-x86_64"
+          $Zip = "${env:RUNNER_TEMP}/${Name}.zip"
+
+          Invoke-WebRequest -Uri "https://github.com/ccache/ccache/releases/download/v${Version}/${Name}.zip" -OutFile $Zip
+          if ( (Get-FileHash -Algorithm SHA256 -Path $Zip).Hash -ne $Hash ) { throw "${Name}.zip checksum mismatch" }
+          Expand-Archive -Path $Zip -DestinationPath $env:RUNNER_TEMP
+
+          $CcacheHome = Join-Path $env:RUNNER_TEMP $Name
+          $env:CCACHE_DIR = Join-Path $env:GITHUB_WORKSPACE '.ccache'
+          $CcacheHome >> $env:GITHUB_PATH
+          @(
+            "CCACHE_DIR=${env:CCACHE_DIR}"
+            'CCACHE_MAXSIZE=2G'
+            'CCACHE_COMPILERCHECK=content'
+            'CCACHE_SLOPPINESS=include_file_mtime,include_file_ctime'
+          ) >> $env:GITHUB_ENV
+          & (Join-Path $CcacheHome 'ccache.exe') --zero-stats
+
       - name: Set Up Code Signing 🔑
         if: matrix.os == 'macos'
         id: codesign
@@ -174,6 +220,11 @@ jobs:
           codesignIdent: ${{ steps.codesign.outputs.codesignIdent || '-' }}
           codesignTeam: ${{ steps.codesign.outputs.codesignTeam }}
           provisioningProfileUUID: ${{ steps.codesign.outputs.provisioningProfileUUID }}
+
+      - name: ccache Stats 🗄️
+        if: matrix.os == 'windows'
+        shell: pwsh
+        run: ccache --show-stats
 
       - name: Package OBS-Studio-Rust 📀
         uses: ./.github/actions/package-obs
