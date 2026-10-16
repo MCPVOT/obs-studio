@@ -274,10 +274,62 @@ def gersemi(files: list[str], fix: bool) -> None:
     subprocess.run([exe, "-i" if fix else "-c", "--no-cache", *sources], cwd=ROOT, check=True)
 
 
+# A change to these can reformat files the change did not touch.
+FORMAT_CONFIG_NAMES = (".clang-format", ".gersemirc")
+FORMAT_CONFIG_PATHS = ("ci/local_gate.py",)  # pins CLANG_FORMAT and GERSEMI
+
+
+def format_scope(files: list[str], changed: list[str] | None, ci: bool) -> list[str]:
+    """Files clang-format and gersemi check (#1050).
+
+    CI checks every file: on a PR this lane is the only format check. Locally
+    only the files changed since origin/master: the rest is already formatted
+    on master, where every push checks every file. Every file again when the
+    changes are unknown or touch the formatter configuration.
+    """
+    if ci or changed is None:
+        return files
+    if any(Path(c).name in FORMAT_CONFIG_NAMES or c in FORMAT_CONFIG_PATHS for c in changed):
+        return files
+    wanted = set(changed)
+    return [f for f in files if f in wanted]
+
+
+def changed_since_master() -> list[str] | None:
+    """Committed, staged, unstaged and untracked changes since the merge-base
+    with origin/master, plus formatter configuration changed on master since
+    then; None when there is no merge-base."""
+    def git(*args: str) -> subprocess.CompletedProcess:
+        return subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True)
+
+    base = git("merge-base", "HEAD", "origin/master")
+    sha = (base.stdout or "").strip()
+    if base.returncode or not sha:
+        return None
+    names: set[str] = set()
+    for args in (
+        ("diff", "--name-only", sha),
+        ("ls-files", "--others", "--exclude-standard"),
+        # Formatter configuration master changed after the branch point: an
+        # unrebased branch must not pass against the old rules.
+        ("diff", "--name-only", sha, "origin/master", "--", *FORMAT_CONFIG_PATHS,
+         *(f":(glob)**/{n}" for n in FORMAT_CONFIG_NAMES)),
+    ):
+        out = git(*args)
+        if out.returncode:
+            return None
+        names.update(line for line in (out.stdout or "").splitlines() if line)
+    return sorted(names)
+
+
 def lane_lint(fix: bool) -> None:
     files = tracked_files()
-    clang_format(files, fix)
-    gersemi(files, fix)
+    in_ci = bool(os.environ.get("GITHUB_ACTIONS"))
+    fmt_files = format_scope(files, None if in_ci else changed_since_master(), in_ci)
+    if len(fmt_files) != len(files):
+        print(f"+ formatting {len(fmt_files)} files changed since origin/master (CI checks all)", flush=True)
+    clang_format(fmt_files, fix)
+    gersemi(fmt_files, fix)
     self_test()
     platform_ifdef_ratchet()
     soldr_cargo(["fmt", "--all"] + ([] if fix else ["--check"]))

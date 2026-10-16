@@ -181,3 +181,49 @@ class ClangFormatScopeTest(unittest.TestCase):
             and not local_gate.excluded(f, local_gate.CLANG_EXCLUDE)
         ]
         self.assertEqual(checked, files)
+
+
+class FormatScopeTest(unittest.TestCase):
+    """./lint formats only changed files locally; CI checks every file (#1050)."""
+
+    FILES = ["libobs/obs.c", "frontend/a.cpp", "frontend/b.cpp", "CMakeLists.txt"]
+
+    def test_ci_checks_every_file(self):
+        self.assertEqual(local_gate.format_scope(self.FILES, ["frontend/a.cpp"], ci=True), self.FILES)
+
+    def test_local_checks_only_changed_files(self):
+        self.assertEqual(
+            local_gate.format_scope(self.FILES, ["frontend/a.cpp", "docs/x.md"], ci=False), ["frontend/a.cpp"]
+        )
+
+    def test_unknown_changes_check_every_file(self):
+        # No merge-base with origin/master: nothing to compare against.
+        self.assertEqual(local_gate.format_scope(self.FILES, None, ci=False), self.FILES)
+
+    def test_formatter_config_change_checks_every_file(self):
+        for config in (".clang-format", "libobs/.clang-format", ".gersemirc", "ci/local_gate.py"):
+            with self.subTest(config=config):
+                self.assertEqual(local_gate.format_scope(self.FILES, [config], ci=False), self.FILES)
+
+
+class FormatScopeUpstreamConfigTest(unittest.TestCase):
+    """A formatter change that landed on master after the branch point must
+    widen the local check too (#1050 review)."""
+
+    def test_upstream_config_change_counts_as_changed(self):
+        outputs = {
+            ("merge-base", "HEAD", "origin/master"): "base\n",
+            ("diff", "--name-only", "base"): "frontend/a.cpp\n",
+            ("ls-files", "--others", "--exclude-standard"): "",
+            ("diff", "--name-only", "base", "origin/master", "--", *local_gate.FORMAT_CONFIG_PATHS,
+             *(f":(glob)**/{n}" for n in local_gate.FORMAT_CONFIG_NAMES)): "ci/local_gate.py\n",
+        }
+
+        def fake(cmd, **kw):
+            return subprocess.CompletedProcess(cmd, 0, outputs.get(tuple(cmd[1:]), ""), "")
+
+        with mock.patch.object(local_gate.subprocess, "run", side_effect=fake):
+            changed = local_gate.changed_since_master()
+        self.assertIn("ci/local_gate.py", changed)
+        files = ["frontend/a.cpp", "frontend/b.cpp"]
+        self.assertEqual(local_gate.format_scope(files, changed, ci=False), files)
