@@ -98,10 +98,31 @@ for mode in OFF ON; do
     grep -E ': warning: ' "$build.build.log" | sort -u || true
   fi
 
+  # ctest starts the longest tests first only when it knows their past run
+  # times (Testing/Temporary/CTestCostData.txt). A fresh CI container has
+  # none, so the 83 s test_deinterlace_2x_field_order could start last; carry
+  # the file per mode in the ccache directory, which CI restores (#931).
+  cost_file="$build/Testing/Temporary/CTestCostData.txt"
+  cost_cache=
+  if [ -n "${CCACHE_DIR:-}" ]; then
+    cost_cache="$CCACHE_DIR/ctest-cost-$mode.txt"
+    if [ -s "$cost_cache" ]; then
+      mkdir -p "${cost_file%/*}"
+      cp "$cost_cache" "$cost_file"
+    fi
+  fi
+
   echo "== [$mode] ctest"
   # xvfb-run gives display tests an X server; the PipeWire tests start their
   # own private PipeWire daemon and D-Bus bus (#776).
-  xvfb-run -a ctest --test-dir "$build" --output-on-failure -j "${OBS_CTEST_JOBS:-1}" 2>&1 | tee "$build.ctest.log"
+  ctest_status=0
+  xvfb-run -a ctest --test-dir "$build" --output-on-failure -j "${OBS_CTEST_JOBS:-1}" 2>&1 | tee "$build.ctest.log" ||
+    ctest_status=$?
+  # Keep the timings even when a test failed: they are still right.
+  if [ -n "$cost_cache" ] && [ -s "$cost_file" ]; then
+    cp "$cost_file" "$cost_cache"
+  fi
+  [ "$ctest_status" -eq 0 ] || exit "$ctest_status"
   # A PipeWire test that skips for lack of a daemon is a hole, not a pass (#776).
   /src/rust/tools/linux-validate/check-skips.sh "$build.ctest.log"
 

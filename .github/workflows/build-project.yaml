@@ -912,7 +912,11 @@ jobs:
       - name: Validate Tier 2 (ENABLE_RUST_LIBOBS OFF vs ON) ✅
         env:
           OBS_CCACHE_DIR: ${{ github.workspace }}/.tier2-ccache
-          # ccache already hits ~99.8%; the time is two serial 247-test ctest runs.
+          # ccache already hits ~99.8%; the time is two serial ctest runs.
+          # validate.sh starts the longest tests first from cached cost data
+          # (#931). More than 4 jobs is not free: CPU-heavy timing tests
+          # (test_encoder_join_keyframe's AV1 encode, test_media_gif_last_frame)
+          # failed under -j8 while passing alone.
           OBS_CTEST_JOBS: 4
         run: uv run ci/local_gate.py --lane tier2-linux
 

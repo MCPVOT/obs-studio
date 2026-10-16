@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -38,6 +39,9 @@ class RustSourceProbeTest(unittest.TestCase):
                 cmd, cwd=scratch, env=kw.get("env"), capture_output=True, text=True, timeout=90, check=False
             )
             output.append(result.stdout + result.stderr)
+            if result.returncode != 0:
+                # Without this the lane's failure is just "exit status 101".
+                print(f"$ {' '.join(cmd)}\n{output[-1][-4000:]}", file=sys.stderr)
             result.check_returncode()
 
         with mock.patch.object(local_gate, "run", side_effect=run_in_scratch):
