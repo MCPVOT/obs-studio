@@ -342,23 +342,36 @@ def lane_lint(fix: bool) -> None:
     soldr_cargo(["dylint", "--all", "--", "--workspace", "--lib", "--bins"])
 
 
-# Every shipped Rust target, linted from this host (#472): soldr provides
-# the Windows SDK (xwin) and the macOS SDK for cross-compiling.
-CROSS_TARGETS = ("x86_64-pc-windows-msvc", "aarch64-apple-darwin", "x86_64-apple-darwin")
+# Cross targets linted from this host (#472, #955): soldr provides the
+# Windows SDK (xwin) and the macOS SDK. The PR gate covers win-x64 and
+# mac-arm64 here (linux-x64 is the host, linted by the lint lane); the release
+# gate adds win-arm64, mac-x64 and linux-arm64.
+CROSS_TARGETS = ("x86_64-pc-windows-msvc", "aarch64-apple-darwin")
+RELEASE_CROSS_TARGETS = ("aarch64-pc-windows-msvc", "x86_64-apple-darwin", "aarch64-unknown-linux-gnu")
 
 
-def lane_cross(fix: bool) -> None:
+def cross_lint(targets: tuple[str, ...], link: bool) -> None:
     # obs-c-oracle is a dev-only crate of C built for the host's tests; it
     # never ships and its C doesn't cross-compile to every target.
     scope = ["--workspace", "--exclude", "obs-c-oracle", "--lib", "--bins"]
-    for target in CROSS_TARGETS:
+    for target in targets:
         run(["soldr", "rustup", "target", "add", target])
         soldr_cargo(["clippy", *scope, "--locked", "--target", target, "--", "-D", "warnings"])
         soldr_cargo(["dylint", "--all", "--", *scope, "--target", target])
-        # Every test binary, C oracle included, must also compile and link
-        # for the target (#516, #695): cc compiles all the oracle's C, and
-        # soldr's self-contained lld-link/ld64.lld links it on Linux.
-        soldr_cargo(["test", "--workspace", "--no-run", "--locked", "--target", target])
+        if link:
+            # Every test binary, C oracle included, must also compile and link
+            # for the target (#516, #695): cc compiles all the oracle's C, and
+            # soldr's self-contained lld-link/ld64.lld links it on Linux.
+            soldr_cargo(["test", "--workspace", "--no-run", "--locked", "--target", target])
+
+
+def lane_cross(fix: bool) -> None:
+    cross_lint(CROSS_TARGETS, link=True)
+
+
+def lane_cross_release(fix: bool) -> None:
+    # Release gate only (#955): lints, not links, for the extra targets.
+    cross_lint(RELEASE_CROSS_TARGETS, link=False)
 
 
 def lane_rust_test(fix: bool) -> None:
@@ -405,7 +418,7 @@ def lane_tier2_linux(fix: bool) -> None:
     run(["bash", "rust/tools/linux-validate/run.sh"])
 
 
-LANES = {"lint": lane_lint, "rust-test": lane_rust_test, "cross": lane_cross, "tier2-linux": lane_tier2_linux}
+LANES = {"lint": lane_lint, "rust-test": lane_rust_test, "cross": lane_cross, "cross-release": lane_cross_release, "tier2-linux": lane_tier2_linux}
 
 # The lint lane's formatter checks on their own, for CI's format jobs: the
 # same pinned tools and files as `./lint`, so the two cannot disagree (#427).
@@ -430,7 +443,8 @@ def main() -> int:
         CHECKS[args.only](tracked_files(), args.fix)
         print(f"== {args.only}: ok", flush=True)
         return 0
-    for name in args.lane or list(LANES):
+    # cross-release runs only in the release gate (#955).
+    for name in args.lane or [n for n in LANES if n != "cross-release"]:
         start = time.monotonic()
         print(f"== lane {name}", flush=True)
         try:

@@ -962,6 +962,30 @@ jobs:
           retention-days: 3
           if-no-files-found: error
 
+  rust-cross-lint-release:
+    name: Rust Cross Lint 🦀 (release targets)
+    # Release gate only (#955): Windows arm64, macOS x64 and Linux arm64 on top
+    # of the PR gate's targets.
+    runs-on: ubuntu-26.04
+    needs: check-event
+    if: needs.check-event.outputs.full == 'true'
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set Up soldr 🦀
+        uses: zackees/setup-soldr@b782f606a2f3beadc35b9e3bf5b4565e005f52ed # v0.9.86
+        with:
+          version: 0.9.33
+
+      - name: Set Up uv 🐍
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+
+      - name: Local Gate (cross-release) 🧪
+        run: uv run ci/local_gate.py --lane cross-release
+
   rust-tests:
     name: Rust Tests 🦀
     # Only the platforms the change touches (#436); Linux is rust-tests-linux.
