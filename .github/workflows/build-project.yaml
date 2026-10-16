@@ -1373,12 +1373,35 @@ jobs:
           version: 0.9.33
           shims: true
 
+      # validate.sh builds through the macos-ci preset's Xcode compilation
+      # cache; it started empty every run, so every build compiled cold
+      # (about 6.5 of 10 min in run 38908431573, #930). As for the macOS OBS build, other runs
+      # restore master's CAS; master builds cold and saves, so the CAS holds
+      # only what the current tree uses (it cannot be pruned by age).
+      - name: Restore Tier 2 Xcode Cache 🗄️
+        if: runner.os == 'macOS' && !(github.event_name == 'push' && github.ref == 'refs/heads/master')
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ github.workspace }}/.tier2-xcas
+          key: macos-tier2-xcas-${{ github.sha }}
+          restore-keys: macos-tier2-xcas-
+
       - name: Validate Tier 2 on macOS (libobs C vs with Rust) 🍏
         if: runner.os == 'macOS'
         shell: bash
+        env:
+          XCODE_CAS_PATH: ${{ github.workspace }}/.tier2-xcas
         run: |
           "${GITHUB_WORKSPACE}/.github/scripts/retry" brew install cmocka
           bash rust/tools/tier2-validate/validate.sh
+          du -sh "$XCODE_CAS_PATH"
+
+      - name: Save Tier 2 Xcode Cache 💾
+        if: runner.os == 'macOS' && github.event_name == 'push' && github.ref == 'refs/heads/master'
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ github.workspace }}/.tier2-xcas
+          key: macos-tier2-xcas-${{ github.sha }}
 
       # The windows-ci-x64 preset enables ccache (ENABLE_CCACHE) whenever it is
       # on PATH, as the Windows OBS build does; without it both Tier 2 builds
