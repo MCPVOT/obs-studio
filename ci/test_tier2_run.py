@@ -62,7 +62,7 @@ class Tier2VolumeTest(unittest.TestCase):
         self.calls = getattr(self, "calls", 0) + 1
         log = self.tmp / f"{repo.name}-{self.calls}.log"
         self.last_log = log
-        env = {k: v for k, v in os.environ.items() if not k.startswith(("OBS_TIER2", "OBS_CCACHE"))}
+        env = {k: v for k, v in os.environ.items() if not k.startswith(("OBS_TIER2", "OBS_CCACHE", "OBS_ZCCACHE"))}
         env.update(PATH=f"{self.bin}:{env['PATH']}", STUB_LOG=str(log), STUB_STATE="", XDG_STATE_HOME=str(self.tmp / "state"), **(extra_env or {}))
         subprocess.run(["bash", str(repo / "rust/tools/linux-validate/run.sh"), *getattr(self, "run_args", [])], env=env, check=True)
         # The task's own run carries --name; helper runs (the soldr tools
@@ -112,7 +112,7 @@ class Tier2VolumeTest(unittest.TestCase):
 
     def run_sh(self, repo, *args, state=""):
         log = self.tmp / f"{repo.name}-direct.log"
-        env = {k: v for k, v in os.environ.items() if not k.startswith(("OBS_TIER2", "OBS_CCACHE"))}
+        env = {k: v for k, v in os.environ.items() if not k.startswith(("OBS_TIER2", "OBS_CCACHE", "OBS_ZCCACHE"))}
         env.update(PATH=f"{self.bin}:{env['PATH']}", STUB_LOG=str(log), STUB_STATE=state, XDG_STATE_HOME=str(self.tmp / "state"))
         r = subprocess.run(["bash", str(repo / "rust/tools/linux-validate/run.sh"), *args], env=env, capture_output=True, text=True)
         return r, log.read_text() if log.exists() else ""
@@ -163,11 +163,15 @@ class Tier2VolumeTest(unittest.TestCase):
         self.assertEqual(a["/root/.cargo/registry"], b["/root/.cargo/registry"])
         self.assertEqual(a["/root/.cargo/git"], "obs-rust-linux-validate-cargo-git")
 
-    def test_ccache_is_shared(self):
+    def test_zccache_is_shared(self):
         a = self.docker_run_mounts(self.checkout("a"))
         b = self.docker_run_mounts(self.checkout("b"))
-        self.assertIn("/ccache", a)
-        self.assertEqual(a["/ccache"], b["/ccache"])
+        self.assertIn("/zccache", a)
+        self.assertEqual(a["/zccache"], b["/zccache"])
+
+    def test_zccache_dir_override(self):
+        mounts = self.docker_run_mounts(self.checkout("a"), {"OBS_ZCCACHE_DIR": str(self.tmp / "zc")})
+        self.assertEqual(mounts["/zccache"], str(self.tmp / "zc"))
 
     def test_volume_override(self):
         mounts = self.docker_run_mounts(self.checkout("a"), {"OBS_TIER2_VOLUME": "custom-vol"})
