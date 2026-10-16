@@ -64,7 +64,7 @@ fi
 # OBS_TIER2_STAGE (all/build/test), OBS_CTEST_SHARD (<i>/<n>) and
 # OBS_TIER2_PACK_DIR (a host dir for the build-tree tarballs) reproduce the
 # CI build and shard jobs (#937); see validate.sh.
-for var in OBS_TIER2_STAGE OBS_CTEST_SHARD; do
+for var in OBS_TIER2_STAGE OBS_CTEST_SHARD OBS_TIER2_SHARDS; do
   if [ -n "${!var:-}" ]; then
     env+=(-e "$var=${!var}")
   fi

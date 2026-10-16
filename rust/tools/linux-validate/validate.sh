@@ -174,6 +174,13 @@ for mode in $modes; do
     fi
   fi
 
+  # A shard runs the build job's duration-balanced test list when the tree
+  # carries one (#1048), else ctest -I striping.
+  plan="$build/tier2-shards/${shard_index:-}-of-${shard_count:-}.regex"
+  if [ -n "${OBS_CTEST_SHARD:-}" ] && [ -f "$plan" ]; then
+    shard_args=(-R "$(cat "$plan")")
+  fi
+
   echo "== [$mode] ctest${OBS_CTEST_SHARD:+ shard $OBS_CTEST_SHARD}"
   # xvfb-run gives display tests an X server; the PipeWire tests start their
   # own private PipeWire daemon and D-Bus bus (#776).
@@ -236,6 +243,17 @@ for mode in $modes; do
     exit 1
   fi
   echo "== [$mode] obs-nvenc.so built with $want"
+
+  # OBS_TIER2_SHARDS=<n>: plan n shards by recorded test duration
+  # (ctest-cost-<mode>.txt in the ccache dir, #931) into the tree (#1048).
+  if [ -n "${OBS_TIER2_SHARDS:-}" ]; then
+    names="$BUILD/tier2-names-$mode.txt"
+    ctest --test-dir "$build" -N | sed -nE 's/^ *Test +#[0-9]+: +([^ ]+)$/\1/p' >"$names"
+    costs="${CCACHE_DIR:-}/ctest-cost-$mode.txt"
+    [ -s "$costs" ] || costs=/dev/null
+    echo "== [$mode] shard plan ($(wc -l <"$names") tests, costs from ${costs})"
+    "$SRC"/rust/tools/linux-validate/shard-plan.sh "$costs" "$names" "$OBS_TIER2_SHARDS" "$build/tier2-shards"
+  fi
 
   if [ -n "${OBS_TIER2_PACK:-}" ]; then
     # What ctest needs at the same path on a test runner: binaries, libs,

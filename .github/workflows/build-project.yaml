@@ -1056,6 +1056,8 @@ jobs:
           CCACHE_DIR: ${{ github.workspace }}/.tier2-ccache
           OBS_TIER2_MODES: "OFF ON"
           OBS_TIER2_STAGE: build
+          # Must match the shard matrix below (#1048).
+          OBS_TIER2_SHARDS: 3
         run: bash rust/tools/linux-validate/validate.sh
 
       - name: Upload Tier 2 Tree (OFF) 🧾
