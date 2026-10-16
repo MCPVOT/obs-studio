@@ -75,6 +75,11 @@ don't delete local branches you didn't create.
 - **RED commit:** a failing test (or `todo!()` stubs) that shows the bug or
   the missing port. Run it and note how it fails.
 - **GREEN commit:** the fix or the port, until the test passes.
+- **User-facing features** (UI, protocol output, logging) are not done until
+  the real app has run once with the change, through its Tier 4 test or by
+  hand. Put the observed output in the PR. Unit tests and a compiling build
+  were green when #846 shipped with llvmpipe showing green (#929). If you
+  cannot run it, use `Refs #N`, not `Fixes #N`, and say what is missing.
 - Ports need every applicable tier: Tier 1 Rust unit, Tier 2 unchanged C
   tests with `ENABLE_RUST_LIBOBS` ON and OFF, Tier 3 differential, Tier 4 for
   protocol code.

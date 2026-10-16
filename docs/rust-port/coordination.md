@@ -97,6 +97,11 @@ this document covers *who does what, and when*.
   first-time contributors"). Once a PR of yours has merged, later fork PRs
   start CI as soon as they are opened. On a first PR, a maintainer approves
   the run; ping one in the PR if it waits more than a few hours.
+- **User-facing features need one real run.** A change to UI, protocol
+  output or logging is not complete until the real app has run once with it
+  (its Tier 4 test, or by hand), and the PR shows the observed output. #846
+  closed with every test green while the light it added called llvmpipe
+  green (#929). Without such a run, use `Refs #N`.
 - `Fixes #N` only when the PR completes the issue; otherwise `Refs #N`, and
   tick the tracking-issue checkbox when it merges.
 - **Draft status:** mark the PR ready when it is ready. If you move a PR back
