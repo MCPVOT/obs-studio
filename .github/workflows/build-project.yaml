@@ -30,6 +30,7 @@ jobs:
       macos: ${{ steps.native.outputs.macos }}
       windows: ${{ steps.native.outputs.windows }}
       platform_os: ${{ steps.native.outputs.platform_os }}
+      deferred: ${{ steps.native.outputs.deferred }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -108,6 +109,15 @@ jobs:
             full=true
           fi
           echo "full=${full}" >> "${GITHUB_OUTPUT}"
+          # Fast PR path (#992): a PR or merge-queue run (without ci-full)
+          # runs lint, the cross lint and the path-scoped platform jobs; the
+          # Linux Rust tests and Tier 2 run after the merge, on master.
+          deferred=false
+          if [[ "${full}" != true ]] \
+            && [[ "${GITHUB_EVENT_NAME}" == pull_request || "${GITHUB_EVENT_NAME}" == merge_group ]]; then
+            deferred=true
+          fi
+          echo "deferred=${deferred}" >> "${GITHUB_OUTPUT}"
 
           if [[ "${full}" == true ]]; then
             core=true macos=true windows=true
@@ -792,17 +802,17 @@ jobs:
 
       # Skipped when a trusted run already passed these exact inputs.
       - name: Local Gate (rust-test) 🧪
-        if: needs.lane-proofs.outputs.rust-test_hit != 'true'
+        if: needs.check-event.outputs.deferred != 'true' && needs.lane-proofs.outputs.rust-test_hit != 'true'
         run: uv run ci/local_gate.py --lane rust-test
 
       # Publish the pass as a lane proof (ci/lane_proof.py), only for a lane
       # that ran here and passed; the name carries the lane's input key.
       - name: Mark Lane Proof 🧾
-        if: success() && needs.lane-proofs.outputs.rust-test_name != '' && needs.lane-proofs.outputs.rust-test_hit != 'true'
+        if: success() && needs.check-event.outputs.deferred != 'true' && needs.lane-proofs.outputs.rust-test_name != '' && needs.lane-proofs.outputs.rust-test_hit != 'true'
         run: touch "${{ runner.temp }}/lane-proof"
       - name: Upload Lane Proof 🧾
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: success() && needs.lane-proofs.outputs.rust-test_name != '' && needs.lane-proofs.outputs.rust-test_hit != 'true'
+        if: success() && needs.check-event.outputs.deferred != 'true' && needs.lane-proofs.outputs.rust-test_name != '' && needs.lane-proofs.outputs.rust-test_hit != 'true'
         with:
           name: ${{ needs.lane-proofs.outputs.rust-test_name }}
           path: ${{ runner.temp }}/lane-proof
@@ -893,7 +903,7 @@ jobs:
     name: Rust Tier 2 Linux 🐧 (${{ matrix.mode }})
     runs-on: ubuntu-26.04
     needs: [check-event, ci-mode, lane-proofs]
-    if: needs.ci-mode.outputs.skip_rust-linux-tier2 != 'true' && needs.lane-proofs.outputs.tier2-linux_hit != 'true'
+    if: needs.check-event.outputs.deferred != 'true' && needs.ci-mode.outputs.skip_rust-linux-tier2 != 'true' && needs.lane-proofs.outputs.tier2-linux_hit != 'true'
     strategy:
       fail-fast: false
       matrix:
