@@ -122,6 +122,17 @@ def defined_symbols(lib: Path) -> set[str]:
     return {line.split()[2].split("@")[0] for line in out.splitlines() if len(line.split()) == 3}
 
 
+def required_versions(consumer: Path, soname: str) -> set[str]:
+    """The version names consumer requires from soname (objdump -p "Version References")."""
+    names, inside = set(), False
+    for line in run("objdump", "-p", consumer).splitlines():
+        if line.strip().startswith("required from "):
+            inside = line.strip() == f"required from {soname}:"
+        elif inside and line.strip():
+            names.add(line.split()[-1])
+    return names
+
+
 def host_copy(soname: str) -> Path:
     """The build host's copy of soname (from the ldconfig cache)."""
     for line in run("ldconfig", "-p").splitlines():
@@ -202,6 +213,11 @@ def main(argv: list[str] | None = None) -> int:
                     "--symbol-list", work / "symbols.txt", "--library-load-name", soname, real)
                 arrays, init = spec_decl(lib, "spec")
                 (work / "spec.h").write_text(arrays + f"static const struct hostlib_spec HOSTLIB_SPEC = {init};\n")
+                # The consumers still list the version names they required from the real
+                # library (VA_API_0.33.0, ...) against its new name: the shim defines them,
+                # or the loader warns "no version information available" on every start.
+                versions = sorted(set().union(*(required_versions(c, soname) for c in consumers)))
+                (work / "versions.map").write_text("".join(f"{v} {{ }};\n" for v in versions))
                 (work / "decls.h").write_text("".join(f"#include <{h}>\n" for h in lib.headers))
                 (work / "stubs.h").write_text("".join(f"HOSTLIB_STUB({s})\n" for s in imported))
                 target = shim_soname(soname, lib.name)
@@ -222,6 +238,7 @@ def main(argv: list[str] | None = None) -> int:
                     objs.append(out)
                 shim = libdir / target
                 run(args.cxx, "-shared", "-o", shim, *objs, f"-Wl,-soname,{target}", "-Wl,--no-undefined",
+                    *([f"-Wl,--version-script={work / 'versions.map'}"] if versions else []),
                     "-static-libstdc++", "-static-libgcc", "-ldl", "-lpthread")
                 for c in consumers:
                     run("patchelf", "--replace-needed", soname, target, c)

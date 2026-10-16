@@ -30,6 +30,9 @@ int main(void)
 	VADisplay d = vaGetDisplayDRM(-1);
 	int major = 0, minor = 0;
 	VAStatus s = d ? vaInitialize(d, &major, &minor) : VA_STATUS_ERROR_INVALID_DISPLAY;
+	/* vaCreateSurfaces is versioned (VA_API_0.33.0): the shim must define that version. */
+	if (d && s == VA_STATUS_SUCCESS)
+		vaCreateSurfaces(d, VA_RT_FORMAT_YUV420, 16, 16, NULL, 0, NULL, 0);
 	printf("display=%s status=0x%x str=%s\n", d ? "yes" : "null", s, vaErrorStr(VA_STATUS_ERROR_UNIMPLEMENTED));
 	return 0;
 }
@@ -54,6 +57,8 @@ probe() { APPDIR="$app" "$app/usr/bin/probe" 2>&1; }
 
 # --- 1. the host's libva ------------------------------------------------------
 out="$(probe)"
+grep -q "no version information" <<<"$out" && fail "loader warns about the shim's versions: $out" ||
+    pass "no version warning from the loader"
 grep -q 'hostlib: va -> /' <<<"$out" && pass "host libva found" || fail "host libva: $out"
 grep -q '/proc\|libobs-va' <<<"$(APPDIR="$app" LD_DEBUG=libs "$app/usr/bin/probe" 2>&1)" || true
 grep -q 'str=.*unimplemented\|str=the requested function is not implemented' <<<"$out" &&

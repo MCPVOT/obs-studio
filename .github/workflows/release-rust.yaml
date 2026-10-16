@@ -279,6 +279,9 @@ jobs:
       publish_continuous: true
       rust_version: ${{ needs.check.outputs.version }}
       rust_libobs: true
+      # The release gate: the AppImage built once, run on AlmaLinux 8, Ubuntu
+      # 22.04, Arch Linux and NixOS before anything is published (#926).
+      platform_tests: true
     # A called workflow may not ask for more than its caller grants, and
     # appimage.yaml's release job asks for contents: write (it only runs on a
     # push, never from here). Granting less made GitHub refuse to start this

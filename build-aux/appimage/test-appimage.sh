@@ -214,6 +214,13 @@ case "${ID_LIKE:-} ${ID}" in
     ;;
 *fedora* | *rhel*)
     FAMILY=fedora
+    # RHEL-family releases (AlmaLinux 8, the glibc 2.28 floor) carry icewm and
+    # ImageMagick in EPEL, and some -devel-free runtime pieces in PowerTools/CRB.
+    if [ "${ID}" != fedora ]; then
+        dnf install -y -q epel-release >/dev/null
+        dnf config-manager --set-enabled powertools >/dev/null 2>&1 ||
+            dnf config-manager --set-enabled crb >/dev/null 2>&1 || true
+    fi
     dnf install -y -q --setopt=install_weak_deps=False --setopt=keepcache=1 \
         xorg-x11-server-Xvfb icewm xwininfo xprop ImageMagick dbus-daemon diffutils \
         dejavu-sans-fonts gdb procps-ng mesa-dri-drivers mesa-libGL mesa-libEGL mesa-libgbm libdrm libva \
@@ -329,7 +336,14 @@ done
 # Which C library AppRun picked for this run, written by AppRun (bundled|host);
 # empty before AppRun has run, or for an AppImage that always bundles it.
 DRIVER_STACK_RE='libGL\.|libGLX|libEGL|libOpenGL|libGLdispatch|libGLESv|libglapi|libgbm|libdrm|libvulkan|libva(\.so|-)|libwayland-(client|egl|server)|libgallium|libLLVM|libcuda|libnvidia'
-runtime_mode() { cat /tmp/.obs-rust-appimage-*/mode 2>/dev/null | head -1; }
+# Without a bundled glibc (built at the 2.28 floor, #926) the C and C++ runtime
+# is the host's by design, like the driver stack.
+HOST_RUNTIME_RE='ld-linux[^/]*|lib(c|m|mvec|pthread|dl|rt|resolv|util|anl|BrokenLocale|nss_[a-z]+)\.so[^/]*|libstdc\+\+\.so[^/]*|libgcc_s\.so[^/]*'
+# libffi is not linked by anything bundled: ldd lists it because the host's
+# libwayland-client (driver stack, never bundled) needs it.
+HOST_ALLOWED_RE="$DRIVER_STACK_RE|libffi\.so[^/]*"
+[ -d "$APPDIR/glibc" ] || HOST_ALLOWED_RE="$HOST_ALLOWED_RE|$HOST_RUNTIME_RE"
+runtime_mode() { cat /tmp/.obs-rust-appimage-*/mode 2>/dev/null | head -1 || true; } # no file without a bundled glibc (#926)
 # What this host should get: its own glibc and libstdc++ when they are at least
 # as new as the bundled ones (so it can load the host's Mesa/LLVM), else the bundle.
 host_glibc_is_newer() {
@@ -393,7 +407,7 @@ if [ "$SCENARIO" = bundle ]; then
             echo "${f#"$APPDIR"/}:"
             grep -E 'not found|undefined symbol|error while loading' <<<"$out" | sed "s|$APPDIR/||g" | head -5
             unresolved=$((unresolved + 1))
-        elif grep '=> /' <<<"$out" | grep -v "$APPDIR" | grep -v "=> /tmp/.obs-rust-appimage-[0-9a-f]*/lib/" | grep -vE "=> [^ ]*/($DRIVER_STACK_RE)" | grep .; then
+        elif grep '=> /' <<<"$out" | grep -v "$APPDIR" | grep -v "=> /tmp/.obs-rust-appimage-[0-9a-f]*/lib/" | grep -vE "=> [^ ]*/($HOST_ALLOWED_RE)" | grep .; then
             # (the host's GPU driver stack is the only thing allowed outside the bundle)
             echo "  ^ ${f#"$APPDIR"/} resolves the libraries above from the host"
             unresolved=$((unresolved + 1))
@@ -599,6 +613,9 @@ if [ "$SCENARIO" = first-start ]; then
         # host's own on a host with a newer one - the host's Mesa/LLVM cannot load
         # against an older glibc (obs-rust/obs-studio#621).
         MODE="$(runtime_mode)"
+        # Built at the glibc floor (#926), the AppImage bundles no C or C++ runtime:
+        # it always runs on the host's.
+        [ -d "$APPDIR/glibc" ] || MODE=host
         echo "C library mode: ${MODE:-bundled (AppRun without modes)} (host: $(ldd --version | head -1))"
         if host_glibc_is_newer && [ -d "$APPDIR/glibc" ]; then
             [ "$MODE" = host ] || fail "this host's glibc is newer than the bundled one but OBS runs on the bundled C library (mode: ${MODE:-none})"

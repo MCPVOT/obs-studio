@@ -86,9 +86,10 @@
         "libc": "glibc"
       },
       "variant": {
-        "optimization": "release"
+        "optimization": "release",
+        "flavor": "r2"
       },
-      "sha256": "8796ecdb273688c21f90b75a4e84acfc84ab35e69cacb551a6d8ed452961fcb4",
+      "sha256": "8b80ad434b2107c62c54c23aebfafd9d4718f281bbb1978319c5dd5085baef85",
       "install": "/opt/obs-deps/ffmpeg"
     },
     {
