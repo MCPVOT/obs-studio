@@ -21,11 +21,14 @@
 #include <OBSApp.hpp>
 
 #include <obs-config.h>
+#include <obs-nix-platform.h>
 #include <util/bmem.h>
 #include <util/platform.h>
 
+#include <QApplication>
 #include <QDBusConnection>
 #include <QDBusReply>
+#include <QIcon>
 
 #include <dlfcn.h>
 
@@ -348,4 +351,135 @@ bool HighContrastEnabled()
 	}
 
 	return reply.value().toUInt() != 0;
+}
+
+/* OBSApp platform facade (#849) */
+
+void InitPlatformConfigDefaults(config_t *appConfig)
+{
+	config_set_default_string(appConfig, "Video", "Renderer", "OpenGL");
+
+#ifdef __linux__
+	config_set_default_bool(appConfig, "General", "BrowserHWAccel", true);
+#endif
+}
+
+void ApplyPlatformAppSettings(config_t *) {}
+
+void RevertPlatformAppSettings(config_t *) {}
+
+void LogPlatformSettings(config_t *) {}
+
+bool PlatformSupportsBrowserHWAccel()
+{
+#ifdef __linux__
+	return true;
+#else
+	return false;
+#endif
+}
+
+std::vector<std::string> GetPlatformExtraConfigDirs()
+{
+	return {};
+}
+
+bool InitializeAppIdentity()
+{
+	return true;
+}
+
+void SetApplicationIcon()
+{
+	QApplication::setWindowIcon(QIcon::fromTheme("obs", QIcon(":/res/images/obs.png")));
+}
+
+void InitPlatformDisplay()
+{
+	if (QApplication::platformName() == "xcb") {
+		auto native = qGuiApp->nativeInterface<QNativeInterface::QX11Application>();
+
+		obs_set_nix_platform_display(native->display());
+
+		obs_set_nix_platform(OBS_NIX_PLATFORM_X11_EGL);
+
+		blog(LOG_INFO, "Using EGL/X11");
+	}
+
+#ifdef ENABLE_WAYLAND
+	if (QApplication::platformName().contains("wayland")) {
+		auto native = qGuiApp->nativeInterface<QNativeInterface::QWaylandApplication>();
+
+		obs_set_nix_platform_display(native->display());
+
+		obs_set_nix_platform(OBS_NIX_PLATFORM_WAYLAND);
+		QApplication::setAttribute(Qt::AA_DontCreateNativeWidgetSiblings);
+
+		blog(LOG_INFO, "Platform: Wayland");
+	}
+#endif
+}
+
+bool GetPlatformHotkeyOverride(int, obs_key_t &, bool &)
+{
+	return false;
+}
+
+void PlatformLocalTime(const time_t *now, struct tm *out)
+{
+	localtime_r(now, out);
+}
+
+const char *GetPlatformRenderModule(const char *)
+{
+	return DL_OPENGL;
+}
+
+std::string GetPlatformVersionName()
+{
+#if defined(__OpenBSD__)
+	return "openbsd";
+#elif defined(__FreeBSD__)
+	return "freebsd";
+#else /* assume linux for the time being */
+	return "linux";
+#endif
+}
+
+const char *GetPlatformInputAudioSource()
+{
+	return "pulse_input_capture";
+}
+
+const char *GetPlatformOutputAudioSource()
+{
+	return "pulse_output_capture";
+}
+
+bool IsPortableModeAllowed()
+{
+#ifdef ENABLE_PORTABLE_CONFIG
+	return true;
+#else
+	return false;
+#endif
+}
+
+const char *GetPortableConfigBasePath()
+{
+#ifdef __linux__
+	return "..";
+#else
+	return "../..";
+#endif
+}
+
+bool IsUpdateBranchSupported(bool, bool)
+{
+	return true;
+}
+
+bool PlatformSavesBeforeSignalQuit()
+{
+	return true;
 }

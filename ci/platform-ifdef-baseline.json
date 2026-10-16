@@ -1,5 +1,4 @@
 {
-  "frontend/OBSApp.cpp": 47,
   "frontend/OBSApp.hpp": 3,
   "frontend/OBSApp_Themes.cpp": 6,
   "frontend/components/AudioCaptureToolbar.cpp": 2,
@@ -40,7 +39,7 @@
   "frontend/utility/SimpleOutput.cpp": 2,
   "frontend/utility/WhatsNewInfoThread.cpp": 2,
   "frontend/utility/output-filename-reserve.c": 2,
-  "frontend/utility/platform.hpp": 4,
+  "frontend/utility/platform.hpp": 6,
   "frontend/widgets/OBSBasic.cpp": 20,
   "frontend/widgets/OBSBasic.hpp": 5,
   "frontend/widgets/OBSBasicPreview.cpp": 3,
