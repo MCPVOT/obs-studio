@@ -401,6 +401,15 @@ jobs:
           command -v xvfb-run > /dev/null || sudo apt-get install -y --no-install-recommends xvfb
           uv run --with websockets==13.1 test/websocket-tier4/run_tier4.py --only gpu --obs /usr/bin/obs-studio-rust-gui
 
+      # The whole black-box obs-websocket suite against the real app with Rust
+      # libobs (#140): auth handshake, every request type, scene collections,
+      # inputs and a recording. Full and release-gate runs only (this job
+      # never runs on a PR), so it stays off the critical path.
+      - name: Tier 4 Suite (Rust libobs app) 🔌
+        if: matrix.rust == 'ON'
+        timeout-minutes: 15
+        run: uv run --with websockets==13.1 test/websocket-tier4/run_tier4.py --obs /usr/bin/obs-studio-rust-gui
+
       # Drop entries this build did not use so the saved cache stays the size
       # of one build.
       - name: Prune ccache 🧹
