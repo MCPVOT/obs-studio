@@ -60,7 +60,11 @@ class MacosTier2CacheTest(unittest.TestCase):
         self.assertIn("actions/cache/save@", save)
         self.assertIn("runner.os == 'macOS'", save)
         self.assertIn("github.ref == 'refs/heads/master'", save)
-        self.assertIn("github.event_name == 'push'", save)
+        # Scheduled and dispatched master runs too: master pushes run macOS
+        # Tier 2 only when their paths select it, so a push-only save rarely ran.
+        self.assertIn("github.event_name != 'pull_request'", save)
+        restore = step(self.job, "Restore Tier 2 Xcode Cache")
+        self.assertIn("!(github.event_name != 'pull_request' && github.ref == 'refs/heads/master')", restore)
         self.assertIn("path: ${{ github.workspace }}/.tier2-xcas", save)
 
 
