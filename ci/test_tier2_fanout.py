@@ -45,6 +45,15 @@ class ValidateStagesTest(unittest.TestCase):
         self.assertIn("OBS_CTEST_SHARD", self.text)
         self.assertRegex(self.text, r'-I "\$shard_index,,\$shard_count"')
 
+    def test_test_stage_needs_no_rust_toolchain(self):
+        """The shard jobs have no soldr; `rustc -V` at the top failed every
+        shard with 'rustc: command not found' (master run 38871391393)."""
+        line = 'rustc_version=$(cd "$SRC" && rustc -V)'
+        idx = self.text.index(line)
+        guard = self.text.rfind('if [ "$stage" != test ]; then', 0, idx)
+        self.assertNotEqual(guard, -1)
+        self.assertNotIn("\nfi\n", self.text[guard:idx])
+
     def test_bad_stage_is_rejected(self):
         r = subprocess.run(["bash", str(VALIDATE)], env={"OBS_TIER2_STAGE": "nope", "PATH": "/usr/bin:/bin"},
                            capture_output=True, text=True)

@@ -84,7 +84,12 @@ echo "== environment: user=$(id -un) nproc=$(nproc) locale=$LC_ALL" \
 # shellcheck source=stale-build.sh
 source "$SRC"/rust/tools/linux-validate/stale-build.sh
 # rustc as rust-toolchain.toml selects it, which is what Corrosion configures.
-rustc_version=$(cd "$SRC" && rustc -V)
+# Only building needs rustc (stale-build detection); the CI test shards
+# run an unpacked tree without a Rust toolchain (#937).
+rustc_version=
+if [ "$stage" != test ]; then
+  rustc_version=$(cd "$SRC" && rustc -V)
+fi
 cd "$SRC"
 for sub in plugins/obs-browser plugins/obs-websocket; do
   if [ -z "$(ls -A "$sub" 2>/dev/null)" ]; then
