@@ -2,6 +2,7 @@
 #include <stddef.h>
 #include <setjmp.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 #include <cmocka.h>
 
@@ -13,7 +14,11 @@
 /* The Text (FreeType 2) source defaults to JetBrainsMono Nerd Font on every
  * OS and bundles it (obs-rust/obs-studio#1012), so the default face must
  * resolve to the bundled files even where the font isn't installed, as in
- * the Tier 2 container. BUNDLED_FONT_DIR is the plugin's data/fonts. */
+ * the Tier 2 container. BUNDLED_FONT_DIR is the plugin's data/fonts.
+ *
+ * main() points fontconfig at ISOLATED_FONTCONFIG, which lists no system font
+ * directories, so only the bundled fonts are visible. Otherwise a machine
+ * with the face installed resolves it to the system copy (obs-rust/obs-studio#1076). */
 
 static void assert_bundled(uint32_t flags, const char *file)
 {
@@ -54,6 +59,9 @@ static int register_bundled_fonts(void **state)
 
 int main(void)
 {
+	/* Before the first fontconfig call, which loads the configuration. */
+	setenv("FONTCONFIG_FILE", ISOLATED_FONTCONFIG, 1);
+
 	const struct CMUnitTest tests[] = {
 		cmocka_unit_test(default_face_is_jetbrains_mono_nerd_font),
 		cmocka_unit_test(regular_resolves_to_the_bundled_file),
