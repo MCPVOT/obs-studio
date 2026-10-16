@@ -144,8 +144,6 @@
   "plugins/vlc-video/vlc-video-plugin.c": 5,
   "plugins/vlc-video/vlc-video-plugin.h": 1,
   "plugins/vlc-video/vlc-video-source.c": 1,
-  "shared/happy-eyeballs/happy-eyeballs.c": 7,
-  "shared/happy-eyeballs/happy-eyeballs.h": 1,
   "shared/ipc-util/ipc-util/pipe.h": 2,
   "shared/media-playback/media-playback/decode.h": 2,
   "shared/media-playback/media-playback/media.h": 2,
