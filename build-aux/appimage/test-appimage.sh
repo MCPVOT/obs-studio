@@ -280,6 +280,12 @@ fi
 "$APPIMAGE" --appimage-extract >/dev/null
 APPDIR="$PWD/squashfs-root"
 LOADER="$APPDIR/lib64/ld-linux-x86-64.so.2"
+# Built at or below the glibc floor (#926), the AppImage bundles no glibc and
+# runs on the host's loader.
+if [ ! -e "$LOADER" ]; then
+    LOADER=/lib64/ld-linux-x86-64.so.2
+    [ -e "$LOADER" ] || LOADER="$(find /lib /lib64 /usr/lib /usr/lib64 -maxdepth 2 -name ld-linux-x86-64.so.2 2>/dev/null | head -1)"
+fi
 PACKAGE_DATA="$APPDIR/usr/share/obs"
 PACKAGE_MODULES="$APPDIR/usr/lib/obs-modules"
 if [[ "$VERSION_OUT" == OBS-Studio-Rust* ]]; then
@@ -422,11 +428,18 @@ if [ "$SCENARIO" = gpu ]; then
     [ -n "$APPRUN_DRIVER_ENV" ] || { echo "::error::package lacks host driver setup"; exit 1; }
     install -m755 "$GPU_TEST" "$APPDIR/usr/bin/obs-appimage-gpu-test"
     GPU_LOADER="$(sed -n 's/^LOADER="\([^"]*\)"$/\1/p' "$APPDIR/AppRun")"
-    GPU_LOADER_DIR="$(dirname "$GPU_LOADER")"
-    [ -x "$GPU_LOADER" ] && [ -r "$GPU_LOADER_DIR/mode" ] ||
-        { echo "::error::AppRun did not initialize its selected interpreter"; exit 1; }
+    if [ -n "$GPU_LOADER" ]; then
+        GPU_LOADER_DIR="$(dirname "$GPU_LOADER")"
+        [ -x "$GPU_LOADER" ] && [ -r "$GPU_LOADER_DIR/mode" ] ||
+            { echo "::error::AppRun did not initialize its selected interpreter"; exit 1; }
+        echo "GPU runtime mode: $(cat "$GPU_LOADER_DIR/mode")"
+    else
+        # no bundled glibc (#926): the host's loader, with no private C runtime
+        GPU_LOADER="$LOADER"
+        GPU_LOADER_DIR="$APPDIR/.no-private-runtime"
+        echo "GPU runtime mode: host (no bundled glibc)"
+    fi
     eval "$APPRUN_DRIVER_ENV"
-    echo "GPU runtime mode: $(cat "$GPU_LOADER_DIR/mode")"
     # Select the same C runtime as AppRun. In host mode this private lib
     # directory is empty; in bundled mode it holds the chosen C runtime.
     for mode in gbm vaapi; do

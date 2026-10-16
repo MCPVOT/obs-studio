@@ -94,23 +94,16 @@ jobs:
             cargo-appimage-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-
             cargo-appimage-
 
-      - name: Restore apt packages
-        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        with:
-          path: .apt-cache
-          key: apt-appimage-${{ hashFiles('.github/workflows/appimage.yaml') }}-${{ github.run_id }}
-          restore-keys: apt-appimage-${{ hashFiles('.github/workflows/appimage.yaml') }}-
-
       # The build steps live in build-aux/appimage/build.py (one call per step, the
       # same scripts), so `bosn run --task appimage` can run them locally (#899).
       - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
 
-      - name: Install build dependencies 🛍️
-        timeout-minutes: 10 # a hang here must fail with logs rather than sit for hours
-        run: uv run build-aux/appimage/build.py --steps deps
-
-      - name: Build libavutil with host VA compatibility
-        run: uv run build-aux/appimage/build.py --steps libavutil
+      # The glibc 2.28 build image (#926): AlmaLinux 8 packages plus the prebuilt
+      # dependencies from obs-rust/obs-studio-libs (deps.lock.json); every build
+      # step below runs in it through manylinux/run.sh.
+      - name: Build the glibc 2.28 image 🐳
+        timeout-minutes: 20
+        run: docker build -f build-aux/appimage/manylinux/Dockerfile -t obs-appimage-228 .
 
       - name: Configure 🔧
         id: configure
@@ -122,11 +115,11 @@ jobs:
           OBS_RUST_VERSION: ${{ inputs.rust_version }}
         # Determine version 🏷️ + Configure: the OBS version is only used here.
         run: |
-          uv run build-aux/appimage/build.py --steps version,configure \
+          build-aux/appimage/manylinux/run.sh uv run build-aux/appimage/build.py --base manylinux --steps version,configure \
             --rust-libobs "$RUST_LIBOBS" --qsv "$QSV" --rust-version "$OBS_RUST_VERSION"
 
       - name: Build 🧱
-        run: uv run build-aux/appimage/build.py --steps build
+        run: build-aux/appimage/manylinux/run.sh uv run build-aux/appimage/build.py --base manylinux --steps build
 
       - name: Save ccache
         if: always()
@@ -145,35 +138,33 @@ jobs:
             build_ubuntu/cargo
           key: cargo-appimage-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-${{ github.run_id }}
 
-      - name: Save apt packages
-        if: always()
-        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        with:
-          path: .apt-cache
-          key: apt-appimage-${{ hashFiles('.github/workflows/appimage.yaml') }}-${{ github.run_id }}
-
       - name: Assemble AppDir 📁
-        run: uv run build-aux/appimage/build.py --steps appdir
+        run: build-aux/appimage/manylinux/run.sh uv run build-aux/appimage/build.py --base manylinux --steps appdir
 
       - name: Create AppImage 📀
         env:
           PUBLISH_CONTINUOUS: ${{ inputs.publish_continuous == true }}
-        run: uv run build-aux/appimage/build.py --steps appimage --publish-continuous "$PUBLISH_CONTINUOUS"
+        run: build-aux/appimage/manylinux/run.sh uv run build-aux/appimage/build.py --base manylinux --steps appimage --publish-continuous "$PUBLISH_CONTINUOUS"
 
       - name: Build the test helper 🧰
-        # Run by test-appimage.sh next to obs, with the AppImage's own loader and
-        # (through the same relative DT_RPATH obs has) its own libraries: runtime
-        # probes, a fake ScreenCast/Camera portal and the test tone.
+        # Run by test-appimage.sh next to obs, with (through the same relative
+        # DT_RPATH obs has) the AppImage's own libraries: runtime probes, a fake
+        # ScreenCast/Camera portal and the test tone. Built in the glibc 2.28
+        # image so they run on every host the AppImage does.
         run: |
-          gcc -O2 -Wall -Wextra -Werror -o obs-appimage-testkit build-aux/appimage/testkit.c \
-            $(pkg-config --cflags --libs gio-unix-2.0 libpipewire-0.3 libpulse) -lm \
-            -Wl,--disable-new-dtags -Wl,-rpath,'$ORIGIN/../lib'
-          gcc -O2 -Wall -Wextra -Werror -o obs-appimage-gpu-test build-aux/appimage/gpu-test.c \
-            $(pkg-config --cflags --libs gbm egl glesv2 libavcodec libavformat libavutil) \
-            -Wl,--disable-new-dtags -Wl,-rpath,'$ORIGIN/../lib'
+          build-aux/appimage/manylinux/run.sh sh -c '
+            gcc -O2 -Wall -Wextra -Werror -fPIE -pie -o obs-appimage-testkit build-aux/appimage/testkit.c \
+              $(pkg-config --cflags --libs gio-unix-2.0 libpipewire-0.3 libpulse) -lm \
+              -Wl,--disable-new-dtags -Wl,-rpath,"\$ORIGIN/../lib"
+            gcc -O2 -Wall -Wextra -Werror -fPIE -pie -o obs-appimage-gpu-test build-aux/appimage/gpu-test.c \
+              $(pkg-config --cflags --libs gbm egl glesv2 libavcodec libavformat libavutil) \
+              -Wl,--disable-new-dtags -Wl,-rpath,"\$ORIGIN/../lib"'
+          sudo apt-get install -y --no-install-recommends ffmpeg >/dev/null
           ffmpeg -v error -f lavfi -i testsrc2=size=128x72:rate=12 -frames:v 12 \
             -c:v libx264 -pix_fmt yuv420p -bf 0 -crf 18 gpu-h264.mp4
           ffmpeg -v error -i gpu-h264.mp4 -pix_fmt yuv420p -f rawvideo gpu-reference.yuv
+          # The container wrote as root; the upload and cache steps read as the runner.
+          sudo chown -R "$(id -u):$(id -g)" .
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:

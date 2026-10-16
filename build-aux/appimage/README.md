@@ -15,6 +15,7 @@ pre-release, a tag push attaches it to that tag's release.
 | `build_vaapi_compat.py` | Builds the pinned Ubuntu libavutil source with optional newer VA mapping support, then checks exported ABI and registered hardware backends against the original library. |
 | `AppRun` | Entry point. Installs the bundled loader, sets up the environment, runs OBS and writes a crash report if it crashes. |
 | `check-appdir.sh` | Fails when a path `AppRun` exports into the AppDir is missing or empty, or when PipeWire's `client.conf`, the modules and SPA plugins it loads, gconv or the Qt xcb plugin are not bundled. Run by `assemble-appdir.sh` (fails the build) and again by the test. |
+| `check-glibc-floor.sh` | Fails when any ELF file in the AppDir requires a `GLIBC_` symbol version above the floor (2.28, #926). Reads only the versions a file *requires* (`objdump -p`), so the bundled glibc does not count. Run by `assemble-appdir.sh` (fails the build). |
 | `test-appimage.sh` | The distribution test, run inside a stock container (see below). |
 | `testkit.c` | Test helper built next to the AppImage: runtime probes, a fake ScreenCast/Camera portal, the test tone. The test runs it with the AppImage's own loader and libraries. |
 | `gpu-test.c` | Physical render-node checks: GBM buffer export and EGL DMA-BUF import with pixel readback, and VAAPI decoding with downloaded frame data. Built as a separate test artifact. |

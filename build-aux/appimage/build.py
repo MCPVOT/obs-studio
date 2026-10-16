@@ -125,11 +125,11 @@ ccache -s
 
 APPDIR = r"""
 DESTDIR="$PWD/AppDir" cmake --install build_ubuntu
-build-aux/appimage/assemble-appdir.sh AppDir avutil-compat/libavutil.so.60
+build-aux/appimage/assemble-appdir.sh AppDir "${AVUTIL_LIB}"
 """
 
 APPIMAGE = r"""
-curl -fsSLo appimagetool "https://github.com/AppImage/appimagetool/releases/download/${APPIMAGETOOL_VERSION}/appimagetool-x86_64.AppImage"
+curl -fsSLo appimagetool "${APPIMAGETOOL_URL}"
 echo "${APPIMAGETOOL_SHA256}  appimagetool" | sha256sum -c -
 chmod +x appimagetool
 # Runners have no /dev/fuse: extract appimagetool instead of running it.
@@ -148,6 +148,8 @@ ls -lh OBS-Studio-*
 """
 
 STEP_NAMES = ("deps", "libavutil", "version", "configure", "build", "appdir", "appimage")
+# The glibc 2.28 image (--base manylinux) has the dependencies prebuilt (#926).
+MANYLINUX_SKIPPED = ("deps", "libavutil")
 # Left behind by an earlier local run; a CI checkout never has them.
 STALE = {"appdir": ("AppDir",), "appimage": ("appimagetool", "squashfs-root")}
 
@@ -171,6 +173,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--steps", default=",".join(STEP_NAMES),
                    help=f"comma-separated subset of {','.join(STEP_NAMES)} (run in that order)")
     p.add_argument("--skip-deps", action="store_true", help="skip the build-dependency install (preinstalled image)")
+    p.add_argument("--base", choices=("ubuntu", "manylinux"), default="ubuntu",
+                   help="ubuntu: Ubuntu 26.04 with apt (bundles glibc); manylinux: the glibc 2.28 image "
+                        "build-aux/appimage/manylinux/Dockerfile, whose /opt/obs-deps holds every library "
+                        "(no deps or libavutil step; nothing of glibc is bundled, #926)")
     p.add_argument("--rust-libobs", type=bool_flag, default="true", help="ENABLE_RUST_LIBOBS (workflow input rust_libobs)")
     p.add_argument("--qsv", type=bool_flag, default="false", help="ENABLE_QSV11 (workflow input qsv)")
     p.add_argument("--rust-version", default="", help="OBS_RUST_VERSION to embed (workflow input rust_version)")
@@ -186,7 +192,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     unknown = sorted(set(steps) - set(STEP_NAMES))
     if unknown:
         p.error(f"unknown step(s): {', '.join(unknown)}")
-    args.steps = [s for s in STEP_NAMES if s in steps and not (args.skip_deps and s == "deps")]
+    skipped = {"deps"} if args.skip_deps else set()
+    if args.base == "manylinux":
+        skipped |= set(MANYLINUX_SKIPPED)  # the image has them (and its own FFmpeg)
+    args.steps = [s for s in STEP_NAMES if s in steps and s not in skipped]
     if args.sha is None:
         args.sha = default_sha()
     return args
@@ -203,9 +212,17 @@ def plan(args: argparse.Namespace) -> list[Step]:
             "RUST_LIBOBS": args.rust_libobs, "QSV": args.qsv, "OBS_RUST_VERSION": args.rust_version,
         }),
         "build": Step("build", "Build", BUILD),
-        "appdir": Step("appdir", "Assemble AppDir", APPDIR),
+        "appdir": Step("appdir", "Assemble AppDir", APPDIR, {
+            "AVUTIL_LIB": "/opt/obs-deps/ffmpeg/lib/libavutil.so.60" if args.base == "manylinux"
+            else "avutil-compat/libavutil.so.60",
+        }),
         "appimage": Step("appimage", "Create AppImage", APPIMAGE, {
             "APPIMAGETOOL_VERSION": APPIMAGETOOL_VERSION, "APPIMAGETOOL_SHA256": APPIMAGETOOL_SHA256,
+            # The glibc 2.28 image has it from obs-rust/obs-studio-libs (the same bytes, so the
+            # same sha256 check applies); the Ubuntu base downloads the release.
+            "APPIMAGETOOL_URL": "file:///opt/obs-deps/appimagetool/appimagetool-x86_64.AppImage"
+            if args.base == "manylinux" else
+            f"https://github.com/AppImage/appimagetool/releases/download/{APPIMAGETOOL_VERSION}/appimagetool-x86_64.AppImage",
             "PUBLISH_CONTINUOUS": args.publish_continuous, "GITHUB_REPOSITORY": args.repository,
         }),
     }
@@ -240,7 +257,18 @@ def main(argv: list[str] | None = None) -> int:
             print(step.script.strip("\n"))
         return 0
 
+    if args.base == "manylinux":
+        # The exact glibc OBS is linked against: the digest-pinned manylinux_2_28
+        # image's (#926). Anything else would silently move the AppImage's floor.
+        libc = os.confstr("CS_GNU_LIBC_VERSION") or ""
+        if libc != "glibc 2.28":
+            print(f"==> refusing to build: {libc or 'unknown libc'}, expected exactly glibc 2.28 "
+                  "(build-aux/appimage/manylinux/Dockerfile)", file=sys.stderr)
+            return 1
     shim = SUDO_SHIM if needs_sudo_shim() else ""
+    # The deps step creates the apt archive dir that later steps' apt-get
+    # calls use; with --skip-deps nothing else would.
+    (ROOT / ".apt-cache" / "partial").mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="obs-appimage-build-") as scratch:
         # Like Actions: GITHUB_ENV carries values to later steps; GITHUB_OUTPUT
         # stays the runner's when there is one (the configure step's `rust`).
