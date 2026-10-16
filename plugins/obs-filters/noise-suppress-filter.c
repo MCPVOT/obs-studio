@@ -10,9 +10,7 @@
 #endif
 
 #ifdef LIBRNNOISE_ENABLED
-#ifdef _MSC_VER
-#define ssize_t intptr_t
-#endif
+/* MSVC lacks ssize_t; CMake defines it for this file (cmake/rnnoise.cmake). */
 #include <rnnoise.h>
 #include <media-io/audio-resampler.h>
 #endif

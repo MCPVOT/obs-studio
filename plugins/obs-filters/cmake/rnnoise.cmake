@@ -54,6 +54,13 @@ if(ENABLE_RNNOISE)
   endif()
 
   target_sources(obs-filters PRIVATE noise-suppress-filter.c)
+  # rnnoise.h uses ssize_t, which MSVC lacks. Only this file includes it, so
+  # the define is scoped to it (was an #ifdef _MSC_VER in the source, #864).
+  set_property(
+    SOURCE noise-suppress-filter.c
+    APPEND
+    PROPERTY COMPILE_DEFINITIONS "$<$<C_COMPILER_ID:MSVC>:ssize_t=intptr_t>"
+  )
 
   target_link_libraries(obs-filters PRIVATE Librnnoise::Librnnoise)
 

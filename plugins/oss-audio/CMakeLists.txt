@@ -11,7 +11,15 @@ find_package(OSS REQUIRED)
 add_library(oss-audio MODULE)
 add_library(OBS::oss-audio ALIAS oss-audio)
 
-target_sources(oss-audio PRIVATE oss-audio.c oss-input.c)
+target_sources(
+  oss-audio
+  PRIVATE
+    oss-audio.c
+    oss-input.c
+    oss-input-platform.h
+    $<$<PLATFORM_ID:FreeBSD,DragonFly>:oss-input-freebsd.c>
+    $<$<NOT:$<PLATFORM_ID:FreeBSD,DragonFly>>:oss-input-linux.c>
+)
 
 target_link_libraries(oss-audio PRIVATE OBS::libobs OSS::OSS)
 
