@@ -16,6 +16,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
 #include <obs-module.h>
+#include "text-freetype2-platform.h"
 #include <util/platform.h>
 #include <ft2build.h>
 #include FT_FREETYPE_H
@@ -71,11 +72,8 @@ static struct obs_source_info freetype2_source_info_v2 = {
 	.id = "text_ft2_source",
 	.version = 2,
 	.type = OBS_SOURCE_TYPE_INPUT,
-	.output_flags = OBS_SOURCE_VIDEO |
-#ifdef _WIN32
-			OBS_SOURCE_DEPRECATED |
-#endif
-			OBS_SOURCE_CUSTOM_DRAW,
+	/* plus ft2_platform_source_flags(), added in obs_module_load */
+	.output_flags = OBS_SOURCE_VIDEO | OBS_SOURCE_CUSTOM_DRAW,
 	.get_name = ft2_source_get_name,
 	.create = ft2_source_create,
 	.destroy = ft2_source_destroy,
@@ -119,6 +117,7 @@ bool obs_module_load()
 	}
 
 	obs_register_source(&freetype2_source_info_v1);
+	freetype2_source_info_v2.output_flags |= ft2_platform_source_flags();
 	obs_register_source(&freetype2_source_info_v2);
 
 	return true;
@@ -509,14 +508,6 @@ error:
 	obs_data_release(font_obj);
 }
 
-#ifdef _WIN32
-#define DEFAULT_FACE "Arial"
-#elif defined(__APPLE__)
-#define DEFAULT_FACE "Helvetica"
-#else
-#define DEFAULT_FACE "Sans Serif"
-#endif
-
 static void *ft2_source_create(obs_data_t *settings, obs_source_t *source)
 {
 	struct ft2_source *srcdata = bzalloc(sizeof(struct ft2_source));
@@ -574,7 +565,7 @@ static void ft2_source_defaults(obs_data_t *settings, int ver)
 	const uint16_t font_size = ver == 1 ? 32 : 256;
 
 	obs_data_t *font_obj = obs_data_create();
-	obs_data_set_default_string(font_obj, "face", DEFAULT_FACE);
+	obs_data_set_default_string(font_obj, "face", ft2_platform_default_face());
 	obs_data_set_default_int(font_obj, "size", font_size);
 	obs_data_set_default_int(font_obj, "flags", 0);
 	obs_data_set_default_string(font_obj, "style", "");

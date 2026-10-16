@@ -137,7 +137,6 @@
   "plugins/obs-vst/headers/VSTPlugin.h": 4,
   "plugins/obs-vst/obs-vst.cpp": 12,
   "plugins/obs-webrtc/whip-utils.h": 5,
-  "plugins/text-freetype2/text-freetype2.c": 3,
   "plugins/vlc-video/vlc-video-plugin.c": 5,
   "plugins/vlc-video/vlc-video-plugin.h": 1,
   "plugins/vlc-video/vlc-video-source.c": 1,

@@ -10,6 +10,7 @@ if(OS_LINUX AND TARGET OBS::text-freetype2)
     "${CMAKE_SOURCE_DIR}/plugins/text-freetype2/glyph-atlas.c"
     "${CMAKE_SOURCE_DIR}/plugins/text-freetype2/obs-convenience.c"
     "${CMAKE_SOURCE_DIR}/plugins/text-freetype2/find-font-unix.c"
+    "${CMAKE_SOURCE_DIR}/plugins/text-freetype2/text-freetype2-platform-unix.c"
   )
   target_compile_definitions(test_text_aa_file PRIVATE TEST_FONT_PATH="${CMAKE_CURRENT_SOURCE_DIR}/data/text-aa.ttf")
   target_include_directories(
