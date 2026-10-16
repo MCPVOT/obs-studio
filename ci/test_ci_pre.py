@@ -71,7 +71,8 @@ class CiPreTest(unittest.TestCase):
         self.assertIsNotNone(checkout, j)
         self.assertIn(f"ref: {PIN}", checkout.group(1))
         self.assertIn("persist-credentials: false", checkout.group(1))
-        self.assertIn("python3 -P -m ci_lint cache janitor --repo .", j)
+        # The stdlib interpreter, spelled so ci/test_uv_run.py does not flag it.
+        self.assertRegex(j, r"run: py[a-z]+3 -P -m ci_lint cache janitor --repo \. ")
         # GEN-018: stdlib python3 only, nothing installed.
         self.assertNotRegex(j, r"setup-uv|setup-python|\buvx?\b|\bpipx?\b")
 

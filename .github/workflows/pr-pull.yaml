@@ -36,14 +36,30 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: uv run ci/cancel_superseded.py
 
+  # zackees/ci.yml: the first job is ci-pre.yml (the cache janitor) and every
+  # other job runs after it. The sweep is maintenance, not a check: its
+  # cache-janitor group may cancel a pending sweep and a fork PR's token
+  # cannot delete, so jobs run whatever its result (!cancelled()) and CI Gate
+  # leaves it out.
+  ci-pre:
+    name: CI Pre 🧹
+    uses: ./.github/workflows/ci-pre.yml
+    permissions:
+      actions: write
+      contents: read
+
   check-format:
     name: Format 🔍
+    needs: ci-pre
+    if: ${{ !cancelled() }}
     uses: ./.github/workflows/check-format.yaml
     permissions:
       contents: read
 
   build-project:
     name: Build 🧱
+    needs: ci-pre
+    if: ${{ !cancelled() }}
     uses: ./.github/workflows/build-project.yaml
     secrets: inherit
     permissions:
@@ -54,7 +70,8 @@ jobs:
   # its files did not change.
   validate-data:
     name: Validate Data 🕵️
-    if: github.base_ref == 'master'
+    needs: ci-pre
+    if: ${{ !cancelled() && github.base_ref == 'master' }}
     runs-on: ubuntu-latest
     permissions:
       checks: write
@@ -91,7 +108,8 @@ jobs:
 
   update-documentation:
     name: Update Documentation 📖
-    if: github.repository_owner == 'obsproject' && github.base_ref == 'master'
+    needs: ci-pre
+    if: ${{ !cancelled() && github.repository_owner == 'obsproject' && github.base_ref == 'master' }}
     runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -114,7 +132,8 @@ jobs:
   # are skipped (and so pass CI Gate) unless the PR touches those files.
   appimage-changes:
     name: AppImage Changes 🔎
-    if: github.event_name == 'pull_request'
+    needs: ci-pre
+    if: ${{ !cancelled() && github.event_name == 'pull_request' }}
     runs-on: ubuntu-26.04
     timeout-minutes: 5
     outputs:

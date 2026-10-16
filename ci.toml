@@ -58,7 +58,7 @@ pr = { mode = "none", families = [], max-per-pr = "0MB", budget = "0MB", trim = 
 [cache.family]
 # zackees/setup-soldr (build-project.yaml, release-rust.yaml).
 registry = { via = "setup-soldr:cargo-registry", max = "60MB", per = "platform" }
-deps = { via = "setup-soldr:cook", max = "900MB", evict = "lru", shapes = { linux = { max = "900MB" }, macos = { max = "400MB" }, windows = { max = "700MB" } } }
+deps = { via = "setup-soldr:cook", max = "900MB", evict = "lru", shapes = { linux = { max = "850MB" }, macos = { max = "400MB" }, windows = { max = "650MB" } } }
 compile = { via = "setup-soldr:build-cache", max = "170MB", per = "platform" }
 toolchain = { via = "setup-soldr:solo-toolchain", max = "190MB", per = "platform" }
 soldr-mini = { via = "setup-soldr:soldr-mini", max = "15MB", per = "platform" }
@@ -67,7 +67,7 @@ uv = { via = "setup-uv", max = "50MB" }
 # zccache, the Linux CMake compiler launcher (rust/tools/linux-validate/install-zccache.sh):
 # zccache-tier2-linux-, zccache-ubuntu-<os>-x86_64-rust<ON|OFF>-<config>-,
 # zccache-appimage-, zccache-sanitize-<tool>-<rust>-.
-zccache = { prefix = "zccache-", max = "500MB", evict = "lru", shapes = { tier2 = { max = "300MB" }, ubuntu = { max = "500MB" }, appimage = { max = "500MB" }, sanitize = { max = "300MB" } } }
+zccache = { prefix = "zccache-", max = "500MB", evict = "lru", shapes = { tier2-off = { max = "300MB" }, tier2-on = { max = "300MB" }, ubuntu = { max = "400MB" }, appimage = { max = "400MB" }, sanitize = { max = "300MB" } } }
 # Windows compiler cache: ccache as cl.exe (build-project.yaml windows-build).
 windows-ccache = { prefix = "windows-ccache-", max = "800MB", evict = "lru" }
 # macOS: Xcode's compilation cache (build-project.yaml macos-build).
@@ -81,6 +81,10 @@ appimage-apt = { prefix = "apt-appimage-", max = "250MB" }
 appimage-testpkgs = { prefix = "testpkgs-", max = "250MB" }
 # services-validator action.
 service-check = { prefix = "service-check-", max = "1MB" }
+# Transitional: the ccache keys master's Tier 2 and AppImage jobs restore
+# until #957 (zccache) merges. Delete both once master saves zccache-*.
+tier2-ccache = { prefix = "tier2-ccache-linux-", max = "110MB" }
+appimage-ccache = { prefix = "ccache-appimage-", max = "100MB" }
 
 # -- Local runs (local-gate.toml) --------------------------------------------
 [local]
@@ -90,7 +94,7 @@ cache = "machine"
 
 # -- Allowlists ---------------------------------------------------------------
 [allow]
-workflows = { "pr-pull.yaml" = ["workflow_dispatch", "pull_request", "merge_group"], "push.yaml" = ["push"], "build-project.yaml" = ["workflow_call"], "analyze-project.yaml" = ["workflow_call"], "check-format.yaml" = ["workflow_call"], "sign-windows.yaml" = ["workflow_call"], "appimage.yaml" = ["push", "workflow_call", "workflow_dispatch"], "claim-bot.yaml" = ["issue_comment", "schedule", "workflow_dispatch"], "dispatch.yaml" = ["workflow_dispatch"], "leaderboard.yml" = ["schedule", "workflow_dispatch"], "publish.yaml" = ["release"], "release-rust.yaml" = ["schedule", "workflow_dispatch"], "sanitizers.yaml" = ["workflow_dispatch", "schedule"], "scheduled.yaml" = ["workflow_dispatch", "schedule"] }
+workflows = { "pr-pull.yaml" = ["workflow_dispatch", "pull_request", "merge_group"], "ci-pre.yml" = ["workflow_call"], "push.yaml" = ["push"], "build-project.yaml" = ["workflow_call"], "analyze-project.yaml" = ["workflow_call"], "check-format.yaml" = ["workflow_call"], "sign-windows.yaml" = ["workflow_call"], "appimage.yaml" = ["push", "workflow_call", "workflow_dispatch"], "claim-bot.yaml" = ["issue_comment", "schedule", "workflow_dispatch"], "dispatch.yaml" = ["workflow_dispatch"], "leaderboard.yml" = ["schedule", "workflow_dispatch"], "publish.yaml" = ["release"], "release-rust.yaml" = ["schedule", "workflow_dispatch"], "sanitizers.yaml" = ["workflow_dispatch", "schedule"], "scheduled.yaml" = ["workflow_dispatch", "schedule"] }
 actions = [
   "actions/attest", "actions/cache", "actions/checkout", "actions/download-artifact", "actions/upload-artifact",
   "andriivitiv/setup-steamcmd", "andriivitiv/steam-totp", "astral-sh/setup-uv", "cloudflare/wrangler-action",
@@ -110,7 +114,7 @@ secrets = [
   "RESTREAM_HASH", "SPARKLE_PRIVATE_KEY", "STEAM_PASSWORD", "STEAM_SHARED_SECRET", "STEAM_USER", "TWITCH_CLIENT_ID",
   "TWITCH_HASH", "YOUTUBE_CLIENTID", "YOUTUBE_CLIENTID_HASH", "YOUTUBE_SECRET", "YOUTUBE_SECRET_HASH",
 ]
-permissions = { "actions: write" = ["cache-janitor"] }
+permissions = { "actions: write" = ["cache-janitor", "ci-pre"] }
 # setup-soldr is called from the workflows directly; there is no wrapper.
 setup-soldr = { only-in = ".github/workflows", require = {} }
 # Host-specific Rust code lives in each crate's src/platform/ (one cfg_select!
@@ -675,6 +679,12 @@ issue = "https://github.com/obs-rust/obs-studio/issues/962"
 expires = "2027-04-15"
 [[exceptions]]
 rule = "GEN-005"
+path = "rust/tools/linux-validate/build-errors.sh"
+reason = "Upstream OBS build/packaging scripts (zsh, PowerShell, shell); porting CI logic to Python is tracked in #962."
+issue = "https://github.com/obs-rust/obs-studio/issues/962"
+expires = "2027-04-15"
+[[exceptions]]
+rule = "GEN-005"
 path = "rust/tools/linux-validate/check-skips.sh"
 reason = "Upstream OBS build/packaging scripts (zsh, PowerShell, shell); porting CI logic to Python is tracked in #962."
 issue = "https://github.com/obs-rust/obs-studio/issues/962"
@@ -794,6 +804,12 @@ expires = "2027-04-15"
 [[exceptions]]
 rule = "RUN-001"
 path = ".github/workflows/check-format.yaml"
+reason = "ubuntu-26.04, windows-2025-vs2026 and macos-26 are GitHub-hosted labels outside ci.yml's fleet list."
+issue = "https://github.com/obs-rust/obs-studio/issues/962"
+expires = "2027-04-15"
+[[exceptions]]
+rule = "RUN-001"
+path = ".github/workflows/ci-pre.yml"
 reason = "ubuntu-26.04, windows-2025-vs2026 and macos-26 are GitHub-hosted labels outside ci.yml's fleet list."
 issue = "https://github.com/obs-rust/obs-studio/issues/962"
 expires = "2027-04-15"
