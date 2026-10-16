@@ -11,7 +11,14 @@
 
 include_guard(GLOBAL)
 
-option(ENABLE_UNITY_BUILD "Compile each target as batches of concatenated sources" ON)
+# On by default where every target is verified (Linux). Windows and macOS
+# still have collisions in targets cmake/cross doesn't build (libobs-d3d11,
+# obs-browser, nv-filters, ...): pass -DENABLE_UNITY_BUILD=ON to try them.
+if(OS_LINUX)
+  option(ENABLE_UNITY_BUILD "Compile each target as batches of concatenated sources" ON)
+else()
+  option(ENABLE_UNITY_BUILD "Compile each target as batches of concatenated sources" OFF)
+endif()
 set(OBS_UNITY_BUILD_BATCH_SIZE 8 CACHE STRING "Sources per unity translation unit")
 
 # Sources that duplicate another source of the same target wholesale (an
@@ -20,6 +27,11 @@ set(OBS_UNITY_BUILD_BATCH_SIZE 8 CACHE STRING "Sources per unity translation uni
 # obs-ffmpeg-mpegts.c next to obs-ffmpeg-output.c, media-playback cache.c next to
 # media.c): they compile on their own
 # rather than being renamed symbol by symbol.
+#
+# platform-windows.c needs the full <windows.h> (NTSTATUS, ...): in a batch
+# an earlier source may have included it with WIN32_LEAN_AND_MEAN (on Windows
+# arm64, util/sse-intrin.h leaves that defined), making its own include a
+# no-op.
 set(
   _OBS_UNITY_SKIP_SOURCES
   libobs-opengl/gl-wayland-egl.c
@@ -28,6 +40,7 @@ set(
   libobs/obs-nix-wayland.c
   plugins/obs-ffmpeg/obs-ffmpeg-mpegts.c
   shared/media-playback/media-playback/cache.c
+  libobs/util/platform-windows.c
 )
 
 # obs_target_unity: turn on unity builds for <target>.

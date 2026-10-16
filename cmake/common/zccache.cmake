@@ -14,7 +14,10 @@
 
 include_guard(GLOBAL)
 
-option(ENABLE_ZCCACHE "Cache C/C++ compiles with soldr's zccache when soldr is installed" ON)
+# Opt-in for now: with soldr 0.9.34 a compile can still wait indefinitely on a
+# busy shared daemon (zackees/soldr#3815), and there is no stable launcher
+# command yet (zackees/soldr#3829).
+option(ENABLE_ZCCACHE "Cache C/C++ compiles with soldr's zccache when soldr is installed" OFF)
 set(OBS_ZCCACHE_LAUNCHER "" CACHE FILEPATH "zccache-soldr wrapper to use as the compiler launcher (found when empty)")
 
 # _obs_find_zccache: the newest zccache-soldr wrapper soldr has materialized.
