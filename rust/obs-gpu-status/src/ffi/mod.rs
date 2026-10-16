@@ -4,26 +4,37 @@
 //! does not change.
 
 use std::ffi::{CStr, CString, c_char, c_int};
-use std::sync::OnceLock;
+use std::sync::{Mutex, OnceLock};
 
-use crate::FrameStats;
+use crate::FrameWindow;
 use crate::report::Report;
 
-/// Build the report for `adapter` (null when graphics init failed) and the
+/// The frame-time window [`obs_gpu_status_sample`] fills.
+static FRAMES: Mutex<FrameWindow> = Mutex::new(FrameWindow::new());
+
+/// Record libobs' one-second average frame time
+/// (`obs_get_average_frame_time_ns`); call once a second. 0 is skipped.
+#[unsafe(no_mangle)]
+pub extern "C" fn obs_gpu_status_sample(frame_ns: u64) {
+    FRAMES
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .push(frame_ns);
+}
+
+/// Build the report for `adapter` (null when graphics init failed), the
 /// system's GPUs, probed once per process (`nvidia-smi` is too slow to run
-/// on every refresh). `frame_ns` holds `count` one-second frame-time
-/// samples, judged by their median ([`FrameStats::from_samples`]). Writes
+/// on every refresh), and the median of the sampled frame times
+/// ([`FrameWindow::stats`]) against `interval_ns`. Writes
 /// 0 (green), 1 (yellow) or 2 (red) to `state` when it is not null, and
 /// returns the `gpuAcceleration` JSON, freed with [`obs_gpu_status_free`].
 ///
 /// # Safety
-/// `adapter` is null or a NUL-terminated string; `frame_ns` is null or
-/// points to `count` readable values; `state` is null or writable.
+/// `adapter` is null or a NUL-terminated string; `state` is null or
+/// writable.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn obs_gpu_status_report(
     adapter: *const c_char,
-    frame_ns: *const u64,
-    count: usize,
     interval_ns: u64,
     state: *mut c_int,
 ) -> *mut c_char {
@@ -37,13 +48,10 @@ pub unsafe extern "C" fn obs_gpu_status_report(
                 .into_owned(),
         )
     };
-    let samples: &[u64] = if frame_ns.is_null() || count == 0 {
-        &[]
-    } else {
-        // SAFETY: the caller passes `count` readable values.
-        unsafe { std::slice::from_raw_parts(frame_ns, count) }
-    };
-    let frames = FrameStats::from_samples(samples, interval_ns);
+    let frames = FRAMES
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .stats(interval_ns);
     static DEVICES: OnceLock<Vec<crate::GpuDevice>> = OnceLock::new();
     let devices = DEVICES.get_or_init(crate::platform::system_devices).clone();
     let report = Report::new(adapter.as_deref(), devices, frames);

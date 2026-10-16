@@ -1196,7 +1196,10 @@ async def test_gpu_acceleration_software(log_path):
           and gpu.get("state") in ("green", "yellow", "red")
           and isinstance(gpu.get("detectedGpus"), list)
           and isinstance(gpu.get("summary"), str)
-          and isinstance(gpu.get("causes"), list),
+          and isinstance(gpu.get("causes"), list)
+          # The frontend read a real adapter, not gs_get_device_name()'s
+          # API name (#929, #943).
+          and gpu.get("adapterIsApiName") is False,
           json.dumps(gpu)[:400])
     check("stats:gpuAcceleration not green on llvmpipe",
           gpu.get("state") in ("yellow", "red"), json.dumps(gpu)[:400])

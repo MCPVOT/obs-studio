@@ -11,10 +11,6 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 
-#include <deque>
-#include <mutex>
-#include <vector>
-
 namespace GpuStatus {
 
 bool Available()
@@ -55,11 +51,6 @@ static Info Parse(int state, const char *json)
 #endif
 
 #ifdef OBS_GPU_STATUS
-/* One-second frame-time averages; the Rust side judges their median. */
-static constexpr size_t maxFrameSamples = 15;
-static std::mutex frameSamplesMutex;
-static std::deque<uint64_t> frameSamples;
-
 typedef const unsigned char *(*GlGetStringFn)(unsigned int);
 static constexpr unsigned int GL_VENDOR_ENUM = 0x1F00;
 static constexpr unsigned int GL_RENDERER_ENUM = 0x1F01;
@@ -111,15 +102,7 @@ static std::string ActiveAdapterName()
 void Sample()
 {
 #ifdef OBS_GPU_STATUS
-	uint64_t frame = obs_get_average_frame_time_ns();
-	if (frame == 0) {
-		return; /* no frames rendered yet */
-	}
-	std::lock_guard<std::mutex> lock(frameSamplesMutex);
-	frameSamples.push_back(frame);
-	while (frameSamples.size() > maxFrameSamples) {
-		frameSamples.pop_front();
-	}
+	obs_gpu_status_sample(obs_get_average_frame_time_ns());
 #endif
 }
 
@@ -135,15 +118,9 @@ Info Query()
 	}
 	obs_leave_graphics();
 
-	std::vector<uint64_t> samples;
-	{
-		std::lock_guard<std::mutex> lock(frameSamplesMutex);
-		samples.assign(frameSamples.begin(), frameSamples.end());
-	}
-
 	int state = 2;
-	char *json = obs_gpu_status_report(haveAdapter ? adapter.c_str() : nullptr, samples.data(), samples.size(),
-					   obs_get_frame_interval_ns(), &state);
+	char *json =
+		obs_gpu_status_report(haveAdapter ? adapter.c_str() : nullptr, obs_get_frame_interval_ns(), &state);
 	Info info = Parse(state, json);
 	obs_gpu_status_free(json);
 	return info;

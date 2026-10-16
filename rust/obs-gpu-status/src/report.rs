@@ -89,6 +89,13 @@ impl Report {
         string(&mut j, Some(self.state.as_str()));
         j.push_str(",\"adapter\":");
         string(&mut j, self.adapter.as_deref());
+        let _ = write!(
+            j,
+            ",\"adapterIsApiName\":{}",
+            self.adapter
+                .as_deref()
+                .is_some_and(crate::is_graphics_api_name)
+        );
         j.push_str(",\"detectedGpus\":[");
         for (i, d) in self.devices.iter().enumerate() {
             if i > 0 {
