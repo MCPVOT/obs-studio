@@ -111,7 +111,9 @@ jobs:
           # Keep absent inputs (push, tag, pull_request) distinct from explicit
           # false: loose Boolean equality would treat both as zero.
           RUST_LIBOBS: ${{ format('{0}', inputs.rust_libobs) != 'false' }}
-          QSV: ${{ github.event_name == 'workflow_dispatch' && inputs.qsv }}
+          # qsv exists only as a workflow_dispatch input; called from release-rust.yaml
+          # (workflow_call) it is absent, which must mean false, never ''.
+          QSV: ${{ inputs.qsv == true }}
           OBS_RUST_VERSION: ${{ inputs.rust_version }}
         # Determine version 🏷️ + Configure: the OBS version is only used here.
         run: |
