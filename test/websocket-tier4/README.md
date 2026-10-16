@@ -48,6 +48,7 @@ uv run test/websocket-tier4/run_tier4.py                # uses `obs` on PATH
 uv run test/websocket-tier4/run_tier4.py --obs /path/to/obs
 TIER4_PORT=4460 uv run test/websocket-tier4/run_tier4.py
 TIER4_VERBOSE=1 uv run test/websocket-tier4/run_tier4.py  # log each status code
+uv run test/websocket-tier4/run_tier4.py --only gpu     # GPU status check only (#940)
 ```
 
 Flags:

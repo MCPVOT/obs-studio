@@ -1267,6 +1267,34 @@ RESCALE_PROFILE = {
 }
 
 
+async def run_gpu_phase(obs_bin):
+    """OBS forced onto llvmpipe: GetStats.gpuAcceleration and the startup
+    warning (obs-rust/obs-studio#846, #940)."""
+    server = ObsServer(obs_bin, PORT, password=None, extra_env={
+        "LIBGL_ALWAYS_SOFTWARE": "1", "GALLIUM_DRIVER": "llvmpipe"})
+    server.start()
+    try:
+        print("== GPU acceleration on llvmpipe ==", flush=True)
+        await test_gpu_acceleration_software(server.log)
+    finally:
+        server.stop()
+
+
+async def run_gpu_only(obs_bin):
+    await run_gpu_phase(obs_bin)
+    failed = [n for n, ok, _ in RESULTS if not ok]
+    print("=" * 60)
+    print(f"checks: {len(RESULTS) - len(failed)}/{len(RESULTS)} passed")
+    for n, _, detail in (r for r in RESULTS if not r[1]):
+        print(f"  - {n}: {detail}")
+    # A build without the status provider reports null and skips the
+    # state checks; that is not a pass for CI, which builds the provider.
+    if not any(n == "stats:gpuAcceleration not green on llvmpipe" for n, _, _ in RESULTS):
+        print("gpuAcceleration was null or undocumented: the state was not checked")
+        return 1
+    return 1 if failed else 0
+
+
 async def run_all(obs_bin, skip_obs, skip_auth_phase):
     server_a = server_b = None
     if not skip_obs:
@@ -1329,14 +1357,7 @@ async def run_all(obs_bin, skip_obs, skip_auth_phase):
 
     if not skip_obs:
         wait_for_port_closed(PORT)
-        server_d = ObsServer(obs_bin, PORT, password=None, extra_env={
-            "LIBGL_ALWAYS_SOFTWARE": "1", "GALLIUM_DRIVER": "llvmpipe"})
-        server_d.start()
-        try:
-            print("== GPU acceleration on llvmpipe ==", flush=True)
-            await test_gpu_acceleration_software(server_d.log)
-        finally:
-            server_d.stop()
+        await run_gpu_phase(obs_bin)
 
     total = len(RESULTS)
     passed = sum(1 for _, ok, _ in RESULTS if ok)
@@ -1368,7 +1389,12 @@ def main():
                          "mainly for debugging)")
     ap.add_argument("--skip-auth-phase", action="store_true",
                     help="with --no-spawn only: skip the auth-required phase")
+    ap.add_argument("--only", choices=["gpu"],
+                    help="run one group: gpu = GetStats.gpuAcceleration and the "
+                         "startup warning with OpenGL forced onto llvmpipe")
     args = ap.parse_args()
+    if args.only == "gpu":
+        sys.exit(asyncio.run(run_gpu_only(args.obs)))
     sys.exit(asyncio.run(
         run_all(args.obs, args.no_spawn, args.skip_auth_phase)))
 
