@@ -947,6 +947,14 @@ jobs:
   rust-linux-tier2:
     name: Rust Tier 2 Linux 🐧 (${{ matrix.mode }})
     runs-on: ubuntu-26.04
+    # A stock image, no Dockerfile or image build (#966): run directly on the
+    # runner, two group tests failed while passing in a container with the
+    # same libraries, compiler, flags and CPU (#982). Packages install below.
+    container:
+      image: ubuntu:26.04@sha256:f144425ff09be612d6d9ad965196e9cdc23dae1f42110a8a11a3e9a8198759f7
+    # A hung test held a runner for 4.5 h without this (#983); a normal run
+    # is about 13 min.
+    timeout-minutes: 30
     needs: [check-event, ci-mode, lane-proofs]
     if: needs.check-event.outputs.deferred != 'true' && needs.ci-mode.outputs.skip_rust-linux-tier2 != 'true' && needs.lane-proofs.outputs.tier2-linux_hit != 'true'
     strategy:
@@ -957,6 +965,13 @@ jobs:
       run:
         shell: bash
     steps:
+      # checkout needs git for tags and submodules; sudo keeps the shared
+      # install step below the same as on a plain runner.
+      - name: Install Git 📦
+        run: |
+          apt-get update -qq
+          apt-get install -y --no-install-recommends git ca-certificates curl sudo
+
       # fetch-depth 0: versionconfig.cmake derives the OBS version from tags.
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -974,23 +989,68 @@ jobs:
             tier2-ccache-linux-${{ matrix.mode }}-
             tier2-ccache-linux-
 
-      - name: Set Up uv 🐍
-        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+      # Native on the runner, no Docker image built per job (#966): the
+      # package list is shared with the local Docker harness (run.sh), and
+      # `bosn ci run --workflow build-project.yaml --job rust-linux-tier2`
+      # runs this job locally through act2.
+      - name: Install Tier 2 Packages 📦
+        run: |
+          sudo apt-get update -qq
+          grep -v '^#' rust/tools/linux-validate/apt-packages.txt |
+            xargs "${GITHUB_WORKSPACE}/.github/scripts/retry" sudo apt-get install -y --no-install-recommends
 
-      # GATE-001 mirror (local-gate.toml): the local gate's tier2-linux lane,
-      # which runs rust/tools/linux-validate/run.sh (both modes in one go).
+      # The ENABLE_RUST_LIBOBS=ON build runs cargo through Corrosion; the
+      # shims put soldr's cargo/rustc (rust-toolchain.toml) on PATH.
+      - name: Set Up soldr 🦀
+        uses: zackees/setup-soldr@b782f606a2f3beadc35b9e3bf5b4565e005f52ed # v0.9.86
+        with:
+          version: 0.9.33
+          shims: true
+
+      # GATE-001 mirror (local-gate.toml): the same validate.sh the local
+      # gate's tier2-linux lane runs in Docker (both modes in one go).
       - name: Validate Tier 2 (ENABLE_RUST_LIBOBS=${{ matrix.mode }}) ✅
         env:
-          OBS_CCACHE_DIR: ${{ github.workspace }}/.tier2-ccache
+          OBS_TIER2_SRC: ${{ github.workspace }}
+          OBS_TIER2_BUILD: ${{ runner.temp }}/tier2
+          OBS_TIER2_EXPORTS: ${{ runner.temp }}/tier2-exports
+          CCACHE_DIR: ${{ github.workspace }}/.tier2-ccache
           OBS_TIER2_MODES: ${{ matrix.mode }}
-          OBS_TIER2_EXPORTS_DIR: ${{ runner.temp }}/tier2-exports
           # ccache already hits ~99.8%; the time is the ctest run, which
           # validate.sh orders longest-first from cached cost data (#931).
           # More than 4 jobs is not free: CPU-heavy timing tests
           # (test_encoder_join_keyframe's AV1 encode, test_media_gif_last_frame)
           # failed under -j8 while passing alone (#938).
           OBS_CTEST_JOBS: 4
-        run: uv run ci/local_gate.py --lane tier2-linux
+        run: |
+          mkdir -p "$OBS_TIER2_EXPORTS"
+          bash rust/tools/linux-validate/validate.sh
+
+      # TEMPORARY (#982): the group tests failed natively but pass in the
+      # container. On failure, rerun them alone and show what libobs loads,
+      # to tell a library difference from interference with other tests.
+      - name: Diagnose Group Tests 🔬
+        if: failure()
+        run: |
+          b="$RUNNER_TEMP/tier2/rust-${{ matrix.mode }}"
+          for i in 1 2 3; do
+            HOME="$RUNNER_TEMP/tier2/test-home" xvfb-run -a ctest --test-dir "$b" \
+              -R '^(test_group_empty_bounds|test_scene_dup_group_children)$' --output-on-failure 2>&1 |
+              grep -E 'Test +#|expected \(|moved' || true
+          done
+          ldd "$b"/libobs/libobs.so.* | sort
+          echo "== as root"
+          sudo -E env HOME=/root xvfb-run -a ctest --test-dir "$b" \
+            -R '^(test_group_empty_bounds|test_scene_dup_group_children)$' --output-on-failure 2>&1 |
+            grep -E 'Test +#|expected \(|moved' || true
+          echo "== cpu"; grep -m1 'model name' /proc/cpuinfo; grep -m1 -o -w 'avx512f\|fma\|avx2' /proc/cpuinfo | sort -u | tr '\n' ' '; echo
+          echo "== env"; env | sort | grep -vE 'TOKEN|SECRET|KEY|PASSWORD' | cut -c1-200
+          echo "== versions (compare with the container's dpkg-query)"
+          dpkg-query -W -f='${Package} ${Version}\n' libc6 libgl1-mesa-dri libegl-mesa0 libgbm1 \
+            libjansson4 libgcc-s1 libstdc++6 xvfb libx11-6 || true
+          ls /usr/lib/x86_64-linux-gnu/libLLVM* 2>/dev/null | head -3
+          echo "== obs-scene.c compile command"
+          ninja -C "$b" -t commands libobs | grep -m1 'obs-scene\.c' | tr ' ' '\n' | grep -E '^-[DfmOW]|^-std' | sort -u
 
       - name: Upload Exports 🧾
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
