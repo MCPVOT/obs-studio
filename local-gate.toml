@@ -56,7 +56,14 @@ run = ["uv", "run", "ci/local_gate.py", "--lane", "tier2-linux"]
 tools = ["docker"]
 # Never read by the Tier 2 build (strace of validate.sh in the image, #699):
 # docs, packaging, the Windows/Metal/WinRT graphics backends and CI-only files.
-exclude = ["docs/**", "**/*.md", "build-aux/**", "libobs-d3d11/**", "libobs-metal/**", "libobs-winrt/**", "additional_install_files/**", "tools/**", "ci/**", ".github/**", ".claude/**"]
+# Nor by its cargo builds (#930 A5): tests/benches/examples of any crate, and
+# the crates outside the closure of the crates Tier 2's CMake imports (the
+# list is checked against that closure by ci/test_tier2_proof_inputs.py).
+# Every workspace manifest stays an input: cargo reads them all.
+exclude = ["docs/**", "**/*.md", "build-aux/**", "libobs-d3d11/**", "libobs-metal/**", "libobs-winrt/**", "additional_install_files/**", "tools/**", "ci/**", ".github/**", ".claude/**",
+  "rust/*/tests/**", "rust/*/benches/**", "rust/*/examples/**",
+  "rust/obs-c-oracle/**", "rust/obs-gpu-status/**", "rust/obs-gpu-status-frontend/**"]
+keep = ["rust/*/Cargo.toml"]
 
 # GATE-008: decided from THIS file as committed on the PR's base. Fails
 # closed: fork or non-writer author, `ci-full` label, head not attested for
