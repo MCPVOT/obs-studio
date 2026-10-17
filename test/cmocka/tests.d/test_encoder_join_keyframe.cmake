@@ -37,6 +37,5 @@ if(OS_LINUX AND TARGET OBS::libobs-opengl)
     COMMAND test_encoder_join_keyframe
     WORKING_DIRECTORY "${OBS_OUTPUT_DIR}/$<CONFIG>"
   )
-  # CPU-heavy (an AV1 encode): reserve half the -j8 CI slots (#938).
-  set_tests_properties(test_encoder_join_keyframe PROPERTIES TIMEOUT 180 PROCESSORS 4)
+  set_tests_properties(test_encoder_join_keyframe PROPERTIES TIMEOUT 180)
 endif()

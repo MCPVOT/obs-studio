@@ -1262,9 +1262,8 @@ jobs:
           OBS_TIER2_BUILD: ${{ runner.temp }}/tier2
           OBS_TIER2_MODES: "OFF ON"
           OBS_TIER2_STAGE: test
-          # At most 8 test binaries at once. #938 saw CPU-heavy timing tests
-          # (test_encoder_join_keyframe's AV1 encode, test_media_gif_last_frame)
-          # fail under -j8; if they flake again, those tests need RUN_SERIAL.
+          # At most 8 test binaries at once. The two tests that failed under
+          # -j8 (#938) judged timing, not playback; #1001 fixed that.
           OBS_CTEST_JOBS: 8
           # Read before ctest (longest first), rewritten after; cached by
           # rust-linux-tier2-done on master.
