@@ -70,16 +70,18 @@ class WorkflowTest(unittest.TestCase):
         self.assertIn("name: tier2-tree\n", b)
         self.assertNotIn("tier2-tree-OFF", b)
 
-    def test_one_test_job_runs_both_modes(self):
-        """One runner tests both libobs builds (no mode x shard matrix): six
-        runners each repeated the setup for about a minute of ctest."""
+    def test_modes_run_in_parallel_without_extra_shards(self):
+        """Keep both complete suites while removing their serial wall time."""
         t = job("rust-linux-tier2")
         self.assertIn("needs: [check-event, ci-mode, rust-linux-tier2-build]", t)
-        self.assertNotIn("matrix", t)
+        self.assertIn("fail-fast: false", t)
+        self.assertIn('mode: ["OFF", "ON"]', t)
         self.assertNotIn("OBS_CTEST_SHARD", t)
         self.assertIn("OBS_TIER2_STAGE: test", t)
         self.assertIn("name: tier2-tree\n", t)
-        self.assertIn('OBS_TIER2_MODES: "OFF ON"', t)
+        self.assertIn("OBS_TIER2_MODES: ${{ matrix.mode }}", t)
+        self.assertIn("name: tier2-cost-${{ matrix.mode }}", t)
+        self.assertIn("path: .tier2-cost/ctest-cost-${{ matrix.mode }}.txt", t)
         self.assertNotIn("OBS_TIER2_SHARDS", job("rust-linux-tier2-build"))
 
     def test_lane_proof_waits_for_every_shard(self):

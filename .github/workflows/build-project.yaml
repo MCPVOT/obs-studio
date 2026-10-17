@@ -1215,7 +1215,7 @@ jobs:
           key: zccache-tier2-linux-both-${{ github.sha }}
 
   rust-linux-tier2:
-    name: Rust Tier 2 Linux 🐧 (tests)
+    name: Rust Tier 2 Linux 🐧 (tests ${{ matrix.mode }})
     runs-on: ubuntu-26.04
     # A stock image, no Dockerfile or image build (#966): run directly on the
     # runner, two group tests failed while passing in a container with the
@@ -1224,9 +1224,13 @@ jobs:
       image: ubuntu:26.04@sha256:f144425ff09be612d6d9ad965196e9cdc23dae1f42110a8a11a3e9a8198759f7
     timeout-minutes: 30
     needs: [check-event, ci-mode, rust-linux-tier2-build]
-    # One runner tests both libobs builds, at most 8 test binaries at a time:
-    # six mode x shard runners each repeated the checkout, the package
-    # install and the tree download for about a minute of ctest.
+    # Two complete suites run independently; retain 8 test binaries per runner.
+    # Avoid six shard runners and their repeated setup while removing the
+    # ~254 s serial mode from the observed ~578 s test-job critical path.
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: ["OFF", "ON"]
     defaults:
       run:
         shell: bash
@@ -1282,11 +1286,11 @@ jobs:
           key: tier2-ctest-cost-${{ github.sha }}
           restore-keys: tier2-ctest-cost-
 
-      - name: Test Tier 2 (libobs C, then with Rust) ✅
+      - name: Test Tier 2 (${{ matrix.mode }}) ✅
         env:
           OBS_TIER2_SRC: ${{ github.workspace }}
           OBS_TIER2_BUILD: ${{ runner.temp }}/tier2
-          OBS_TIER2_MODES: "OFF ON"
+          OBS_TIER2_MODES: ${{ matrix.mode }}
           OBS_TIER2_STAGE: test
           # At most 8 test binaries at once. The two tests that failed under
           # -j8 (#938) judged timing, not playback; #1001 fixed that.
@@ -1299,8 +1303,8 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always() && github.event_name == 'push' && github.ref == 'refs/heads/master'
         with:
-          name: tier2-cost
-          path: .tier2-cost/ctest-cost-*.txt
+          name: tier2-cost-${{ matrix.mode }}
+          path: .tier2-cost/ctest-cost-${{ matrix.mode }}.txt
           include-hidden-files: true
           retention-days: 1
           if-no-files-found: error
