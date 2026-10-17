@@ -1,13 +1,4 @@
-#include "aja-card-manager.hpp"
-#include "aja-common.hpp"
-#include "aja-ui-props.hpp"
-#include "aja-props.hpp"
-
-#include <ajantv2/includes/ntv2debug.h>
-#include <ajantv2/includes/ntv2devicescanner.h>
-#include <ajantv2/includes/ntv2devicefeatures.h>
-#include <ajantv2/includes/ntv2signalrouter.h>
-#include <ajantv2/includes/ntv2utils.h>
+#include "plugins/aja/build/aja-support.pch.hpp"
 
 void filter_io_selection_input_list(const std::string &cardID, const std::string &channelOwner, obs_property_t *list)
 {

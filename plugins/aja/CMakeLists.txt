@@ -16,14 +16,7 @@ add_library(OBS::aja-support ALIAS aja-support)
 
 target_sources(
   aja-support
-  PRIVATE
-    aja-card-manager.cpp
-    aja-common.cpp
-    aja-presets.cpp
-    aja-props.cpp
-    aja-routing.cpp
-    aja-vpid-data.cpp
-    aja-widget-io.cpp
+  PRIVATE build/aja.support+.hpp.cpp
   PUBLIC
     aja-card-manager.hpp
     aja-common.hpp
@@ -43,14 +36,12 @@ set_target_properties(aja-support PROPERTIES FOLDER plugins/aja POSITION_INDEPEN
 target_sources(
   aja
   PRIVATE
-    aja-output.cpp
+    build/aja.core+.hpp.cpp
+    build/aja.audio-repack+.h.c
     aja-output.hpp
-    aja-source.cpp
     aja-source.hpp
-    audio-repack.c
     audio-repack.h
     audio-repack.hpp
-    main.cpp
 )
 
 target_compile_options(

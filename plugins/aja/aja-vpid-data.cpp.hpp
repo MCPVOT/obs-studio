@@ -1,4 +1,4 @@
-#include "aja-vpid-data.hpp"
+#include "plugins/aja/build/aja-support.pch.hpp"
 
 VPIDData::VPIDData()
 	: mVpidA{0},

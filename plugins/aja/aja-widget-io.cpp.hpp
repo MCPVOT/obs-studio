@@ -1,11 +1,4 @@
-#include "aja-widget-io.hpp"
-#include "aja-common.hpp"
-
-#include <ajantv2/includes/ntv2enums.h>
-#include <ajantv2/includes/ntv2utils.h>
-#include <ajantv2/includes/ntv2signalrouter.h>
-
-#include <iostream>
+#include "plugins/aja/build/aja-support.pch.hpp"
 
 // firmware widget nicknames used by signal routing syntax parser
 static const char *kFramebufferNickname = "fb";

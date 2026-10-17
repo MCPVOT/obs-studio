@@ -1,14 +1,4 @@
-#include "aja-card-manager.hpp"
-#include "aja-common.hpp"
-#include "aja-routing.hpp"
-#include "aja-widget-io.hpp"
-
-#include <ajabase/common/common.h>
-#include <ajantv2/includes/ntv2card.h>
-#include <ajantv2/includes/ntv2devicefeatures.h>
-#include <ajantv2/includes/ntv2utils.h>
-
-#include <obs-module.h>
+#include "plugins/aja/build/aja-support.pch.hpp"
 
 namespace aja {
 /*

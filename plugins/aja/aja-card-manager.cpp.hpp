@@ -1,19 +1,4 @@
-#include "aja-card-manager.hpp"
-#include "aja-common.hpp"
-#include "aja-output.hpp"
-#include "aja-source.hpp"
-
-#include "obs-properties.h"
-
-#include <util/base.h>
-
-#include <ajantv2/includes/ntv2card.h>
-#include <ajantv2/includes/ntv2devicescanner.h>
-#include <ajantv2/includes/ntv2devicefeatures.h>
-#include <ajantv2/includes/ntv2utils.h>
-
-#include <ajabase/system/process.h>
-#include <ajabase/system/systemtime.h>
+#include "plugins/aja/build/aja-support.pch.hpp"
 
 static const uint32_t kStreamingAppID = NTV2_FOURCC('O', 'B', 'S', ' ');
 

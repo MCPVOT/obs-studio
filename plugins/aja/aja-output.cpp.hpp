@@ -1,21 +1,4 @@
-#include "aja-card-manager.hpp"
-#include "aja-common.hpp"
-#include "aja-ui-props.hpp"
-#include "aja-output.hpp"
-#include "aja-routing.hpp"
-
-#include <obs-module.h>
-#include <util/platform.h>
-
-#include <ajabase/common/timer.h>
-#include <ajabase/system/systemtime.h>
-
-#include <ajantv2/includes/ntv2card.h>
-#include <ajantv2/includes/ntv2devicefeatures.h>
-
-#include <atomic>
-#include <stdlib.h>
-#include <inttypes.h>
+#include "plugins/aja/build/aja.pch.hpp"
 
 // Log AJA Output video/audio delay/sync
 // #define AJA_OUTPUT_STATS
@@ -1236,3 +1219,6 @@ void register_aja_output_info()
 	aja_output_info.get_properties = aja_output_get_properties;
 	obs_register_output(&aja_output_info);
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef MATCH_OBS_FRAMERATE

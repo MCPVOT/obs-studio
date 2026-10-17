@@ -1,6 +1,4 @@
-#include "aja-card-manager.hpp"
-#include <obs-module.h>
-#include <ajantv2/includes/ntv2devicescanner.h>
+#include "plugins/aja/build/aja.pch.hpp"
 
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE("aja", "en-US")

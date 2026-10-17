@@ -1,17 +1,4 @@
-#include "aja-card-manager.hpp"
-#include "aja-common.hpp"
-#include "aja-ui-props.hpp"
-#include "aja-source.hpp"
-#include "aja-routing.hpp"
-
-#include <util/threading.h>
-#include <util/platform.h>
-#include <util/dstr.h>
-#include <util/util_uint64.h>
-#include <obs-module.h>
-
-#include <ajantv2/includes/ntv2card.h>
-#include <ajantv2/includes/ntv2utils.h>
+#include "plugins/aja/build/aja.pch.hpp"
 
 #ifndef NSEC_PER_SEC
 #define NSEC_PER_SEC 1000000000LL
@@ -1112,3 +1099,7 @@ void register_aja_source_info()
 	aja_source_info.get_defaults = aja_source_get_defaults;
 	obs_register_source(&aja_source_info);
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef NSEC_PER_SEC
+#undef NTV2_AUDIOSIZE_MAX

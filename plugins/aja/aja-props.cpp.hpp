@@ -1,8 +1,4 @@
-#include "aja-props.hpp"
-#include "aja-common.hpp"
-
-#include <ajantv2/includes/ntv2devicefeatures.h>
-#include <ajantv2/includes/ntv2utils.h>
+#include "plugins/aja/build/aja-support.pch.hpp"
 
 // AJASource Properties
 SourceProps::SourceProps()

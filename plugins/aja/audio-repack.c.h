@@ -1,9 +1,4 @@
-#include "audio-repack.h"
-
-#define USE_SIMD
-#ifdef USE_SIMD
-#include <util/sse-intrin.h>
-#endif
+#include "plugins/aja/build/aja-audio-repack.pch.h"
 
 #define NUM_CHANNELS 8 /* max until OBS supports higher channel counts */
 
@@ -13,8 +8,9 @@ int check_buffer(struct audio_repack *repack, uint32_t frame_count)
 
 	if (repack->packet_size < new_size) {
 		repack->packet_buffer = brealloc(repack->packet_buffer, new_size);
-		if (!repack->packet_buffer)
+		if (!repack->packet_buffer) {
 			return -1;
+		}
 		repack->packet_size = new_size;
 	}
 
@@ -34,8 +30,9 @@ int check_buffer(struct audio_repack *repack, uint32_t frame_count)
 */
 int repack_squash16(struct audio_repack *repack, const uint8_t *bsrc, uint32_t frame_count)
 {
-	if (check_buffer(repack, frame_count) < 0)
+	if (check_buffer(repack, frame_count) < 0) {
 		return -1;
+	}
 
 	int squash = repack->squash_count;
 	const __m128i *src = (const __m128i *)bsrc;
@@ -68,8 +65,9 @@ int repack_squash16(struct audio_repack *repack, const uint8_t *bsrc, uint32_t f
 */
 int repack_squash_swap16(struct audio_repack *repack, const uint8_t *bsrc, uint32_t frame_count)
 {
-	if (check_buffer(repack, frame_count) < 0)
+	if (check_buffer(repack, frame_count) < 0) {
 		return -1;
+	}
 	int squash = repack->squash_count;
 	const __m128i *src = (const __m128i *)bsrc;
 	const __m128i *end = src + frame_count;
@@ -89,8 +87,9 @@ int repack_squash_swap16(struct audio_repack *repack, const uint8_t *bsrc, uint3
  */
 int repack_squash32(struct audio_repack *repack, const uint8_t *bsrc, uint32_t frame_count)
 {
-	if (check_buffer(repack, frame_count) < 0)
+	if (check_buffer(repack, frame_count) < 0) {
 		return -1;
+	}
 
 	int squash = repack->squash_count;
 	const __m128i *src = (const __m128i *)bsrc;
@@ -118,8 +117,9 @@ int repack_squash32(struct audio_repack *repack, const uint8_t *bsrc, uint32_t f
  */
 int repack_squash_swap32(struct audio_repack *repack, const uint8_t *bsrc, uint32_t frame_count)
 {
-	if (check_buffer(repack, frame_count) < 0)
+	if (check_buffer(repack, frame_count) < 0) {
 		return -1;
+	}
 	int squash = repack->squash_count;
 	const __m128i *src = (const __m128i *)bsrc;
 	const __m128i *end = (const __m128i *)(bsrc + (frame_count * repack->base_src_size));
@@ -144,8 +144,9 @@ int repack_squash_swap32(struct audio_repack *repack, const uint8_t *bsrc, uint3
  */
 int repack_squash(struct audio_repack *repack, const uint8_t *bsrc, uint32_t frame_count)
 {
-	if (check_buffer(repack, frame_count) < 0)
+	if (check_buffer(repack, frame_count) < 0) {
 		return -1;
+	}
 	int squash = repack->squash_count;
 	const uint8_t *src = bsrc;
 	const uint8_t *end = src + frame_count * repack->base_src_size;
@@ -184,8 +185,9 @@ void shuffle_8ch(uint8_t *dst, const uint8_t *src, size_t szb, int ch1, int ch2,
  */
 int repack_squash_swap(struct audio_repack *repack, const uint8_t *bsrc, uint32_t frame_count)
 {
-	if (check_buffer(repack, frame_count) < 0)
+	if (check_buffer(repack, frame_count) < 0) {
 		return -1;
+	}
 
 	int squash = repack->squash_count;
 	const uint8_t *src = bsrc;
@@ -208,8 +210,9 @@ int audio_repack_init(struct audio_repack *repack, audio_repack_mode_t repack_mo
 {
 	memset(repack, 0, sizeof(*repack));
 
-	if (bits_per_sample != 16 && bits_per_sample != 32)
+	if (bits_per_sample != 16 && bits_per_sample != 32) {
 		return -1;
+	}
 	int _audio_repack_ch[9] = {2, 3, 4, 5, 6, 5, 6, 8, 8};
 	int bytes_per_sample = (bits_per_sample / 8);
 	repack->bytes_per_sample = bytes_per_sample;
@@ -223,19 +226,22 @@ int audio_repack_init(struct audio_repack *repack, audio_repack_mode_t repack_mo
 	if (bits_per_sample == 16) {
 		repack->repack_func = &repack_squash16;
 		if (repack_mode == repack_mode_8to5ch_swap || repack_mode == repack_mode_8to6ch_swap ||
-		    repack_mode == repack_mode_8ch_swap)
+		    repack_mode == repack_mode_8ch_swap) {
 			repack->repack_func = &repack_squash_swap16;
+		}
 	} else if (bits_per_sample == 32) {
 		repack->repack_func = &repack_squash32;
 		if (repack_mode == repack_mode_8to5ch_swap || repack_mode == repack_mode_8to6ch_swap ||
-		    repack_mode == repack_mode_8ch_swap)
+		    repack_mode == repack_mode_8ch_swap) {
 			repack->repack_func = &repack_squash_swap32;
+		}
 	}
 #else
 	repack->repack_func = &repack_squash;
 	if (repack_mode == repack_mode_8to5ch_swap || repack_mode == repack_mode_8to6ch_swap ||
-	    repack_mode == repack_mode_8ch_swap)
+	    repack_mode == repack_mode_8ch_swap) {
 		repack->repack_func = &repack_squash_swap;
+	}
 #endif
 
 	return 0;
@@ -243,8 +249,12 @@ int audio_repack_init(struct audio_repack *repack, audio_repack_mode_t repack_mo
 
 void audio_repack_free(struct audio_repack *repack)
 {
-	if (repack->packet_buffer)
+	if (repack->packet_buffer) {
 		bfree(repack->packet_buffer);
+	}
 
 	memset(repack, 0, sizeof(*repack));
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef NUM_CHANNELS

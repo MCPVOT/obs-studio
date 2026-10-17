@@ -394,3 +394,41 @@ _obs_cross_plugin(
   INCLUDES shared/file-updater
   DEFINES SERVICES_URL="cross-check" ENABLE_SERVICE_UPDATES
 )
+
+# aja's unity groups (BUILD.md) with the prebuilt LibAJANTV2 headers, as
+# cmake/finders/FindLibAJANTV2.cmake sets them up.
+set(_aja "${OBS_CROSS_DEPS}/include/libajantv2")
+_obs_cross_plugin(
+  aja-cross
+  DIR plugins/aja
+  SOURCES build/aja.support+.hpp.cpp build/aja.core+.hpp.cpp build/aja.audio-repack+.h.c
+)
+target_include_directories(
+  aja-cross
+  PRIVATE
+    "${_aja}"
+    "${_aja}/ajaanc"
+    "${_aja}/ajabase"
+    "${_aja}/ajantv2"
+    "${_aja}/ajantv2/includes"
+    "$<IF:$<STREQUAL:${_host},WINDOWS>,${_aja}/ajantv2/src/win,${_aja}/ajantv2/src/mac>"
+)
+target_compile_definitions(
+  aja-cross
+  PRIVATE "$<IF:$<STREQUAL:${_host},WINDOWS>,AJA_WINDOWS;_WINDOWS;WIN32;MSWindows,AJAMac;AJA_MAC>"
+)
+target_compile_options(aja-cross PRIVATE "$<$<COMPILE_LANG_AND_ID:CXX,AppleClang,Clang>:-Wno-deprecated-declarations>")
+# LibAJANTV2 includes Windows SDK headers with their old mixed-case names
+# (<Basetsd.h>), which Windows' case-insensitive filesystem finds and the
+# cross check's lowercase SDK on Linux doesn't.
+if(_host STREQUAL WINDOWS)
+  foreach(
+    _header
+    IN
+    ITEMS Basetsd Setupapi SetupAPI Windows WinSock2
+  )
+    string(TOLOWER "${_header}" _lower)
+    file(WRITE "${CMAKE_BINARY_DIR}/aja-case/${_header}.h" "#include <${_lower}.h>\n")
+  endforeach()
+  target_include_directories(aja-cross PRIVATE "${CMAKE_BINARY_DIR}/aja-case")
+endif()
