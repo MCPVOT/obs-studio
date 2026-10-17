@@ -15,28 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include <util/dstr.h>
-#include <util/platform.h>
-
-#define NO_REDEFS
-#include "obs-scripting-python-import.h"
-
-#ifdef _MSC_VER
-#pragma warning(disable : 4152)
-#endif
-
-#ifdef _WIN32
-#include <windows.h>
-#include <io.h>
-#define F_OK 0
-#define access _access
-#define VERSION_PATTERN "%d%d"
-#define FILE_PATTERN "python%s.dll"
-#define PATH_MAX MAX_PATH
-#elif defined(__APPLE__)
-#define VERSION_PATTERN "%d.%d"
-#define FILE_PATTERN "Python.framework/Versions/%s/lib/libpython%s.dylib"
-#endif
+#include "shared/obs-scripting/build/obs-scripting-python-import.pch.h"
 
 #define PY_MAJOR_VERSION_MAX 3
 #define PY_MINOR_VERSION_MAX 12
@@ -208,3 +187,7 @@ fail:
 
 	return success;
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef PY_MAJOR_VERSION_MAX
+#undef PY_MINOR_VERSION_MAX

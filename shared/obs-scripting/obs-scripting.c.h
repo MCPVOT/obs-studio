@@ -15,14 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include <obs.h>
-#include <util/dstr.h>
-#include <util/platform.h>
-#include <util/threading.h>
-#include <util/deque.h>
-
-#include "obs-scripting-internal.h"
-#include "obs-scripting-callback.h"
+#include "shared/obs-scripting/build/obs-scripting.pch.h"
 
 static obs_module_t *obs_module_pointer;
 
@@ -469,3 +462,6 @@ void obs_scripting_python_version(char *version, size_t version_length)
 	version[0] = 0;
 }
 #endif
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef ptr_valid

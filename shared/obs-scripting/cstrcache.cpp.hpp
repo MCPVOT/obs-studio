@@ -1,7 +1,4 @@
-#include <unordered_map>
-#include <string>
-
-#include "cstrcache.h"
+#include "shared/obs-scripting/build/obs-scripting-cstrcache.pch.hpp"
 
 using namespace std;
 

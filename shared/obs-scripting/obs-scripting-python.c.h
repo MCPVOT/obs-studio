@@ -16,14 +16,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "obs-scripting-python.h"
-#include "obs-scripting-python-startup.h"
-#include <util/base.h>
-#include <util/platform.h>
-#include <util/darray.h>
-#include <util/dstr.h>
-
-#include <obs.h>
+#include "shared/obs-scripting/build/obs-scripting-python.pch.h"
 
 /* ========================================================================= */
 
@@ -1778,3 +1771,9 @@ void obs_python_unload(void)
 
 	python_loaded_at_all = false;
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef libobs_to_py
+#undef py_to_libobs
+#undef lock_callback
+#undef unlock_callback

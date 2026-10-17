@@ -19,9 +19,8 @@ if(ENABLE_SCRIPTING_LUA)
   target_sources(
     obs-scripting
     PRIVATE
-      $<$<BOOL:${ENABLE_FRONTEND}>:obs-scripting-lua-frontend.c>
-      obs-scripting-lua-source.c
-      obs-scripting-lua.c
+      $<$<BOOL:${ENABLE_FRONTEND}>:build/obs-scripting.lua-frontend+.h.c>
+      build/obs-scripting.lua+.h.c
       obs-scripting-lua.h
       swig/swigluarun.h
   )
@@ -32,8 +31,7 @@ if(ENABLE_SCRIPTING_LUA)
   target_compile_definitions(obs-scripting PUBLIC LUAJIT_FOUND)
 
   set_source_files_properties(
-    obs-scripting-lua.c
-    obs-scripting-lua-source.c
+    build/obs-scripting.lua+.h.c
     PROPERTIES COMPILE_OPTIONS $<$<COMPILE_LANG_AND_ID:C,AppleClang,Clang>:-Wno-error=shorten-64-to-32>
   )
 

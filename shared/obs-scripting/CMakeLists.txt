@@ -25,11 +25,7 @@ else()
   target_enable_feature(obs-scripting "Scripting support")
 endif()
 
-target_sources(
-  obs-scripting
-  PUBLIC obs-scripting.h
-  PRIVATE obs-scripting-callback.h obs-scripting-logging.c obs-scripting.c
-)
+target_sources(obs-scripting PUBLIC obs-scripting.h PRIVATE build/obs-scripting.core+.h.c obs-scripting-callback.h)
 
 target_compile_definitions(
   obs-scripting

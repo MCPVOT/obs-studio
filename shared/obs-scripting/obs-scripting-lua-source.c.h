@@ -15,11 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "obs-scripting-lua.h"
-#include "cstrcache.h"
-
-#include <obs-module.h>
-#include <util/platform.h>
+#include "shared/obs-scripting/build/obs-scripting-lua.pch.h"
 
 /* ========================================================================= */
 
@@ -800,3 +796,14 @@ void undef_lua_script_sources(struct obs_lua_script *data)
 #undef call_func
 #undef ls_get_libobs_obj
 #undef ls_push_libobs_obj
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef get_table_string
+#undef get_table_int
+#undef get_callback_from_table
+#undef have_func
+#undef ls_push_data
+#undef ls_pop
+#undef lock_script
+#undef unlock_script
+#undef lock_script_in_graphics

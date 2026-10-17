@@ -15,10 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include <obs-module.h>
-#include <obs-frontend-api.h>
-
-#include "obs-scripting-python.h"
+#include "shared/obs-scripting/build/obs-scripting-python-frontend.pch.h"
 
 #define libobs_to_py(type, obs_obj, ownership, py_obj) \
 	libobs_to_py_(#type " *", obs_obj, ownership, py_obj, NULL, __func__, __LINE__)
@@ -448,3 +445,7 @@ void add_python_frontend_funcs(PyObject *module)
 
 	add_functions_to_py_module(module, funcs);
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef libobs_to_py
+#undef py_to_libobs

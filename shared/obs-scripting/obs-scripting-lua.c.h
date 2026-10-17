@@ -15,29 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "obs-scripting-lua.h"
-#include <util/platform.h>
-#include <util/base.h>
-#include <util/dstr.h>
-
-#include <obs.h>
-
-/* ========================================================================= */
-
-#if ARCH_BITS == 64
-#define ARCH_DIR "64bit"
-#else
-#define ARCH_DIR "32bit"
-#endif
-
-#ifdef __APPLE__
-#define SO_EXT "so"
-#elif defined(_WIN32)
-#include <windows.h>
-#define SO_EXT "dll"
-#else
-#define SO_EXT "so"
-#endif
+#include "shared/obs-scripting/build/obs-scripting-lua.pch.h"
 
 static const char startup_script_template[] = "\
 for val in pairs(package.preload) do\n\
@@ -1381,3 +1359,6 @@ void obs_lua_unload(void)
 #undef call_func
 #undef ls_get_libobs_obj
 #undef ls_push_libobs_obj
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef PATH_MAX

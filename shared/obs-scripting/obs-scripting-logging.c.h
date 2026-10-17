@@ -15,8 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "obs-scripting-internal.h"
-#include <util/platform.h>
+#include "shared/obs-scripting/build/obs-scripting.pch.h"
 
 static scripting_log_handler_t callback = NULL;
 static void *param = NULL;

@@ -80,11 +80,24 @@ function(_obs_target_groups target)
   get_target_property(_sources ${target} SOURCES)
   get_target_property(_source_dir ${target} SOURCE_DIR)
   set(_candidates "")
+  set(_conditional "")
   foreach(_source IN LISTS _sources)
-    if(NOT _source MATCHES "[<>$]")
+    if(_source MATCHES "[<>$]")
+      # A group behind a generator expression
+      # ($<$<BOOL:${ENABLE_FRONTEND}>:build/x.lua-frontend+.h.c>) is still one
+      # of the target's groups: it must stay out of another group's
+      # precompiled header like any other.
+      # Which build it is in is only known at generation, so it neither picks
+      # nor takes the target's precompiled header: it includes its own.
+      string(REGEX MATCH "([A-Za-z]:/)?[^:<>$,;]+\\+\\.(h\\.c|hpp\\.cpp|h\\.m|hpp\\.mm)" _source "${_source}")
+      if(NOT _source)
+        continue()
+      endif()
       cmake_path(ABSOLUTE_PATH _source BASE_DIRECTORY "${_source_dir}" NORMALIZE OUTPUT_VARIABLE _absolute)
-      list(APPEND _candidates "${_absolute}")
+      list(APPEND _conditional "${_absolute}")
     endif()
+    cmake_path(ABSOLUTE_PATH _source BASE_DIRECTORY "${_source_dir}" NORMALIZE OUTPUT_VARIABLE _absolute)
+    list(APPEND _candidates "${_absolute}")
   endforeach()
   set(_interface "")
   get_target_property(_links ${target} LINK_LIBRARIES)
@@ -169,7 +182,7 @@ function(_obs_target_groups target)
     # not match a header precompiled with the target's: it includes its
     # header textually and doesn't vote for the target's.
     get_source_file_property(_options "${_group}" TARGET_DIRECTORY ${target} COMPILE_OPTIONS)
-    if(_options)
+    if(_options OR _group IN_LIST _conditional)
       list(APPEND _own_options "${_group}")
     else()
       list(APPEND _pchs_${_language} "${_pch}")

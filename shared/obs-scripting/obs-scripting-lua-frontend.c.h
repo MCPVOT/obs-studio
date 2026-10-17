@@ -15,10 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include <obs-module.h>
-#include <obs-frontend-api.h>
-
-#include "obs-scripting-lua.h"
+#include "shared/obs-scripting/build/obs-scripting-lua-frontend.pch.h"
 
 #define ls_get_libobs_obj(type, lua_index, obs_obj) \
 	ls_get_libobs_obj_(script, #type " *", lua_index, obs_obj, NULL, __FUNCTION__, __LINE__)
