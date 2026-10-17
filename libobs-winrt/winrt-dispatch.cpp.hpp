@@ -1,3 +1,5 @@
+#include "build/winrt.pch.hpp"
+
 extern "C" EXPORT void winrt_initialize()
 {
 	winrt::init_apartment(winrt::apartment_type::multi_threaded);
