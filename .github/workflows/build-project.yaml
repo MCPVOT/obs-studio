@@ -876,15 +876,16 @@ jobs:
       # Step 3 (#992): only the plugin/shared modules the diff touches, on
       # Linux, one configure with ENABLE_FRONTEND=OFF (no Qt). Master and full
       # runs build everything in the Ubuntu app builds instead.
+      # Scoped master pushes also warm this exact configuration for later PRs.
       - name: Restore ccache 💾
-        if: needs.check-event.outputs.deferred == 'true' && needs.check-event.outputs.linux_targets != ''
+        if: needs.check-event.outputs.linux_targets != '' && (needs.check-event.outputs.deferred == 'true' || (github.event_name == 'push' && github.ref == 'refs/heads/master'))
         uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ${{ github.workspace }}/.targets-ccache
           key: targets-ccache-linux-${{ github.sha }}
           restore-keys: targets-ccache-linux-
       - name: Build Touched Linux Targets 🧱
-        if: needs.check-event.outputs.deferred == 'true' && needs.check-event.outputs.linux_targets != ''
+        if: needs.check-event.outputs.linux_targets != '' && (needs.check-event.outputs.deferred == 'true' || (github.event_name == 'push' && github.ref == 'refs/heads/master'))
         env:
           TARGETS: ${{ needs.check-event.outputs.linux_targets }}
           CCACHE_DIR: ${{ github.workspace }}/.targets-ccache
@@ -898,6 +899,8 @@ jobs:
             xargs "${GITHUB_WORKSPACE}/.github/scripts/retry" sudo apt-get install -y --no-install-recommends
           # The launcher below; apt-packages.txt no longer lists it (#957, #1183).
           "${GITHUB_WORKSPACE}/.github/scripts/retry" sudo apt-get install -y --no-install-recommends ccache
+          ccache --max-size=250M
+          ccache --zero-stats
           cmake -S . -B "${RUNNER_TEMP}/targets" -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DENABLE_FRONTEND=OFF -DENABLE_SCRIPTING=OFF -DENABLE_BROWSER=OFF -DENABLE_WEBSOCKET=OFF \
@@ -909,6 +912,15 @@ jobs:
             if grep -qx "$t" <<<"$avail"; then build+=("$t"); else echo "no Linux target $t: skipped"; fi
           done
           [ "${#build[@]}" -eq 0 ] || cmake --build "${RUNNER_TEMP}/targets" --target "${build[@]}"
+          ccache --show-stats --verbose
+          du -sh "$CCACHE_DIR"
+
+      - name: Save Touched Target ccache 💾
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master' && needs.check-event.outputs.linux_targets != ''
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ github.workspace }}/.targets-ccache
+          key: targets-ccache-linux-${{ github.sha }}
 
       # Skipped when a trusted run already passed these exact inputs.
       - name: Local Gate (rust-test) 🧪
