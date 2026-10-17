@@ -25,14 +25,14 @@ class AppConfigIdentityTest(unittest.TestCase):
         functions = platform[
             start : platform.index("extern bool portable_mode;", start)
         ]
-        app = (ROOT / "frontend/OBSApp.cpp").read_text()
+        app = (ROOT / "frontend/OBSApp.cpp.hpp").read_text()
         initialization = app.split("void OBSApp::AppInit()", 1)[1]
         initialization = initialization[
             initialization.index("\tif (!InitializeAppIdentity())") : initialization.index(
                 "\n\tif (!MigrateRustConfiguration"
             )
         ]
-        main = (ROOT / "frontend/obs-main.cpp").read_text()
+        main = (ROOT / "frontend/obs-main.cpp.hpp").read_text()
         logging = main[
             main.rindex("\t\tif (!created_log) {") : main.index(
                 "\t\tprogram.checkForUncleanShutdown();"
@@ -92,7 +92,7 @@ class AppConfigIdentityTest(unittest.TestCase):
         cls.temp = tempfile.TemporaryDirectory(prefix="obs-config-identity-")
         cls.addClassCleanup(cls.temp.cleanup)
         directory = Path(cls.temp.name)
-        source = (ROOT / "frontend/OBSApp.cpp").read_text()
+        source = (ROOT / "frontend/OBSApp.cpp.hpp").read_text()
         start = source.index("int GetAppConfigPath(char *path")
         end = source.index("int GetProgramDataPath(", start)
         functions = source[start:end]
@@ -202,7 +202,7 @@ class AppConfigIdentityTest(unittest.TestCase):
                 )
 
     def test_default_migration_root_has_no_redundant_separator(self):
-        source = (ROOT / "frontend/OBSApp.cpp").read_text()
+        source = (ROOT / "frontend/OBSApp.cpp.hpp").read_text()
         migration = source.split("bool OBSApp::MigrateRustConfiguration()", 1)[1].split(
             "namespace OBS", 1
         )[0]
@@ -583,7 +583,7 @@ class IdentityBuildSelectionTest(unittest.TestCase):
 
 class StartupOrderTest(unittest.TestCase):
     def test_rust_import_precedes_crash_handler_directory_creation(self):
-        source = (ROOT / "frontend/OBSApp.cpp").read_text()
+        source = (ROOT / "frontend/OBSApp.cpp.hpp").read_text()
         constructor = source.split("OBSApp::OBSApp(", 1)[1].split(
             "OBSApp::~OBSApp()", 1
         )[0]

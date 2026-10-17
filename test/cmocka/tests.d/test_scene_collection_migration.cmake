@@ -4,7 +4,7 @@
 add_executable(
   test_scene_collection_migration
   test_scene_collection_migration.cpp
-  "${CMAKE_SOURCE_DIR}/frontend/utility/scene-collection-migration.cpp"
+  "${CMAKE_SOURCE_DIR}/frontend/utility/scene-collection-migration.cpp.hpp"
 )
 target_include_directories(
   test_scene_collection_migration

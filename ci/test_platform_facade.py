@@ -63,7 +63,7 @@ class FacadeTest(unittest.TestCase):
                     self.assertTrue(defines(text, name), f"{impl} does not define {name}")
 
     def test_obsapp_calls_the_facade(self):
-        text = (ROOT / "frontend" / "OBSApp.cpp").read_text()
+        text = (ROOT / "frontend" / "OBSApp.cpp.hpp").read_text()
         for name in facade_functions():
             with self.subTest(function=name):
                 self.assertRegex(text, rf"\b{name}\(", f"OBSApp.cpp never calls {name}")
@@ -81,7 +81,7 @@ class FacadeTest(unittest.TestCase):
                         self.assertRegex(text, rf"#(include|import)\s+[<\"]{re.escape(header)}[>\"]")
 
     def test_obsapp_has_no_platform_conditionals(self):
-        text = (ROOT / "frontend" / "OBSApp.cpp").read_text()
+        text = (ROOT / "frontend" / "OBSApp.cpp.hpp").read_text()
         self.assertEqual(ratchet.count_platform_conditionals(text), [])
 
 

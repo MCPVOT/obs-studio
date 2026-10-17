@@ -63,7 +63,7 @@ QPlatformIntegration *QGuiApplicationPrivate::integration=nullptr;
 
 class MacIconFocus(unittest.TestCase):
     def compile_initialization(self, apple, logging=False):
-        app = (ROOT / "frontend/OBSApp.cpp").read_text()
+        app = (ROOT / "frontend/OBSApp.cpp.hpp").read_text()
         start = app.index("sleepInhibitor = os_inhibit_sleep_create")
         start = app.index(";", start) + 1
         initialization = app[start : app.index("setDesktopFileName", start)]
@@ -80,7 +80,7 @@ class MacIconFocus(unittest.TestCase):
         policy += "\n" + icon.replace("QApplication::", "qApp->")
         post_log = ""
         if logging:
-            main = (ROOT / "frontend/obs-main.cpp").read_text()
+            main = (ROOT / "frontend/obs-main.cpp.hpp").read_text()
             post_log = main[
                 main.rindex("\t\tif (!created_log) {") : main.index(
                     "\t\tprogram.checkForUncleanShutdown();"

@@ -8,7 +8,7 @@ if(TARGET Qt6::Core)
   add_executable(
     test_preview_audio_sources
     test_preview_audio_sources.cpp
-    "${CMAKE_SOURCE_DIR}/frontend/utility/preview-audio-sources.cpp"
+    "${CMAKE_SOURCE_DIR}/frontend/utility/preview-audio-sources.cpp.hpp"
   )
   target_include_directories(
     test_preview_audio_sources

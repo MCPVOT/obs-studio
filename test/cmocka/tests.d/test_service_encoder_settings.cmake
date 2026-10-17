@@ -7,7 +7,7 @@
 add_executable(
   test_service_encoder_settings
   test_service_encoder_settings.c
-  "${CMAKE_SOURCE_DIR}/frontend/utility/service-encoder-settings.c"
+  "${CMAKE_SOURCE_DIR}/frontend/utility/service-encoder-settings.c.h"
 )
 target_include_directories(
   test_service_encoder_settings

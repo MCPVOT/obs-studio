@@ -97,7 +97,7 @@ add_test(test_os_path ${CMAKE_CURRENT_BINARY_DIR}/test_os_path)
 
 # Product name shown by the frontend (frontend/utility/product-name.c), built
 # without Qt.
-add_executable(test_product_name test_product_name.c "${CMAKE_SOURCE_DIR}/frontend/utility/product-name.c")
+add_executable(test_product_name test_product_name.c "${CMAKE_SOURCE_DIR}/frontend/utility/product-name.c.h")
 target_include_directories(test_product_name PRIVATE ${CMOCKA_INCLUDE_DIR} "${CMAKE_SOURCE_DIR}/frontend/utility")
 target_link_libraries(test_product_name PRIVATE ${CMOCKA_LIBRARIES})
 add_dependencies(cmocka-tests test_product_name)

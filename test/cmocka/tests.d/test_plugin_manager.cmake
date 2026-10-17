@@ -22,11 +22,11 @@ if(OS_LINUX)
       test_plugin_manager.cpp
       "${CMAKE_SOURCE_DIR}/frontend/components/InfoChip.cpp.hpp"
       "${CMAKE_SOURCE_DIR}/frontend/components/InfoChip.hpp"
-      "${_pm_dir}/InstalledPluginRow.cpp"
+      "${_pm_dir}/InstalledPluginRow.cpp.hpp"
       "${_pm_dir}/InstalledPluginRow.hpp"
-      "${_pm_dir}/PluginManager.cpp"
+      "${_pm_dir}/PluginManager.cpp.hpp"
       "${_pm_dir}/PluginManager.hpp"
-      "${_pm_dir}/PluginManagerWindow.cpp"
+      "${_pm_dir}/PluginManagerWindow.cpp.hpp"
       "${_pm_dir}/PluginManagerWindow.hpp"
       ${_pm_ui}
     )

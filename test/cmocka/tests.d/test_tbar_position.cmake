@@ -2,7 +2,7 @@
 # and obs_frontend_release_tbar, used by obs-websocket's SetTBarPosition).
 # Builds the plain C helper the frontend calls, so the test needs neither Qt
 # nor a display.
-add_executable(test_tbar_position test_tbar_position.c "${CMAKE_SOURCE_DIR}/frontend/utility/tbar-position.c")
+add_executable(test_tbar_position test_tbar_position.c "${CMAKE_SOURCE_DIR}/frontend/utility/tbar-position.c.h")
 target_include_directories(test_tbar_position PRIVATE ${CMOCKA_INCLUDE_DIR} "${CMAKE_SOURCE_DIR}/frontend/utility")
 target_link_libraries(test_tbar_position PRIVATE ${CMOCKA_LIBRARIES})
 add_dependencies(cmocka-tests test_tbar_position)

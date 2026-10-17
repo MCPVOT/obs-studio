@@ -3,7 +3,7 @@
 add_executable(
   test_multitrack_encoder_override
   test_multitrack_encoder_override.c
-  "${CMAKE_SOURCE_DIR}/frontend/utility/multitrack-encoder-override.c"
+  "${CMAKE_SOURCE_DIR}/frontend/utility/multitrack-encoder-override.c.h"
 )
 target_include_directories(
   test_multitrack_encoder_override

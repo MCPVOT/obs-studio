@@ -60,4 +60,4 @@ else()
   target_disable_feature(obs-studio "GPU acceleration status light")
 endif()
 
-target_sources(obs-studio PRIVATE utility/GpuStatus.cpp utility/GpuStatus.hpp)
+target_sources(obs-studio PRIVATE build/frontend.gpu-status+.hpp.cpp utility/GpuStatus.hpp)

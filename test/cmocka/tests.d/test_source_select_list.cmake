@@ -7,7 +7,7 @@ if(TARGET Qt6::Core)
   add_executable(
     test_source_select_list
     test_source_select_list.cpp
-    "${CMAKE_SOURCE_DIR}/frontend/utility/source-select-list.cpp"
+    "${CMAKE_SOURCE_DIR}/frontend/utility/source-select-list.cpp.hpp"
   )
   target_include_directories(
     test_source_select_list

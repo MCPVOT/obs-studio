@@ -7,7 +7,7 @@ if(OS_LINUX AND TARGET OBS::libobs-opengl)
   add_executable(
     test_visibility_transition
     test_visibility_transition.c
-    "${CMAKE_SOURCE_DIR}/frontend/utility/visibility-transition.c"
+    "${CMAKE_SOURCE_DIR}/frontend/utility/visibility-transition.c.h"
   )
   target_compile_definitions(
     test_visibility_transition

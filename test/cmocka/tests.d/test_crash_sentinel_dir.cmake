@@ -4,7 +4,7 @@
 add_executable(
   test_crash_sentinel_dir
   test_crash_sentinel_dir.cpp
-  "${CMAKE_SOURCE_DIR}/frontend/utility/crash-sentinel-dir.cpp"
+  "${CMAKE_SOURCE_DIR}/frontend/utility/crash-sentinel-dir.cpp.hpp"
 )
 target_include_directories(test_crash_sentinel_dir PRIVATE ${CMOCKA_INCLUDE_DIR} "${CMAKE_SOURCE_DIR}/frontend/utility")
 target_compile_features(test_crash_sentinel_dir PRIVATE cxx_std_17)

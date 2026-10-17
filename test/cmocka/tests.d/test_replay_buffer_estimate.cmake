@@ -9,7 +9,7 @@ if(OS_LINUX)
     add_executable(
       test_replay_buffer_estimate
       test_replay_buffer_estimate.cpp
-      "${CMAKE_SOURCE_DIR}/frontend/utility/replay-buffer-estimate.cpp"
+      "${CMAKE_SOURCE_DIR}/frontend/utility/replay-buffer-estimate.cpp.hpp"
     )
     target_include_directories(
       test_replay_buffer_estimate

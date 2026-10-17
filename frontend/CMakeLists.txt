@@ -91,7 +91,14 @@ configure_file(cmake/templates/ui-config.h.in ui-config.h)
 
 target_sources(
   obs-studio
-  PRIVATE obs-main.cpp OBSStudioAPI.cpp OBSStudioAPI.hpp OBSApp.cpp OBSApp.hpp OBSApp_Themes.cpp ui-config.h
+  PRIVATE
+    build/frontend.app-obs-main+.hpp.cpp
+    build/frontend.app-obsstudioapi+.hpp.cpp
+    OBSStudioAPI.hpp
+    build/frontend.app-obsapp+.hpp.cpp
+    OBSApp.hpp
+    build/frontend.app+.hpp.cpp
+    ui-config.h
 )
 
 # The Rust build names itself OBS-Studio-Rust and shows its own version, read from

@@ -1,143 +1,118 @@
 target_sources(
   obs-studio
   PRIVATE
-    utility/AdvancedOutput.cpp
+    build/frontend.utility+.hpp.cpp
     utility/AdvancedOutput.hpp
     utility/BaseLexer.hpp
-    utility/BasicOutputHandler.cpp
+    build/frontend.utility-basicoutputhandler+.hpp.cpp
     utility/BasicOutputHandler.hpp
-    utility/CrashHandler.cpp
     utility/CrashHandler.hpp
-    utility/crash-sentinel-dir.cpp
+    build/frontend.utility-crash-sentinel-dir+.hpp.cpp
     utility/crash-sentinel-dir.hpp
     utility/settings-migration.hpp
     utility/unclean-launch.hpp
     utility/output-start-log.hpp
-    utility/FFmpegCodec.cpp
     utility/FFmpegCodec.hpp
-    utility/FFmpegFormat.cpp
     utility/FFmpegFormat.hpp
     utility/FFmpegShared.hpp
     utility/frontend-api-call.hpp
-    utility/filter-clipboard.c
+    build/frontend.utility-filter-clipboard+.h.c
     utility/filter-clipboard.h
-    utility/GoLiveAPI_CensoredJson.cpp
     utility/GoLiveAPI_CensoredJson.hpp
-    utility/GoLiveAPI_Network.cpp
     utility/GoLiveAPI_Network.hpp
-    utility/GoLiveAPI_PostData.cpp
     utility/GoLiveAPI_PostData.hpp
-    utility/media-time.c
+    build/frontend.utility-media-time+.h.c
     utility/media-time.h
-    utility/missing-files-list.c
+    build/frontend.utility-missing-files-list+.h.c
     utility/missing-files-list.h
-    utility/MissingFilesModel.cpp
     utility/MissingFilesModel.hpp
-    utility/MissingFilesPathItemDelegate.cpp
     utility/MissingFilesPathItemDelegate.hpp
-    utility/MultitrackVideoError.cpp
     utility/MultitrackVideoError.hpp
-    utility/MultitrackVideoOutput.cpp
+    build/frontend.utility-2+.hpp.cpp
     utility/MultitrackVideoOutput.hpp
-    utility/multitrack-encoder-override.c
+    build/frontend.utility-multitrack-encoder-override+.h.c
     utility/multitrack-encoder-override.h
     utility/NativeEventFilter.hpp
-    utility/output-filename-format.c
+    build/frontend.utility-output-filename-format+.h.c
     utility/output-filename-format.h
-    utility/replay-buffer-estimate.cpp
+    build/frontend.utility-replay-buffer-estimate+.hpp.cpp
     utility/replay-buffer-estimate.hpp
-    utility/replay-buffer-naming.c
+    build/frontend.utility-replay-buffer-naming+.h.c
     utility/replay-buffer-naming.h
-    utility/output-filename-reserve.c
+    build/frontend.utility-output-filename-reserve+.h.c
     utility/output-filename-reserve.h
-    utility/output-rescale.c
+    build/frontend.utility-output-rescale+.h.c
     utility/output-rescale.h
-    utility/menu-text.c
+    build/frontend.utility-menu-text+.h.c
     utility/menu-text.h
-    utility/multitrack-ladder.c
+    build/frontend.utility-multitrack-ladder+.h.c
     utility/multitrack-ladder.h
-    utility/product-name.c
-    utility/record-disk-space.c
+    build/frontend.utility-product-name+.h.c
+    build/frontend.utility-record-disk-space+.h.c
     utility/record-disk-space.h
     utility/product-name.h
-    utility/profile-activate.c
+    build/frontend.utility-profile-activate+.h.c
     utility/profile-activate.h
-    utility/profile-remove.c
+    build/frontend.utility-profile-remove+.h.c
     utility/profile-remove.h
-    utility/preview-audio-sources.cpp
+    build/frontend.utility-preview-audio-sources+.hpp.cpp
     utility/preview-audio-sources.hpp
-    utility/saved-transition.c
+    build/frontend.utility-saved-transition+.h.c
     utility/saved-transition.h
-    utility/scene-collection-migration.cpp
+    build/frontend.utility-scene-collection-migration+.hpp.cpp
     utility/scene-collection-migration.hpp
-    utility/scene-list-remove.c
+    build/frontend.utility-scene-list-remove+.h.c
     utility/scene-list-remove.h
-    utility/service-encoder-settings.c
+    build/frontend.utility-service-encoder-settings+.h.c
     utility/service-encoder-settings.h
-    utility/source-select-list.cpp
+    build/frontend.utility-source-select-list+.hpp.cpp
     utility/source-select-list.hpp
-    utility/stream-service-select.c
+    build/frontend.utility-stream-service-select+.h.c
     utility/stream-service-select.h
-    utility/studio-mode-exit.c
+    build/frontend.utility-studio-mode-exit+.h.c
     utility/studio-mode-exit.h
-    utility/studio-mode-swap.c
+    build/frontend.utility-studio-mode-swap+.h.c
     utility/studio-mode-swap.h
-    utility/tbar-position.c
+    build/frontend.utility-tbar-position+.h.c
     utility/tbar-position.h
-    utility/transform-clipboard.c
+    build/frontend.utility-transform-clipboard+.h.c
     utility/transform-clipboard.h
-    utility/visibility-transition.c
+    build/frontend.utility-visibility-transition+.h.c
     utility/visibility-transition.h
-    utility/OBSCanvas.cpp
     utility/OBSCanvas.hpp
     utility/OBSEventFilter.hpp
-    utility/OBSProxyStyle.cpp
     utility/OBSProxyStyle.hpp
     utility/OBSTheme.hpp
     utility/OBSThemeVariable.hpp
-    utility/OBSTranslator.cpp
     utility/OBSTranslator.hpp
-    utility/PreviewProgramSizeObserver.cpp
     utility/PreviewProgramSizeObserver.hpp
-    utility/QuickTransition.cpp
     utility/QuickTransition.hpp
-    utility/RemoteTextThread.cpp
     utility/RemoteTextThread.hpp
-    utility/RemuxEntryPathItemDelegate.cpp
     utility/RemuxEntryPathItemDelegate.hpp
-    utility/RemuxQueueModel.cpp
     utility/RemuxQueueModel.hpp
-    utility/RemuxWorker.cpp
     utility/RemuxWorker.hpp
     utility/ResizeSignaler.hpp
-    utility/SceneRenameDelegate.cpp
+    build/frontend.utility-3+.hpp.cpp
     utility/SceneRenameDelegate.hpp
-    utility/ScreenshotObj.cpp
+    build/frontend.utility-screenshotobj+.hpp.cpp
     utility/ScreenshotObj.hpp
     utility/SettingsEventFilter.hpp
-    utility/SimpleOutput.cpp
     utility/SimpleOutput.hpp
     utility/StartMultiTrackVideoStreamingGuard.hpp
     utility/SurfaceEventFilter.hpp
-    utility/ThumbnailItem.cpp
     utility/ThumbnailItem.hpp
-    utility/ThumbnailManager.cpp
     utility/ThumbnailManager.hpp
-    utility/ThumbnailView.cpp
     utility/ThumbnailView.hpp
     utility/VCamConfig.hpp
-    utility/audio-encoders.cpp
     utility/audio-encoders.hpp
     utility/display-helpers.hpp
-    utility/item-widget-helpers.cpp
     utility/item-widget-helpers.hpp
     utility/models/multitrack-video.hpp
-    utility/obf.c
+    build/frontend.utility-c+.h.c
     utility/obf.h
     utility/platform.hpp
-    utility/screenshot-render.cpp
+    build/frontend.utility-screenshot-render+.hpp.cpp
     utility/screenshot-render.hpp
     utility/system-info.hpp
-    utility/undo_stack.cpp
     utility/undo_stack.hpp
 )

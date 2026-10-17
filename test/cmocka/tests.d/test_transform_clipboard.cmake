@@ -7,7 +7,7 @@ if(OS_LINUX AND TARGET OBS::libobs-opengl)
   add_executable(
     test_transform_clipboard
     test_transform_clipboard.c
-    "${CMAKE_SOURCE_DIR}/frontend/utility/transform-clipboard.c"
+    "${CMAKE_SOURCE_DIR}/frontend/utility/transform-clipboard.c.h"
   )
   target_compile_definitions(test_transform_clipboard PRIVATE GRAPHICS_MODULE_PATH="$<TARGET_FILE:OBS::libobs-opengl>")
   target_include_directories(

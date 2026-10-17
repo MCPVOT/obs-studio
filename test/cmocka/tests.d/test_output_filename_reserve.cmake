@@ -7,7 +7,7 @@
 add_executable(
   test_output_filename_reserve
   test_output_filename_reserve.c
-  "${CMAKE_SOURCE_DIR}/frontend/utility/output-filename-reserve.c"
+  "${CMAKE_SOURCE_DIR}/frontend/utility/output-filename-reserve.c.h"
 )
 target_include_directories(
   test_output_filename_reserve

@@ -6,8 +6,8 @@ if(OS_LINUX AND TARGET OBS::libobs-opengl)
   add_executable(
     test_replay_buffer_naming
     test_replay_buffer_naming.c
-    "${CMAKE_SOURCE_DIR}/frontend/utility/replay-buffer-naming.c"
-    "${CMAKE_SOURCE_DIR}/frontend/utility/output-filename-format.c"
+    "${CMAKE_SOURCE_DIR}/frontend/utility/replay-buffer-naming.c.h"
+    "${CMAKE_SOURCE_DIR}/frontend/utility/output-filename-format.c.h"
   )
   target_compile_definitions(test_replay_buffer_naming PRIVATE GRAPHICS_MODULE_PATH="$<TARGET_FILE:OBS::libobs-opengl>")
   target_include_directories(

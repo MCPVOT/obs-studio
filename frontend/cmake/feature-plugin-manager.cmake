@@ -11,28 +11,28 @@ set(OBS_PLATFORM_PLUGIN_DATA_PATH "${CMAKE_INSTALL_PREFIX}/${OBS_DATA_DESTINATIO
 target_sources(
   obs-studio
   PRIVATE
-    plugin-manager/InstalledPluginRow.cpp
+    build/frontend.plugin-manager-installedpluginrow+.hpp.cpp
     plugin-manager/InstalledPluginRow.hpp
-    plugin-manager/PluginManager.cpp
+    build/frontend.plugin-manager-pluginmanager+.hpp.cpp
     plugin-manager/PluginManager.hpp
-    plugin-manager/PluginManagerWindow.cpp
+    build/frontend.plugin-manager-pluginmanagerwindow+.hpp.cpp
     plugin-manager/PluginManagerWindow.hpp
     plugin-manager/PluginModuleLoader.hpp
 )
 
 if(OS_WINDOWS)
-  target_sources(obs-studio PRIVATE plugin-manager/PluginModuleLoader_Windows.cpp)
+  target_sources(obs-studio PRIVATE build/frontend.plugin-manager-pluginmoduleloader_windows+.hpp.cpp)
 elseif(OS_MACOS)
-  target_sources(obs-studio PRIVATE plugin-manager/PluginModuleLoader_MacOS.mm)
+  target_sources(obs-studio PRIVATE build/frontend.plugin-manager-mm+.hpp.mm)
 elseif(OS_FLATPAK)
   configure_file(plugin-manager/LoaderPaths_Flatpak.hpp.in LoaderPaths_Flatpak.hpp @ONLY)
-  target_sources(obs-studio PRIVATE plugin-manager/PluginModuleLoader_Flatpak.cpp LoaderPaths_Flatpak.hpp)
+  target_sources(obs-studio PRIVATE build/frontend.plugin-manager-flatpak+.hpp.cpp LoaderPaths_Flatpak.hpp)
 elseif(OS_LINUX)
   configure_file(plugin-manager/LoaderPaths_Linux.hpp.in LoaderPaths_Linux.hpp @ONLY)
-  target_sources(obs-studio PRIVATE plugin-manager/PluginModuleLoader_Linux.cpp LoaderPaths_Linux.hpp)
+  target_sources(obs-studio PRIVATE build/frontend.plugin-manager-linux+.hpp.cpp LoaderPaths_Linux.hpp)
 elseif(OS_FREEBSD OR OS_OPENBSD)
   configure_file(plugin-manager/LoaderPaths_BSD.hpp.in LoaderPaths_BSD.hpp @ONLY)
-  target_sources(obs-studio PRIVATE plugin-manager/PluginModuleLoader_BSD.cpp LoaderPaths_BSD.hpp)
+  target_sources(obs-studio PRIVATE build/frontend.plugin-manager-bsd+.hpp.cpp LoaderPaths_BSD.hpp)
 endif()
 
 target_link_libraries(obs-studio PRIVATE nlohmann_json::nlohmann_json)

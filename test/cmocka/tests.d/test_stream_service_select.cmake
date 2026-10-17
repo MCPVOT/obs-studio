@@ -4,7 +4,7 @@
 add_executable(
   test_stream_service_select
   test_stream_service_select.c
-  "${CMAKE_SOURCE_DIR}/frontend/utility/stream-service-select.c"
+  "${CMAKE_SOURCE_DIR}/frontend/utility/stream-service-select.c.h"
 )
 target_include_directories(
   test_stream_service_select

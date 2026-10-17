@@ -4,7 +4,7 @@
 add_executable(
   test_record_disk_space
   test_record_disk_space.c
-  "${CMAKE_SOURCE_DIR}/frontend/utility/record-disk-space.c"
+  "${CMAKE_SOURCE_DIR}/frontend/utility/record-disk-space.c.h"
 )
 target_include_directories(test_record_disk_space PRIVATE ${CMOCKA_INCLUDE_DIR} "${CMAKE_SOURCE_DIR}/frontend/utility")
 target_link_libraries(test_record_disk_space PRIVATE ${CMOCKA_LIBRARIES})

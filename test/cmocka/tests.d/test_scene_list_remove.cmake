@@ -4,7 +4,7 @@
 add_executable(
   test_scene_list_remove
   test_scene_list_remove.c
-  "${CMAKE_SOURCE_DIR}/frontend/utility/scene-list-remove.c"
+  "${CMAKE_SOURCE_DIR}/frontend/utility/scene-list-remove.c.h"
 )
 target_include_directories(test_scene_list_remove PRIVATE ${CMOCKA_INCLUDE_DIR} "${CMAKE_SOURCE_DIR}/frontend/utility")
 target_link_libraries(test_scene_list_remove PRIVATE ${CMOCKA_LIBRARIES})

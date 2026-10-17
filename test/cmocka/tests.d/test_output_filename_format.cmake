@@ -3,7 +3,7 @@
 add_executable(
   test_output_filename_format
   test_output_filename_format.c
-  "${CMAKE_SOURCE_DIR}/frontend/utility/output-filename-format.c"
+  "${CMAKE_SOURCE_DIR}/frontend/utility/output-filename-format.c.h"
 )
 target_include_directories(
   test_output_filename_format
