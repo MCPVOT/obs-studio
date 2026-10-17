@@ -1,5 +1,5 @@
 /* Unity group (BUILD.md): Windows WGL. */
 
-#include "opengl-windows.pch.h"
+#include "libobs-opengl/build/opengl-windows.pch.h"
 
-#include "../gl-windows.c.h"
+#include "libobs-opengl/gl-windows.c.h"

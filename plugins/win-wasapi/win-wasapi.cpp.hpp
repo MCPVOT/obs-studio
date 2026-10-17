@@ -1,4 +1,4 @@
-#include "build/win-wasapi-windows.pch.hpp"
+#include "plugins/win-wasapi/build/win-wasapi-windows.pch.hpp"
 
 using namespace std;
 

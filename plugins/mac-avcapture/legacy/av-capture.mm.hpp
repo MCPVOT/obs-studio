@@ -1,4 +1,4 @@
-#include "../build/mac-avcapture-legacy.pch.hpp"
+#include "plugins/mac-avcapture/build/mac-avcapture-legacy.pch.hpp"
 
 #define NBSP "\xC2\xA0"
 

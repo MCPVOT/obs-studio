@@ -15,7 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "build/obs-ffmpeg-vaapi.pch.h"
+#include "plugins/obs-ffmpeg/build/obs-ffmpeg-vaapi.pch.h"
 
 #define do_log(level, format, ...) \
 	blog(level, "[FFmpeg VAAPI encoder: '%s'] " format, obs_encoder_get_name(enc->encoder), ##__VA_ARGS__)

@@ -6,7 +6,7 @@
 #pragma once
 
 /* obs-ffmpeg-av1.c */
-#include "../obs-ffmpeg-video-encoders.h"
+#include "plugins/obs-ffmpeg/obs-ffmpeg-video-encoders.h"
 
 /* obs-ffmpeg-video-encoders.c */
 #include <util/threading.h>

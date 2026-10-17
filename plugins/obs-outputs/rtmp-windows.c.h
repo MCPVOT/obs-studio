@@ -1,4 +1,4 @@
-#include "build/obs-outputs-windows.pch.h"
+#include "plugins/obs-outputs/build/obs-outputs-windows.pch.h"
 
 #ifdef _WIN32
 

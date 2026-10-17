@@ -13,7 +13,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "build/linux-pulseaudio-nix.pch.h"
+#include "plugins/linux-pulseaudio/build/linux-pulseaudio-nix.pch.h"
 
 #define NSEC_PER_SEC 1000000000ULL
 

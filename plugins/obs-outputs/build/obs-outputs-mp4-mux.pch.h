@@ -6,10 +6,10 @@
 #pragma once
 
 /* mp4-mux.c */
-#include "../mp4-mux-internal.h"
+#include "plugins/obs-outputs/mp4-mux-internal.h"
 
-#include "../rtmp-hevc.h"
-#include "../rtmp-av1.h"
+#include "plugins/obs-outputs/rtmp-hevc.h"
+#include "plugins/obs-outputs/rtmp-av1.h"
 
 #include <obs-avc.h>
 #include <obs-hevc.h>

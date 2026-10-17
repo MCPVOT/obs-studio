@@ -15,7 +15,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "build/text-freetype2.pch.h"
+#include "plugins/text-freetype2/build/text-freetype2.pch.h"
 
 float offsets[16] = {-2.0f, 0.0f, 0.0f, -2.0f, 2.0f,  0.0f, 2.0f,  0.0f,
 		     0.0f,  2.0f, 0.0f, 2.0f,  -2.0f, 0.0f, -2.0f, 0.0f};

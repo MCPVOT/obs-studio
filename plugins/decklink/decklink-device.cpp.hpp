@@ -1,4 +1,4 @@
-#include "build/decklink.pch.hpp"
+#include "plugins/decklink/build/decklink.pch.hpp"
 
 DeckLinkDevice::DeckLinkDevice(IDeckLink *device_) : device(device_) {}
 

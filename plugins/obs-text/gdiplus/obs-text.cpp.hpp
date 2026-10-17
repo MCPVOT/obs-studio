@@ -1,4 +1,4 @@
-#include "../build/obs-text.pch.hpp"
+#include "plugins/obs-text/build/obs-text.pch.hpp"
 
 using namespace std;
 using namespace Gdiplus;

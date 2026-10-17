@@ -1,4 +1,4 @@
-#include "build/mac-syphon-macos.pch.h"
+#include "plugins/mac-syphon/build/mac-syphon-macos.pch.h"
 
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE("syphon", "en-US")

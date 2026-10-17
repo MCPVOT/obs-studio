@@ -15,7 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "build/libobs-ported-media.pch.h"
+#include "libobs/build/libobs-ported-media.pch.h"
 
 bool obs_hevc_keyframe(const uint8_t *data, size_t size)
 {

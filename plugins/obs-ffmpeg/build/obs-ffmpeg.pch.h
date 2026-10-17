@@ -15,8 +15,8 @@
 #include <libavutil/channel_layout.h>
 #include <libavformat/avformat.h>
 
-#include "../obs-ffmpeg-formats.h"
-#include "../obs-ffmpeg-compat.h"
+#include "plugins/obs-ffmpeg/obs-ffmpeg-formats.h"
+#include "plugins/obs-ffmpeg/obs-ffmpeg-compat.h"
 
 /* obs-ffmpeg.c */
 #include <util/platform.h>
@@ -29,7 +29,7 @@
 #endif
 
 #if !defined(_WIN32) && !defined(__APPLE__)
-#include "../vaapi-utils.h"
+#include "plugins/obs-ffmpeg/vaapi-utils.h"
 
 #define LIBAVUTIL_VAAPI_AVAILABLE
 #endif

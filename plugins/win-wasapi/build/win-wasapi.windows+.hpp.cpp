@@ -1,8 +1,8 @@
 /* Unity group (BUILD.md): WASAPI audio capture. */
 
-#include "win-wasapi-windows.pch.hpp"
+#include "plugins/win-wasapi/build/win-wasapi-windows.pch.hpp"
 
-#include "../enum-wasapi.cpp.hpp"
-#include "../plugin-main.cpp.hpp"
-#include "../wasapi-notify.cpp.hpp"
-#include "../win-wasapi.cpp.hpp"
+#include "plugins/win-wasapi/enum-wasapi.cpp.hpp"
+#include "plugins/win-wasapi/plugin-main.cpp.hpp"
+#include "plugins/win-wasapi/wasapi-notify.cpp.hpp"
+#include "plugins/win-wasapi/win-wasapi.cpp.hpp"

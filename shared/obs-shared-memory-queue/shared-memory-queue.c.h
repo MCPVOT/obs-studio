@@ -1,4 +1,4 @@
-#include "build/shared-memory-queue-windows.pch.h"
+#include "shared/obs-shared-memory-queue/build/shared-memory-queue-windows.pch.h"
 
 #define VIDEO_NAME L"OBSVirtualCamVideo"
 

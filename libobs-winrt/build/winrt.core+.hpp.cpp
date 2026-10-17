@@ -1,6 +1,6 @@
 /* Unity group (BUILD.md): Windows Graphics Capture through WinRT. */
 
-#include "winrt.pch.hpp"
+#include "libobs-winrt/build/winrt.pch.hpp"
 
-#include "../winrt-capture.cpp.hpp"
-#include "../winrt-dispatch.cpp.hpp"
+#include "libobs-winrt/winrt-capture.cpp.hpp"
+#include "libobs-winrt/winrt-dispatch.cpp.hpp"

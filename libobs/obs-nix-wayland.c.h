@@ -15,7 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "build/libobs-wayland.pch.h"
+#include "libobs/build/libobs-wayland.pch.h"
 
 // X11 only supports 256 scancodes, most keyboards dont have 256 keys so this should be reasonable.
 #define MAX_KEYCODES 256

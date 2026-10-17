@@ -35,8 +35,8 @@
 #else
 #include <dshowcapture.hpp>
 #endif
-#include "../ffmpeg-decode.h"
-#include "../encode-dstr.hpp"
+#include "plugins/win-dshow/ffmpeg-decode.h"
+#include "plugins/win-dshow/encode-dstr.hpp"
 
 #include <algorithm>
 #include <limits>

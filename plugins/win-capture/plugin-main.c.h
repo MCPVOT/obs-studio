@@ -1,4 +1,4 @@
-#include "build/win-capture.pch.h"
+#include "plugins/win-capture/build/win-capture.pch.h"
 
 #define WIN_CAPTURE_LOG_STRING "[win-capture plugin] "
 #define WIN_CAPTURE_VER_STRING "win-capture plugin (libobs " OBS_VERSION ")"

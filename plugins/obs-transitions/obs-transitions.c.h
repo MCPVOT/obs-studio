@@ -1,4 +1,4 @@
-#include "build/obs-transitions.pch.h"
+#include "plugins/obs-transitions/build/obs-transitions.pch.h"
 
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE("obs-transitions", "en-US")

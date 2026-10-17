@@ -15,11 +15,11 @@
 #import <CoreGraphics/CGDisplayStream.h>
 #import <Cocoa/Cocoa.h>
 
-#include "../window-utils.h"
+#include "plugins/mac-capture/window-utils.h"
 
 /* mac-sck-audio-capture.m */
-#include "../mac-sck-common.h"
-#include "../mac-sck-stop.h"
+#include "plugins/mac-capture/mac-sck-common.h"
+#include "plugins/mac-capture/mac-sck-stop.h"
 
 /* mac-window-capture.m */
 #include <util/darray.h>

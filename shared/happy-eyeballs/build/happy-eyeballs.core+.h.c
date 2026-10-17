@@ -1,5 +1,5 @@
 /* Unity group (BUILD.md): RFC 8305 connection racing. */
 
-#include "happy-eyeballs.pch.h"
+#include "shared/happy-eyeballs/build/happy-eyeballs.pch.h"
 
-#include "../happy-eyeballs.c.h"
+#include "shared/happy-eyeballs/happy-eyeballs.c.h"

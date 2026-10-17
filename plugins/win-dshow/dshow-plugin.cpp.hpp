@@ -1,4 +1,4 @@
-#include "build/win-dshow.pch.hpp"
+#include "plugins/win-dshow/build/win-dshow.pch.hpp"
 
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE("win-dshow", "en-US")

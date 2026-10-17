@@ -24,7 +24,7 @@
 #include <util/dstr.h>
 #include <util/platform.h>
 
-#include "../cube-lut.h"
+#include "plugins/obs-filters/cube-lut.h"
 
 /* compressor-filter.c */
 #include <stdint.h>

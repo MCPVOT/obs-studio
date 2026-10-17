@@ -1,4 +1,4 @@
-#include "build/text-freetype2-find-font.pch.h"
+#include "plugins/text-freetype2/build/text-freetype2-find-font.pch.h"
 
 font_path_info_array_t font_list;
 

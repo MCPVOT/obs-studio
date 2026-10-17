@@ -9,4 +9,4 @@
 #include <obs-module.h>
 #include <util/platform.h>
 #include "util/threading.h"
-#include "../shared-memory-queue.h"
+#include "plugins/win-dshow/shared-memory-queue.h"

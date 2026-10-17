@@ -6,17 +6,17 @@
 #pragma once
 
 /* AVCaptureDeviceFormat+OBSListable.m */
-#import "../OBSAVCapture.h"
+#import "plugins/mac-avcapture/OBSAVCapture.h"
 
 /* OBSAVCapture.m */
-#import "../AVCaptureDeviceFormat+OBSListable.h"
-#import "../avcapture-audio-planes.h"
+#import "plugins/mac-avcapture/AVCaptureDeviceFormat+OBSListable.h"
+#import "plugins/mac-avcapture/avcapture-audio-planes.h"
 
 /* OBSAVCapturePresetInfo.m */
 #import <OBSAVCapturePresetInfo.h>
 
 /* plugin-main.m */
-#import "../plugin-main.h"
+#import "plugins/mac-avcapture/plugin-main.h"
 
 /* plugin-properties.m */
-#import "../plugin-properties.h"
+#import "plugins/mac-avcapture/plugin-properties.h"

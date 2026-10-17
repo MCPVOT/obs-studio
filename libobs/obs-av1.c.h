@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-#include "build/libobs-ported-media.pch.h"
+#include "libobs/build/libobs-ported-media.pch.h"
 
 static inline uint64_t leb128(const uint8_t *buf, size_t size, size_t *len)
 {

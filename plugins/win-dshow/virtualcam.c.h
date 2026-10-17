@@ -1,4 +1,4 @@
-#include "build/win-dshow-virtualcam.pch.h"
+#include "plugins/win-dshow/build/win-dshow-virtualcam.pch.h"
 
 struct virtualcam_data {
 	obs_output_t *output;

@@ -1,4 +1,4 @@
-#include "build/mac-videotoolbox.pch.h"
+#include "plugins/mac-videotoolbox/build/mac-videotoolbox.pch.h"
 
 #define VT_LOG(level, format, ...) blog(level, "[VideoToolbox encoder]: " format, ##__VA_ARGS__)
 #define VT_LOG_ENCODER(encoder, codec_type, level, format, ...)                        \

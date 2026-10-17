@@ -1,4 +1,4 @@
-#include "build/win-capture.pch.h"
+#include "plugins/win-capture/build/win-capture.pch.h"
 
 extern struct graphics_offsets offsets32;
 extern struct graphics_offsets offsets64;

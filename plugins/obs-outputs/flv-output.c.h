@@ -15,7 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "build/obs-outputs.pch.h"
+#include "plugins/obs-outputs/build/obs-outputs.pch.h"
 
 #define do_log(level, format, ...) \
 	blog(level, "[flv output: '%s'] " format, obs_output_get_name(stream->output), ##__VA_ARGS__)

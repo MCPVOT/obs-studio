@@ -1,4 +1,4 @@
-#include "build/obs-filters.pch.h"
+#include "plugins/obs-filters/build/obs-filters.pch.h"
 
 /* clang-format off */
 

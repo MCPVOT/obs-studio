@@ -1,12 +1,12 @@
 /* Unity group (BUILD.md): the core: audio, video, encoders, outputs, services. */
 
-#include "libobs.pch.h"
+#include "libobs/build/libobs.pch.h"
 
-#include "../obs-audio-controls.c.h"
-#include "../obs-audio.c.h"
-#include "../obs-encoder.c.h"
-#include "../obs-output-delay.c.h"
-#include "../obs-output.c.h"
-#include "../obs-service.c.h"
-#include "../obs-video-gpu-encode.c.h"
-#include "../obs-video.c.h"
+#include "libobs/obs-audio-controls.c.h"
+#include "libobs/obs-audio.c.h"
+#include "libobs/obs-encoder.c.h"
+#include "libobs/obs-output-delay.c.h"
+#include "libobs/obs-output.c.h"
+#include "libobs/obs-service.c.h"
+#include "libobs/obs-video-gpu-encode.c.h"
+#include "libobs/obs-video.c.h"

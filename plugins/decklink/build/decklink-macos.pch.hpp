@@ -6,5 +6,5 @@
 #pragma once
 
 /* mac/platform.cpp */
-#include "../platform.hpp"
+#include "plugins/decklink/platform.hpp"
 #include <util/apple/cfstring-utils.h>

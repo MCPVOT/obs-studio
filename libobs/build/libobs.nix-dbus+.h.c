@@ -1,6 +1,6 @@
 /* Unity group (BUILD.md): GIO: D-Bus and the XDG portal. */
 
-#include "libobs-nix-dbus.pch.h"
+#include "libobs/build/libobs-nix-dbus.pch.h"
 
-#include "../util/platform-nix-dbus.c.h"
-#include "../util/platform-nix-portal.c.h"
+#include "libobs/util/platform-nix-dbus.c.h"
+#include "libobs/util/platform-nix-portal.c.h"

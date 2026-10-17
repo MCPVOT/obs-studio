@@ -22,7 +22,7 @@
  * Note: most of x11-related functionality was taken from gl-x11.c
  */
 
-#include "build/opengl-nix.pch.h"
+#include "libobs-opengl/build/opengl-nix.pch.h"
 
 typedef EGLDisplay(EGLAPIENTRYP PFNEGLGETPLATFORMDISPLAYEXTPROC)(EGLenum platform, void *native_display,
 								 const EGLint *attrib_list);

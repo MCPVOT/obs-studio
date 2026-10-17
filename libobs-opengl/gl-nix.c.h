@@ -15,7 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "build/opengl-nix.pch.h"
+#include "libobs-opengl/build/opengl-nix.pch.h"
 
 static const struct gl_winsys_vtable *gl_vtable = NULL;
 

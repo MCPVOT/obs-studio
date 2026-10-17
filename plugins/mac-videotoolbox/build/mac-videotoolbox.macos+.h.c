@@ -1,5 +1,5 @@
 /* Unity group (BUILD.md): the VideoToolbox encoders. */
 
-#include "mac-videotoolbox.pch.h"
+#include "plugins/mac-videotoolbox/build/mac-videotoolbox.pch.h"
 
-#include "../encoder.c.h"
+#include "plugins/mac-videotoolbox/encoder.c.h"

@@ -15,7 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "build/obs-outputs-av1.pch.h"
+#include "plugins/obs-outputs/build/obs-outputs-av1.pch.h"
 
 /* Adapted from FFmpeg's libavformat/av1.c for our FLV muxer. */
 

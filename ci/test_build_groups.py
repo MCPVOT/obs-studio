@@ -18,6 +18,9 @@
   #pragma once or an include guard) included as data.
 - Every macro an implementation file #defines is #undef'd later in the same
   file (BUILD.md rule 5), so it can't leak into the next file of its group.
+- Every quoted include of a repo file in a group, a precompiled header, an
+  implementation file or a forwarding file is a repo-root path
+  ("plugins/obs-ffmpeg/build/obs-ffmpeg.pch.h"), never relative to the file.
 """
 
 from __future__ import annotations
@@ -102,7 +105,7 @@ def parse(group: str) -> tuple[Path | None, list[str], list[str]]:
             errors.append(f"{group}:{number}: only comments and #include \"...\" lines belong in a group")
             continue
         target = match.group(2)
-        path = resolve(target, base)
+        path = resolve(target, ROOT)
         if path is None:
             errors.append(f"{group}:{number}: {target} does not exist")
         elif kind(target, IMPL):
@@ -126,7 +129,7 @@ def member_errors(member: str, pch: Path, component: Path) -> list[str]:
         if not match:
             continue
         target = match.group(2)
-        found = resolve(target, path.parent, component) if match.group(1) == '"' else None
+        found = resolve(target, ROOT, path.parent, component) if match.group(1) == '"' else None
         if started and found is not None and (found.parent.name == "noop" and found.suffix == ".hpp"):
             continue  # a no-op capability the host builds
         if started and found is not None and not guarded(found):
@@ -192,6 +195,26 @@ class BuildGroupsTest(unittest.TestCase):
                         code_after = True
                 with self.subTest(file=member):
                     self.assertEqual(sorted(set(leaked)), [], "#undef these at the end of the file (BUILD.md rule 5)")
+
+    def test_includes_are_repo_root_paths(self):
+        files = [p for p in tracked() if kind(p, IMPL) or kind(p, GROUP) or p.endswith(PCH)]
+        files += [
+            p
+            for p in tracked()
+            if p.endswith((".c", ".cpp", ".m", ".mm")) and "Forwarding file (BUILD.md)" in (ROOT / p).read_text(errors="replace")
+        ]
+        for path in files:
+            relative = []
+            for number, line in enumerate((ROOT / path).read_text(errors="replace").splitlines(), 1):
+                match = INCLUDE.match(line)
+                if not match or match.group(1) != '"':
+                    continue
+                target = match.group(2)
+                local = ((ROOT / path).parent / target).resolve()
+                if local.is_file() and local.is_relative_to(ROOT) and local.relative_to(ROOT).as_posix() != target:
+                    relative.append(f"{path}:{number}: {target} -> {local.relative_to(ROOT).as_posix()}")
+            with self.subTest(file=path):
+                self.assertEqual(relative, [], "write repo-root paths (BUILD.md)")
 
     def test_every_implementation_file_is_in_a_group(self):
         grouped = {m for _, members, _ in self.parsed.values() for m in members}

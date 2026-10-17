@@ -15,7 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "build/libobs.pch.h"
+#include "libobs/build/libobs.pch.h"
 
 static uint64_t tick_sources(uint64_t cur_time, uint64_t last_time)
 {

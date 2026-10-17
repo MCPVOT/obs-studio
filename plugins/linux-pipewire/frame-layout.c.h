@@ -16,7 +16,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#include "build/linux-pipewire-nix.pch.h"
+#include "plugins/linux-pipewire/build/linux-pipewire-nix.pch.h"
 
 /* The bytes of pixel data in one row of a plane, its number of rows, the
  * divisor that gives its stride from the first plane's when the producer

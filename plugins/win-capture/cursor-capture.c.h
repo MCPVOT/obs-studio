@@ -1,4 +1,4 @@
-#include "build/win-capture.pch.h"
+#include "plugins/win-capture/build/win-capture.pch.h"
 
 static uint8_t *get_bitmap_data(HBITMAP hbmp, BITMAP *bmp)
 {

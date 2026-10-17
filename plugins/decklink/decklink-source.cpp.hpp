@@ -1,4 +1,4 @@
-#include "build/decklink.pch.hpp"
+#include "plugins/decklink/build/decklink.pch.hpp"
 
 static void decklink_enable_buffering(DeckLinkInput *decklink, bool enabled)
 {

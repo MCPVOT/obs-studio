@@ -1,4 +1,4 @@
-#include "build/winrt.pch.hpp"
+#include "libobs-winrt/build/winrt.pch.hpp"
 
 extern "C" EXPORT BOOL winrt_capture_supported()
 try {

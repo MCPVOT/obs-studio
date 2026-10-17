@@ -13,7 +13,7 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "build/mac-capture-sck-stop.pch.h"
+#include "plugins/mac-capture/build/mac-capture-sck-stop.pch.h"
 
 enum sck_stop_wait_result sck_wait_for_stop(os_event_t *stop_completed, unsigned int timeout_ms)
 {

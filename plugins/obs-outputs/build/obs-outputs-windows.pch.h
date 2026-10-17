@@ -4,4 +4,4 @@
 
 #pragma once
 
-#include "../rtmp-stream.h"
+#include "plugins/obs-outputs/rtmp-stream.h"

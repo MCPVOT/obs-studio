@@ -1,4 +1,4 @@
-#include "build/win-capture.pch.h"
+#include "plugins/win-capture/build/win-capture.pch.h"
 
 #define do_log(level, format, ...) \
 	blog(level, "[game-capture: '%s'] " format, obs_source_get_name(gc->source), ##__VA_ARGS__)

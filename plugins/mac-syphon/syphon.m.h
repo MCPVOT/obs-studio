@@ -1,4 +1,4 @@
-#include "build/mac-syphon-macos-objc.pch.h"
+#include "plugins/mac-syphon/build/mac-syphon-macos-objc.pch.h"
 
 #define LOG(level, message, ...) blog(level, "%s: " message, obs_source_get_name(s->source), ##__VA_ARGS__)
 

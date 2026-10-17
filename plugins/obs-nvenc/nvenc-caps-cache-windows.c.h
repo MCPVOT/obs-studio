@@ -1,4 +1,4 @@
-#include "build/obs-nvenc-caps-cache.pch.h"
+#include "plugins/obs-nvenc/build/obs-nvenc-caps-cache.pch.h"
 
 /* No cache key on Windows yet: obs-nvenc-test runs at every start, as before. */
 char *nvenc_caps_cache_key(const char *sys_root, const char *test_exe)

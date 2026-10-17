@@ -6,26 +6,26 @@
 #pragma once
 
 /* DecklinkBase.cpp */
-#include "../DecklinkBase.h"
+#include "plugins/decklink/DecklinkBase.h"
 
 /* DecklinkInput.cpp */
-#include "../DecklinkInput.hpp"
+#include "plugins/decklink/DecklinkInput.hpp"
 
 #include <util/threading.h>
 
 /* DecklinkOutput.cpp */
-#include "../DecklinkOutput.hpp"
+#include "plugins/decklink/DecklinkOutput.hpp"
 
 /* OBSVideoFrame.cpp */
-#include "../OBSVideoFrame.h"
+#include "plugins/decklink/OBSVideoFrame.h"
 
 /* decklink-device-discovery.cpp */
-#include "../decklink-device-discovery.hpp"
-#include "../decklink-device.hpp"
+#include "plugins/decklink/decklink-device-discovery.hpp"
+#include "plugins/decklink/decklink-device.hpp"
 
 /* decklink-device-instance.cpp */
-#include "../decklink-device-instance.hpp"
-#include "../audio-repack.hpp"
+#include "plugins/decklink/decklink-device-instance.hpp"
+#include "plugins/decklink/audio-repack.hpp"
 
 #include <util/platform.h>
 #include <util/util_uint64.h>
@@ -38,19 +38,19 @@
 #include <util/bitstream.h>
 
 /* decklink-device-mode.cpp */
-#include "../decklink-device-mode.hpp"
+#include "plugins/decklink/decklink-device-mode.hpp"
 
 /* decklink-devices.cpp */
-#include "../decklink-devices.hpp"
+#include "plugins/decklink/decklink-devices.hpp"
 
 /* decklink-output.cpp */
 #include <obs-module.h>
 #include <obs-avc.h>
 
-#include "../const.h"
+#include "plugins/decklink/const.h"
 
 #include <media-io/video-scaler.h>
 
 /* decklink-source.cpp */
 
-#include "../util.hpp"
+#include "plugins/decklink/util.hpp"

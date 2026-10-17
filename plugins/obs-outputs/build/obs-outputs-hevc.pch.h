@@ -6,8 +6,8 @@
 #pragma once
 
 /* rtmp-hevc.c */
-#include "../rtmp-hevc.h"
-#include "../utils.h"
+#include "plugins/obs-outputs/rtmp-hevc.h"
+#include "plugins/obs-outputs/utils.h"
 
 #include <obs.h>
 #include <obs-nal.h>

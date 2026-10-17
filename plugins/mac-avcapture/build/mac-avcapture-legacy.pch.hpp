@@ -26,5 +26,5 @@
 #include <memory>
 #include <vector>
 
-#include "../legacy/left-right.hpp"
-#include "../legacy/scope-guard.hpp"
+#include "plugins/mac-avcapture/legacy/left-right.hpp"
+#include "plugins/mac-avcapture/legacy/scope-guard.hpp"

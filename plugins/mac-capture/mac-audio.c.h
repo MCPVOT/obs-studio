@@ -1,4 +1,4 @@
-#include "build/mac-capture.pch.h"
+#include "plugins/mac-capture/build/mac-capture.pch.h"
 
 #define PROPERTY_DEFAULT_DEVICE kAudioHardwarePropertyDefaultInputDevice
 #define PROPERTY_FORMATS kAudioStreamPropertyAvailablePhysicalFormats

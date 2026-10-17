@@ -1,4 +1,4 @@
-#include "build/win-capture.pch.h"
+#include "plugins/win-capture/build/win-capture.pch.h"
 
 #define do_log(level, format, ...) \
 	blog(level, "[duplicator-monitor-capture: '%s'] " format, obs_source_get_name(capture->source), ##__VA_ARGS__)

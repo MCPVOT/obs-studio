@@ -1,4 +1,4 @@
-#include "build/win-dshow.pch.hpp"
+#include "plugins/win-dshow/build/win-dshow.pch.hpp"
 
 /*
  * TODO:

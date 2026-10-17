@@ -15,7 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "build/d3d11.pch.hpp"
+#include "libobs-d3d11/build/d3d11.pch.hpp"
 
 namespace {
 

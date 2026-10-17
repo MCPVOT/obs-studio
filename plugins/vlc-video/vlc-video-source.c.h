@@ -1,4 +1,4 @@
-#include "build/vlc-video.pch.h"
+#include "plugins/vlc-video/build/vlc-video.pch.h"
 
 #define do_log(level, format, ...) \
 	blog(level, "[vlc_source: '%s'] " format, obs_source_get_name(ss->source), ##__VA_ARGS__)

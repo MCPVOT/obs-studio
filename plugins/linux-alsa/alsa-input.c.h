@@ -17,7 +17,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "build/linux-alsa-nix.pch.h"
+#include "plugins/linux-alsa/build/linux-alsa-nix.pch.h"
 
 #define blog(level, msg, ...) blog(level, "alsa-input: " msg, ##__VA_ARGS__)
 

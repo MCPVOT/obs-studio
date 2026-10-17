@@ -11,7 +11,7 @@
 
 #include <util/apple/cfstring-utils.h>
 
-#include "../audio-device-enum.h"
+#include "plugins/mac-capture/audio-device-enum.h"
 
 /* mac-audio.c */
 #include <AudioUnit/AudioUnit.h>

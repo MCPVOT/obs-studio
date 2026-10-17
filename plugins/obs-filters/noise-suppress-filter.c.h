@@ -1,4 +1,4 @@
-#include "build/obs-filters-noise-suppress.pch.h"
+#include "plugins/obs-filters/build/obs-filters-noise-suppress.pch.h"
 
 /* -------------------------------------------------------- */
 

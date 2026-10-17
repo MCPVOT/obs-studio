@@ -13,7 +13,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "build/linux-pulseaudio-nix.pch.h"
+#include "plugins/linux-pulseaudio/build/linux-pulseaudio-nix.pch.h"
 
 bool pulse_reconnect_on_failed(struct pulse_reconnect_state *state, uint64_t *delay_usec)
 {

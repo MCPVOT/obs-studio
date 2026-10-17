@@ -15,7 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "build/opengl-macos-cocoa.pch.h"
+#include "libobs-opengl/build/opengl-macos-cocoa.pch.h"
 
 struct gl_windowinfo {
     NSView *view;

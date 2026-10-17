@@ -1,4 +1,4 @@
-#include "build/text-freetype2.pch.h"
+#include "plugins/text-freetype2/build/text-freetype2.pch.h"
 
 static void remove_cr(wchar_t *source)
 {

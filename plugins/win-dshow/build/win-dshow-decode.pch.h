@@ -6,7 +6,7 @@
 #pragma once
 
 /* ffmpeg-decode.c */
-#include "../ffmpeg-decode.h"
+#include "plugins/win-dshow/ffmpeg-decode.h"
 #include "obs-ffmpeg-compat.h"
 #include <obs-avc.h>
 #ifdef ENABLE_HEVC

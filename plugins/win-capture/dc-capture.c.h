@@ -1,4 +1,4 @@
-#include "build/win-capture.pch.h"
+#include "plugins/win-capture/build/win-capture.pch.h"
 #define WIN32_LEAN_AND_MEAN
 
 static inline void init_textures(struct dc_capture *capture)

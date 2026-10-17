@@ -1,4 +1,4 @@
-#include "build/obs-webrtc.pch.hpp"
+#include "plugins/obs-webrtc/build/obs-webrtc.pch.hpp"
 
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE("obs-webrtc", "en-US")

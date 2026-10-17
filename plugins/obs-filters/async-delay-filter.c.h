@@ -1,4 +1,4 @@
-#include "build/obs-filters.pch.h"
+#include "plugins/obs-filters/build/obs-filters.pch.h"
 
 /* NOTE: Delaying audio shouldn't be necessary because the audio subsystem will
  * automatically sync audio to video frames */

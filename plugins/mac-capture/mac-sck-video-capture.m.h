@@ -1,4 +1,4 @@
-#include "build/mac-capture-objc.pch.h"
+#include "plugins/mac-capture/build/mac-capture-objc.pch.h"
 
 API_AVAILABLE(macos(12.5)) static void destroy_screen_stream(struct screen_capture *sc)
 {

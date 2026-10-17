@@ -15,7 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "build/obs-outputs-rtmp.pch.h"
+#include "plugins/obs-outputs/build/obs-outputs-rtmp.pch.h"
 
 #ifndef SEC_TO_NSEC
 #define SEC_TO_NSEC 1000000000ULL

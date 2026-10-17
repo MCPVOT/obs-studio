@@ -17,7 +17,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "build/libobs-nix.pch.h"
+#include "libobs/build/libobs-nix.pch.h"
 
 void obs_nix_x11_log_info(void)
 {

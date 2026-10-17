@@ -15,7 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "build/opengl.pch.h"
+#include "libobs-opengl/build/opengl.pch.h"
 
 static void gl_write_function_contents(struct gl_shader_parser *glsp, struct cf_token **p_token, const char *end);
 

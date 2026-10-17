@@ -1,4 +1,4 @@
-#include "build/coreaudio-encoder.pch.hpp"
+#include "plugins/coreaudio-encoder/build/coreaudio-encoder.pch.hpp"
 
 using namespace std;
 

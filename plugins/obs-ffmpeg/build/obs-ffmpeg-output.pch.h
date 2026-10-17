@@ -13,8 +13,8 @@
 #include <util/darray.h>
 #include <util/platform.h>
 
-#include "../obs-ffmpeg-output.h"
-#include "../obs-ffmpeg-formats.h"
-#include "../obs-ffmpeg-compat.h"
+#include "plugins/obs-ffmpeg/obs-ffmpeg-output.h"
+#include "plugins/obs-ffmpeg/obs-ffmpeg-formats.h"
+#include "plugins/obs-ffmpeg/obs-ffmpeg-compat.h"
 #include <libavutil/channel_layout.h>
 #include <libavutil/mastering_display_metadata.h>

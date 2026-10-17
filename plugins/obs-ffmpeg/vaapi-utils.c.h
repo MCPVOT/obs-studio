@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-#include "build/obs-ffmpeg-vaapi.pch.h"
+#include "plugins/obs-ffmpeg/build/obs-ffmpeg-vaapi.pch.h"
 
 static bool version_logged = false;
 

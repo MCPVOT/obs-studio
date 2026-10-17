@@ -34,9 +34,9 @@
 
 #include <pci/pci.h>
 
-#include "../vaapi-utils.h"
-#include "../vaapi-device-select.h"
-#include "../obs-ffmpeg-formats.h"
+#include "plugins/obs-ffmpeg/vaapi-utils.h"
+#include "plugins/obs-ffmpeg/vaapi-device-select.h"
+#include "plugins/obs-ffmpeg/obs-ffmpeg-formats.h"
 
 #include <va/va_drmcommon.h>
 #include <libdrm/drm_fourcc.h>
@@ -55,4 +55,4 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../vaapi-probe-policy.h"
+#include "plugins/obs-ffmpeg/vaapi-probe-policy.h"

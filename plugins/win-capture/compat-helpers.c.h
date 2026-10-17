@@ -1,4 +1,4 @@
-#include "build/win-capture.pch.h"
+#include "plugins/win-capture/build/win-capture.pch.h"
 
 enum match_flags {
 	MATCH_EXE = 1 << 0,

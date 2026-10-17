@@ -15,7 +15,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "build/linux-capture-nix.pch.h"
+#include "plugins/linux-capture/build/linux-capture-nix.pch.h"
 
 #define XSHM_DATA(voidptr) struct xshm_data *data = voidptr;
 

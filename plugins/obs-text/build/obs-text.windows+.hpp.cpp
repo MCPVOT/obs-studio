@@ -1,5 +1,5 @@
 /* Unity group (BUILD.md): the GDI+ text source. */
 
-#include "obs-text.pch.hpp"
+#include "plugins/obs-text/build/obs-text.pch.hpp"
 
-#include "../gdiplus/obs-text.cpp.hpp"
+#include "plugins/obs-text/gdiplus/obs-text.cpp.hpp"

@@ -15,7 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "build/win-dshow-decode.pch.h"
+#include "plugins/win-dshow/build/win-dshow-decode.pch.h"
 
 enum AVHWDeviceType hw_priority[] = {
 	AV_HWDEVICE_TYPE_D3D11VA,

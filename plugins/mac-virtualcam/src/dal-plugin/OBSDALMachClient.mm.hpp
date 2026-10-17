@@ -5,7 +5,7 @@
 //  Created by John Boiles  on 5/5/20.
 //
 
-#include "build/dal-plugin.pch.hpp"
+#include "plugins/mac-virtualcam/src/dal-plugin/build/dal-plugin.pch.hpp"
 
 @interface OBSDALMachClient () <NSPortDelegate> {
 	NSPort *_receivePort;

@@ -1,4 +1,4 @@
-#include "build/obs-nvenc-caps-cache.pch.h"
+#include "plugins/obs-nvenc/build/obs-nvenc-caps-cache.pch.h"
 
 char *nvenc_caps_cache_lookup(const char *file_data, const char *key)
 {

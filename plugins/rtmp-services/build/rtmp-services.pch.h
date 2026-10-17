@@ -12,12 +12,12 @@
 #include <jansson.h>
 #include <obs-config.h>
 
-#include "../rtmp-format-ver.h"
-#include "../service-specific/twitch.h"
-#include "../service-specific/nimotv.h"
-#include "../service-specific/showroom.h"
-#include "../service-specific/dacast.h"
-#include "../service-specific/amazon-ivs.h"
+#include "plugins/rtmp-services/rtmp-format-ver.h"
+#include "plugins/rtmp-services/service-specific/twitch.h"
+#include "plugins/rtmp-services/service-specific/nimotv.h"
+#include "plugins/rtmp-services/service-specific/showroom.h"
+#include "plugins/rtmp-services/service-specific/dacast.h"
+#include "plugins/rtmp-services/service-specific/amazon-ivs.h"
 
 /* rtmp-services-main.c */
 #include <util/text-lookup.h>
@@ -25,7 +25,7 @@
 #include <file-updater/file-updater.h>
 
 /* service-specific/amazon-ivs.c */
-#include "../service-specific/service-ingest.h"
+#include "plugins/rtmp-services/service-specific/service-ingest.h"
 
 /* service-specific/nimotv.c */
 #include <util/curl/curl-helper.h>

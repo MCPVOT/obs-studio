@@ -15,7 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "build/opengl-nix-wayland.pch.h"
+#include "libobs-opengl/build/opengl-nix-wayland.pch.h"
 
 static const EGLint config_attribs_native[] = {EGL_SURFACE_TYPE,
 					       EGL_WINDOW_BIT,

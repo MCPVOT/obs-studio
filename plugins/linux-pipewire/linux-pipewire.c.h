@@ -19,7 +19,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#include "build/linux-pipewire-nix.pch.h"
+#include "plugins/linux-pipewire/build/linux-pipewire-nix.pch.h"
 
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE("linux-pipewire", "en-US")

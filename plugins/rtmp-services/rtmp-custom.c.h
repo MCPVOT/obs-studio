@@ -1,4 +1,4 @@
-#include "build/rtmp-services.pch.h"
+#include "plugins/rtmp-services/build/rtmp-services.pch.h"
 
 struct rtmp_custom {
 	char *server, *key;

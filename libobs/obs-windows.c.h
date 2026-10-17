@@ -15,7 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "build/libobs-windows.pch.h"
+#include "libobs/build/libobs-windows.pch.h"
 
 static uint32_t win_ver = 0;
 static uint32_t win_build = 0;
@@ -1386,10 +1386,10 @@ void obs_host_pump_messages(void)
 
 /* The obs-host capabilities this host lacks (#1051): no-op headers, built
  * here rather than as unity group members (BUILD.md). */
-#include "obs-host/noop/default-monitoring-device.hpp"
-#include "obs-host/noop/display-srgb-clear.hpp"
-#include "obs-host/noop/graphics-thread.hpp"
-#include "obs-host/noop/module-paths.hpp"
+#include "libobs/obs-host/noop/default-monitoring-device.hpp"
+#include "libobs/obs-host/noop/display-srgb-clear.hpp"
+#include "libobs/obs-host/noop/graphics-thread.hpp"
+#include "libobs/obs-host/noop/module-paths.hpp"
 
 /* File-local macros (BUILD.md): out of the next file in the unity group. */
 #undef WIN10_GAME_BAR_REG_KEY

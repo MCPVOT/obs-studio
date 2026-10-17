@@ -1,4 +1,4 @@
-#include "../build/decklink-linux.pch.hpp"
+#include "plugins/decklink/build/decklink-linux.pch.hpp"
 
 bool DeckLinkStringToStdString(decklink_string_t input, std::string &output)
 {

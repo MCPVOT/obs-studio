@@ -1,4 +1,4 @@
-#include "build/image-source.pch.h"
+#include "plugins/image-source/build/image-source.pch.h"
 
 #ifndef _WIN32
 /* Windows: image-file-version-win32.c (os_stat() has whole seconds only). */

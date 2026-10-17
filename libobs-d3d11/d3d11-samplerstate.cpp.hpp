@@ -15,7 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "build/d3d11.pch.hpp"
+#include "libobs-d3d11/build/d3d11.pch.hpp"
 
 static inline D3D11_TEXTURE_ADDRESS_MODE ConvertGSAddressMode(gs_address_mode mode)
 {

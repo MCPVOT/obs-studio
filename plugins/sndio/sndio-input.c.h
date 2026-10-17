@@ -15,7 +15,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "build/sndio-nix.pch.h"
+#include "plugins/sndio/build/sndio-nix.pch.h"
 
 #define blog(level, msg, ...) blog(level, "sndio-input: %s: " msg, __func__, ##__VA_ARGS__);
 

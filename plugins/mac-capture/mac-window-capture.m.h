@@ -1,4 +1,4 @@
-#include "build/mac-capture-objc.pch.h"
+#include "plugins/mac-capture/build/mac-capture-objc.pch.h"
 
 struct window_capture {
     obs_source_t *source;

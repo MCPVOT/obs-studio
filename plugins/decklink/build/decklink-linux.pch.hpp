@@ -6,6 +6,6 @@
 #pragma once
 
 /* linux/platform.cpp */
-#include "../platform.hpp"
+#include "plugins/decklink/platform.hpp"
 
 #include <cstdlib>

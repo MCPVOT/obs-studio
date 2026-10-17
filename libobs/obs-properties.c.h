@@ -15,7 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "build/libobs-ported-media.pch.h"
+#include "libobs/build/libobs-ported-media.pch.h"
 
 static inline void *get_property_data(struct obs_property *prop);
 

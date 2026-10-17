@@ -1,4 +1,4 @@
-#include "build/opts-parser.pch.h"
+#include "shared/opts-parser/build/opts-parser.pch.h"
 
 static bool getparam(const char *param, char **name, const char **value)
 {

@@ -22,6 +22,12 @@
 
 include_guard(GLOBAL)
 
+# Every quoted include in a group, a precompiled header or an implementation
+# file is a repo-root path ("plugins/obs-ffmpeg/build/obs-ffmpeg.pch.h",
+# BUILD.md), so the repo root is an include directory of every target.
+get_filename_component(_OBS_REPO_ROOT "${CMAKE_CURRENT_LIST_DIR}/../.." ABSOLUTE)
+include_directories("${_OBS_REPO_ROOT}")
+
 set(_OBS_GROUP_REGEX "\\+\\.(h\\.c|hpp\\.cpp|h\\.m|hpp\\.mm)$")
 set(_OBS_IMPL_REGEX "\\.(c\\.h|cpp\\.hpp|m\\.h|mm\\.hpp)$")
 
@@ -45,12 +51,11 @@ endfunction()
 function(_obs_group_read group out_pch out_members)
   set_property(DIRECTORY "${CMAKE_SOURCE_DIR}" APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${group}")
   file(STRINGS "${group}" _lines REGEX "^#include \"[^\"]+\"")
-  cmake_path(GET group PARENT_PATH _dir)
   set(_pch "")
   set(_members "")
   foreach(_line IN LISTS _lines)
     string(REGEX REPLACE "^#include \"([^\"]+)\".*" "\\1" _path "${_line}")
-    cmake_path(ABSOLUTE_PATH _path BASE_DIRECTORY "${_dir}" NORMALIZE OUTPUT_VARIABLE _absolute)
+    cmake_path(ABSOLUTE_PATH _path BASE_DIRECTORY "${_OBS_REPO_ROOT}" NORMALIZE OUTPUT_VARIABLE _absolute)
     if(_path MATCHES "${_OBS_IMPL_REGEX}")
       list(APPEND _members "${_absolute}")
     elseif(_path MATCHES "\\.pch\\.(h|hpp)$")

@@ -1,4 +1,4 @@
-#include "build/obs-filters.pch.h"
+#include "plugins/obs-filters/build/obs-filters.pch.h"
 
 #define S_DELAY_MS "delay_ms"
 #define T_DELAY_MS obs_module_text("DelayMs")

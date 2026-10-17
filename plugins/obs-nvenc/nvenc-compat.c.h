@@ -1,4 +1,4 @@
-#include "build/obs-nvenc.pch.h"
+#include "plugins/obs-nvenc/build/obs-nvenc.pch.h"
 
 /*
  * Compatibility encoder objects for pre-31.0 encoder compatibility.

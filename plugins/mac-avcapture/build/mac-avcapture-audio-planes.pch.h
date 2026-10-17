@@ -6,6 +6,6 @@
 #pragma once
 
 /* avcapture-audio-planes.c */
-#include "../avcapture-audio-planes.h"
+#include "plugins/mac-avcapture/avcapture-audio-planes.h"
 
 #include <media-io/media-io-defs.h>

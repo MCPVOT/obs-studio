@@ -1,4 +1,4 @@
-#include "build/obs-webrtc.pch.hpp"
+#include "plugins/obs-webrtc/build/obs-webrtc.pch.hpp"
 
 /*
  * Sets the maximum size for a video fragment. Effective range is

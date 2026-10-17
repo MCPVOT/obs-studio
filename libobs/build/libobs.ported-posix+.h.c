@@ -1,6 +1,6 @@
 /* Unity group (BUILD.md): ported POSIX host code (Linux, the BSDs, macOS). */
 
-#include "libobs-ported-posix.pch.h"
+#include "libobs/build/libobs-ported-posix.pch.h"
 
-#include "../util/pipe-posix.c.h"
-#include "../util/platform-nix.c.h"
+#include "libobs/util/pipe-posix.c.h"
+#include "libobs/util/platform-nix.c.h"

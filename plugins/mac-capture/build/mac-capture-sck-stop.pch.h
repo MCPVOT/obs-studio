@@ -8,4 +8,4 @@
 /* mac-sck-stop.c */
 #include <errno.h>
 
-#include "../mac-sck-stop.h"
+#include "plugins/mac-capture/mac-sck-stop.h"

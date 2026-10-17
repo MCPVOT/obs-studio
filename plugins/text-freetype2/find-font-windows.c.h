@@ -1,4 +1,4 @@
-#include "build/text-freetype2-windows.pch.h"
+#include "plugins/text-freetype2/build/text-freetype2-windows.pch.h"
 
 struct mac_font_mapping {
 	unsigned short encoding_id;

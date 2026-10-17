@@ -14,7 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "build/obs-ffmpeg-source.pch.h"
+#include "plugins/obs-ffmpeg/build/obs-ffmpeg-source.pch.h"
 
 #define FF_LOG_S(source, level, format, ...) \
 	blog(level, "[Media Source '%s']: " format, obs_source_get_name(source), ##__VA_ARGS__)

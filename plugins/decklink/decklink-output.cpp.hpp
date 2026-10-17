@@ -1,4 +1,4 @@
-#include "build/decklink.pch.hpp"
+#include "plugins/decklink/build/decklink.pch.hpp"
 
 static void decklink_output_destroy(void *data)
 {

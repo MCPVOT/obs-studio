@@ -1,4 +1,4 @@
-#include "build/obs-nvenc-caps-cache-linux.pch.h"
+#include "plugins/obs-nvenc/build/obs-nvenc-caps-cache-linux.pch.h"
 
 static bool read_line(const char *sys_root, const char *rel, char *buf, size_t size)
 {

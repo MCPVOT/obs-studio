@@ -1,4 +1,4 @@
-#include "build/obs-transitions.pch.h"
+#include "plugins/obs-transitions/build/obs-transitions.pch.h"
 
 #define S_COLOR "color"
 #define S_SWITCH_POINT "switch_point"

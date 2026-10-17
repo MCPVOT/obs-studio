@@ -1,5 +1,5 @@
 /* Unity group (BUILD.md): the FFmpeg decoder (C). */
 
-#include "win-dshow-decode.pch.h"
+#include "plugins/win-dshow/build/win-dshow-decode.pch.h"
 
-#include "../ffmpeg-decode.c.h"
+#include "plugins/win-dshow/ffmpeg-decode.c.h"

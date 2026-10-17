@@ -1,4 +1,4 @@
-#include "build/mac-capture.pch.h"
+#include "plugins/mac-capture/build/mac-capture.pch.h"
 
 /* ugh, because mac has no means of capturing output, we have to basically
  * mark soundflower, wavtap and sound siphon as output devices. */

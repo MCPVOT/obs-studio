@@ -10,7 +10,7 @@
 @import SystemExtensions;
 
 /* OBSDALMachServer.mm */
-#import "../OBSDALMachServer.h"
+#import "plugins/mac-virtualcam/src/obs-plugin/OBSDALMachServer.h"
 #include <obs-module.h>
 #include "MachProtocol.h"
-#include "../Defines.h"
+#include "plugins/mac-virtualcam/src/obs-plugin/Defines.h"

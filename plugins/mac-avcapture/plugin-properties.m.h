@@ -5,7 +5,7 @@
 //  Created by Patrick Heyer on 2023-03-07.
 //
 
-#include "build/mac-avcapture.pch.h"
+#include "plugins/mac-avcapture/build/mac-avcapture.pch.h"
 
 extern const char *av_capture_get_text(const char *text_id);
 

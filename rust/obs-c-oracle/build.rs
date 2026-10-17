@@ -401,6 +401,9 @@ fn main() {
 
     oracle
         .include(&libobs)
+        // The libobs implementation files include their precompiled header by
+        // its repo-root path ("libobs/build/...", BUILD.md).
+        .include(libobs.parent().expect("libobs has a parent"))
         // obs.h (for obs-hevc.c, obs-av1.c and obs-avc.c) needs the CMake-generated obsconfig.h.
         .include("oracle/obsconfig")
         // libobs/util/uthash.h includes <uthash.h>, a system header CMake
@@ -558,6 +561,7 @@ fn main() {
             .flag("-Wno-error=unused-command-line-argument")
             .flag("-Wno-unguarded-availability-new")
             .include(&libobs)
+            .include(libobs.parent().expect("libobs has a parent"))
             .include("oracle/obsconfig")
             .file(manifest.join("oracle/platform_cocoa.m"));
         objc.compile("obs_c_oracle_cocoa");

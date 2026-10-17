@@ -15,7 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "build/libobs.pch.h"
+#include "libobs/build/libobs.pch.h"
 
 #define get_weak(output) ((obs_weak_output_t *)output->context.control)
 

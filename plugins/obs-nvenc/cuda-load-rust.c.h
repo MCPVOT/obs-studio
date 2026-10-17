@@ -1,4 +1,4 @@
-#include "build/obs-nvenc.pch.h"
+#include "plugins/obs-nvenc/build/obs-nvenc.pch.h"
 
 /* ENABLE_RUST_LIBOBS replacement for cuda-load.c: the library search and
  * symbol lookup live in rust/obs-nvenc (src/ffi). This file keeps what

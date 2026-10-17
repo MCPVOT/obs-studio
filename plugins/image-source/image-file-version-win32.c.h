@@ -1,4 +1,4 @@
-#include "build/image-source-windows.pch.h"
+#include "plugins/image-source/build/image-source-windows.pch.h"
 
 /* os_stat() gives whole seconds on Windows; the last write time has 100 ns
  * ticks, so an image replaced within the same second is seen too. */

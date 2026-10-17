@@ -9,12 +9,12 @@
 #include <windows.h>
 #include <stdio.h>
 #include <sddl.h> /* ConvertSidToStringSidW */
-#include "../app-helpers.h"
-#include "../nt-stuff.h"
+#include "plugins/win-capture/app-helpers.h"
+#include "plugins/win-capture/nt-stuff.h"
 #include "util/base.h"
 
 /* audio-helpers.c */
-#include "../audio-helpers.h"
+#include "plugins/win-capture/audio-helpers.h"
 
 #include <util/dstr.h>
 
@@ -25,15 +25,15 @@
 #include <util/platform.h>
 #include <util/windows/window-helpers.h>
 
-#include "../compat-helpers.h"
-#include "../compat-format-ver.h"
+#include "plugins/win-capture/compat-helpers.h"
+#include "plugins/win-capture/compat-format-ver.h"
 
 /* cursor-capture.c */
 #include <obs.h>
-#include "../cursor-capture.h"
+#include "plugins/win-capture/cursor-capture.h"
 
 /* dc-capture.c */
-#include "../dc-capture.h"
+#include "plugins/win-capture/dc-capture.h"
 
 /* duplicator-monitor-capture.c */
 

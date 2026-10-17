@@ -1,8 +1,8 @@
 /* Unity group (BUILD.md): the core: startup, modules, hotkeys. */
 
-#include "libobs.pch.h"
+#include "libobs/build/libobs.pch.h"
 
-#include "../obs-hotkey.c.h"
-#include "../obs-missing-files.c.h"
-#include "../obs-module.c.h"
-#include "../obs.c.h"
+#include "libobs/obs-hotkey.c.h"
+#include "libobs/obs-missing-files.c.h"
+#include "libobs/obs-module.c.h"
+#include "libobs/obs.c.h"

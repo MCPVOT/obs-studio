@@ -6,10 +6,10 @@
 #pragma once
 
 /* cuda-helpers.c */
-#include "../obs-nvenc.h"
+#include "plugins/obs-nvenc/obs-nvenc.h"
 
-#include "../nvenc-internal.h"
-#include "../cuda-helpers.h"
+#include "plugins/obs-nvenc/nvenc-internal.h"
+#include "plugins/obs-nvenc/cuda-helpers.h"
 
 #include <util/platform.h>
 #include <util/threading.h>
@@ -18,10 +18,10 @@
 #include <util/pipe.h>
 
 /* nvenc-compat.c */
-#include "../nvenc-helpers.h"
+#include "plugins/obs-nvenc/nvenc-helpers.h"
 
 /* nvenc-helpers.c */
-#include "../nvenc-caps-cache.h"
+#include "plugins/obs-nvenc/nvenc-caps-cache.h"
 
 /* nvenc-opts-parser.c */
 
@@ -29,7 +29,7 @@
 #include <inttypes.h>
 
 /* nvenc.c */
-#include "../nvenc-override.h"
+#include "plugins/obs-nvenc/nvenc-override.h"
 
 #include <obs-nal.h>
 #include <util/darray.h>

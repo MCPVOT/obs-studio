@@ -1,5 +1,5 @@
 /* Unity group (BUILD.md): the plugin module. */
 
-#include "mac-syphon-macos.pch.h"
+#include "plugins/mac-syphon/build/mac-syphon-macos.pch.h"
 
-#include "../plugin-main.c.h"
+#include "plugins/mac-syphon/plugin-main.c.h"

@@ -1,4 +1,4 @@
-#include "build/mac-capture-objc.pch.h"
+#include "plugins/mac-capture/build/mac-capture-objc.pch.h"
 
 #define WINDOW_NAME   ((NSString *) kCGWindowName)
 #define WINDOW_NUMBER ((NSString *) kCGWindowNumber)

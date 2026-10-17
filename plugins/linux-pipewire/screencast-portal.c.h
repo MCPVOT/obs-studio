@@ -18,7 +18,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#include "build/linux-pipewire-nix.pch.h"
+#include "plugins/linux-pipewire/build/linux-pipewire-nix.pch.h"
 
 /* How long one reconnection attempt may take before it is abandoned and
  * retried. */

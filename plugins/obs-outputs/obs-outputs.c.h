@@ -1,4 +1,4 @@
-#include "build/obs-outputs.pch.h"
+#include "plugins/obs-outputs/build/obs-outputs.pch.h"
 
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE("obs-outputs", "en-US")

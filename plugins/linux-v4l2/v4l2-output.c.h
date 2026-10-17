@@ -1,4 +1,4 @@
-#include "build/linux-v4l2-nix-output.pch.h"
+#include "plugins/linux-v4l2/build/linux-v4l2-nix-output.pch.h"
 
 struct virtualcam_data {
 	obs_output_t *output;

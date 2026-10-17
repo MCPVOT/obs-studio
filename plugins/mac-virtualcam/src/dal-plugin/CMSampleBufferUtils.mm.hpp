@@ -5,7 +5,7 @@
 //  Created by John Boiles  on 5/8/20.
 //
 
-#include "build/dal-plugin.pch.hpp"
+#include "plugins/mac-virtualcam/src/dal-plugin/build/dal-plugin.pch.hpp"
 
 CMSampleTimingInfo CMSampleTimingInfoForTimestamp(uint64_t timestampNanos, uint32_t fpsNumerator,
 						  uint32_t fpsDenominator)

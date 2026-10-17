@@ -1,4 +1,4 @@
-#include "build/obs-nvenc.pch.h"
+#include "plugins/obs-nvenc/build/obs-nvenc.pch.h"
 
 /*
  * NVENC implementation using Direct3D 11 context and textures

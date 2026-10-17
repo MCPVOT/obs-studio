@@ -1,4 +1,4 @@
-#include "build/obs-transitions.pch.h"
+#include "plugins/obs-transitions/build/obs-transitions.pch.h"
 
 struct cut_info {
 	obs_source_t *source;

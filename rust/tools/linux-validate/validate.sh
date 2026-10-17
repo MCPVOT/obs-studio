@@ -228,7 +228,7 @@ else
     ninja -C "$build" -t inputs "$target" 2>/dev/null | grep -qF "$target.dir/$object" && return 0
     for group in $(ninja -C "$build" -t inputs "$target" 2>/dev/null |
       sed -n "s|.*CMakeFiles/$target\.dir/\(build/.*+\.h\.[cm]\)\.o\$|\1|p"); do
-      grep -qF "\"../${src#libobs/}\"" "$SRC/libobs/$group" 2>/dev/null && return 0
+      grep -qF "\"$src\"" "$SRC/libobs/$group" 2>/dev/null && return 0
     done
     unity=$(find "$build" -type d -path "*/CMakeFiles/$target.dir/Unity" | head -1)
     [ -n "$unity" ] && sed -n 's/^#include "\(.*\)"$/\1/p' "$unity"/*.c 2>/dev/null | grep -q "/$src\$"

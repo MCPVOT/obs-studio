@@ -1,4 +1,4 @@
-#include "build/text-freetype2-macos-objc.pch.h"
+#include "plugins/text-freetype2/build/text-freetype2-macos-objc.pch.h"
 
 extern void save_font_list(void);
 

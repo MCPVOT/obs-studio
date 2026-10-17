@@ -1,4 +1,4 @@
-#include "build/rtmp-services.pch.h"
+#include "plugins/rtmp-services/build/rtmp-services.pch.h"
 
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE("rtmp-services", "en-US")

@@ -13,7 +13,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "build/linux-v4l2-nix.pch.h"
+#include "plugins/linux-v4l2/build/linux-v4l2-nix.pch.h"
 
 void v4l2_framerate_list_add_discrete(obs_property_t *prop, struct dstr *buffer, uint32_t numerator,
 				      uint32_t denominator)

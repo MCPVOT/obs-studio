@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-#include "build/obs-ffmpeg-vaapi-probe-policy.pch.h"
+#include "plugins/obs-ffmpeg/build/obs-ffmpeg-vaapi-probe-policy.pch.h"
 
 struct vaapi_caps_entry {
 	char *path;

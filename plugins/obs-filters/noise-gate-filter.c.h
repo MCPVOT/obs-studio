@@ -1,4 +1,4 @@
-#include "build/obs-filters.pch.h"
+#include "plugins/obs-filters/build/obs-filters.pch.h"
 
 #define do_log(level, format, ...) \
 	blog(level, "[noise gate: '%s'] " format, obs_source_get_name(ng->context), ##__VA_ARGS__)

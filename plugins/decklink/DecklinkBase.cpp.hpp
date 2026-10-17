@@ -1,4 +1,4 @@
-#include "build/decklink.pch.hpp"
+#include "plugins/decklink/build/decklink.pch.hpp"
 
 DecklinkBase::DecklinkBase(DeckLinkDeviceDiscovery *discovery_) : discovery(discovery_) {}
 

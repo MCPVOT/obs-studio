@@ -1,4 +1,4 @@
-#include "build/win-capture.pch.h"
+#include "plugins/win-capture/build/win-capture.pch.h"
 
 #define THREAD_STATE_WAITING 5
 #define THREAD_WAIT_REASON_SUSPENDED 5

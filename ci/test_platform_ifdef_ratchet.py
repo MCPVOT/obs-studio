@@ -385,7 +385,7 @@ class FacadeTest(unittest.TestCase):
                 self.assertTrue(funcs, cap)
                 defined = [f for f in funcs if re.search(rf"^[^\s].*\b{f}\(", impl, re.M)]
                 with self.subTest(os=os_name, capability=cap):
-                    if f'#include "obs-host/noop/{cap}.hpp"' in impl:
+                    if f'#include "libobs/obs-host/noop/{cap}.hpp"' in impl:
                         self.assertEqual(defined, [], "both the no-op and the host file define it")
                     else:
                         self.assertEqual(defined, funcs, "neither the no-op nor the host file defines it")

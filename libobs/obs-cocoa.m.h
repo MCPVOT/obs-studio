@@ -15,7 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "build/libobs-cocoa.pch.h"
+#include "libobs/build/libobs-cocoa.pch.h"
 
 // MARK: macOS Bundle Management
 const char *get_module_extension(void)
@@ -873,11 +873,11 @@ void obs_key_to_str(obs_key_t key, struct dstr *str)
 
 /* The obs-host capabilities this host lacks (#1051): no-op headers, built
  * here rather than as unity group members (BUILD.md). */
-#include "obs-host/noop/com.hpp"
-#include "obs-host/noop/display-clear-workaround.hpp"
-#include "obs-host/noop/graphics-thread-hooks.hpp"
-#include "obs-host/noop/module-symbols.hpp"
-#include "obs-host/noop/shared-texture.hpp"
+#include "libobs/obs-host/noop/com.hpp"
+#include "libobs/obs-host/noop/display-clear-workaround.hpp"
+#include "libobs/obs-host/noop/graphics-thread-hooks.hpp"
+#include "libobs/obs-host/noop/module-symbols.hpp"
+#include "libobs/obs-host/noop/shared-texture.hpp"
 
 /* File-local macros (BUILD.md): out of the next file in the unity group. */
 #undef OBS_COCOA_MODIFIER_SIZE

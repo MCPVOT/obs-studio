@@ -6,7 +6,7 @@
 #pragma once
 
 /* win/platform.cpp */
-#include "../platform.hpp"
+#include "plugins/decklink/platform.hpp"
 
 #include <util/platform.h>
 #include <comdef.h>

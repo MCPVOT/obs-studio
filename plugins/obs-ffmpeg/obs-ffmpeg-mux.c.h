@@ -14,7 +14,7 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
-#include "build/obs-ffmpeg-mux.pch.h"
+#include "plugins/obs-ffmpeg/build/obs-ffmpeg-mux.pch.h"
 
 #define do_log(level, format, ...) \
 	blog(level, "[ffmpeg muxer: '%s'] " format, obs_output_get_name(stream->output), ##__VA_ARGS__)

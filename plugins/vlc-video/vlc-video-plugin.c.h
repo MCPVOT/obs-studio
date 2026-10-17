@@ -1,4 +1,4 @@
-#include "build/vlc-video.pch.h"
+#include "plugins/vlc-video/build/vlc-video.pch.h"
 
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE("vlc-video", "en-US")

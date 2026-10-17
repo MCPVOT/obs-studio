@@ -1,4 +1,4 @@
-#include "../build/rtmp-services.pch.h"
+#include "plugins/rtmp-services/build/rtmp-services.pch.h"
 
 #ifndef SEC_TO_NSEC
 #define SEC_TO_NSEC 1000000000ULL

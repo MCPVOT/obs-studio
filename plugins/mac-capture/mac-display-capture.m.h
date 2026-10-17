@@ -1,4 +1,4 @@
-#include "build/mac-capture-objc.pch.h"
+#include "plugins/mac-capture/build/mac-capture-objc.pch.h"
 
 enum crop_mode {
     CROP_NONE,

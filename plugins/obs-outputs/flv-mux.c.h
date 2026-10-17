@@ -15,7 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "build/obs-outputs.pch.h"
+#include "plugins/obs-outputs/build/obs-outputs.pch.h"
 
 /* TODO: FIXME: this is currently hard-coded to h264 and aac!  ..not that we'll
  * use anything else for a long time. */

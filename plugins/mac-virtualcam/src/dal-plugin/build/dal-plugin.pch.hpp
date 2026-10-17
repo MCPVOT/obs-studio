@@ -6,30 +6,30 @@
 #pragma once
 
 /* CMSampleBufferUtils.mm */
-#import "../CMSampleBufferUtils.h"
+#import "plugins/mac-virtualcam/src/dal-plugin/CMSampleBufferUtils.h"
 
 /* OBSDALDevice.mm */
-#import "../OBSDALDevice.h"
+#import "plugins/mac-virtualcam/src/dal-plugin/OBSDALDevice.h"
 
 #include <IOKit/audio/IOAudioTypes.h>
 
-#import "../OBSDALPlugIn.h"
-#import "../Logging.h"
+#import "plugins/mac-virtualcam/src/dal-plugin/OBSDALPlugIn.h"
+#import "plugins/mac-virtualcam/src/dal-plugin/Logging.h"
 
 /* OBSDALMachClient.mm */
-#import "../OBSDALMachClient.h"
+#import "plugins/mac-virtualcam/src/dal-plugin/OBSDALMachClient.h"
 #import "MachProtocol.h"
 
 /* OBSDALObjectStore.mm */
-#import "../OBSDALObjectStore.h"
+#import "plugins/mac-virtualcam/src/dal-plugin/OBSDALObjectStore.h"
 
 /* OBSDALPlugInInterface.mm */
-#import "../OBSDALPlugInInterface.h"
+#import "plugins/mac-virtualcam/src/dal-plugin/OBSDALPlugInInterface.h"
 
-#import "../OBSDALStream.h"
+#import "plugins/mac-virtualcam/src/dal-plugin/OBSDALStream.h"
 
 /* OBSDALPlugInMain.mm */
-#import "../Defines.h"
+#import "plugins/mac-virtualcam/src/dal-plugin/Defines.h"
 
 /* OBSDALStream.mm */
 

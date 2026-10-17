@@ -15,7 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "build/obs-outputs-mp4-mux.pch.h"
+#include "plugins/obs-outputs/build/obs-outputs-mp4-mux.pch.h"
 
 /*
  * (Mostly) compliant MP4 muxer for fun and profit.

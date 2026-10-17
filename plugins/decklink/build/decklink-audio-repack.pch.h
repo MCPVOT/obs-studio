@@ -6,6 +6,6 @@
 #pragma once
 
 /* audio-repack.c */
-#include "../audio-repack.h"
+#include "plugins/decklink/audio-repack.h"
 
 #include <util/sse-intrin.h>

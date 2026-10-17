@@ -60,12 +60,20 @@ its precompiled header, then its implementation files in alphabetical order:
 /* libobs/build/libobs.util+.h.c */
 /* Unity group (BUILD.md): util/ and callback/. */
 
-#include "libobs.pch.h"
+#include "libobs/build/libobs.pch.h"
 
-#include "../callback/calldata.c.h"
-#include "../callback/decl.c.h"
-#include "../util/cf-lexer.c.h"
+#include "libobs/callback/calldata.c.h"
+#include "libobs/callback/decl.c.h"
+#include "libobs/util/cf-lexer.c.h"
 ```
+
+Every quoted include of a repo file in a group, a precompiled header, an
+implementation file or a forwarding file is a repo-root path
+(`plugins/obs-ffmpeg/obs-ffmpeg-formats.h`), never one relative to the file
+(`../obs-ffmpeg-formats.h`): a line reads the same wherever it is, and moves
+with no rewriting. `cmake/common/groups.cmake` makes the repo root an include
+directory of every target. Headers found through a target's own include
+directories (`<obs-module.h>`, `"util/base.h"`) keep their usual form.
 
 ### 2. One header per group, and it is the only include
 
@@ -74,7 +82,7 @@ precompiled header, as its first line.
 
 ```c
 /* libobs/util/cf-lexer.c.h */
-#include "build/libobs.pch.h"
+#include "libobs/build/libobs.pch.h"
 
 static inline void cf_convert_from_escape_literal(...)
 ```
@@ -123,7 +131,7 @@ Two exceptions, both after the code starts:
 
 A C test that `#include`s a source file by its old name (`#include "media.c"`)
 keeps working through a one-line forwarding file left at that name
-(`media.c`: `#include "media.c.h"`). The build never compiles it, and the
+(`media.c`: `#include "shared/media-playback/media-playback/media.c.h"`). The build never compiles it, and the
 unchanged C test needs no edit.
 
 ### 3. Unity and precompiled headers are always on

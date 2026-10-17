@@ -1,4 +1,4 @@
-#include "build/obs-filters.pch.h"
+#include "plugins/obs-filters/build/obs-filters.pch.h"
 
 #define LOW_FREQ 800.0f
 #define HIGH_FREQ 5000.0f

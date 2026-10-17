@@ -1,9 +1,9 @@
 /* Unity group (BUILD.md): X11 capture (XComposite, XSHM). */
 
-#include "linux-capture-nix.pch.h"
+#include "plugins/linux-capture/build/linux-capture-nix.pch.h"
 
-#include "../linux-capture.c.h"
-#include "../xcomposite-input.c.h"
-#include "../xcursor-xcb.c.h"
-#include "../xhelpers.c.h"
-#include "../xshm-input.c.h"
+#include "plugins/linux-capture/linux-capture.c.h"
+#include "plugins/linux-capture/xcomposite-input.c.h"
+#include "plugins/linux-capture/xcursor-xcb.c.h"
+#include "plugins/linux-capture/xhelpers.c.h"
+#include "plugins/linux-capture/xshm-input.c.h"

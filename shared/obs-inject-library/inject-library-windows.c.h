@@ -1,4 +1,4 @@
-#include "build/inject-library-windows.pch.h"
+#include "shared/obs-inject-library/build/inject-library-windows.pch.h"
 
 typedef HANDLE(WINAPI *create_remote_thread_t)(HANDLE, LPSECURITY_ATTRIBUTES, SIZE_T, LPTHREAD_START_ROUTINE, LPVOID,
 					       DWORD, LPDWORD);

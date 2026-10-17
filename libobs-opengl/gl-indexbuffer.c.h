@@ -15,7 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "build/opengl.pch.h"
+#include "libobs-opengl/build/opengl.pch.h"
 
 static inline bool init_ib(struct gs_index_buffer *ib)
 {

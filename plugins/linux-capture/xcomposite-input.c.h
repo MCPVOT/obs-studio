@@ -1,4 +1,4 @@
-#include "build/linux-capture-nix.pch.h"
+#include "plugins/linux-capture/build/linux-capture-nix.pch.h"
 
 #define WIN_STRING_DIV "\r\n"
 #define FIND_WINDOW_INTERVAL 2.0

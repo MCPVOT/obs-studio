@@ -8,6 +8,6 @@
 /* net-if.c */
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 
-#include "../net-if.h"
+#include "plugins/obs-outputs/net-if.h"
 #include <util/platform.h>
 #include <util/dstr.h>

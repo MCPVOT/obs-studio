@@ -6,8 +6,8 @@
 #pragma once
 
 /* rtmp-av1.c */
-#include "../rtmp-av1.h"
-#include "../utils.h"
+#include "plugins/obs-outputs/rtmp-av1.h"
+#include "plugins/obs-outputs/utils.h"
 
 #include <obs.h>
 #include <util/array-serializer.h>

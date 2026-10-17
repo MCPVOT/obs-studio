@@ -1,4 +1,4 @@
-#include "build/decklink-audio-repack.pch.h"
+#include "plugins/decklink/build/decklink-audio-repack.pch.h"
 
 int check_buffer(struct audio_repack *repack, uint32_t frame_count)
 {

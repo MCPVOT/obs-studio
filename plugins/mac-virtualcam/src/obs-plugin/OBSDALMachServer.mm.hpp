@@ -5,7 +5,7 @@
 //  Created by John Boiles  on 5/5/20.
 //
 
-#include "build/mac-virtualcam.pch.hpp"
+#include "plugins/mac-virtualcam/src/obs-plugin/build/mac-virtualcam.pch.hpp"
 
 @interface OBSDALMachServer () <NSPortDelegate>
 @property NSPort *port;

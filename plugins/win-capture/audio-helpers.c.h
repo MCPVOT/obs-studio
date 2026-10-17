@@ -1,4 +1,4 @@
-#include "build/win-capture.pch.h"
+#include "plugins/win-capture/build/win-capture.pch.h"
 
 static inline bool settings_changed(obs_data_t *old_settings, obs_data_t *new_settings)
 {

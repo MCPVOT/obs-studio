@@ -15,7 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "build/obs-outputs-hevc.pch.h"
+#include "plugins/obs-outputs/build/obs-outputs-hevc.pch.h"
 
 /* Adapted from FFmpeg's libavformat/hevc.c for our FLV muxer. */
 

@@ -1,4 +1,4 @@
-#include "build/win-wasapi-windows.pch.hpp"
+#include "plugins/win-wasapi/build/win-wasapi-windows.pch.hpp"
 
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE("win-wasapi", "en-US")

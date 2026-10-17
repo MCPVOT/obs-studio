@@ -15,7 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "build/opengl-windows.pch.h"
+#include "libobs-opengl/build/opengl-windows.pch.h"
 
 /* Basically swapchain-specific information.  Fortunately for windows this is
  * super basic stuff */

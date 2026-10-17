@@ -19,7 +19,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#include "build/linux-pipewire-nix.pch.h"
+#include "plugins/linux-pipewire/build/linux-pipewire-nix.pch.h"
 
 static const struct obs_pw_video_format supported_formats[] = {
 	{

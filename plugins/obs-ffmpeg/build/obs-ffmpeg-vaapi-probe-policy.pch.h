@@ -6,7 +6,7 @@
 #pragma once
 
 /* vaapi-probe-policy.c */
-#include "../vaapi-probe-policy.h"
+#include "plugins/obs-ffmpeg/vaapi-probe-policy.h"
 
 #include <util/bmem.h>
 #include <util/c99defs.h>

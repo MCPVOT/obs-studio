@@ -15,7 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "build/obs-ffmpeg.pch.h"
+#include "plugins/obs-ffmpeg/build/obs-ffmpeg.pch.h"
 
 #define do_log(level, format, ...) \
 	blog(level, "[FFmpeg %s encoder: '%s'] " format, enc->type, obs_encoder_get_name(enc->encoder), ##__VA_ARGS__)

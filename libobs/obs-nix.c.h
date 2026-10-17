@@ -16,7 +16,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "build/libobs-nix.pch.h"
+#include "libobs/build/libobs-nix.pch.h"
 
 const char *get_module_extension(void)
 {
@@ -413,12 +413,12 @@ void obs_key_combination_to_str(obs_key_combination_t combination, struct dstr *
 
 /* The obs-host capabilities this host lacks (#1051): no-op headers, built
  * here rather than as unity group members (BUILD.md). */
-#include "obs-host/noop/com.hpp"
-#include "obs-host/noop/default-monitoring-device.hpp"
-#include "obs-host/noop/display-clear-workaround.hpp"
-#include "obs-host/noop/display-srgb-clear.hpp"
-#include "obs-host/noop/graphics-thread-hooks.hpp"
-#include "obs-host/noop/graphics-thread.hpp"
-#include "obs-host/noop/module-paths.hpp"
-#include "obs-host/noop/module-symbols.hpp"
-#include "obs-host/noop/shared-texture.hpp"
+#include "libobs/obs-host/noop/com.hpp"
+#include "libobs/obs-host/noop/default-monitoring-device.hpp"
+#include "libobs/obs-host/noop/display-clear-workaround.hpp"
+#include "libobs/obs-host/noop/display-srgb-clear.hpp"
+#include "libobs/obs-host/noop/graphics-thread-hooks.hpp"
+#include "libobs/obs-host/noop/graphics-thread.hpp"
+#include "libobs/obs-host/noop/module-paths.hpp"
+#include "libobs/obs-host/noop/module-symbols.hpp"
+#include "libobs/obs-host/noop/shared-texture.hpp"

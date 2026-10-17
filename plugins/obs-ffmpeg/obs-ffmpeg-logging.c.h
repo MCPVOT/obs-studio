@@ -1,4 +1,4 @@
-#include "build/obs-ffmpeg.pch.h"
+#include "plugins/obs-ffmpeg/build/obs-ffmpeg.pch.h"
 
 static DARRAY(struct log_context {
 	void *context;

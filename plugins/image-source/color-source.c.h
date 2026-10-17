@@ -1,4 +1,4 @@
-#include "build/image-source.pch.h"
+#include "plugins/image-source/build/image-source.pch.h"
 
 struct color_source {
 	struct vec4 color;

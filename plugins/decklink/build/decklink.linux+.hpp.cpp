@@ -1,5 +1,5 @@
 /* Unity group (BUILD.md): the Linux driver strings. */
 
-#include "decklink-linux.pch.hpp"
+#include "plugins/decklink/build/decklink-linux.pch.hpp"
 
-#include "../linux/platform.cpp.hpp"
+#include "plugins/decklink/linux/platform.cpp.hpp"

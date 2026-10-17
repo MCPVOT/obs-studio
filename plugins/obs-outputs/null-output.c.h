@@ -15,7 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "build/obs-outputs.pch.h"
+#include "plugins/obs-outputs/build/obs-outputs.pch.h"
 
 struct null_output {
 	obs_output_t *output;

@@ -1,4 +1,4 @@
-#include "build/decklink.pch.hpp"
+#include "plugins/decklink/build/decklink.pch.hpp"
 
 template<typename T> RenderDelegate<T>::RenderDelegate(T *pOwner)
 {

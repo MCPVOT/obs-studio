@@ -1,4 +1,4 @@
-#include "../build/decklink-windows.pch.hpp"
+#include "plugins/decklink/build/decklink-windows.pch.hpp"
 
 IDeckLinkDiscovery *CreateDeckLinkDiscoveryInstance(void)
 {

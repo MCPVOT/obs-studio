@@ -11,7 +11,7 @@
 #include <util/platform.h>
 #include <util/dstr.h>
 
-#include "../obs-ffmpeg-compat.h"
-#include "../obs-ffmpeg-formats.h"
+#include "plugins/obs-ffmpeg/obs-ffmpeg-compat.h"
+#include "plugins/obs-ffmpeg/obs-ffmpeg-formats.h"
 
 #include <media-playback/media-playback.h>

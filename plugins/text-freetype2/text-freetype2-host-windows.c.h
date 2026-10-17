@@ -15,7 +15,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "build/text-freetype2-windows.pch.h"
+#include "plugins/text-freetype2/build/text-freetype2-windows.pch.h"
 
 /* Windows has the GDI+ text source, so this one is deprecated there. */
 uint32_t ft2_platform_source_flags(void)

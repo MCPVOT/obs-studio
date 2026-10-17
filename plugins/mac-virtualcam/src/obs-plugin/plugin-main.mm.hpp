@@ -1,4 +1,4 @@
-#include "build/mac-virtualcam.pch.hpp"
+#include "plugins/mac-virtualcam/src/obs-plugin/build/mac-virtualcam.pch.hpp"
 
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE("mac-virtualcam", "en-US")

@@ -16,7 +16,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "build/oss-audio-freebsd.pch.h"
+#include "plugins/oss-audio/build/oss-audio-freebsd.pch.h"
 
 #define blog(level, msg, ...) blog(level, "oss-audio: " msg, ##__VA_ARGS__)
 

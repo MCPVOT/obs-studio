@@ -15,7 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "build/obs-outputs-net-if.pch.h"
+#include "plugins/obs-outputs/build/obs-outputs-net-if.pch.h"
 
 #define do_log(level, format, ...) blog(level, "[net if] " format, ##__VA_ARGS__)
 

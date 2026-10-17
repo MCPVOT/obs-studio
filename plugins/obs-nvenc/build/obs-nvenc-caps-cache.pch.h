@@ -6,7 +6,7 @@
 #pragma once
 
 /* nvenc-caps-cache.c */
-#include "../nvenc-caps-cache.h"
+#include "plugins/obs-nvenc/nvenc-caps-cache.h"
 
 #include <util/bmem.h>
 #include <util/c99defs.h>

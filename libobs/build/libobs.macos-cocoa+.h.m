@@ -1,5 +1,5 @@
 /* Unity group (BUILD.md): Objective-C with ARC. */
 
-#include "libobs-cocoa.pch.h"
+#include "libobs/build/libobs-cocoa.pch.h"
 
-#include "../obs-cocoa.m.h"
+#include "libobs/obs-cocoa.m.h"

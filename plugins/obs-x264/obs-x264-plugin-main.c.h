@@ -1,4 +1,4 @@
-#include "build/obs-x264.pch.h"
+#include "plugins/obs-x264/build/obs-x264.pch.h"
 
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE("obs-x264", "en-US")

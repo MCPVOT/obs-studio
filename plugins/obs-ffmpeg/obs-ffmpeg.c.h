@@ -1,4 +1,4 @@
-#include "build/obs-ffmpeg.pch.h"
+#include "plugins/obs-ffmpeg/build/obs-ffmpeg.pch.h"
 
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE("obs-ffmpeg", "en-US")

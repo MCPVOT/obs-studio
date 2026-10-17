@@ -15,7 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "build/libobs-ported-media.pch.h"
+#include "libobs/build/libobs-ported-media.pch.h"
 
 struct obs_hotkey_name_map;
 
@@ -63,7 +63,7 @@ static bool obs_hotkey_name_map_lookup(obs_hotkey_name_map_item_t *hmap, const c
 
 static const char *obs_key_names[] = {
 #define OBS_HOTKEY(x) #x,
-#include "obs-hotkeys.h"
+#include "libobs/obs-hotkeys.h"
 #undef OBS_HOTKEY
 };
 
@@ -85,7 +85,7 @@ static obs_key_t obs_key_from_name_fallback(const char *name)
 #define OBS_HOTKEY(x)              \
 	if (strcmp(#x, name) == 0) \
 		return x;
-#include "obs-hotkeys.h"
+#include "libobs/obs-hotkeys.h"
 #undef OBS_HOTKEY
 	return OBS_KEY_NONE;
 }
@@ -93,7 +93,7 @@ static obs_key_t obs_key_from_name_fallback(const char *name)
 static void init_name_map(void)
 {
 #define OBS_HOTKEY(x) obs_hotkey_name_map_insert(&obs->hotkeys.name_map, #x, x);
-#include "obs-hotkeys.h"
+#include "libobs/obs-hotkeys.h"
 #undef OBS_HOTKEY
 }
 

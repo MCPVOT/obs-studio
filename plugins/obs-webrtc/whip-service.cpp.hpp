@@ -1,4 +1,4 @@
-#include "build/obs-webrtc.pch.hpp"
+#include "plugins/obs-webrtc/build/obs-webrtc.pch.hpp"
 
 const char *audio_codecs[] = {"opus", nullptr};
 const char *video_codecs[] = {"h264", "hevc", "av1", nullptr};

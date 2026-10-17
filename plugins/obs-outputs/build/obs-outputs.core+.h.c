@@ -1,9 +1,9 @@
 /* Unity group (BUILD.md): the FLV, MP4 and null outputs, the module and RTMP AV1. */
 
-#include "obs-outputs.pch.h"
+#include "plugins/obs-outputs/build/obs-outputs.pch.h"
 
-#include "../flv-mux.c.h"
-#include "../flv-output.c.h"
-#include "../mp4-output.c.h"
-#include "../null-output.c.h"
-#include "../obs-outputs.c.h"
+#include "plugins/obs-outputs/flv-mux.c.h"
+#include "plugins/obs-outputs/flv-output.c.h"
+#include "plugins/obs-outputs/mp4-output.c.h"
+#include "plugins/obs-outputs/null-output.c.h"
+#include "plugins/obs-outputs/obs-outputs.c.h"

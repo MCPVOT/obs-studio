@@ -1,4 +1,4 @@
-#include "build/obs-filters.pch.h"
+#include "plugins/obs-filters/build/obs-filters.pch.h"
 
 /* Adobe Cube LUT Specification 1.0 */
 #define LUT_1D_SIZE_MAX 65536

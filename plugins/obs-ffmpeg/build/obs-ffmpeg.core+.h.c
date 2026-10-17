@@ -1,6 +1,6 @@
 /* Unity group (BUILD.md): the module and the audio encoders. */
 
-#include "obs-ffmpeg.pch.h"
+#include "plugins/obs-ffmpeg/build/obs-ffmpeg.pch.h"
 
-#include "../obs-ffmpeg-audio-encoders.c.h"
-#include "../obs-ffmpeg.c.h"
+#include "plugins/obs-ffmpeg/obs-ffmpeg-audio-encoders.c.h"
+#include "plugins/obs-ffmpeg/obs-ffmpeg.c.h"

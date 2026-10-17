@@ -15,7 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "build/libobs.pch.h"
+#include "libobs/build/libobs.pch.h"
 
 bool obs_display_init(struct obs_display *display, const struct gs_init_data *graphics_data)
 {

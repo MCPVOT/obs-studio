@@ -19,7 +19,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#include "build/happy-eyeballs.pch.h"
+#include "shared/happy-eyeballs/build/happy-eyeballs.pch.h"
 
 /* ------------------------------------------------------------------------- */
 /* happy eyeballs coefficients                                               */

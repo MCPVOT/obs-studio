@@ -6,4 +6,4 @@
 #pragma once
 
 /* nvenc-override.c */
-#include "../nvenc-override.h"
+#include "plugins/obs-nvenc/nvenc-override.h"

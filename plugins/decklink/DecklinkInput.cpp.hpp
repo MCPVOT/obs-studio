@@ -1,4 +1,4 @@
-#include "build/decklink.pch.hpp"
+#include "plugins/decklink/build/decklink.pch.hpp"
 
 DeckLinkInput::DeckLinkInput(obs_source_t *source, DeckLinkDeviceDiscovery *discovery_)
 	: DecklinkBase(discovery_),

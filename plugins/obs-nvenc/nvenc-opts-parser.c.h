@@ -1,4 +1,4 @@
-#include "build/obs-nvenc.pch.h"
+#include "plugins/obs-nvenc/build/obs-nvenc.pch.h"
 
 /* NVIDIA uses bitfields for a variety of options. As it is not possible to
  * use offsetof() or similar with those we resort to macros here to avoid too

@@ -15,7 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "build/libobs-ported-media.pch.h"
+#include "libobs/build/libobs-ported-media.pch.h"
 
 struct obs_data_item {
 	volatile long ref;

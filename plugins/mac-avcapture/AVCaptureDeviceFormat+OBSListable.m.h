@@ -5,7 +5,7 @@
 //  Created by jcm on 7/9/24.
 //
 
-#include "build/mac-avcapture.pch.h"
+#include "plugins/mac-avcapture/build/mac-avcapture.pch.h"
 
 @implementation AVCaptureDeviceFormat (OBSListable)
 

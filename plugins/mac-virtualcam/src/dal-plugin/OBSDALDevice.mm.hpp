@@ -17,7 +17,7 @@
 //  You should have received a copy of the GNU General Public License
 //  along with obs-mac-virtualcam. If not, see <http://www.gnu.org/licenses/>.
 
-#include "build/dal-plugin.pch.hpp"
+#include "plugins/mac-virtualcam/src/dal-plugin/build/dal-plugin.pch.hpp"
 
 @interface OBSDALDevice ()
 @property BOOL excludeNonDALAccess;

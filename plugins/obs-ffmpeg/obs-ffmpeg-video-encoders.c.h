@@ -1,4 +1,4 @@
-#include "build/obs-ffmpeg-video-encoders.pch.h"
+#include "plugins/obs-ffmpeg/build/obs-ffmpeg-video-encoders.pch.h"
 
 #define do_log(level, format, ...) \
 	blog(level, "[%s encoder: '%s'] " format, enc->enc_name, obs_encoder_get_name(enc->encoder), ##__VA_ARGS__)

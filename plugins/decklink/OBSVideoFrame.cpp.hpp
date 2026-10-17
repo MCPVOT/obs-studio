@@ -1,4 +1,4 @@
-#include "build/decklink.pch.hpp"
+#include "plugins/decklink/build/decklink.pch.hpp"
 
 OBSVideoFrame::OBSVideoFrame(long width, long height, BMDPixelFormat pixelFormat)
 {

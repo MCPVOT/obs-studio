@@ -15,7 +15,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "build/linux-capture-nix.pch.h"
+#include "plugins/linux-capture/build/linux-capture-nix.pch.h"
 
 bool xinerama_is_active(xcb_connection_t *xcb)
 {

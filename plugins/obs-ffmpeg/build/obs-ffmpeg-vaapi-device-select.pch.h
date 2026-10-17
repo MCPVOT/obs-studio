@@ -6,6 +6,6 @@
 #pragma once
 
 /* vaapi-device-select.c */
-#include "../vaapi-device-select.h"
+#include "plugins/obs-ffmpeg/vaapi-device-select.h"
 
 #include <string.h>

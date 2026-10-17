@@ -1,4 +1,4 @@
-#include "build/obs-transitions.pch.h"
+#include "plugins/obs-transitions/build/obs-transitions.pch.h"
 
 #define TIMING_TIME 0
 #define TIMING_FRAME 1

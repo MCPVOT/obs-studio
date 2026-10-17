@@ -15,7 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "build/obs-outputs.pch.h"
+#include "plugins/obs-outputs/build/obs-outputs.pch.h"
 
 #define do_log(level, format, ...)                                                                 \
 	blog(level, "[%s output: '%s'] " format, out->muxer_flavor == FLAVOR_MOV ? "mov" : "mp4", \

@@ -1,5 +1,5 @@
 /* Unity group (BUILD.md): XDG portal global shortcuts (ENABLE_WAYLAND + GIO). */
 
-#include "libobs-nix-portal-shortcuts.pch.h"
+#include "libobs/build/libobs-nix-portal-shortcuts.pch.h"
 
-#include "../obs-nix-portal-shortcuts.c.h"
+#include "libobs/obs-nix-portal-shortcuts.c.h"

@@ -1,4 +1,4 @@
-#include "build/image-source.pch.h"
+#include "plugins/image-source/build/image-source.pch.h"
 
 #define do_log(level, format, ...) \
 	blog(level, "[slideshow: '%s'] " format, obs_source_get_name(ss->source), ##__VA_ARGS__)

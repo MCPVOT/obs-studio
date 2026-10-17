@@ -34,5 +34,5 @@
 	} while (false)
 
 #ifdef _WIN32
-#include "../windows-imports.h"
+#include "plugins/coreaudio-encoder/windows-imports.h"
 #endif

@@ -5,7 +5,7 @@
 //  Created by Patrick Heyer on 2023-03-07.
 //
 
-#include "build/mac-avcapture.pch.h"
+#include "plugins/mac-avcapture/build/mac-avcapture.pch.h"
 
 /// The maximum number of frame rate ranges to show complete information for before providing a more generic description of the supported frame rates inside of a device format description.
 static const UInt32 kMaxFrameRateRangesInDescription = 10;

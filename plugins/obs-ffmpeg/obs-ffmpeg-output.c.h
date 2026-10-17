@@ -15,7 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "build/obs-ffmpeg-output.pch.h"
+#include "plugins/obs-ffmpeg/build/obs-ffmpeg-output.pch.h"
 
 /* ------------------------------------------------------------------------- */
 

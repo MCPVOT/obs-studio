@@ -15,7 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "build/libobs-cocoa.pch.h"
+#include "libobs/build/libobs-cocoa.pch.h"
 
 extern bool find_core_module(struct obs_runtime_module_info *info, obs_find_module_callback2_t callback, void *data);
 

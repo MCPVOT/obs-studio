@@ -1,6 +1,6 @@
 /* Unity group (BUILD.md): OSS audio input. */
 
-#include "oss-audio.pch.h"
+#include "plugins/oss-audio/build/oss-audio.pch.h"
 
-#include "../oss-audio.c.h"
-#include "../oss-input.c.h"
+#include "plugins/oss-audio/oss-audio.c.h"
+#include "plugins/oss-audio/oss-input.c.h"

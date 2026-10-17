@@ -1,5 +1,5 @@
 /* Unity group (BUILD.md): broadcast performance metrics. */
 
-#include "bpm.pch.h"
+#include "shared/bpm/build/bpm.pch.h"
 
-#include "../bpm.c.h"
+#include "shared/bpm/bpm.c.h"

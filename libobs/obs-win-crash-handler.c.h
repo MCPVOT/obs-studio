@@ -15,7 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "build/libobs-windows-crash-handler.pch.h"
+#include "libobs/build/libobs-windows-crash-handler.pch.h"
 
 typedef BOOL(WINAPI *ENUMERATELOADEDMODULES64)(HANDLE process,
 					       PENUMLOADED_MODULES_CALLBACK64 enum_loaded_modules_callback,

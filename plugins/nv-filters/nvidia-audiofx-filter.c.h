@@ -1,4 +1,4 @@
-#include "build/nv-filters-windows-afx.pch.h"
+#include "plugins/nv-filters/build/nv-filters-windows-afx.pch.h"
 
 /* -------------------------------------------------------- */
 #define do_log(level, format, ...) \

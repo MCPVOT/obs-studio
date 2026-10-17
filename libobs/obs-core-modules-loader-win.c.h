@@ -15,7 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "build/libobs-windows.pch.h"
+#include "libobs/build/libobs-windows.pch.h"
 
 const char *core_module_bin = "../../core/%module%/%module%";
 const char *core_module_data = "../../core/%module%/data";

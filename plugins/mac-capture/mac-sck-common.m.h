@@ -1,4 +1,4 @@
-#include "build/mac-capture-objc.pch.h"
+#include "plugins/mac-capture/build/mac-capture-objc.pch.h"
 
 bool is_screen_capture_available(void)
 {

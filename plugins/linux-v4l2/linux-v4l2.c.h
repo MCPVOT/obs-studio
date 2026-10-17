@@ -14,7 +14,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-#include "build/linux-v4l2-nix.pch.h"
+#include "plugins/linux-v4l2/build/linux-v4l2-nix.pch.h"
 
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE("linux-v4l2", "en-US")

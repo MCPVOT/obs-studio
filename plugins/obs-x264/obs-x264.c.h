@@ -15,7 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "build/obs-x264.pch.h"
+#include "plugins/obs-x264/build/obs-x264.pch.h"
 
 #define do_log_enc(level, encoder, format, ...) \
 	blog(level, "[x264 encoder: '%s'] " format, obs_encoder_get_name(encoder), ##__VA_ARGS__)

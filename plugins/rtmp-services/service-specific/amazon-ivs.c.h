@@ -1,4 +1,4 @@
-#include "../build/rtmp-services.pch.h"
+#include "plugins/rtmp-services/build/rtmp-services.pch.h"
 
 static struct service_ingests amazon_ivs = {.update_info = NULL,
 					    .mutex = PTHREAD_MUTEX_INITIALIZER,

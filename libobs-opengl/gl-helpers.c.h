@@ -15,7 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "build/opengl.pch.h"
+#include "libobs-opengl/build/opengl.pch.h"
 
 bool gl_init_face(GLenum target, GLenum type, uint32_t num_levels, GLenum format, GLint internal_format,
 		  bool compressed, uint32_t width, uint32_t height, uint32_t size, const uint8_t ***p_data)

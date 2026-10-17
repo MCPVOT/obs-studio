@@ -6,9 +6,9 @@
 #pragma once
 
 /* rtmp-stream.c */
-#include "../rtmp-stream.h"
-#include "../rtmp-av1.h"
-#include "../rtmp-hevc.h"
+#include "plugins/obs-outputs/rtmp-stream.h"
+#include "plugins/obs-outputs/rtmp-av1.h"
+#include "plugins/obs-outputs/rtmp-hevc.h"
 
 #include <obs-avc.h>
 #include <obs-hevc.h>

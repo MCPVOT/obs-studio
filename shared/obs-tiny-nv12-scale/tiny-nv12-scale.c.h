@@ -1,4 +1,4 @@
-#include "build/tiny-nv12-scale.pch.h"
+#include "shared/obs-tiny-nv12-scale/build/tiny-nv12-scale.pch.h"
 
 /* TODO: optimize this stuff later, or replace with something better.  it's
  * kind of garbage.  although normally it shouldn't be called that often.  plus
