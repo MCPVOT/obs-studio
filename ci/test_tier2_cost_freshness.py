@@ -99,6 +99,52 @@ class WorkflowTest(unittest.TestCase):
         self.assertIn("actions/cache/save@", j)
         self.assertIn("key: tier2-ctest-cost-${{ github.sha }}", j)
 
+    def test_merge_handles_single_and_multiple_artifact_layouts(self):
+        # download-artifact v8 flattens a single match even when
+        # merge-multiple is false. Execute the actual workflow shell.
+        block = job("rust-linux-tier2-done")
+        script = (
+            block.split("      - name: Merge Test Timings", 1)[1]
+            .split("        run: |\n", 1)[1]
+            .split("      - uses:", 1)[0]
+        )
+        script = "\n".join(line[10:] for line in script.splitlines())
+        import os
+
+        for nested in (False, True):
+            with (
+                self.subTest(nested=nested),
+                tempfile.TemporaryDirectory() as directory,
+            ):
+                root = Path(directory)
+                destination = root / "tier2-cost-shards"
+                sources = (
+                    [destination / "tier2-cost-a", destination / "tier2-cost-b"]
+                    if nested
+                    else [destination]
+                )
+                for source in sources:
+                    source.mkdir(parents=True)
+                    for mode in ("OFF", "ON"):
+                        (source / f"ctest-cost-{mode}.txt").write_text(
+                            "test_one 1 0.2\n---\n"
+                        )
+                # Resolve repo scripts while retaining an isolated output dir.
+                script_here = script.replace("bash rust/", f"bash {ROOT}/rust/")
+                result = subprocess.run(
+                    ["bash", "-e", "-c", script_here],
+                    cwd=root,
+                    env={**os.environ, "RUNNER_TEMP": directory},
+                    capture_output=True,
+                    text=True,
+                )
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                for mode in ("OFF", "ON"):
+                    self.assertIn(
+                        "test_one 1 0.2",
+                        (root / ".tier2-cost" / f"ctest-cost-{mode}.txt").read_text(),
+                    )
+
     def test_build_job_restores_the_merged_costs(self):
         j = job("rust-linux-tier2-build")
         self.assertIn("restore-keys: tier2-ctest-cost-", j)
