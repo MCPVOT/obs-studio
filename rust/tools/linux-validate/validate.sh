@@ -170,8 +170,22 @@ else
     >"$build.configure.log" 2>&1 || { tail -40 "$build.configure.log"; exit 1; }
   # -k 0: keep going after a failed target, so one run reports every compile
   # error (a warning ratchet otherwise took a round trip per file; #634).
-  cmake --build "$build" --target libobs libobs-with-rust cmocka-tests decklink obs-nvenc obs-nvenc-with-rust -- -k 0 \
-    >"$build.build.log" 2>&1 || { "$SRC"/rust/tools/linux-validate/build-errors.sh "$build.build.log"; exit 1; }
+  # A compile the zccache launcher itself fails exits 125 with no compiler
+  # output: every in-flight compile failed at once when its daemon died (master
+  # run 39002068564). Restart the daemon and rebuild once; ninja redoes only
+  # the failed edges, and a real compile error fails the second time too.
+  tier2_targets=(libobs libobs-with-rust cmocka-tests decklink obs-nvenc obs-nvenc-with-rust)
+  if ! cmake --build "$build" --target "${tier2_targets[@]}" -- -k 0 >"$build.build.log" 2>&1; then
+    if grep -q '^FAILED: \[code=125\]' "$build.build.log"; then
+      echo "== $(grep -c '^FAILED: \[code=125\]' "$build.build.log") compiles failed in the zccache launcher (exit 125); restarting it and rebuilding once"
+      zccache stop >/dev/null 2>&1 || true
+      cmake --build "$build" --target "${tier2_targets[@]}" -- -k 0 >"$build.build.log" 2>&1 ||
+        { "$SRC"/rust/tools/linux-validate/build-errors.sh "$build.build.log"; exit 1; }
+    else
+      "$SRC"/rust/tools/linux-validate/build-errors.sh "$build.build.log"
+      exit 1
+    fi
+  fi
   if [ -n "${OBS_EXTRA_CFLAGS:-}" ]; then
     # Measuring extra flags: show what they report (#516).
     echo "== warnings"
