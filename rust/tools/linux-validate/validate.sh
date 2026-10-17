@@ -337,8 +337,11 @@ if [ "$stage" != build ]; then
     echo "== [$mode] ctest${OBS_CTEST_SHARD:+ shard $OBS_CTEST_SHARD}"
     # xvfb-run gives display tests an X server; the PipeWire tests start their
     # own private PipeWire daemon and D-Bus bus (#776).
+    # Tests share this display. Do not reset it when its last client exits:
+    # another test can be opening its hotkey connection at that boundary.
+    xvfb_args=(-a '--server-args=-screen 0 1280x1024x24 -noreset')
     ctest_status=0
-    "${mode_env[@]}" xvfb-run -a ctest --test-dir "$build" --output-on-failure -j "${OBS_CTEST_JOBS:-1}" "${mode_shard_args[@]}" 2>&1 | tee "$build.ctest-$mode.log" ||
+    "${mode_env[@]}" xvfb-run "${xvfb_args[@]}" ctest --test-dir "$build" --output-on-failure -j "${OBS_CTEST_JOBS:-1}" "${mode_shard_args[@]}" 2>&1 | tee "$build.ctest-$mode.log" ||
       ctest_status=$?
     # Keep the timings even when a test failed: they are still right.
     if [ -n "$cost_cache" ] && [ -s "$cost_file" ]; then
@@ -350,7 +353,7 @@ if [ "$stage" != build ]; then
 
     if [ "$repeat" -gt 0 ]; then
       echo "== [$mode] ctest --repeat until-fail:$repeat${tests:+ -R $tests}"
-      "${mode_env[@]}" xvfb-run -a ctest --test-dir "$build" --output-on-failure \
+      "${mode_env[@]}" xvfb-run "${xvfb_args[@]}" ctest --test-dir "$build" --output-on-failure \
         --repeat "until-fail:$repeat" ${tests:+-R "$tests"}
     fi
   done

@@ -42,6 +42,11 @@ not get a line.
 
 ## Features
 
+- Failed libobs startup reports the initializer that failed; Linux X11
+  hotkey initialization reports a failed display connection and its display
+  name. *All* (X11 detail on Linux), 2026-10-17. Issue
+  [#1355](https://github.com/obs-rust/obs-studio/issues/1355).
+
 ### Headless and automation
 
 - **`--disable-shutdown-check` works again.** After an unclean stop (power

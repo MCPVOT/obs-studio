@@ -832,8 +832,12 @@ static bool obs_nix_x11_hotkeys_platform_init(struct obs_core_hotkeys *hotkeys)
 {
 	// Open a new X11 connection here, this avoids Qt masking events we care about.
 	Display *display = XOpenDisplay(NULL);
-	if (!display)
+	if (!display) {
+		const char *display_name = getenv("DISPLAY");
+		blog(LOG_ERROR, "XOpenDisplay failed during hotkey initialization (DISPLAY=%s)",
+		     display_name ? display_name : "unset");
 		return false;
+	}
 
 	hotkeys->platform_context = bzalloc(sizeof(obs_hotkeys_platform_t));
 	hotkeys->platform_context->display = display;

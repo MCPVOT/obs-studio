@@ -30,10 +30,14 @@ class CostDataTest(unittest.TestCase):
         self.text = VALIDATE.read_text(encoding="utf-8")
         start = self.text.index('echo "== [$mode] ctest')
         self.around_ctest = self.text[start - 1500 : start + 1500]
+        invocation = re.search(r'^\s*"\$\{mode_env\[@\]\}" xvfb-run [^\n]+ ctest --test-dir',
+                               self.text, re.M)
+        self.assertIsNotNone(invocation, "validate.sh must invoke CTest under the shared display")
+        self.ctest = invocation.start()
 
     def test_cost_data_is_restored_before_ctest(self):
         restore = self.text.find("CTestCostData.txt")
-        ctest = self.text.find("xvfb-run -a ctest")
+        ctest = self.ctest
         self.assertNotEqual(restore, -1, "validate.sh never mentions CTestCostData.txt")
         self.assertLess(restore, ctest, "cost data must be in place before ctest runs")
 
@@ -43,7 +47,7 @@ class CostDataTest(unittest.TestCase):
         self.assertIn('cost_cache="$cost_dir/ctest-cost-$mode.txt"', self.around_ctest)
 
     def test_cost_data_is_saved_after_ctest(self):
-        ctest = self.text.find("xvfb-run -a ctest")
+        ctest = self.ctest
         self.assertRegex(self.text[ctest:], r'cp "\$cost_file" "\$cost_cache"',
                          "cost data must be written back after ctest")
 

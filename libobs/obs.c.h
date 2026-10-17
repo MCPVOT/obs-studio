@@ -1278,21 +1278,31 @@ static bool obs_init(const char *locale, const char *module_config_path, profile
 
 	log_system_info();
 
-	if (!obs_init_data())
+	if (!obs_init_data()) {
+		blog(LOG_ERROR, "obs_startup: obs_init_data failed");
 		return false;
-	if (!obs_init_handlers())
+	}
+	if (!obs_init_handlers()) {
+		blog(LOG_ERROR, "obs_startup: obs_init_handlers failed");
 		return false;
-	if (!obs_init_hotkeys())
+	}
+	if (!obs_init_hotkeys()) {
+		blog(LOG_ERROR, "obs_startup: obs_init_hotkeys failed");
 		return false;
+	}
 
 	/* Create persistent main canvas. */
 	obs->data.main_canvas = obs_create_main_canvas();
-	if (!obs->data.main_canvas)
+	if (!obs->data.main_canvas) {
+		blog(LOG_ERROR, "obs_startup: obs_create_main_canvas failed");
 		return false;
+	}
 
 	obs->destruction_task_thread = os_task_queue_create();
-	if (!obs->destruction_task_thread)
+	if (!obs->destruction_task_thread) {
+		blog(LOG_ERROR, "obs_startup: destruction task queue creation failed");
 		return false;
+	}
 
 	if (module_config_path)
 		obs->module_config_path = bstrdup(module_config_path);
