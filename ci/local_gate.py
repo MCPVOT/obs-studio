@@ -350,12 +350,31 @@ CROSS_TARGETS = ("x86_64-pc-windows-msvc", "aarch64-apple-darwin")
 RELEASE_CROSS_TARGETS = ("aarch64-pc-windows-msvc", "x86_64-apple-darwin", "aarch64-unknown-linux-gnu")
 
 
+def target_std_installed(target: str) -> bool:
+    """Whether the toolchain has `target`'s core library on disk."""
+    sysroot = subprocess.run(
+        ["soldr", "rustc", "--print", "sysroot"], cwd=ROOT, capture_output=True, text=True, check=True
+    ).stdout.strip()
+    return any((Path(sysroot) / "lib" / "rustlib" / target / "lib").glob("libcore-*.rlib"))
+
+
+def add_target(target: str) -> None:
+    run(["soldr", "rustup", "target", "add", target])
+    # A restored toolchain cache can keep rustup's record of a target's
+    # rust-std without its files: `target add` then says it is up to date and
+    # cargo fails with "can't find crate for `core`". Reinstall it then.
+    if not target_std_installed(target):
+        print(f"rust-std for {target} is recorded but missing; reinstalling it", flush=True)
+        run(["soldr", "rustup", "target", "remove", target])
+        run(["soldr", "rustup", "target", "add", target])
+
+
 def cross_lint(targets: tuple[str, ...], link: bool) -> None:
     # obs-c-oracle is a dev-only crate of C built for the host's tests; it
     # never ships and its C doesn't cross-compile to every target.
     scope = ["--workspace", "--exclude", "obs-c-oracle", "--lib", "--bins"]
     for target in targets:
-        run(["soldr", "rustup", "target", "add", target])
+        add_target(target)
         soldr_cargo(["clippy", *scope, "--locked", "--target", target, "--", "-D", "warnings"])
         soldr_cargo(["dylint", "--all", "--", *scope, "--target", target])
         if link:
