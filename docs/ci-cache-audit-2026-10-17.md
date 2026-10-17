@@ -220,6 +220,29 @@ presented as steady-state headroom. An earlier listing peaked near 10.70 GB.
 Nightly app archives dominate the transient footprint; useful queue caches
 must remain warm through the full representative-day comparison.
 
+### Confirmed retention pressure after rollout
+
+[Capacity and eviction evidence](ci-evidence/2026-10-17-cache-retention-capacity.json)
+records a confirmed janitor eviction at 20:12 UTC: the 711,970,692-byte Ubuntu
+ON archive exceeded the shared `zccache` family's 1,782,579,200-byte allowance.
+The same sweep removed the 1,083,740,873-byte Windows x64 app archive under
+the shared Windows family's 838,860,800-byte allowance. These deletions are
+distinct from the removed Ubuntu pre-build purge. The Ubuntu OFF archive's
+disappearance remains unattributed.
+
+Current family declarations sum to 16,951,069,900 bytes against the
+10,737,418,240-byte repository budget. This sums shape ceilings and platform
+cardinality; it is declared capacity, not simultaneous live usage. Increasing
+nightly allowances alone cannot establish durable retention. The pinned
+janitor protects only one newest entry per LRU family, so shared platform
+families also allow independent consumers to compete for retention.
+
+Before changing those bounds, allocate the whole budget from measured producer
+sizes and reuse value, prioritize queue-critical caches, and evaluate separate
+families and producer limits. Confirm that retained nightly seeds survive long
+enough for a later consumer. Neither successful upload nor current headroom
+proves that requirement.
+
 The final after window must cover at least a full day of representative code
 PR and queue traffic following rollout. It has not elapsed. The first host
 cold/warm pair is complete. Repeatability over real traffic, Ubuntu app reuse
