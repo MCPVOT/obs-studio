@@ -22,7 +22,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 WORKFLOW = ROOT / ".github/workflows/build-project.yaml"
-TARGET_LANES = ("lint", "rust-test", "cross")
+TARGET_LANES = ("lint", "rust-test", "cross", "cross-release")
 
 
 def jobs(text: str) -> dict[str, str]:
@@ -49,6 +49,18 @@ class SoldrToolchainCacheTest(unittest.TestCase):
                         self.assertIn("save-cache-remote: ${{ github.ref == 'refs/heads/master' }}", step)
                         self.assertNotRegex(step, r"\n\s+save-cache: false\b")
         self.assertGreaterEqual(found, 7)
+
+    def test_release_target_additions_disable_the_toolchain_cache(self):
+        workflow = ROOT / ".github/workflows/release-rust.yaml"
+        found = 0
+        for name, job in jobs(workflow.read_text()).items():
+            if not re.search(r"rustup target add", job):
+                continue
+            for step in setup_soldr_steps(job):
+                found += 1
+                with self.subTest(job=name):
+                    self.assertRegex(step, r"\n\s+solo-toolchain-cache: false\b")
+        self.assertGreaterEqual(found, 1)
 
     def test_target_adding_jobs_disable_the_toolchain_cache(self):
         found = 0

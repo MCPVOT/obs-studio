@@ -199,6 +199,8 @@ jobs:
           version: 0.9.35
           save-cache-remote: ${{ github.ref == 'refs/heads/master' }}
           shims: true
+          # Cross matrix legs add target std libraries after setup (#507/#969).
+          solo-toolchain-cache: false
 
       # The x86_64 leg is cross-built on an arm64 runner: Corrosion builds
       # libobs-rust for x86_64-apple-darwin (libobs/cmake/rust-target.cmake),

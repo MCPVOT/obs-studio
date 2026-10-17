@@ -989,6 +989,8 @@ jobs:
         with:
           version: 0.9.35
           save-cache-remote: ${{ github.ref == 'refs/heads/master' }}
+          # cross-release installs target std libraries after setup (#507/#969).
+          solo-toolchain-cache: false
 
       - name: Set Up uv 🐍
         uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
