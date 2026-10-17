@@ -3,20 +3,19 @@ include(cmake/feature-sparkle.cmake)
 target_sources(
   obs-studio
   PRIVATE
-    dialogs/OBSPermissions.cpp
+    build/frontend.macos+.hpp.cpp
     dialogs/OBSPermissions.hpp
     forms/OBSPermissions.ui
-    utility/CrashHandler_MacOS.mm
-    utility/NativeEventFilter.cpp
-    utility/platform-osx.mm
-    utility/system-info-macos.mm
+    build/frontend.macos-arc-mm+.hpp.mm
+    build/frontend.macos-mm+.hpp.mm
+    build/frontend.native-event-filter+.hpp.cpp
 )
 target_compile_options(obs-studio PRIVATE -Wno-quoted-include-in-framework-header -Wno-comma)
 
 list(APPEND _frontend_objcxx_compile_options -fobjc-arc -fmodules -fcxx-modules)
 
 set_property(
-  SOURCE utility/platform-osx.mm utility/CrashHandler_MacOS.mm
+  SOURCE build/frontend.macos-arc-mm+.hpp.mm
   APPEND
   PROPERTY COMPILE_OPTIONS ${_frontend_objcxx_compile_options}
 )

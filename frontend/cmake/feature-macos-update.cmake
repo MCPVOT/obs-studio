@@ -9,15 +9,13 @@ endif()
 target_sources(
   obs-studio
   PRIVATE
-    utility/WhatsNewBrowserInitThread.cpp
+    build/frontend.whatsnew+.hpp.cpp
     utility/WhatsNewBrowserInitThread.hpp
-    utility/WhatsNewInfoThread.cpp
     utility/WhatsNewInfoThread.hpp
-    utility/crypto-helpers-mac.mm
+    build/frontend.crypto-macos-mm+.hpp.mm
     utility/crypto-helpers.hpp
     utility/models/branches.hpp
     utility/models/whatsnew.hpp
-    utility/update-helpers.cpp
     utility/update-helpers.hpp
 )
 

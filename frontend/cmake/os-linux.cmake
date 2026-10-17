@@ -1,10 +1,6 @@
 target_sources(
   obs-studio
-  PRIVATE
-    utility/CrashHandler_Linux.cpp
-    utility/NativeEventFilter.cpp
-    utility/platform-x11.cpp
-    utility/system-info-posix.cpp
+  PRIVATE build/frontend.linux+.hpp.cpp build/frontend.native-event-filter+.hpp.cpp build/frontend.x11+.hpp.cpp
 )
 target_compile_definitions(
   obs-studio

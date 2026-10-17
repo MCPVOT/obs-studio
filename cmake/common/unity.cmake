@@ -25,13 +25,7 @@ set(OBS_UNITY_BUILD_BATCH_SIZE 8 CACHE STRING "Sources per unity translation uni
 # The frontend sources below include
 # the full <windows.h> (COM's objidl.h): their `byte` is ambiguous next to an
 # earlier source's `using namespace std` (std::byte) in the same batch.
-set(
-  _OBS_UNITY_SKIP_SOURCES
-  frontend/utility/AutoUpdateThread.cpp
-  frontend/utility/NativeEventFilter_Windows.cpp
-  frontend/utility/platform-windows.cpp
-  frontend/utility/system-info-windows.cpp
-)
+set(_OBS_UNITY_SKIP_SOURCES)
 
 # Submodules build the way their upstream ships them (BUILD.md): one
 # translation unit per source. They keep the precompiled header.

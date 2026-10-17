@@ -24,27 +24,24 @@ target_sources(
   obs-studio
   PRIVATE
     cmake/windows/obs.manifest
-    dialogs/OBSUpdate.cpp
+    build/frontend.windows+.hpp.cpp
     dialogs/OBSUpdate.hpp
     forms/OBSUpdate.ui
     obs.rc
-    utility/AutoUpdateThread.cpp
+    build/frontend.windows-autoupdatethread+.hpp.cpp
     utility/AutoUpdateThread.hpp
-    utility/CrashHandler_Windows.cpp
-    utility/NativeEventFilter_Windows.cpp
-    utility/WhatsNewBrowserInitThread.cpp
+    build/frontend.windows-nativeeventfilter+.hpp.cpp
+    build/frontend.whatsnew+.hpp.cpp
     utility/WhatsNewBrowserInitThread.hpp
-    utility/WhatsNewInfoThread.cpp
     utility/WhatsNewInfoThread.hpp
-    utility/crypto-helpers-mbedtls.cpp
+    build/frontend.crypto-mbedtls+.hpp.cpp
     utility/crypto-helpers.hpp
     utility/models/branches.hpp
     utility/models/whatsnew.hpp
-    utility/platform-windows.cpp
-    utility/system-info-windows.cpp
-    utility/update-helpers.cpp
+    build/frontend.windows-platform+.hpp.cpp
+    build/frontend.windows-system-info+.hpp.cpp
     utility/update-helpers.hpp
-    utility/win-dll-blocklist.c
+    build/frontend.windows-c+.h.c
 )
 
 add_library(obs-updater-manifest INTERFACE)
@@ -76,7 +73,10 @@ else()
   set(OBS_COMMIT "")
 endif()
 
-set_source_files_properties(utility/AutoUpdateThread.cpp PROPERTIES COMPILE_DEFINITIONS OBS_COMMIT="${OBS_COMMIT}")
+set_source_files_properties(
+  build/frontend.windows-autoupdatethread+.hpp.cpp
+  PROPERTIES COMPILE_DEFINITIONS OBS_COMMIT="${OBS_COMMIT}"
+)
 
 add_subdirectory(updater)
 

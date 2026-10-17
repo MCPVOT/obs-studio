@@ -26,7 +26,7 @@ import platform_ifdef_ratchet as ratchet  # noqa: E402
 
 UTILITY = ROOT / "frontend" / "utility"
 HEADER = UTILITY / "platform.hpp"
-IMPLEMENTATIONS = ("platform-osx.mm", "platform-windows.cpp", "platform-x11.cpp")
+IMPLEMENTATIONS = ("platform-osx.mm.hpp", "platform-windows.cpp.hpp", "platform-x11.cpp.hpp")
 MARKER = "OBSApp platform facade (#849)"
 DECLARATION = re.compile(r"^[A-Za-z_][\w:<>\s\*&,]*?\b(\w+)\([^;{]*\);$")
 
@@ -75,6 +75,10 @@ class FacadeTest(unittest.TestCase):
         headers = {r"\bastrcmpi?\(|\bastrcmp_n\(|\bdstr_\w+\(": "util/dstr.h"}
         for impl in IMPLEMENTATIONS:
             text = (UTILITY / impl).read_text()
+            # The includes are in the file's precompiled header (BUILD.md).
+            pch = re.search(r'#include "([^"]+\.pch\.hpp)"', text)
+            if pch:
+                text += (ROOT / pch.group(1)).read_text()
             for call, header in headers.items():
                 if re.search(call, text):
                     with self.subTest(file=impl, header=header):

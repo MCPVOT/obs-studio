@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parent.parent
 
 class AppConfigIdentityTest(unittest.TestCase):
     def test_windows_identity_readback_is_recorded_after_logging_starts(self):
-        platform = (ROOT / "frontend/utility/platform-windows.cpp").read_text()
+        platform = (ROOT / "frontend/utility/platform-windows.cpp.hpp").read_text()
         start = platform.index("bool InitializeAppIdentity()")
         if "static bool AppIdentityMatches()" in platform:
             start = platform.rfind(
@@ -496,7 +496,7 @@ class InstanceIdentityTest(unittest.TestCase):
     def test_linux_instance_check_ignores_the_other_application(self):
         with tempfile.TemporaryDirectory(prefix="obs-instance-identity-") as scratch:
             directory = Path(scratch)
-            source = (ROOT / "frontend/utility/platform-x11.cpp").read_text()
+            source = (ROOT / "frontend/utility/platform-x11.cpp.hpp").read_text()
             start = source.index("void CheckIfAlreadyRunning(bool &already_running)")
             functions = source[start : source.index("\n#endif", start)]
             harness = directory / "instance.cpp"

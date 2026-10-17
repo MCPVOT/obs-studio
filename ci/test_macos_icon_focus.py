@@ -67,7 +67,7 @@ class MacIconFocus(unittest.TestCase):
         start = app.index("sleepInhibitor = os_inhibit_sleep_create")
         start = app.index(";", start) + 1
         initialization = app[start : app.index("setDesktopFileName", start)]
-        platform = (ROOT / "frontend/utility/platform-osx.mm").read_text()
+        platform = (ROOT / "frontend/utility/platform-osx.mm.hpp").read_text()
         marker = "// Application icon policy (#725)."
         policy = (
             platform[platform.index(marker) : platform.index("bool isInBundle()")]
@@ -75,7 +75,7 @@ class MacIconFocus(unittest.TestCase):
             else ""
         )
         # The facade (#849) picks the icon call per platform file.
-        facade = (ROOT / "frontend/utility" / ("platform-osx.mm" if apple else "platform-x11.cpp")).read_text()
+        facade = (ROOT / "frontend/utility" / ("platform-osx.mm.hpp" if apple else "platform-x11.cpp.hpp")).read_text()
         icon = re.search(r"^void SetApplicationIcon\(\)\n\{.*?^\}", facade, re.S | re.M).group(0)
         policy += "\n" + icon.replace("QApplication::", "qApp->")
         post_log = ""
