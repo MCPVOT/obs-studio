@@ -16,15 +16,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#define _GNU_SOURCE /* getline, asprintf, strndup on glibc (the Linux test) */
-
-#include <ctype.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-#include "oss-input-platform.h"
+#include "build/oss-audio-freebsd.pch.h"
 
 #define blog(level, msg, ...) blog(level, "oss-audio: " msg, ##__VA_ARGS__)
 

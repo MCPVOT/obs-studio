@@ -15,15 +15,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include <obs-module.h>
-#include <util/platform.h>
-#include <ft2build.h>
-#include FT_FREETYPE_H
-#include <sys/stat.h>
-#include "text-freetype2.h"
-#include "text-file.h"
-#include "obs-convenience.h"
-#include "glyph-atlas.h"
+#include "build/text-freetype2.pch.h"
 
 float offsets[16] = {-2.0f, 0.0f, 0.0f, -2.0f, 2.0f,  0.0f, 2.0f,  0.0f,
 		     0.0f,  2.0f, 0.0f, 2.0f,  -2.0f, 0.0f, -2.0f, 0.0f};

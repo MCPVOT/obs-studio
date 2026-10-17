@@ -1,4 +1,4 @@
-#include <obs-module.h>
+#include "build/image-source.pch.h"
 
 struct color_source {
 	struct vec4 color;

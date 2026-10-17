@@ -1,11 +1,4 @@
-#include <obs-module.h>
-#include <graphics/image-file.h>
-#include <util/threading.h>
-#include <util/platform.h>
-#include <util/dstr.h>
-#include <sys/stat.h>
-
-#include "image-file-version.h"
+#include "build/image-source.pch.h"
 
 #define blog(log_level, format, ...) \
 	blog(log_level, "[image_source: '%s'] " format, obs_source_get_name(context->source), ##__VA_ARGS__)

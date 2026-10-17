@@ -11,15 +11,14 @@ find_package(OSS REQUIRED)
 add_library(oss-audio MODULE)
 add_library(OBS::oss-audio ALIAS oss-audio)
 
-target_sources(
-  oss-audio
-  PRIVATE
-    oss-audio.c
-    oss-input.c
-    oss-input-platform.h
-    $<$<PLATFORM_ID:FreeBSD,DragonFly>:oss-input-freebsd.c>
-    $<$<NOT:$<PLATFORM_ID:FreeBSD,DragonFly>>:oss-input-linux.c>
-)
+# Unity groups (BUILD.md), listed plainly per platform: groups.cmake doesn't
+# read sources behind generator expressions.
+target_sources(oss-audio PRIVATE build/oss-audio.core+.h.c oss-input-platform.h)
+if(CMAKE_SYSTEM_NAME MATCHES "^(FreeBSD|DragonFly)$")
+  target_sources(oss-audio PRIVATE build/oss-audio.freebsd+.h.c)
+else()
+  target_sources(oss-audio PRIVATE build/oss-audio.linux+.h.c)
+endif()
 
 target_link_libraries(oss-audio PRIVATE OBS::libobs OSS::OSS)
 

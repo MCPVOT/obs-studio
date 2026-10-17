@@ -17,16 +17,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <util/bmem.h>
-#include <util/platform.h>
-#include <util/threading.h>
-#include <util/util_uint64.h>
-#include <obs-module.h>
-
-#include <alsa/asoundlib.h>
-#include <alsa/pcm.h>
-
-#include <pthread.h>
+#include "build/linux-alsa-nix.pch.h"
 
 #define blog(level, msg, ...) blog(level, "alsa-input: " msg, ##__VA_ARGS__)
 

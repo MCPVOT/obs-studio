@@ -15,17 +15,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <pthread.h>
-
-#include <pulse/thread-mainloop.h>
-#include <pulse/rtclock.h>
-
-#include <util/base.h>
-#include <util/darray.h>
-#include <obs.h>
-
-#include "pulse-reconnect.h"
-#include "pulse-wrapper.h"
+#include "build/linux-pulseaudio-nix.pch.h"
 
 /* global data */
 static uint_fast32_t pulse_refs = 0;

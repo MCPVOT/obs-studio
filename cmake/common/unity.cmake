@@ -27,7 +27,6 @@ set(OBS_UNITY_BUILD_BATCH_SIZE 8 CACHE STRING "Sources per unity translation uni
 # earlier source's `using namespace std` (std::byte) in the same batch.
 set(
   _OBS_UNITY_SKIP_SOURCES
-  plugins/image-source/obs-slideshow.c
   plugins/win-capture/window-capture.c
   plugins/obs-ffmpeg/obs-ffmpeg-mpegts.c
   plugins/frontend-tools/captions.cpp

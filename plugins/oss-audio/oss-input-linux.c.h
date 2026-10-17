@@ -16,7 +16,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "oss-input-platform.h"
+#include "build/oss-audio-linux.pch.h"
 
 /* Linux has no /dev/sndstat device list; the user enters the DSP path. */
 void oss_platform_add_devices(obs_property_t *p)

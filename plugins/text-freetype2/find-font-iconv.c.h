@@ -1,6 +1,4 @@
-#include <iconv.h>
-#include <errno.h>
-#include "find-font.h"
+#include "build/text-freetype2-macos.pch.h"
 
 struct mac_font_mapping {
 	unsigned short encoding_id;

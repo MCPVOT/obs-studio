@@ -15,13 +15,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <util/platform.h>
-#include <util/bmem.h>
-#include <obs-module.h>
-
-#include "pulse-reconnect.h"
-#include "pulse-timing.h"
-#include "pulse-wrapper.h"
+#include "build/linux-pulseaudio-nix.pch.h"
 
 #define NSEC_PER_MSEC 1000000L
 

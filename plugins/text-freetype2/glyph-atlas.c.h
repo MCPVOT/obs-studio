@@ -15,7 +15,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "glyph-atlas.h"
+#include "build/text-freetype2.pch.h"
 
 struct glyph_atlas_result glyph_atlas_cache(struct glyph_atlas *atlas, const wchar_t *text, size_t len,
 					    const struct glyph_atlas_ops *ops, void *ctx)

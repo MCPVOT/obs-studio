@@ -252,7 +252,15 @@ function(_obs_target_impl_languages target)
   endif()
   list(REMOVE_DUPLICATES _owners)
   foreach(_owner IN LISTS _owners)
-    target_include_directories(${target} PRIVATE "$<TARGET_PROPERTY:${_owner},INCLUDE_DIRECTORIES>")
+    # The owner's own directories too: CMAKE_INCLUDE_CURRENT_DIR adds them at
+    # generation, outside its INCLUDE_DIRECTORIES property (a plugin header
+    # such as obs-transitions' fade-to-color-mix.h lives there).
+    get_target_property(_owner_source_dir ${_owner} SOURCE_DIR)
+    get_target_property(_owner_binary_dir ${_owner} BINARY_DIR)
+    target_include_directories(
+      ${target}
+      PRIVATE "${_owner_source_dir}" "${_owner_binary_dir}" "$<TARGET_PROPERTY:${_owner},INCLUDE_DIRECTORIES>"
+    )
   endforeach()
 endfunction()
 

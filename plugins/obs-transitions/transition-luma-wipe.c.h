@@ -1,6 +1,4 @@
-#include <obs-module.h>
-#include <graphics/image-file.h>
-#include <util/dstr.h>
+#include "build/obs-transitions.pch.h"
 
 /* clang-format off */
 

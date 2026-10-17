@@ -16,18 +16,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <util/bmem.h>
-#include <util/platform.h>
-#include <util/threading.h>
-#include <obs-module.h>
-#include "oss-input-platform.h"
-
-#include <ctype.h>
-#include <poll.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <pthread.h>
-#include <sys/soundcard.h>
+#include "build/oss-audio.pch.h"
 
 #define blog(level, msg, ...) blog(level, "oss-audio: " msg, ##__VA_ARGS__)
 

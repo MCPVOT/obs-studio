@@ -4,8 +4,8 @@ if(OS_LINUX AND TARGET OBS::text-freetype2)
   add_executable(
     test_text_freetype2_bundled_font
     test_text_freetype2_bundled_font.c
-    "${CMAKE_SOURCE_DIR}/plugins/text-freetype2/find-font-unix.c"
-    "${CMAKE_SOURCE_DIR}/plugins/text-freetype2/text-freetype2-host-posix.c"
+    "${CMAKE_SOURCE_DIR}/plugins/text-freetype2/find-font-unix.c.h"
+    "${CMAKE_SOURCE_DIR}/plugins/text-freetype2/text-freetype2-host-posix.c.h"
   )
   # No <dir> entries: the host's installed fonts stay invisible (#1076).
   file(

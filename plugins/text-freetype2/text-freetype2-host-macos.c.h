@@ -15,8 +15,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include <obs-module.h>
-#include "text-freetype2-host.h"
+#include "build/text-freetype2-macos.pch.h"
 
 /* macOS. */
 uint32_t ft2_platform_source_flags(void)

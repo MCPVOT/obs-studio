@@ -1,6 +1,4 @@
-#include <obs-module.h>
-#include <util/dstr.h>
-#include "util/platform.h"
+#include "build/obs-transitions.pch.h"
 
 #define TIMING_TIME 0
 #define TIMING_FRAME 1

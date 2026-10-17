@@ -14,13 +14,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-#include <fontconfig/fontconfig.h>
-
-#include <util/base.h>
-#include <util/dstr.h>
-
-#include "find-font.h"
-#include "text-freetype2.h"
+#include "build/text-freetype2-nix.pch.h"
 
 void free_os_font_list(void) {}
 

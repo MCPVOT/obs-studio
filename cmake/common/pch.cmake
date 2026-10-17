@@ -28,7 +28,6 @@ set(
   plugins/linux-v4l2/v4l2-output.c
   plugins/obs-outputs/librtmp/rtmp.c
   plugins/obs-outputs/net-if.c
-  plugins/oss-audio/oss-input-freebsd.c
   plugins/obs-browser/browser-app.cpp
   plugins/obs-browser/obs-browser-page/obs-browser-page-main.cpp
 )

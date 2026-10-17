@@ -1,14 +1,4 @@
-#include <obs-module.h>
-#include <util/deque.h>
-#include <util/threading.h>
-#include <util/platform.h>
-#include <util/darray.h>
-#include <util/dstr.h>
-#include <util/task.h>
-
-#include <inttypes.h>
-
-#include "slideshow-size.h"
+#include "build/image-source.pch.h"
 
 #define do_log(level, format, ...) \
 	blog(level, "[slideshow: '%s'] " format, obs_source_get_name(ss->source), ##__VA_ARGS__)

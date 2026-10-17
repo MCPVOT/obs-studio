@@ -1,6 +1,4 @@
-#include <obs-module.h>
-#include <graphics/vec2.h>
-#include "easings.h"
+#include "build/obs-transitions.pch.h"
 
 struct swipe_info {
 	obs_source_t *source;

@@ -1,13 +1,4 @@
-#include <util/dstr.h>
-#include <util/darray.h>
-#include <util/crc32.h>
-#include "find-font.h"
-#include "text-freetype2.h"
-
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#include <shellapi.h>
-#include <shlobj.h>
+#include "build/text-freetype2-windows.pch.h"
 
 struct mac_font_mapping {
 	unsigned short encoding_id;

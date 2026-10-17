@@ -609,7 +609,7 @@ if(TARGET OBS::pulseaudio)
   add_executable(
     test_pulse_reconnect
     test_pulse_reconnect.c
-    "${CMAKE_SOURCE_DIR}/plugins/linux-pulseaudio/pulse-reconnect.c"
+    "${CMAKE_SOURCE_DIR}/plugins/linux-pulseaudio/pulse-reconnect.c.h"
   )
   target_include_directories(
     test_pulse_reconnect

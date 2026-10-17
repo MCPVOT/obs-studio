@@ -1,11 +1,4 @@
-#include <stdio.h>
-#include <string.h>
-#include <sys/stat.h>
-
-#include <util/bmem.h>
-#include <util/platform.h>
-
-#include "text-file.h"
+#include "build/text-freetype2.pch.h"
 
 static void remove_cr(wchar_t *source)
 {

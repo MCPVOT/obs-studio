@@ -8,7 +8,7 @@ if(TARGET OBS::alsa)
   add_executable(
     test_alsa_capture_format
     test_alsa_capture_format.c
-    "${CMAKE_SOURCE_DIR}/plugins/linux-alsa/alsa-input.c"
+    "${CMAKE_SOURCE_DIR}/plugins/linux-alsa/alsa-input.c.h"
   )
   target_include_directories(test_alsa_capture_format PRIVATE ${CMOCKA_INCLUDE_DIR})
   target_link_libraries(test_alsa_capture_format PRIVATE OBS::libobs ALSA::ALSA ${CMOCKA_LIBRARIES})

@@ -15,15 +15,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include <obs-module.h>
-#include "text-freetype2-host.h"
-#include <util/platform.h>
-#include <ft2build.h>
-#include FT_FREETYPE_H
-#include <sys/stat.h>
-#include "text-freetype2.h"
-#include "obs-convenience.h"
-#include "find-font.h"
+#include "build/text-freetype2.pch.h"
 
 FT_Library ft2_lib;
 

@@ -1,6 +1,4 @@
-#include <obs-module.h>
-
-#include "fade-to-color-mix.h"
+#include "build/obs-transitions.pch.h"
 
 #define S_COLOR "color"
 #define S_SWITCH_POINT "switch_point"

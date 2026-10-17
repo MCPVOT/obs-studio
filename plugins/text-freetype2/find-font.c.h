@@ -1,10 +1,4 @@
-#include <util/file-serializer.h>
-#include <ctype.h>
-#include <time.h>
-#include <obs-module.h>
-#include <util/platform.h>
-#include "find-font.h"
-#include "text-freetype2.h"
+#include "build/text-freetype2-find-font.pch.h"
 
 font_path_info_array_t font_list;
 

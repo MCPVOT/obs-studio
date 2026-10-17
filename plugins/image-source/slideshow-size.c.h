@@ -1,7 +1,4 @@
-#include "slideshow-size.h"
-
-#include <inttypes.h>
-#include <stdio.h>
+#include "build/image-source.pch.h"
 
 void slideshow_parse_size(const char *str, uint32_t base_cx, uint32_t base_cy, uint32_t *cx, uint32_t *cy)
 {

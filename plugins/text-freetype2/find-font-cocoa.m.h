@@ -1,9 +1,4 @@
-#include <util/darray.h>
-#include <util/crc32.h>
-#include "find-font.h"
-#include "text-freetype2.h"
-
-#import <Foundation/Foundation.h>
+#include "build/text-freetype2-macos-objc.pch.h"
 
 extern void save_font_list(void);
 
