@@ -424,6 +424,21 @@ and [#1270](https://github.com/obs-rust/obs-studio/pull/1270).
 
 ## Where this is going (open gaps)
 
+For a reproducible traffic/cache snapshot, run the read-only collector:
+
+```sh
+uv run ci/cache_metrics.py --output build_ci_audit/metrics \
+  --start 2026-10-16T17:00:00Z --end 2026-10-17T17:00:00Z
+```
+
+It retains raw API responses, actual changed-file cohorts, sample IDs,
+listing coverage, per-lane job/setup medians, gate wall time and canceled
+runner-minutes. Compare code PRs and merge groups separately from docs and
+CI changes. Unknown source diffs remain unknown; sparse samples and changes
+to source/configuration between windows need to be reported. Its cache
+inventory describes collection time, not historical inventory at the end
+of a past window. See the [2026-10-17 audit](ci-cache-audit-2026-10-17.md).
+
 Each gap is a step toward the full protocol, and a good issue to pick up:
 
 - **Docker through bosn.** The Tier 2 Linux harness

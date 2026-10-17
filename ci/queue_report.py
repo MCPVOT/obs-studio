@@ -63,6 +63,21 @@ def summary(current: dict, jobs: list[dict], att: tuple[int, list[int]], now: st
         lines.append(f"- rebuilt: master moved under this PR; earlier queue runs: {', '.join(map(str, earlier))}")
     lines += ["", "| Job | min |", "|---|---|"]
     lines += [f"| {name} | {m:.1f} |" for m, name in sorted(timed, reverse=True)[:8]]
+    setup_steps = []
+    for job in jobs:
+        for step in job.get("steps", []):
+            name = step["name"]
+            if name.lower().startswith("post") or not any(word in name.lower() for word in ("cache", "set up soldr")):
+                continue
+            duration = _minutes(step)
+            if duration is not None and step.get("conclusion") != "skipped":
+                setup_steps.append((duration, job["name"], name))
+    if setup_steps:
+        lines += ["", "### Setup and cache steps", "",
+                  "Named step durations; cache restores do not prove compiler reuse.", "",
+                  "| Job | Step | seconds |", "|---|---|---:|"]
+        lines += [f"| {job} | {step} | {minutes * 60:.1f} |"
+                  for minutes, job, step in sorted(setup_steps, reverse=True)]
     return "\n".join(lines) + "\n"
 
 

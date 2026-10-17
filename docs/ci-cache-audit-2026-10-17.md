@@ -128,3 +128,47 @@ permission error, not a cache script failure.
 and removes the independent nightly compiler-cache purge. Cache retention
 belongs to the existing merge-group/master janitor and `ci.toml`; scheduled
 builds reuse its warm entries. A live full dispatch remains the startup check.
+
+## A day of baseline CI traffic
+
+The window 2026-10-16 17:00 → 2026-10-17 17:00 UTC contains 473 Pull/Push
+workflow runs. Both workflow listings extend before the start of the window,
+so the listing limit did not truncate it. Detailed jobs and actual changed
+files were inspected for 117 runs, sampled across event/outcome and time,
+with extra documentation candidates whose diffs were verified. These are
+sample medians, not weighted population estimates.
+
+| Successful gate cohort | Samples | Median created-to-gate time |
+| --- | ---: | ---: |
+| Code PR | 9 | 16m 56s |
+| Code merge group | 8 | 15m 54s |
+| Docs PR | 1 | 4m 01s |
+| Docs merge group | 2 | 6m 58s |
+| CI/config merge group | 2 | 2m 55s |
+
+The sparse docs samples do not establish a stable typical duration.
+Across the full listing, merge groups had 35 successful, 163 canceled and
+6 failed runs. The sampled canceled code merge groups alone consumed
+194.45 runner-minutes. That is observed sampled waste, not an extrapolated
+total, and the run outcomes alone do not establish why cancellation occurred.
+The window spans earlier CI/build rollouts; this baseline cannot attribute
+a later difference to any single cache or concurrency change.
+
+[Summary, outcome counts, listing coverage and per-lane medians](ci-evidence/2026-10-16_17-ci-baseline-summary.json)
+and [sample IDs, diffs, gate and runner times](ci-evidence/2026-10-16_17-ci-baseline-samples.json)
+are retained. Cache inventory in the summary is a snapshot at collection
+time, not a reconstruction of cache contents at the historical window end.
+The full raw run/job/cache responses remain under `build_ci_audit/metrics-before/`
+in the measurement checkout; the collector reproduces that evidence.
+
+`ci/cache_metrics.py` resolves source cohorts from actual compare diffs,
+including an unambiguous PR branch/lifetime fallback for older runs whose
+API metadata no longer contains a PR association. Missing/ambiguous diffs
+remain unknown. It reports latest run attempts only and does not reconstruct
+overwritten attempts. In addition, every merge-group CI Gate summary now
+lists completed setup/cache step durations from the already-fetched job
+metadata, without adding another API request to the gate.
+
+Post-change measurements must use a separate window and preserve these
+cohort/coverage distinctions. The day-long post-change comparison remains
+open until the configuration changes have landed and that window exists.

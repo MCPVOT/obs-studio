@@ -65,6 +65,20 @@ class SummaryTest(unittest.TestCase):
         self.assertIn("rebuilt", md)
         self.assertIn("3, 6", md)
 
+    def test_setup_steps_report_elapsed_time_without_counting_post_or_incomplete_steps(self):
+        self.jobs[1]["steps"] = [
+            {"name": "Set Up soldr", "started_at": "2026-10-16T10:01:00Z", "completed_at": "2026-10-16T10:01:30Z", "conclusion": "success"},
+            {"name": "Restore ccache", "started_at": "2026-10-16T10:01:30Z", "completed_at": "2026-10-16T10:01:36Z", "conclusion": "success"},
+            {"name": "Post Set Up soldr", "started_at": "2026-10-16T10:02:58Z", "completed_at": "2026-10-16T10:03:00Z", "conclusion": "success"},
+            {"name": "Unfinished cache", "started_at": "2026-10-16T10:02:58Z", "completed_at": None, "conclusion": None},
+        ]
+        md = queue_report.summary(self.cur, self.jobs, (1, []), now="2026-10-16T10:12:30Z")
+        self.assertIn("| Build / Fast Gate | Set Up soldr | 30.0 |", md)
+        self.assertIn("| Build / Fast Gate | Restore ccache | 6.0 |", md)
+        self.assertNotIn("Post Set Up soldr", md)
+        self.assertNotIn("Unfinished cache", md)
+        self.assertIn("cache restores do not prove compiler reuse", md)
+
 
 class WorkflowTest(unittest.TestCase):
     def test_ci_gate_reports_on_queue_runs_without_failing(self):
