@@ -38,12 +38,10 @@ add_library(OBS::properties-view ALIAS properties-view)
 target_sources(
   properties-view
   INTERFACE
-    double-slider.cpp
+    build/properties-view.core+.hpp.cpp
     double-slider.hpp
-    properties-view.cpp
     properties-view.hpp
     properties-view.moc.hpp
-    spinbox-ignorewheel.cpp
     spinbox-ignorewheel.hpp
 )
 target_include_directories(properties-view INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}")

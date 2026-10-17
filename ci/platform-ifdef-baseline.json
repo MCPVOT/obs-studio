@@ -138,7 +138,7 @@
   "shared/obs-scripting/obs-scripting-python.c.h": 3,
   "shared/obs-scripting/obs-scripting-python.h": 4,
   "shared/obs-scripting/obs-scripting.c.h": 1,
-  "shared/properties-view/properties-view.cpp": 7,
+  "shared/properties-view/properties-view.cpp.hpp": 7,
   "shared/properties-view/properties-view.moc.hpp": 1,
-  "shared/qt/wrappers/qt-wrappers.cpp": 1
+  "shared/qt/wrappers/qt-wrappers.cpp.hpp": 1
 }

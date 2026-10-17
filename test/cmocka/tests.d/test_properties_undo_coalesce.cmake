@@ -24,12 +24,10 @@ if(OS_LINUX)
     add_executable(
       test_properties_undo_coalesce
       test_properties_undo_coalesce.cpp
-      "${_pv_dir}/double-slider.cpp"
+      "${_pv_dir}/build/properties-view.core+.hpp.cpp"
       "${_pv_dir}/double-slider.hpp"
-      "${_pv_dir}/properties-view.cpp"
       "${_pv_dir}/properties-view.hpp"
       "${_pv_dir}/properties-view.moc.hpp"
-      "${_pv_dir}/spinbox-ignorewheel.cpp"
       "${_pv_dir}/spinbox-ignorewheel.hpp"
     )
     set_target_properties(test_properties_undo_coalesce PROPERTIES AUTOMOC ON)

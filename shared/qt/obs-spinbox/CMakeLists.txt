@@ -7,7 +7,7 @@ add_library(OBS::qt-obs-spinbox ALIAS qt-obs-spinbox)
 
 target_sources(
   qt-obs-spinbox
-  INTERFACE AutoSelectLineEdit.cpp AutoSelectLineEdit.hpp DoubleSpinBox.cpp DoubleSpinBox.hpp SpinBox.cpp SpinBox.hpp
+  INTERFACE build/qt-obs-spinbox.core+.hpp.cpp AutoSelectLineEdit.hpp DoubleSpinBox.hpp SpinBox.hpp
 )
 target_include_directories(qt-obs-spinbox INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}")
 
