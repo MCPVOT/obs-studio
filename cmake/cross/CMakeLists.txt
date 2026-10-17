@@ -304,6 +304,8 @@ if(_host STREQUAL WINDOWS)
     SOURCES build/nv-filters.windows+.h.c build/nv-filters.windows-afx+.h.c build/nv-filters.windows-vfx+.h.c
     DEFINES LIBNVAFX_ENABLED LIBNVVFX_ENABLED
   )
+  # obs-text's unity group (BUILD.md).
+  _obs_cross_plugin(obs-text-cross DIR plugins/obs-text SOURCES build/obs-text.windows+.hpp.cpp)
   # libobs-d3d11's unity group (BUILD.md).
   _obs_cross_plugin(libobs-d3d11-cross DIR libobs-d3d11 SOURCES build/d3d11.core+.hpp.cpp DEFINES GPU_PRIORITY_VAL=0)
   # libobs-opengl's unity groups (BUILD.md): the shared renderer and WGL.
@@ -343,7 +345,7 @@ elseif(_host STREQUAL MACOS)
       plugin-main.m
       plugin-properties.m
   )
-  _obs_cross_plugin(mac-videotoolbox-cross DIR plugins/mac-videotoolbox SOURCES encoder.c)
+  _obs_cross_plugin(mac-videotoolbox-cross DIR plugins/mac-videotoolbox SOURCES build/mac-videotoolbox.macos+.h.c)
   # libobs-opengl's unity groups (BUILD.md): the shared renderer and CGL.
   _obs_cross_plugin(
     libobs-opengl-cross

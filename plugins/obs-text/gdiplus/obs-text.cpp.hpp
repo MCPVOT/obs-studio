@@ -1,14 +1,4 @@
-#include <graphics/math-defs.h>
-#include <util/platform.h>
-#include <util/util.hpp>
-#include <obs-module.h>
-#include <sys/stat.h>
-#include <combaseapi.h>
-#include <gdiplus.h>
-#include <algorithm>
-#include <string>
-#include <memory>
-#include <locale>
+#include "../build/obs-text.pch.hpp"
 
 using namespace std;
 using namespace Gdiplus;
@@ -1193,3 +1183,91 @@ void obs_module_unload(void)
 {
 	GdiplusShutdown(gdip_token);
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef warning
+#undef warn_stat
+#undef clamp
+#undef MIN_SIZE_CX
+#undef MIN_SIZE_CY
+#undef MAX_SIZE_CX
+#undef MAX_SIZE_CY
+#undef MAX_AREA
+#undef S_FONT
+#undef S_USE_FILE
+#undef S_FILE
+#undef S_TEXT
+#undef S_COLOR
+#undef S_GRADIENT
+#undef S_GRADIENT_COLOR
+#undef S_GRADIENT_DIR
+#undef S_GRADIENT_OPACITY
+#undef S_ALIGN
+#undef S_VALIGN
+#undef S_OPACITY
+#undef S_BKCOLOR
+#undef S_BKOPACITY
+#undef S_VERTICAL
+#undef S_OUTLINE
+#undef S_OUTLINE_SIZE
+#undef S_OUTLINE_COLOR
+#undef S_OUTLINE_OPACITY
+#undef S_CHATLOG_MODE
+#undef S_CHATLOG_LINES
+#undef S_EXTENTS
+#undef S_EXTENTS_WRAP
+#undef S_EXTENTS_CX
+#undef S_EXTENTS_CY
+#undef S_TRANSFORM
+#undef S_ANTIALIASING
+#undef S_ALIGN_LEFT
+#undef S_ALIGN_CENTER
+#undef S_ALIGN_RIGHT
+#undef S_VALIGN_TOP
+#undef S_VALIGN_CENTER
+#undef S_VALIGN_BOTTOM
+#undef S_TRANSFORM_NONE
+#undef S_TRANSFORM_UPPERCASE
+#undef S_TRANSFORM_LOWERCASE
+#undef S_TRANSFORM_STARTCASE
+#undef T_
+#undef T_FONT
+#undef T_USE_FILE
+#undef T_FILE
+#undef T_TEXT
+#undef T_COLOR
+#undef T_GRADIENT
+#undef T_GRADIENT_COLOR
+#undef T_GRADIENT_DIR
+#undef T_GRADIENT_OPACITY
+#undef T_ALIGN
+#undef T_VALIGN
+#undef T_OPACITY
+#undef T_BKCOLOR
+#undef T_BKOPACITY
+#undef T_VERTICAL
+#undef T_OUTLINE
+#undef T_OUTLINE_SIZE
+#undef T_OUTLINE_COLOR
+#undef T_OUTLINE_OPACITY
+#undef T_CHATLOG_MODE
+#undef T_CHATLOG_LINES
+#undef T_EXTENTS
+#undef T_EXTENTS_WRAP
+#undef T_EXTENTS_CX
+#undef T_EXTENTS_CY
+#undef T_TRANSFORM
+#undef T_ANTIALIASING
+#undef T_FILTER_TEXT_FILES
+#undef T_FILTER_ALL_FILES
+#undef T_ALIGN_LEFT
+#undef T_ALIGN_CENTER
+#undef T_ALIGN_RIGHT
+#undef T_VALIGN_TOP
+#undef T_VALIGN_CENTER
+#undef T_VALIGN_BOTTOM
+#undef T_TRANSFORM_NONE
+#undef T_TRANSFORM_UPPERCASE
+#undef T_TRANSFORM_LOWERCASE
+#undef T_TRANSFORM_STARTCASE
+#undef obs_data_get_uint32
