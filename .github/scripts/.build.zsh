@@ -166,6 +166,9 @@ build() {
         -hideShellScriptEnvironment
         build
       )
+      # The OBS-Studio-Rust beta also builds libobs's Rust-linked twin, which
+      # -target obs-studio leaves out (#1065); its release gate checks it.
+      if [[ ${ENABLE_RUST_LIBOBS:-OFF} == ON ]] build_args[5,5]=(obs-studio -target libobs-with-rust)
 
       local -a archive_args=(
         ONLY_ACTIVE_ARCH=NO
