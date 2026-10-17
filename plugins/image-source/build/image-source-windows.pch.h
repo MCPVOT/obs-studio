@@ -15,3 +15,6 @@
 
 #include <util/bmem.h>
 #include <util/platform.h>
+
+/* image-source-host-windows.c */
+#include "plugins/image-source/image-source-host.h"

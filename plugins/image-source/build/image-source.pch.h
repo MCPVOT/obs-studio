@@ -10,6 +10,7 @@
 
 /* image-file-version.c */
 #include "image-file-version.h"
+#include "plugins/image-source/image-source-host.h"
 
 #include <string.h>
 #include <sys/stat.h>

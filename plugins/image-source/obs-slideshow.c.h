@@ -234,10 +234,8 @@ bool valid_extension(const char *ext)
 		return false;
 	return astrcmpi(ext, ".bmp") == 0 || astrcmpi(ext, ".tga") == 0 || astrcmpi(ext, ".png") == 0 ||
 	       astrcmpi(ext, ".jpeg") == 0 || astrcmpi(ext, ".jpg") == 0 ||
-#ifdef _WIN32
-	       astrcmpi(ext, ".jxr") == 0 ||
-#endif
-	       astrcmpi(ext, ".gif") == 0 || astrcmpi(ext, ".webp") == 0;
+	       (image_source_host_jxr_supported() && astrcmpi(ext, ".jxr") == 0) || astrcmpi(ext, ".gif") == 0 ||
+	       astrcmpi(ext, ".webp") == 0;
 }
 
 static inline bool item_valid(struct slideshow *ss)
@@ -908,12 +906,6 @@ static void ss_defaults(obs_data_t *settings)
 	obs_data_set_default_bool(settings, S_LOOP, true);
 }
 
-static const char *file_filter = "Image files (*.bmp *.tga *.png *.jpeg *.jpg"
-#ifdef _WIN32
-				 " *.jxr"
-#endif
-				 " *.gif *.webp)";
-
 static const char *aspects[] = {"16:9", "16:10", "4:3", "1:1"};
 
 #define NUM_ASPECTS (sizeof(aspects) / sizeof(const char *))
@@ -988,7 +980,8 @@ static obs_properties_t *ss_properties(void *data)
 		pthread_mutex_unlock(&ss->mutex);
 	}
 
-	obs_properties_add_editable_list(ppts, S_FILES, T_FILES, OBS_EDITABLE_LIST_TYPE_FILES, file_filter, path.array);
+	obs_properties_add_editable_list(ppts, S_FILES, T_FILES, OBS_EDITABLE_LIST_TYPE_FILES,
+					 image_source_host_slideshow_filter(), path.array);
 	dstr_free(&path);
 
 	return ppts;

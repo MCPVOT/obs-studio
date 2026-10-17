@@ -1,25 +1,7 @@
 #include "plugins/image-source/build/image-source.pch.h"
 
-#ifndef _WIN32
-/* Windows: image-file-version-win32.c (os_stat() has whole seconds only). */
-void image_file_version_get(const char *path, struct image_file_version *version)
-{
-	struct stat stats;
-
-	memset(version, 0, sizeof(*version));
-	if (!path || os_stat(path, &stats) != 0)
-		return;
-
-	version->exists = true;
-	version->mtime_sec = (int64_t)stats.st_mtime;
-#if defined(__APPLE__)
-	version->mtime_nsec = (int64_t)stats.st_mtimespec.tv_nsec;
-#else
-	version->mtime_nsec = (int64_t)stats.st_mtim.tv_nsec;
-#endif
-	version->size = (int64_t)stats.st_size;
-}
-#endif
+/* image_file_version_get(): image-source-host-<os>.c.h on POSIX hosts,
+ * image-file-version-win32.c.h on Windows. */
 
 bool image_file_version_equal(const struct image_file_version *a, const struct image_file_version *b)
 {

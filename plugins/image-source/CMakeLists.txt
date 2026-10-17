@@ -5,7 +5,14 @@ add_library(OBS::image-source ALIAS image-source)
 
 target_sources(
   image-source
-  PRIVATE build/image-source.core+.h.c image-file-version.h build/image-source.slideshow+.h.c slideshow-size.h
+  PRIVATE
+    $<$<PLATFORM_ID:Darwin>:build/image-source.macos+.h.c>
+    $<$<PLATFORM_ID:Linux,FreeBSD,OpenBSD>:build/image-source.posix+.h.c>
+    build/image-source.core+.h.c
+    image-file-version.h
+    image-source-host.h
+    build/image-source.slideshow+.h.c
+    slideshow-size.h
 )
 
 target_link_libraries(image-source PRIVATE OBS::libobs $<$<PLATFORM_ID:Windows>:OBS::w32-pthreads>)

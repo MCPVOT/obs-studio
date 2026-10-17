@@ -954,12 +954,6 @@ static void ss_defaults(obs_data_t *settings)
 	obs_data_set_default_string(settings, S_PLAYBACK_MODE, S_PLAYBACK_LOOP);
 }
 
-static const char *file_filter = "Image files (*.bmp *.tga *.png *.jpeg *.jpg"
-#ifdef _WIN32
-				 " *.jxr"
-#endif
-				 " *.gif *.webp)";
-
 static obs_properties_t *ss_properties(void *data)
 {
 	obs_properties_t *ppts = obs_properties_create();
@@ -1031,7 +1025,8 @@ static obs_properties_t *ss_properties(void *data)
 		}
 	}
 
-	obs_properties_add_editable_list(ppts, S_FILES, T_FILES, OBS_EDITABLE_LIST_TYPE_FILES, file_filter, path.array);
+	obs_properties_add_editable_list(ppts, S_FILES, T_FILES, OBS_EDITABLE_LIST_TYPE_FILES,
+					 image_source_host_slideshow_filter(), path.array);
 	dstr_free(&path);
 
 	return ppts;

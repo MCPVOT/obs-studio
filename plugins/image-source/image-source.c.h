@@ -274,31 +274,14 @@ static void image_source_tick(void *data, float seconds)
 	context->last_time = frame_time;
 }
 
-static const char *image_filter =
-#ifdef _WIN32
-	"All formats (*.bmp *.tga *.png *.jpeg *.jpg *.jxr *.gif *.psd *.webp);;"
-#else
-	"All formats (*.bmp *.tga *.png *.jpeg *.jpg *.gif *.psd *.webp);;"
-#endif
-	"BMP Files (*.bmp);;"
-	"Targa Files (*.tga);;"
-	"PNG Files (*.png);;"
-	"JPEG Files (*.jpeg *.jpg);;"
-#ifdef _WIN32
-	"JXR Files (*.jxr);;"
-#endif
-	"GIF Files (*.gif);;"
-	"PSD Files (*.psd);;"
-	"WebP Files (*.webp);;"
-	"All Files (*.*)";
-
 static obs_properties_t *image_source_properties(void *data)
 {
 	UNUSED_PARAMETER(data);
 
 	obs_properties_t *props = obs_properties_create();
 
-	obs_properties_add_path(props, "file", obs_module_text("File"), OBS_PATH_FILE, image_filter, NULL);
+	obs_properties_add_path(props, "file", obs_module_text("File"), OBS_PATH_FILE, image_source_host_image_filter(),
+				NULL);
 	obs_properties_add_bool(props, "unload", obs_module_text("UnloadWhenNotShowing"));
 	obs_properties_add_bool(props, "linear_alpha", obs_module_text("LinearAlpha"));
 
