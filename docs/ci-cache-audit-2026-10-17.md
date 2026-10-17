@@ -41,6 +41,48 @@ runner placement and compiler-cache rollout conditions differ.
 include job IDs, phase times and independent compiler counters. The isolated
 libobs results below remain separate from whole-app and CI build timings.
 
+### Full native validation and cache survival, 22:15 UTC
+
+Full manual run [39074304012](https://github.com/obs-rust/obs-studio/actions/runs/39074304012)
+at `d315ee9c6` passed all seven native app builds: Ubuntu OFF/ON, Windows
+x64/arm64, macOS x86/arm64 and Flatpak. This confirms native unity/PCH build
+success at that revision. The overall workflow **failed**: Linux OFF
+`test_slideshow_empty` returned `obs_startup=false` in group setup. The cause
+is unknown and tracked in [#1355](https://github.com/obs-rust/obs-studio/issues/1355).
+The X-display informational message also occurs in passing tests and does not
+diagnose that failure. No test assertion was relaxed.
+
+The Tier 2 build recorded 779 cached compilations out of 780. Its execution
+overlapped Fast Gate by 142 seconds and finished 57 seconds before the gate.
+This verifies actual compile overlap, not a representative queue speedup.
+Both Ubuntu app builds were cold (345 misses, 16 noncacheable calls each),
+retained their 5,045 MiB raw compiler state through the post-build size guard,
+and saved OFF/ON archives of 712,826,136 / 712,780,180 bytes. A subsequent
+warm consumer is still required to establish their value.
+
+Cache survival remains unresolved. The Tier 2 job restored the earlier seed
+and saved a refreshed `d315ee9c6` archive at 22:19:04 UTC; the 22:34 janitor
+inventory had no Tier 2 family. The PR janitors inspected in that interval
+were skipped. These observations do not identify who removed the archives or
+prove global-capacity eviction. Separately, the 22:36 janitor explicitly
+deleted the Ubuntu OFF archive under the pooled nightly LRU budget, retaining
+ON. The family split protects Tier 2 from that pool's eviction decisions;
+it does not yet demonstrate durable retention.
+
+The loss affected a real consumer: PR #1353's Tier 2 build
+[job 117521595282](https://github.com/obs-rust/obs-studio/actions/runs/39075342558/job/117521595282)
+missed all Tier 2 compiler-cache restore keys at 22:33:13 UTC, then reported
+782 total compilations, zero cached and 782 cold. The successful job took
+426 seconds, including a 345-second build step. Its apt, soldr cook/build
+and CTest timing restores succeeded. This establishes an archive miss and
+cold compilation, but changed source and runner conditions prevent a matched
+runtime attribution. The disappearance therefore has an observed consumer
+cost even though its cause remains unresolved.
+
+[Job identities, times and observations](ci-evidence/2026-10-17-full-validation.json)
+keep the successful native builds, failed test setup, cold cache production
+and unresolved cache loss separate. The full-day comparison remains open.
+
 ### Native Rust profile verification
 
 Master [39063249804](https://github.com/obs-rust/obs-studio/actions/runs/39063249804)
