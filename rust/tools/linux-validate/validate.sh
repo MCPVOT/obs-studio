@@ -128,7 +128,7 @@ ported_groups=$(awk '/^set\($/ { getline name; inlist = (name ~ /^ *LIBOBS_(LINU
   inlist && /^\)/ { inlist = 0 } inlist { print $1 }
   /list\(APPEND LIBOBS_PORTED_SOURCES / { print $3 }' "$SRC"/libobs/cmake/sources.cmake |
   tr -d ')' | grep -E '^build/.*\+\.h\.c$' | sort -u)
-ported_objs=$(cd "$SRC/libobs" && sed -n 's|^#include "\.\./\(.*\.c\.h\)"$|\1.o|p' $ported_groups | sort -u)
+ported_objs=$(cd "$SRC/libobs" && sed -n 's|^#include "libobs/\(.*\.c\.h\)"$|\1.o|p' $ported_groups | sort -u)
 if [ "$(wc -w <<<"$ported_objs")" -lt 20 ]; then
   echo "FAIL: derived only $(wc -w <<<"$ported_objs") ported objects from libobs/cmake/sources.cmake"
   exit 1
