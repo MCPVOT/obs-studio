@@ -79,6 +79,9 @@ flatpak-ccache = { prefix = "flatpak-ccache-", max = "200MB" }
 appimage-cargo = { prefix = "cargo-appimage-", max = "500MB", evict = "lru" }
 appimage-apt = { prefix = "apt-appimage-", max = "250MB" }
 appimage-testpkgs = { prefix = "testpkgs-", max = "250MB" }
+# GitHub default CodeQL setup: observed C++ ~131 MB and Python ~11 MB bases.
+# Keep bounded reuse across PRs rather than treating its keys as unknown.
+codeql-overlay = { prefix = "codeql-overlay-base-database-", max = "200MB", evict = "lru" }
 # services-validator action.
 service-check = { prefix = "service-check-", max = "1MB" }
 # Transitional: the ccache keys master's Tier 2 and AppImage jobs restore
