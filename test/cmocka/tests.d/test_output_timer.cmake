@@ -10,7 +10,7 @@ if(OS_LINUX)
     add_executable(
       test_output_timer
       test_output_timer.cpp
-      "${_output_timer_dir}/output-timer.cpp"
+      "${_output_timer_dir}/output-timer.cpp.hpp"
       "${_output_timer_dir}/output-timer.hpp"
       "${_output_timer_dir}/forms/output-timer.ui"
     )

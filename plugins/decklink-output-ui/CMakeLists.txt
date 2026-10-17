@@ -19,10 +19,7 @@ endif()
 
 target_sources(decklink-output-ui PRIVATE forms/output.ui)
 
-target_sources(
-  decklink-output-ui
-  PRIVATE DecklinkOutputUI.cpp DecklinkOutputUI.h decklink-ui-main.cpp decklink-ui-main.h
-)
+target_sources(decklink-output-ui PRIVATE build/decklink-output-ui.core+.hpp.cpp DecklinkOutputUI.h decklink-ui-main.h)
 
 target_compile_options(decklink-output-ui PRIVATE $<$<PLATFORM_ID:Darwin>:-Wno-quoted-include-in-framework-header>)
 

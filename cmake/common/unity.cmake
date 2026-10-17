@@ -22,14 +22,11 @@ set(OBS_UNITY_BUILD_BATCH_SIZE 8 CACHE STRING "Sources per unity translation uni
 # component converted to unity groups (BUILD.md) gives such a file a group of
 # its own instead, and its entries leave this list.
 #
-# The SAPI caption sources include <sapi.h>, and the frontend sources below
+# The frontend sources below include
 # the full <windows.h> (COM's objidl.h): their `byte` is ambiguous next to an
 # earlier source's `using namespace std` (std::byte) in the same batch.
 set(
   _OBS_UNITY_SKIP_SOURCES
-  plugins/frontend-tools/captions.cpp
-  plugins/frontend-tools/captions-mssapi.cpp
-  plugins/frontend-tools/captions-mssapi-stream.cpp
   frontend/components/SourceTreeItem.cpp
   frontend/dialogs/OBSBasicFilters.cpp
   frontend/dialogs/OBSBasicInteraction.cpp

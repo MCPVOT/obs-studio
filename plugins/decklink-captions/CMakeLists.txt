@@ -14,7 +14,7 @@ find_package(Qt6 REQUIRED Widgets)
 add_library(decklink-captions MODULE)
 add_library(OBS::decklink-captions ALIAS decklink-captions)
 
-target_sources(decklink-captions PRIVATE decklink-captions.cpp decklink-captions.h forms/captions.ui)
+target_sources(decklink-captions PRIVATE build/decklink-captions.core+.hpp.cpp decklink-captions.h forms/captions.ui)
 
 target_compile_options(
   decklink-captions

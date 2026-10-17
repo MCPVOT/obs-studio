@@ -23,7 +23,7 @@ endif()
 add_library(aja-output-ui MODULE)
 add_library(OBS::aja-output-ui ALIAS aja-output-ui)
 
-target_sources(aja-output-ui PRIVATE aja-ui-main.cpp aja-ui-main.h AJAOutputUI.cpp AJAOutputUI.h)
+target_sources(aja-output-ui PRIVATE build/aja-output-ui.core+.hpp.cpp aja-ui-main.h AJAOutputUI.h)
 
 target_sources(aja-output-ui PRIVATE forms/output.ui)
 

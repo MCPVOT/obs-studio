@@ -17,13 +17,10 @@ if(OS_LINUX)
     add_library(
       test_vst_editor_close_module
       MODULE
-      "${_vst_dir}/EditorWidget.cpp"
+      "${_vst_dir}/build/obs-vst.core+.hpp.cpp"
+      "${_vst_dir}/build/obs-vst.linux+.hpp.cpp"
       "${_vst_dir}/headers/EditorWidget.h"
       "${_vst_dir}/headers/VSTPlugin.h"
-      "${_vst_dir}/linux/EditorWidget-linux.cpp"
-      "${_vst_dir}/linux/VSTPlugin-linux.cpp"
-      "${_vst_dir}/obs-vst.cpp"
-      "${_vst_dir}/VSTPlugin.cpp"
     )
     target_include_directories(test_vst_editor_close_module PRIVATE "${_vst_dir}/vst_header")
     target_link_libraries(test_vst_editor_close_module PRIVATE OBS::libobs Qt6::Widgets)

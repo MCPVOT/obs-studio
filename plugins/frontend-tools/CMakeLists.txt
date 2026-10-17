@@ -29,21 +29,21 @@ endif()
 target_sources(
   frontend-tools
   PRIVATE
-    $<$<PLATFORM_ID:Darwin>:auto-scene-switcher-osx.mm>
-    $<$<PLATFORM_ID:Linux,FreeBSD,OpenBSD>:auto-scene-switcher-nix.cpp>
-    $<$<PLATFORM_ID:Windows>:auto-scene-switcher-win.cpp>
-    $<$<PLATFORM_ID:Windows>:captions-handler.cpp>
+    $<$<PLATFORM_ID:Darwin>:build/frontend-tools.macos+.hpp.mm>
+    $<$<PLATFORM_ID:Linux,FreeBSD,OpenBSD>:build/frontend-tools.linux+.hpp.cpp>
+    $<$<PLATFORM_ID:Windows>:build/frontend-tools.windows+.hpp.cpp>
+    $<$<PLATFORM_ID:Windows>:build/frontend-tools.captions-handler-windows+.hpp.cpp>
     $<$<PLATFORM_ID:Windows>:captions-handler.hpp>
-    $<$<PLATFORM_ID:Windows>:captions-mssapi-stream.cpp>
+    $<$<PLATFORM_ID:Windows>:build/frontend-tools.captions-mssapi-stream-windows+.hpp.cpp>
     $<$<PLATFORM_ID:Windows>:captions-mssapi-stream.hpp>
-    $<$<PLATFORM_ID:Windows>:captions-mssapi.cpp>
+    $<$<PLATFORM_ID:Windows>:build/frontend-tools.captions-mssapi-windows+.hpp.cpp>
     $<$<PLATFORM_ID:Windows>:captions-mssapi.hpp>
-    $<$<PLATFORM_ID:Windows>:captions.cpp>
+    $<$<PLATFORM_ID:Windows>:build/frontend-tools.captions-windows+.hpp.cpp>
     $<$<PLATFORM_ID:Windows>:captions.hpp>
-    auto-scene-switcher.cpp
+    build/frontend-tools.core+.hpp.cpp
     auto-scene-switcher.hpp
-    frontend-tools.c
-    output-timer.cpp
+    build/frontend-tools.c+.h.c
+    build/frontend-tools.output-timer+.hpp.cpp
     output-timer.hpp
     tool-helpers.hpp
 )
@@ -74,7 +74,7 @@ target_link_libraries(
 add_subdirectory("${CMAKE_SOURCE_DIR}/shared/obs-scripting" "${CMAKE_BINARY_DIR}/shared/obs-scripting")
 
 if(ENABLE_SCRIPTING AND TARGET OBS::scripting)
-  target_sources(frontend-tools PRIVATE scripts.cpp scripts.hpp)
+  target_sources(frontend-tools PRIVATE build/frontend-tools.scripts+.hpp.cpp scripts.hpp)
   target_link_libraries(frontend-tools PRIVATE OBS::scripting)
   target_enable_feature(frontend-tools "Scripting Support (Frontend)" ENABLE_SCRIPTING)
 endif()

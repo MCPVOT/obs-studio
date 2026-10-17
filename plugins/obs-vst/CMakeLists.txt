@@ -14,19 +14,14 @@ find_package(Qt6 REQUIRED Widgets)
 target_sources(
   obs-vst
   PRIVATE
-    $<$<PLATFORM_ID:Darwin>:mac/EditorWidget-osx.mm>
-    $<$<PLATFORM_ID:Darwin>:mac/VSTPlugin-osx.mm>
-    $<$<PLATFORM_ID:Linux,FreeBSD,OpenBSD>:linux/EditorWidget-linux.cpp>
-    $<$<PLATFORM_ID:Linux,FreeBSD,OpenBSD>:linux/VSTPlugin-linux.cpp>
-    $<$<PLATFORM_ID:Windows>:win/EditorWidget-win.cpp>
-    $<$<PLATFORM_ID:Windows>:win/VSTPlugin-win.cpp>
-    EditorWidget.cpp
+    $<$<PLATFORM_ID:Darwin>:build/obs-vst.macos+.hpp.mm>
+    $<$<PLATFORM_ID:Linux,FreeBSD,OpenBSD>:build/obs-vst.linux+.hpp.cpp>
+    $<$<PLATFORM_ID:Windows>:build/obs-vst.windows+.hpp.cpp>
+    build/obs-vst.core+.hpp.cpp
     headers/EditorWidget.h
     headers/vst-plugin-callbacks.hpp
     headers/VSTPlugin.h
-    obs-vst.cpp
     vst_header/aeffectx.h
-    VSTPlugin.cpp
 )
 
 target_include_directories(obs-vst PRIVATE vst_header)
