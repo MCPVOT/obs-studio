@@ -98,6 +98,8 @@ jobs:
       # schedule, workflow_dispatch, or paths that need them: build-aux/, plugin submodule moves).
       - name: Check Change Scope 🧭
         id: native
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           : Check Change Scope 🧭
           # No label changes what runs (#992). Schedule, workflow_dispatch,
@@ -118,6 +120,10 @@ jobs:
               base="origin/${GITHUB_BASE_REF}"
             elif [[ "${GITHUB_EVENT_NAME}" == merge_group ]]; then
               base="${{ github.event.merge_group.base_sha }}"
+            elif [[ "${GITHUB_EVENT_NAME}" == push && "${GITHUB_REF_NAME}" == master ]]; then
+              # Pending master builds coalesce. Include paths from every
+              # push since the last successful build, including skipped pushes.
+              base="$(uv run ci/master_scope_base.py)"
             else
               # A merge-queue push can carry several commits. Warm every
               # selected path in the push, not only its final commit.

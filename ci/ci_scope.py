@@ -263,7 +263,8 @@ def scope(
 
 def changed_files(base: str) -> list[str]:
     out = subprocess.run(
-        ["git", "diff", "--name-only", f"{base}...HEAD"], check=True, capture_output=True, text=True
+        (["git", "ls-files"] if base == "ALL" else ["git", "diff", "--name-only", f"{base}...HEAD"]),
+        check=True, capture_output=True, text=True
     ).stdout
     return [line for line in out.splitlines() if line]
 

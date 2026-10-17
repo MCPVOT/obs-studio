@@ -522,6 +522,13 @@ their scopes differ. Archive messages can repeat and must not be summed
 as network transfer totals. Stratify compiler-version rollouts and cold
 cache seeds before comparing warm lane performance.
 
+Master build coalescing retains changed paths since the latest successful
+ancestor Push run, rather than only the latest push's parent. A replaced pending
+master build therefore cannot drop plugin/platform cache warming. If no recent
+successful ancestor can be established, scope all tracked paths conservatively;
+API failure must not silently omit work. This changes master warming only;
+PR and merge-group scope still use their own bases.
+
 ## Merge queue admission policy
 
 The merge queue prioritizes compilation errors and integrity regressions:
