@@ -119,7 +119,9 @@ jobs:
             elif [[ "${GITHUB_EVENT_NAME}" == merge_group ]]; then
               base="${{ github.event.merge_group.base_sha }}"
             else
-              base="HEAD^1"
+              # A merge-queue push can carry several commits. Warm every
+              # selected path in the push, not only its final commit.
+              base="${{ github.event.before || 'HEAD^1' }}"
             fi
             eval "$(uv run ci/ci_scope.py "${base}")"
           fi
