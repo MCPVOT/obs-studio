@@ -230,7 +230,7 @@ the shared Windows family's 838,860,800-byte allowance. These deletions are
 distinct from the removed Ubuntu pre-build purge. The Ubuntu OFF archive's
 disappearance remains unattributed.
 
-Current family declarations sum to 16,951,069,900 bytes against the
+The analyzed family declarations at `92605bf02` sum to 16,951,069,900 bytes against the
 10,737,418,240-byte repository budget. This sums shape ceilings and platform
 cardinality; it is declared capacity, not simultaneous live usage. Increasing
 nightly allowances alone cannot establish durable retention. The pinned
@@ -242,6 +242,17 @@ sizes and reuse value, prioritize queue-critical caches, and evaluate separate
 families and producer limits. Confirm that retained nightly seeds survive long
 enough for a later consumer. Neither successful upload nor current headroom
 proves that requirement.
+
+The queue-priority retention fix separates `zccache-tier2-linux-*` before the
+broad `zccache-*` prefix. It reserves a 550 MiB Tier 2 family and leaves the
+nightly families pooled at 1,100 MiB: combined 1,650 MiB versus the previous
+1,700 MiB. Cache keys stay unchanged. An offline probe of the pinned janitor
+reproduced deletion of a 475,427,223-byte Tier 2 seed after two newer Ubuntu
+writes; with the split it protects Tier 2 and evicts the older nightly entry.
+[Raw before/after results](ci-evidence/2026-10-17-tier2-cache-retention.json).
+This isolates janitor protection without expanding its allowance. It does not
+prevent GitHub's global-capacity eviction, retain both Ubuntu variants, or
+resolve the overall declared-capacity mismatch. Live retention remains to verify.
 
 A transitional sample from 20:38–21:45 UTC listed 32 runs and inspected 12.
 The collector previously treated JSON evidence reports as product code when

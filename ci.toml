@@ -65,10 +65,13 @@ toolchain = { via = "setup-soldr:solo-toolchain", max = "190MB", per = "platform
 soldr-mini = { via = "setup-soldr:soldr-mini", max = "15MB", per = "platform" }
 # astral-sh/setup-uv's own cache.
 uv = { via = "setup-uv", max = "50MB" }
-# zccache, the Linux CMake compiler launcher (rust/tools/linux-validate/install-zccache.sh):
-# zccache-tier2-linux-, zccache-ubuntu-<os>-x86_64-rust<ON|OFF>-<config>-,
-# zccache-appimage-, zccache-sanitize-<tool>-<rust>-.
-zccache = { prefix = "zccache-", max = "500MB", evict = "lru", shapes = { tier2-off = { max = "300MB" }, tier2-on = { max = "300MB" }, ubuntu = { max = "400MB" }, appimage = { max = "400MB" }, sanitize = { max = "300MB" } } }
+# First-match classification: keep this specific prefix before zccache-.
+# Queue OFF/ON objects share one measured ~475 MB archive. Independent LRU
+# protection prevents newer nightly writes from evicting that queue seed.
+zccache-tier2 = { prefix = "zccache-tier2-linux-", max = "550MB", evict = "lru" }
+# Nightly Ubuntu/AppImage/sanitizer objects keep their pooled allowance.
+# Combined with Tier 2 this is 1650 MiB, down from the old 1700 MiB.
+zccache = { prefix = "zccache-", max = "500MB", evict = "lru", shapes = { ubuntu = { max = "400MB" }, appimage = { max = "400MB" }, sanitize = { max = "300MB" } } }
 # Windows compiler cache: ccache as cl.exe (build-project.yaml windows-build).
 windows-ccache = { prefix = "windows-ccache-", max = "800MB", evict = "lru" }
 # macOS: Xcode's compilation cache (build-project.yaml macos-build).
