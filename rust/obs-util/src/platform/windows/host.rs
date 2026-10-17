@@ -715,11 +715,9 @@ fn winver() -> u32 {
     *slot
 }
 
-/// `os_sleep_ms`. Windows 8+ (`0x0602`) shortens a positive sleep by 1.
-pub fn sleep_ms(mut duration: u32) {
-    if winver() >= 0x0602 && duration > 0 {
-        duration -= 1;
-    }
+/// `os_sleep_ms`. Windows 8+ (`0x0602`) shortens a sleep above 1 ms by 1.
+pub fn sleep_ms(duration: u32) {
+    let duration = super::super::win_sleep_duration(duration, winver());
     // SAFETY: `Sleep` takes a millisecond count.
     unsafe { Sleep(duration) };
 }

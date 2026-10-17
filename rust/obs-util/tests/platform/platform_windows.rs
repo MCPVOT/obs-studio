@@ -204,3 +204,20 @@ fn sleepto_ns_past_returns_false() {
     assert!(!host::sleepto_ns(0));
     assert!(!host::sleepto_ns_fast(0));
 }
+
+/// obs-rust/obs-studio#1274: `os_sleep_ms(1)` must really sleep. When it
+/// became `Sleep(0)` a 200 ms loop ran tens of thousands of times.
+#[test]
+fn sleep_ms_one_does_not_yield_spin() {
+    let start = std::time::Instant::now();
+    let mut iterations = 0u32;
+    while start.elapsed() < std::time::Duration::from_millis(200) {
+        // SAFETY: `os_sleep_ms` takes any millisecond count.
+        unsafe { obs_util::ffi::platform_windows::os_sleep_ms(1) };
+        iterations += 1;
+    }
+    assert!(
+        iterations < 400,
+        "os_sleep_ms(1) ran {iterations} times in 200 ms"
+    );
+}

@@ -52,3 +52,15 @@ pub const MUL_DIV64_IS_UDIV128: bool = cfg!(all(target_env = "msvc", target_arch
 
 mod stdio;
 pub use stdio::{DoubleFormat, snprintf_double};
+
+/// The `Sleep` argument `os_sleep_ms(ms)` uses on a Windows host whose
+/// version is `winver` (`major << 8 | minor`). Windows 8+ (`0x0602`) sleeps
+/// about 1 ms long, so a request above 1 ms is shortened by 1. A 1 ms
+/// request stays 1: `Sleep(0)` only yields (obs-rust/obs-studio#1274).
+pub fn win_sleep_duration(ms: u32, winver: u32) -> u32 {
+    if winver >= 0x0602 && ms > 1 {
+        ms - 1
+    } else {
+        ms
+    }
+}

@@ -19,3 +19,4 @@ mod platform_windows;
 mod platform_windows_layout;
 mod platform_windows_parity;
 mod scratch_cleanup;
+mod sleep_duration;

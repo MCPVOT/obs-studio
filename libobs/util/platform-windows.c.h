@@ -364,8 +364,9 @@ bool os_sleepto_ns_fast(uint64_t time_target)
 
 void os_sleep_ms(uint32_t duration)
 {
-	/* windows 8+ appears to have decreased sleep precision */
-	if (get_winver() >= 0x0602 && duration > 0)
+	/* windows 8+ appears to have decreased sleep precision. Never turn
+	 * 1 ms into Sleep(0), which only yields. */
+	if (get_winver() >= 0x0602 && duration > 1)
 		duration--;
 
 	Sleep(duration);
