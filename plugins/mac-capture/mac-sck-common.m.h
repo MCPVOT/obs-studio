@@ -1,4 +1,4 @@
-#include "mac-sck-common.h"
+#include "build/mac-capture-objc.pch.h"
 
 bool is_screen_capture_available(void)
 {

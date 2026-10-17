@@ -1,4 +1,4 @@
-#include <obs-module.h>
+#include "build/mac-capture.pch.h"
 
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE("mac-capture", "en-US")

@@ -1,9 +1,4 @@
-#include <CoreFoundation/CFString.h>
-#include <CoreAudio/CoreAudio.h>
-
-#include <util/apple/cfstring-utils.h>
-
-#include "audio-device-enum.h"
+#include "build/mac-capture.pch.h"
 
 /* ugh, because mac has no means of capturing output, we have to basically
  * mark soundflower, wavtap and sound siphon as output devices. */
@@ -40,28 +35,33 @@ static bool coreaudio_enum_device(enum_device_proc_t proc, void *param, AudioDev
 
 	/* check to see if it's a mac input device */
 	AudioObjectGetPropertyDataSize(id, &addr, 0, NULL, &size);
-	if (!size)
+	if (!size) {
 		return true;
+	}
 
 	size = sizeof(CFStringRef);
 
 	addr.mSelector = kAudioDevicePropertyDeviceUID;
 	stat = AudioObjectGetPropertyData(id, &addr, 0, NULL, &size, &cf_uid);
-	if (!enum_success(stat, "get audio device UID"))
+	if (!enum_success(stat, "get audio device UID")) {
 		return true;
+	}
 
 	addr.mSelector = kAudioDevicePropertyDeviceNameCFString;
 	stat = AudioObjectGetPropertyData(id, &addr, 0, NULL, &size, &cf_name);
-	if (!enum_success(stat, "get audio device name"))
+	if (!enum_success(stat, "get audio device name")) {
 		goto fail;
+	}
 
 	enum_next = proc(param, cf_name, cf_uid, id);
 
 fail:
-	if (cf_name)
+	if (cf_name) {
 		CFRelease(cf_name);
-	if (cf_uid)
+	}
+	if (cf_uid) {
 		CFRelease(cf_uid);
+	}
 	return enum_next;
 }
 
@@ -76,18 +76,22 @@ static void enum_devices(enum_device_proc_t proc, void *param)
 	AudioDeviceID *ids;
 
 	stat = AudioObjectGetPropertyDataSize(kAudioObjectSystemObject, &addr, 0, NULL, &size);
-	if (!enum_success(stat, "get kAudioObjectSystemObject data size"))
+	if (!enum_success(stat, "get kAudioObjectSystemObject data size")) {
 		return;
+	}
 
 	ids = bmalloc(size);
 	count = size / sizeof(AudioDeviceID);
 
 	stat = AudioObjectGetPropertyData(kAudioObjectSystemObject, &addr, 0, NULL, &size, ids);
 
-	if (enum_success(stat, "get kAudioObjectSystemObject data"))
-		for (UInt32 i = 0; i < count; i++)
-			if (!coreaudio_enum_device(proc, param, ids[i]))
+	if (enum_success(stat, "get kAudioObjectSystemObject data")) {
+		for (UInt32 i = 0; i < count; i++) {
+			if (!coreaudio_enum_device(proc, param, ids[i])) {
 				break;
+			}
+		}
+	}
 
 	bfree(ids);
 }
@@ -104,13 +108,16 @@ static bool coreaudio_enum_add_device(void *param, CFStringRef cf_name, CFString
 
 	memset(&item, 0, sizeof(item));
 
-	if (!cfstr_copy_dstr(cf_name, kCFStringEncodingUTF8, &item.name))
+	if (!cfstr_copy_dstr(cf_name, kCFStringEncodingUTF8, &item.name)) {
 		goto fail;
-	if (!cfstr_copy_dstr(cf_uid, kCFStringEncodingUTF8, &item.value))
+	}
+	if (!cfstr_copy_dstr(cf_uid, kCFStringEncodingUTF8, &item.value)) {
 		goto fail;
+	}
 
-	if (data->input || !device_is_input(item.value.array))
+	if (data->input || !device_is_input(item.value.array)) {
 		device_list_add(data->list, &item);
+	}
 
 fail:
 	device_item_free(&item);

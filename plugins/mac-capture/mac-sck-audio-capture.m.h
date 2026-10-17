@@ -1,5 +1,4 @@
-#include "mac-sck-common.h"
-#include "mac-sck-stop.h"
+#include "build/mac-capture-objc.pch.h"
 
 const char *sck_audio_capture_getname(void *unused __unused)
 {

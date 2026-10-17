@@ -6,20 +6,13 @@ add_library(OBS::capture ALIAS mac-capture)
 target_sources(
   mac-capture
   PRIVATE
-    audio-device-enum.c
+    build/mac-capture.core-macos+.h.c
+    build/mac-capture.objc-macos+.h.m
+    build/mac-capture.sck-stop+.h.c
     audio-device-enum.h
-    mac-audio.c
-    mac-display-capture.m
-    mac-sck-audio-capture.m
     mac-sck-common.h
-    mac-sck-common.m
-    mac-sck-stop.c
     mac-sck-stop.h
-    mac-sck-video-capture.m
-    mac-window-capture.m
-    plugin-main.c
     window-utils.h
-    window-utils.m
 )
 
 target_link_libraries(

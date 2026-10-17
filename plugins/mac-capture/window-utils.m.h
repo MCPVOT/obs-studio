@@ -1,6 +1,4 @@
-#include "window-utils.h"
-
-#include <util/platform.h>
+#include "build/mac-capture-objc.pch.h"
 
 #define WINDOW_NAME   ((NSString *) kCGWindowName)
 #define WINDOW_NUMBER ((NSString *) kCGWindowNumber)
@@ -278,3 +276,12 @@ CGDirectDisplayID get_display_migrate_settings(obs_data_t *settings)
         return 0;
     }
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef WINDOW_NAME
+#undef WINDOW_NUMBER
+#undef OWNER_NAME
+#undef OWNER_PID
+#undef WAIT_TIME_MS
+#undef WAIT_TIME_US
+#undef WAIT_TIME_NS

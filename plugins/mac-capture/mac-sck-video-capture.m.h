@@ -1,6 +1,4 @@
-#include "mac-sck-common.h"
-#include "mac-sck-stop.h"
-#include "window-utils.h"
+#include "build/mac-capture-objc.pch.h"
 
 API_AVAILABLE(macos(12.5)) static void destroy_screen_stream(struct screen_capture *sc)
 {

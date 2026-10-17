@@ -1,13 +1,4 @@
-#include <stdlib.h>
-#include <obs-module.h>
-#include <util/threading.h>
-#include <pthread.h>
-
-#import <AvailabilityMacros.h>
-#import <CoreGraphics/CGDisplayStream.h>
-#import <Cocoa/Cocoa.h>
-
-#include "window-utils.h"
+#include "build/mac-capture-objc.pch.h"
 
 enum crop_mode {
     CROP_NONE,
@@ -682,3 +673,7 @@ struct obs_source_info display_capture_info = {
     .update = display_capture_update,
     .icon_type = OBS_ICON_TYPE_DESKTOP_CAPTURE,
 };
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef CROP_VAR_NAME
+#undef COUNTOF

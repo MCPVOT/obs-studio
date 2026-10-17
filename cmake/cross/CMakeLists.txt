@@ -306,17 +306,7 @@ elseif(_host STREQUAL MACOS)
   _obs_cross_plugin(
     mac-capture-cross
     DIR plugins/mac-capture
-    SOURCES
-      audio-device-enum.c
-      mac-audio.c
-      mac-display-capture.m
-      mac-sck-audio-capture.m
-      mac-sck-common.m
-      mac-sck-stop.c
-      mac-sck-video-capture.m
-      mac-window-capture.m
-      plugin-main.c
-      window-utils.m
+    SOURCES build/mac-capture.core-macos+.h.c build/mac-capture.objc-macos+.h.m build/mac-capture.sck-stop+.h.c
   )
   _obs_cross_plugin(
     mac-avcapture-cross

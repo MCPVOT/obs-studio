@@ -1,12 +1,4 @@
-#include <obs-module.h>
-#include <util/darray.h>
-#include <util/threading.h>
-#include <util/platform.h>
-
-#import <CoreGraphics/CGWindow.h>
-#import <Cocoa/Cocoa.h>
-
-#include "window-utils.h"
+#include "build/mac-capture-objc.pch.h"
 
 struct window_capture {
     obs_source_t *source;
