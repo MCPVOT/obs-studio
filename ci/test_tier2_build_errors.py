@@ -67,6 +67,13 @@ class BuildErrorsTest(unittest.TestCase):
         self.assertNotIn("Compiling obs-util", out)
         self.assertNotIn("warning: unused variable", out)
 
+    def test_shows_launcher_failure_reason_before_failed_edge_limit(self):
+        reason = "zccache[err][D]: daemon unavailable at /cache/daemon.sock (cannot connect); refusing to run cc uncached."
+        log = "".join(f"FAILED: [code=125] object-{i}.o\n{reason}\n" for i in range(213))
+        out = self.run_script(log).stdout
+        self.assertIn(reason, out)
+        self.assertEqual(out.count(reason), 1)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -25,7 +25,7 @@ ROOT = Path(__file__).resolve().parent.parent
 TOOLS = ROOT / "rust" / "tools"
 INSTALLER = TOOLS / "linux-validate" / "install-zccache.sh"
 WORKFLOWS = ROOT / ".github" / "workflows"
-VERSION = "1.15.4"
+VERSION = "1.15.5"
 
 # Files that run a Linux CMake build and so must name zccache as its launcher
 # and never ccache.

@@ -89,6 +89,21 @@ cargo with `SOLDR_RUSTC_WRAPPER=none` (`OBS_GATE_ZCCACHE=1` opts back in). If a
 build behaves impossibly, retry with that variable set before debugging the
 code.
 
+#### Linux C/C++ and PCH caching
+
+The Ubuntu build, AppImage, sanitizers and Tier 2 use the standalone zccache
+pinned in `rust/tools/linux-validate/install-zccache.sh`, with SHA-256 checks
+for both Linux architectures. Version 1.15.5 restores a byte-identical PCH
+input header's recorded mtime before clang loads it; real content changes
+remain subject to clang's validation. This fixes `#pragma once` redefinitions
+after touches or checkouts without relaxing PCH validation.
+
+This launcher is independent of soldr's embedded Rust cache. The pinned soldr
+0.9.35 (and released 0.9.37) embeds zccache 1.15.4. Updating the standalone
+installer does not update soldr's `zccache-soldr` wrapper selected by the
+optional `ENABLE_ZCCACHE` CMake module. That wrapper needs a soldr release
+whose dependency and vendored zccache both include the new version.
+
 #### Cross-compile check: Windows and macOS C from any host
 
 `cmake/cross/` compiles libobs for another OS on this machine, with no Windows or macOS runner.

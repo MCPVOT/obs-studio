@@ -9,6 +9,10 @@ set -euo pipefail
 [ $# -eq 1 ] || { echo "usage: build-errors.sh BUILD_LOG" >&2; exit 2; }
 log=$1
 
+# Cache infrastructure failures are not compiler errors. Print their reasons
+# separately so hundreds of FAILED edges cannot crowd them out of the limit.
+grep -E '^zccache(\[|:)' "$log" | sort -u | head -40 || true
+
 grep -E ": (fatal )?error|FAILED:" "$log" | sort -u | head -80 || true
 
 # rustc: an error line, then its "-->" location and code excerpt. Build

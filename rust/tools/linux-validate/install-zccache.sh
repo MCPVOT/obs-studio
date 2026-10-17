@@ -4,18 +4,19 @@
 # (default ~/.local/bin) after checking its SHA-256. It is the compiler
 # launcher of every Linux CMake build here: Tier 2 (the Dockerfile next to
 # this script), the Ubuntu build, the AppImage and the sanitizers. soldr
-# 0.9.35 embeds the same zccache for rustc but exposes no C launcher.
+# 0.9.35 embeds zccache 1.15.4 for rustc; this standalone launcher gets
+# the 1.15.5 PCH header-mtime replay fix independently of soldr.
 set -eu
-ZCCACHE_VERSION="1.15.4"
+ZCCACHE_VERSION="1.15.5"
 dest=${1:-"$HOME/.local/bin"}
 case "$(uname -m)" in
 x86_64 | amd64)
   arch=x86_64
-  sha=51c0ef8380cc6259a150cf561dd8d1a4eb6f8f5fe8212929a2cd1c71e6937853
+  sha=39906c92b0287e2aac51ae9169b368d36eabc3af363c3c7bd29dc3783975e579
   ;;
 aarch64 | arm64)
   arch=aarch64
-  sha=95828e476d9a47ca8c5a8a88bd3c3bf094f8ab52391a911566aba7379ae8b9d4
+  sha=a266bf8319d008708da870f49843bfc3a3ce2bb078be2c1448358584701b215a
   ;;
 *)
   echo "install-zccache.sh: unsupported arch $(uname -m)" >&2
