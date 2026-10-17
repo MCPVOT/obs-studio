@@ -296,6 +296,8 @@ if(_host STREQUAL WINDOWS)
     INCLUDES shared/opts-parser
   )
   _obs_cross_plugin(coreaudio-encoder-cross DIR plugins/coreaudio-encoder SOURCES encoder.cpp)
+  # libobs-d3d11's unity group (BUILD.md).
+  _obs_cross_plugin(libobs-d3d11-cross DIR libobs-d3d11 SOURCES build/d3d11.core+.hpp.cpp DEFINES GPU_PRIORITY_VAL=0)
   # libobs-opengl's unity groups (BUILD.md): the shared renderer and WGL.
   _obs_cross_plugin(
     libobs-opengl-cross

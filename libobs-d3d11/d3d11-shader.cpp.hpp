@@ -15,19 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "d3d11-subsystem.hpp"
-#include "d3d11-shaderprocessor.hpp"
-#include <graphics/vec2.h>
-#include <graphics/vec3.h>
-#include <graphics/matrix3.h>
-#include <graphics/matrix4.h>
-#include <util/platform.h>
-#include <util/util.hpp>
-
-#include <filesystem>
-#include <fstream>
-#include <d3dcompiler.h>
-#include <system_error>
+#include "build/d3d11.pch.hpp"
 
 namespace {
 

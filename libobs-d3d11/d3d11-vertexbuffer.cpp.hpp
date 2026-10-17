@@ -15,9 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include <util/base.h>
-#include <graphics/vec3.h>
-#include "d3d11-subsystem.hpp"
+#include "build/d3d11.pch.hpp"
 
 static inline void PushBuffer(UINT *refNumBuffers, ID3D11Buffer **buffers, uint32_t *strides, ID3D11Buffer *buffer,
 			      size_t elementSize, const char *name)

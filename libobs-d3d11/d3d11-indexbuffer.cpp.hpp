@@ -15,7 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "d3d11-subsystem.hpp"
+#include "build/d3d11.pch.hpp"
 
 void gs_index_buffer::InitBuffer()
 {

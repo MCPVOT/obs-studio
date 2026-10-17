@@ -15,20 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include <algorithm>
-#include <cassert>
-#include <cinttypes>
-#include <optional>
-#include <util/base.h>
-#include <util/platform.h>
-#include <util/dstr.h>
-#include <util/util.hpp>
-#include <graphics/matrix3.h>
-#include <winternl.h>
-#include <d3d9.h>
-#include "d3d11-subsystem.hpp"
-#include <shellscalingapi.h>
-#include <d3dkmthk.h>
+#include "build/d3d11.pch.hpp"
 
 struct UnsupportedHWError : HRError {
 	inline UnsupportedHWError(const char *str, HRESULT hr) : HRError(str, hr) {}

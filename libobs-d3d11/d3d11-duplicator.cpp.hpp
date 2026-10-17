@@ -15,8 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "d3d11-subsystem.hpp"
-#include <unordered_map>
+#include "build/d3d11.pch.hpp"
 
 static inline bool get_monitor(gs_device_t *device, int monitor_idx, IDXGIOutput **dxgiOutput)
 {
