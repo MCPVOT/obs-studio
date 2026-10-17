@@ -77,7 +77,9 @@ errors (soldr permissions, disk, Docker, host FFmpeg): see
   that is each implementation file's only include, unity and PCH always on
   (`ci/test_build_groups.py`).
 - C/C++ host code stays in OS-named files (`obs-nix.c`, `platform-windows.cpp`,
-  `win-capture/`, ...). `ci/platform_ifdef_ratchet.py` (in `./lint`) fails a
+  `win-capture/`, ...). Upstream files keep their names; new host files use
+  `hosts/<os>/` folders or `*-host-<os>.c` files, `<os>` one of `windows`,
+  `macos`, `linux`, `posix` (#1009). `ci/platform_ifdef_ratchet.py` (in `./lint`) fails a
   new host conditional or OS header in a shared file, and a platform file that
   names another OS. Shared libobs core calls host code through one interface
   per capability in `libobs/obs-host/<capability>.h` (`OBS_HOST_EXTERN`); a
