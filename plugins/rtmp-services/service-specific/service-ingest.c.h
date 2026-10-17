@@ -6,6 +6,7 @@ void init_service_data(struct service_ingests *si)
 {
 	da_init(si->cur_ingests);
 	pthread_mutex_init(&si->mutex, NULL);
+	ingest_refresh_wait_init(&si->refresh_wait);
 }
 
 static void free_ingests(struct service_ingests *si)
@@ -114,6 +115,8 @@ static bool ingest_update(void *param, struct file_download_data *data)
 		os_atomic_set_bool(&service->ingests_loaded, true);
 	}
 
+	ingest_refresh_wait_complete(&service->refresh_wait, success);
+
 	return true;
 }
 
@@ -124,19 +127,15 @@ void service_ingests_refresh(struct service_ingests *si, int seconds, const char
 
 	if (!os_atomic_load_bool(&si->ingests_refreshing)) {
 		os_atomic_set_bool(&si->ingests_refreshing, true);
+		ingest_refresh_wait_reset(&si->refresh_wait);
 
 		si->update_info = update_info_create_single(log_prefix, get_module_name(), file_url, ingest_update, si);
 	}
 
-	/* wait five seconds max when loading ingests for the first time */
-	if (!os_atomic_load_bool(&si->ingests_loaded)) {
-		for (int i = 0; i < seconds * 100; i++) {
-			if (os_atomic_load_bool(&si->ingests_refreshed)) {
-				break;
-			}
-			os_sleep_ms(10);
-		}
-	}
+	/* wait `seconds` max when no ingest list is loaded yet */
+	if (ingest_refresh_needs_wait(os_atomic_load_bool(&si->ingests_refreshed),
+				      os_atomic_load_bool(&si->ingests_loaded)))
+		ingest_refresh_wait_for(&si->refresh_wait, (unsigned long)seconds * 1000);
 }
 
 void load_service_data(struct service_ingests *si, const char *cache_filename, struct ingest *def)
@@ -169,6 +168,7 @@ void unload_service_data(struct service_ingests *si)
 {
 	update_info_destroy(si->update_info);
 	free_ingests(si);
+	ingest_refresh_wait_free(&si->refresh_wait);
 	pthread_mutex_destroy(&si->mutex);
 }
 

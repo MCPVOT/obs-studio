@@ -7,6 +7,7 @@
 static update_info_t *dacast_update_info = NULL;
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 static bool ingests_loaded = false;
+static struct ingest_refresh_wait dacast_refresh_wait;
 
 struct dacast_ingest_info {
 	char *key;
@@ -110,6 +111,8 @@ static bool dacast_ingest_update(void *param, struct file_download_data *data)
 		os_atomic_set_bool(&ingests_loaded, true);
 	}
 
+	ingest_refresh_wait_complete(&dacast_refresh_wait, success);
+
 	return true;
 }
 
@@ -125,6 +128,7 @@ void init_dacast_data(void)
 {
 	da_init(dacast_cur_ingests);
 	pthread_mutex_init(&mutex, NULL);
+	ingest_refresh_wait_init(&dacast_refresh_wait);
 }
 
 extern const char *get_module_name(void);
@@ -136,6 +140,7 @@ void dacast_ingests_load_data(const char *server, const char *key)
 	struct dstr uri = {0};
 
 	os_atomic_set_bool(&ingests_loaded, false);
+	ingest_refresh_wait_reset(&dacast_refresh_wait);
 
 	dstr_copy(&uri, server);
 	dstr_cat(&uri, key);
@@ -148,14 +153,8 @@ void dacast_ingests_load_data(const char *server, const char *key)
 	dacast_update_info = update_info_create_single("[dacast ingest load data] ", get_module_name(), uri.array,
 						       dacast_ingest_update, (void *)(uintptr_t)key);
 
-	if (!os_atomic_load_bool(&ingests_loaded)) {
-		for (int i = 0; i < TIMEOUT_SEC * 100; i++) {
-			if (os_atomic_load_bool(&ingests_loaded)) {
-				break;
-			}
-			os_sleep_ms(10);
-		}
-	}
+	if (!os_atomic_load_bool(&ingests_loaded))
+		ingest_refresh_wait_for(&dacast_refresh_wait, TIMEOUT_SEC * 1000);
 
 	dstr_free(&uri);
 }
@@ -164,6 +163,7 @@ void unload_dacast_data(void)
 {
 	update_info_destroy(dacast_update_info);
 	dacast_free_ingests();
+	ingest_refresh_wait_free(&dacast_refresh_wait);
 	pthread_mutex_destroy(&mutex);
 }
 

@@ -5,6 +5,7 @@
  */
 #include <file-updater/file-updater.h>
 #include <util/threading.h>
+#include "plugins/rtmp-services/service-specific/ingest-refresh-wait.h"
 
 struct ingest {
 	char *name;
@@ -18,6 +19,7 @@ struct service_ingests {
 	bool ingests_refreshed;
 	bool ingests_refreshing;
 	bool ingests_loaded;
+	struct ingest_refresh_wait refresh_wait;
 	DARRAY(struct ingest) cur_ingests;
 	const char *cache_old_filename;
 	const char *cache_new_filename;
