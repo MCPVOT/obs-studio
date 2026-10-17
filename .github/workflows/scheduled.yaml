@@ -48,7 +48,7 @@ jobs:
     # The fast PR path (#992) skips Rust tests, Tier 2 and the app builds, so
     # this nightly full run is what catches a break that slipped through.
     # On failure, open an issue, or comment on the open one.
-    needs: build-project
+    needs: [build-project, analyze-project, codeql]
     if: failure() && github.event_name == 'schedule'
     runs-on: ubuntu-26.04
     permissions:
@@ -79,6 +79,29 @@ jobs:
     secrets: inherit
     permissions:
       security-events: write
+
+  # Explicit security scans belong to nightly/manual runs, never PR/merge_group.
+  codeql:
+    name: Nightly CodeQL (${{ matrix.language }})
+    if: (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && (github.event_name != 'schedule' || github.repository == 'obs-rust/obs-studio')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      security-events: write
+      packages: read
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [actions, c-cpp, python, rust]
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: github/codeql-action/init@9e0d7b8d25671d64c341c19c0152d693099fb5ba # v4.35.5
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+      - uses: github/codeql-action/analyze@9e0d7b8d25671d64c341c19c0152d693099fb5ba # v4.35.5
+        with:
+          category: nightly-${{ matrix.language }}
 
   upload-language-files:
     name: Upload Language Files 🌐

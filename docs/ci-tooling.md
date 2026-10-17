@@ -521,3 +521,26 @@ build totals separate from soldr session counters and ccache reports;
 their scopes differ. Archive messages can repeat and must not be summed
 as network transfer totals. Stratify compiler-version rollouts and cold
 cache seeds before comparing warm lane performance.
+
+## Merge queue admission policy
+
+The merge queue prioritizes compilation errors and integrity regressions:
+changed-path compilation, formatting/lint correctness, unit tests, ABI and
+behavior checks, and the selected C/Rust differential and Tier 2 suites.
+`CI Gate ✅` is the required merge check. Keep its dependencies limited to
+these checks. Cache maintenance stays independent and cannot block this gate.
+
+Security analysis (CodeQL, vulnerability/dependency audits and static security
+scanners), release packaging validation, signing, publishing and distribution
+checks belong in the existing nightly workflows, with manual dispatch available
+for diagnosis. They must not run on PR pushes or `merge_group`, even as optional
+background jobs: they compete for runner capacity. Explicit release/tag actions
+may still validate and publish releases outside the merge queue.
+
+GitHub CodeQL **default setup must remain disabled** in repository settings;
+it creates automatic PR/push scans outside the versioned workflow graph.
+The existing `scheduled.yaml` owns nightly CodeQL for Actions, C/C++, Python
+and Rust. Any new security integration must be reviewed for its event triggers,
+required-check settings and runner use before enabling it. Do not add a security
+scan to `CI Gate`, merge rules or queue cancellation dependencies. Nightly
+failures are investigated through nightly reports rather than blocking the queue.

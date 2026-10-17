@@ -25,7 +25,7 @@ class NightlyFailureIssueTest(unittest.TestCase):
         self.job = text[start:end]
 
     def test_runs_only_after_a_failed_scheduled_build(self):
-        self.assertIn("needs: build-project", self.job)
+        self.assertIn("needs: [build-project, analyze-project, codeql]", self.job)
         self.assertIn("if: failure() && github.event_name == 'schedule'", self.job)
 
     def test_can_write_issues(self):

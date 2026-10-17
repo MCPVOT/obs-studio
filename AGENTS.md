@@ -114,3 +114,7 @@ errors (soldr permissions, disk, Docker, host FFmpeg): see
   start with an empty profile. `test-appimage.sh` is that test for the AppImage;
   extend it when a change adds something loaded at runtime, and show it failing
   without the change (obs-rust/obs-studio#426).
+
+Security scans and release validation run nightly, outside PR/merge-group CI.
+GitHub CodeQL default setup stays disabled. See the merge queue admission
+policy in docs/ci-tooling.md before enabling CI integrations.
