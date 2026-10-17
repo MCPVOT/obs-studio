@@ -6,12 +6,9 @@
 #pragma once
 
 /* vlc-video-plugin.c */
-#ifdef _WIN32
-#include <windows.h>
-#endif
-
 #include <util/platform.h>
 #include "vlc-video-plugin.h"
+#include "vlc-video-host.h"
 
 /* vlc-video-source.c */
 #include "vlc-audio-order.h"

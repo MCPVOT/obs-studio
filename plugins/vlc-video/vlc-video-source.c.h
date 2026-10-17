@@ -566,10 +566,7 @@ static void add_file(media_file_array_t *new_files, const char *path, int networ
 	bool is_url = path && strstr(path, "://") != NULL;
 
 	dstr_copy(&new_path, path);
-#ifdef _WIN32
-	if (!is_url)
-		dstr_replace(&new_path, "/", "\\");
-#endif
+	vlc_host_native_path(&new_path, is_url);
 	path = new_path.array;
 
 	/* Never reuse a media object from the previous settings: libVLC media
