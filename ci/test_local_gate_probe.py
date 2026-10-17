@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import importlib.util
+import os
 import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -44,7 +46,9 @@ class RustSourceProbeTest(unittest.TestCase):
         (scratch / "Cargo.lock").write_text('version = 3\n\n[[package]]\nname = "obs-gate-probe"\nversion = "0.1.0"\n')
         (scratch / "rust-toolchain.toml").write_bytes((local_gate.ROOT / "rust-toolchain.toml").read_bytes())
         source = scratch / "src" / "lib.rs"
-        source.write_text("pub fn ready() {}\n")
+        source.write_text("pub mod nested;\n")
+        nested = scratch / "src" / "nested.rs"
+        nested.write_text('// compile_error!("GATE-SOURCE-PROBE");\npub fn ready() {}\n')
 
         output = []
 
@@ -62,7 +66,13 @@ class RustSourceProbeTest(unittest.TestCase):
 
         with mock.patch.object(local_gate, "run", side_effect=run_in_scratch):
             local_gate.lane_rust_test(False)
-            source.write_text(source.read_text() + 'compile_error!("GATE-SOURCE-PROBE");\n')
+            stamp = nested.stat()
+            nested.write_text("   " + nested.read_text()[3:])
+            os.utime(nested, ns=(stamp.st_atime_ns, stamp.st_mtime_ns))
+            # Force Cargo to invoke rustc while the changed nested module
+            # retains its size/mtime: upstream zccache#1943's stale-hit case.
+            now = time.time_ns() + 2_000_000_000
+            os.utime(source, ns=(now, now))
             with self.assertRaises(subprocess.CalledProcessError):
                 local_gate.lane_rust_test(False)
 
