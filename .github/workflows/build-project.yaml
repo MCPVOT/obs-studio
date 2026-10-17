@@ -909,15 +909,18 @@ jobs:
       # The host package set differs from the Tier 2 container. Keep only
       # host .debs in a workspace-relative archive; PRs restore, master saves.
       - name: Prepare Touched Target apt Directory
+        id: target-apt
         if: needs.check-event.outputs.linux_targets != '' && (needs.check-event.outputs.deferred == 'true' || (github.event_name == 'push' && github.ref == 'refs/heads/master'))
-        run: mkdir -p "${GITHUB_WORKSPACE}/.targets-apt"
+        run: |
+          mkdir -p "${GITHUB_WORKSPACE}/.targets-apt"
+          echo "image=${ImageVersion:-ubuntu2604}" >> "$GITHUB_OUTPUT"
       - name: Restore Touched Target apt Downloads
         if: needs.check-event.outputs.linux_targets != '' && (needs.check-event.outputs.deferred == 'true' || (github.event_name == 'push' && github.ref == 'refs/heads/master'))
         uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ${{ github.workspace }}/.targets-apt/*.deb
-          key: targets-apt-ubuntu2604-${{ hashFiles('rust/tools/linux-validate/apt-packages.txt') }}-${{ github.sha }}
-          restore-keys: targets-apt-ubuntu2604-${{ hashFiles('rust/tools/linux-validate/apt-packages.txt') }}-
+          key: targets-apt-ubuntu2604-${{ steps.target-apt.outputs.image }}-${{ hashFiles('rust/tools/linux-validate/apt-packages.txt') }}-${{ github.sha }}
+          restore-keys: targets-apt-ubuntu2604-${{ steps.target-apt.outputs.image }}-${{ hashFiles('rust/tools/linux-validate/apt-packages.txt') }}-
       - name: Build Touched Linux Targets 🧱
         if: needs.check-event.outputs.linux_targets != '' && (needs.check-event.outputs.deferred == 'true' || (github.event_name == 'push' && github.ref == 'refs/heads/master'))
         env:
@@ -963,12 +966,26 @@ jobs:
           path: ${{ github.workspace }}/.targets-ccache
           key: targets-ccache-linux-${{ github.sha }}
 
-      - name: Save Touched Target apt Downloads
+      - name: Check Touched Target apt Snapshot
+        id: target-apt-size
         if: github.event_name == 'push' && github.ref == 'refs/heads/master' && needs.check-event.outputs.linux_targets != ''
+        env:
+          APT_ARCHIVES: ${{ github.workspace }}/.targets-apt
+        run: |
+          size_mib=$(sudo du -sm "$APT_ARCHIVES" | cut -f1)
+          echo "Host apt snapshot: ${size_mib} MiB (200 MiB save limit)"
+          if [ "$size_mib" -le 200 ]; then
+            echo 'save=true' >> "$GITHUB_OUTPUT"
+          else
+            echo '::warning::Host apt snapshot exceeds family bound; keeping prior remote entry'
+            echo 'save=false' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Save Touched Target apt Downloads
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master' && needs.check-event.outputs.linux_targets != '' && steps.target-apt-size.outputs.save == 'true'
         uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ${{ github.workspace }}/.targets-apt/*.deb
-          key: targets-apt-ubuntu2604-${{ hashFiles('rust/tools/linux-validate/apt-packages.txt') }}-${{ github.sha }}
+          key: targets-apt-ubuntu2604-${{ steps.target-apt.outputs.image }}-${{ hashFiles('rust/tools/linux-validate/apt-packages.txt') }}-${{ github.sha }}
 
       # Skipped when a trusted run already passed these exact inputs.
       - name: Local Gate (rust-test) 🧪

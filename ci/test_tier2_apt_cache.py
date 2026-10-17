@@ -65,6 +65,20 @@ class AptCacheTest(unittest.TestCase):
         self.assertIn('/.targets-apt/*.deb',save)
         self.assertIn('evict = "lru"',(WORKFLOW.parents[2]/'ci.toml').read_text().split('targets-apt =',1)[1].splitlines()[0])
 
+    def test_scoped_host_snapshot_bound_executes_before_save(self):
+        import os
+        import subprocess
+        text=WORKFLOW.read_text()
+        self.assertIn('steps.target-apt.outputs.image',text)
+        guard=text.split('id: target-apt-size',1)[1]
+        body=re.search(r'        run: \|\n((?:          .*\n|\n)*)',guard).group(1)
+        script='\n'.join(line[10:] for line in body.splitlines())
+        self.assertIn("steps.target-apt-size.outputs.save == 'true'",text)
+        for size,expected in [(142,'true'),(200,'true'),(201,'false')]:
+            env={**os.environ,'APT_ARCHIVES':'ignored','GITHUB_OUTPUT':'/dev/stdout','TEST_SIZE':str(size)}
+            result=subprocess.run(['bash','-e','-c','sudo() { "$@"; }; du() { echo "$TEST_SIZE"; };\n'+script],env=env,capture_output=True,text=True,check=True)
+            self.assertIn('save='+expected,result.stdout)
+
     def test_only_master_build_job_saves(self):
         # Every PR and queue run saved its own 323 MB entry and pushed the
         # repo past its 10 GB cache limit, evicting the ccache.
