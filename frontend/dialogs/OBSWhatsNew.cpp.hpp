@@ -1,0 +1,57 @@
+#include "frontend/build/frontend-dialogs.pch.hpp"
+
+#ifdef BROWSER_AVAILABLE
+extern QCef *cef;
+#endif
+
+OBSWhatsNew::OBSWhatsNew(QWidget *parent, const std::string &url) : QDialog(parent)
+{
+#ifdef BROWSER_AVAILABLE
+	if (!cef) {
+		return;
+	}
+
+	setWindowTitle("What's New");
+	setAttribute(Qt::WA_DeleteOnClose, true);
+	resize(700, 600);
+
+	Qt::WindowFlags flags = windowFlags();
+	Qt::WindowFlags helpFlag = Qt::WindowContextHelpButtonHint;
+	setWindowFlags(flags & (~helpFlag));
+
+	OBSBasic::InitBrowserPanelSafeBlock();
+
+	cefWidget = cef->create_widget(nullptr, url);
+	if (!cefWidget) {
+		return;
+	}
+
+	connect(cefWidget, &QCefWidget::titleChanged, this, &OBSWhatsNew::setWindowTitle);
+
+	QVBoxLayout *topLayout = new QVBoxLayout(this);
+	topLayout->setContentsMargins(0, 0, 0, 0);
+	topLayout->addWidget(cefWidget);
+
+	show();
+#else
+	UNUSED_PARAMETER(url);
+#endif
+}
+
+OBSWhatsNew::~OBSWhatsNew() {}
+
+void OBSWhatsNew::reject()
+{
+#ifdef BROWSER_AVAILABLE
+	delete cefWidget;
+#endif
+	QDialog::reject();
+}
+
+void OBSWhatsNew::accept()
+{
+#ifdef BROWSER_AVAILABLE
+	delete cefWidget;
+#endif
+	QDialog::accept();
+}

@@ -1,4 +1,1 @@
-target_sources(
-  obs-studio
-  PRIVATE oauth/Auth.cpp oauth/Auth.hpp oauth/AuthListener.cpp oauth/AuthListener.hpp oauth/OAuth.cpp oauth/OAuth.hpp
-)
+target_sources(obs-studio PRIVATE build/frontend.oauth+.hpp.cpp oauth/Auth.hpp oauth/AuthListener.hpp oauth/OAuth.hpp)

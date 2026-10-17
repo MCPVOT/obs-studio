@@ -1,15 +1,11 @@
 target_sources(
   obs-studio
   PRIVATE
-    wizards/AutoConfig.cpp
+    build/frontend.wizards+.hpp.cpp
     wizards/AutoConfig.hpp
-    wizards/AutoConfigStartPage.cpp
     wizards/AutoConfigStartPage.hpp
-    wizards/AutoConfigStreamPage.cpp
     wizards/AutoConfigStreamPage.hpp
-    wizards/AutoConfigTestPage.cpp
     wizards/AutoConfigTestPage.hpp
-    wizards/AutoConfigVideoPage.cpp
     wizards/AutoConfigVideoPage.hpp
     wizards/TestMode.hpp
 )

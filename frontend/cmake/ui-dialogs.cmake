@@ -13,34 +13,24 @@ target_link_libraries(obs-studio PRIVATE OBS::properties-view)
 target_sources(
   obs-studio
   PRIVATE
-    dialogs/LogUploadDialog.cpp
+    build/frontend.dialogs+.hpp.cpp
     dialogs/LogUploadDialog.hpp
-    dialogs/NameDialog.cpp
     dialogs/NameDialog.hpp
-    dialogs/OAuthLogin.cpp
     dialogs/OAuthLogin.hpp
-    dialogs/OBSAbout.cpp
     dialogs/OBSAbout.hpp
-    dialogs/OBSBasicAdvAudio.cpp
     dialogs/OBSBasicAdvAudio.hpp
-    dialogs/OBSBasicFilters.cpp
+    build/frontend.dialogs-obsbasicfilters+.hpp.cpp
     dialogs/OBSBasicFilters.hpp
-    dialogs/OBSBasicInteraction.cpp
+    build/frontend.dialogs-obsbasicinteraction+.hpp.cpp
     dialogs/OBSBasicInteraction.hpp
-    dialogs/OBSBasicProperties.cpp
+    build/frontend.dialogs-obsbasicproperties+.hpp.cpp
     dialogs/OBSBasicProperties.hpp
-    dialogs/OBSBasicSourceSelect.cpp
     dialogs/OBSBasicSourceSelect.hpp
-    dialogs/OBSBasicTransform.cpp
     dialogs/OBSBasicTransform.hpp
-    dialogs/OBSBasicVCamConfig.cpp
     dialogs/OBSBasicVCamConfig.hpp
-    dialogs/OBSLogViewer.cpp
     dialogs/OBSLogViewer.hpp
-    dialogs/OBSMissingFiles.cpp
     dialogs/OBSMissingFiles.hpp
-    dialogs/OBSRemux.cpp
+    build/frontend.dialogs-2+.hpp.cpp
     dialogs/OBSRemux.hpp
-    dialogs/OBSWhatsNew.cpp
     dialogs/OBSWhatsNew.hpp
 )

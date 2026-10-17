@@ -8,7 +8,7 @@ if(OS_LINUX OR OS_FREEBSD)
     add_executable(
       test_hotkey_background_ui
       test_hotkey_background_ui.cpp
-      "${CMAKE_SOURCE_DIR}/frontend/settings/OBSHotkeyBackground.cpp"
+      "${CMAKE_SOURCE_DIR}/frontend/settings/OBSHotkeyBackground.cpp.hpp"
     )
     target_include_directories(
       test_hotkey_background_ui

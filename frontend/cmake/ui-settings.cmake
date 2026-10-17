@@ -1,21 +1,14 @@
 target_sources(
   obs-studio
   PRIVATE
-    settings/OBSBasicSettings_A11y.cpp
-    settings/OBSBasicSettings_Appearance.cpp
-    settings/OBSBasicSettings_Stream.cpp
-    settings/OBSBasicSettings.cpp
+    build/frontend.settings+.hpp.cpp
     settings/OBSBasicSettings.hpp
-    settings/OBSHotkeyBackground.cpp
+    build/frontend.settings-obshotkeybackground+.hpp.cpp
     settings/OBSHotkeyBackground.hpp
-    settings/OBSHotkeyBackgroundBanner.cpp
     settings/OBSHotkeyBackgroundBanner.hpp
-    settings/OBSHotkeyCapture.cpp
+    build/frontend.settings-obshotkeycapture+.hpp.cpp
     settings/OBSHotkeyCapture.hpp
-    settings/OBSHotkeyEdit.cpp
     settings/OBSHotkeyEdit.hpp
-    settings/OBSHotkeyLabel.cpp
     settings/OBSHotkeyLabel.hpp
-    settings/OBSHotkeyWidget.cpp
     settings/OBSHotkeyWidget.hpp
 )

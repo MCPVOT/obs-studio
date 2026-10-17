@@ -8,7 +8,7 @@ if(TARGET Qt6::Widgets AND TARGET Qt6::Test)
   add_executable(
     test_hotkey_edit_backtab
     test_hotkey_edit_backtab.cpp
-    "${CMAKE_SOURCE_DIR}/frontend/settings/OBSHotkeyCapture.cpp"
+    "${CMAKE_SOURCE_DIR}/frontend/settings/OBSHotkeyCapture.cpp.hpp"
   )
   target_include_directories(
     test_hotkey_edit_backtab

@@ -28,9 +28,6 @@ set(OBS_UNITY_BUILD_BATCH_SIZE 8 CACHE STRING "Sources per unity translation uni
 set(
   _OBS_UNITY_SKIP_SOURCES
   frontend/components/SourceTreeItem.cpp
-  frontend/dialogs/OBSBasicFilters.cpp
-  frontend/dialogs/OBSBasicInteraction.cpp
-  frontend/dialogs/OBSBasicProperties.cpp
   frontend/obs-main.cpp
   frontend/plugin-manager/PluginModuleLoader_Windows.cpp
   frontend/utility/AutoUpdateThread.cpp

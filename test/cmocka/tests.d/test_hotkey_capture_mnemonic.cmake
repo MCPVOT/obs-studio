@@ -9,7 +9,7 @@ if(OS_LINUX)
     add_executable(
       test_hotkey_capture_mnemonic
       test_hotkey_capture_mnemonic.cpp
-      "${CMAKE_SOURCE_DIR}/frontend/settings/OBSHotkeyCapture.cpp"
+      "${CMAKE_SOURCE_DIR}/frontend/settings/OBSHotkeyCapture.cpp.hpp"
     )
     target_include_directories(
       test_hotkey_capture_mnemonic
