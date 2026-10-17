@@ -84,6 +84,17 @@ service-check = { prefix = "service-check-", max = "1MB" }
 # Transitional: the ccache keys master's Tier 2 and AppImage jobs restore
 # until #957 (zccache) merges. Delete both once master saves zccache-*.
 tier2-ccache = { prefix = "tier2-ccache-linux-", max = "110MB" }
+# Tier 2's apt downloads (#1055) and the per-target Linux plugin builds' ccache.
+tier2-apt = { prefix = "tier2-apt-", max = "400MB" }
+targets-ccache = { prefix = "targets-ccache-linux-", max = "300MB" }
+# Added on master after #957 was written.
+tier2-ctest-cost = { prefix = "tier2-ctest-cost-", max = "1MB" }
+windows-tier2-ccache = { prefix = "windows-tier2-ccache-", max = "800MB", evict = "lru" }
+macos-tier2-xcas = { prefix = "macos-tier2-xcas-", max = "500MB", evict = "lru" }
+qt-ccache = { prefix = "qt-ccache-linux-", max = "300MB", evict = "lru" }
+vcpkg-cmocka = { prefix = "vcpkg-bin-cmocka-", max = "100MB" }
+libs-qt = { prefix = "libs-qt-", max = "1GB" }
+libs-ffmpeg = { prefix = "libs-ffmpeg-", max = "500MB" }
 appimage-ccache = { prefix = "ccache-appimage-", max = "100MB" }
 
 # -- Local runs (local-gate.toml) --------------------------------------------

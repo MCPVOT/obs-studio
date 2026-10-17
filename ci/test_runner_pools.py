@@ -19,7 +19,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 FORMAT = ROOT / ".github" / "workflows" / "check-format.yaml"
-PULL = ROOT / ".github" / "workflows" / "pr-pull.yaml"
+PULL = ROOT / ".github" / "workflows" / "ci.yml"
 
 
 def job(path: Path, name: str) -> str:

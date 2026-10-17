@@ -37,7 +37,7 @@ def tier2_job() -> str:
 class PackageListTest(unittest.TestCase):
     def test_list_has_the_test_runtime(self):
         names = PACKAGES.read_text(encoding="utf-8").split()
-        for pkg in ("libcmocka-dev", "xvfb", "xauth", "pipewire", "dbus-daemon", "ccache", "ninja-build", "zstd"):
+        for pkg in ("libcmocka-dev", "xvfb", "xauth", "pipewire", "dbus-daemon", "ninja-build", "zstd"):
             self.assertIn(pkg, names)
 
     def test_dockerfile_installs_the_shared_list(self):

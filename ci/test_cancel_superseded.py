@@ -21,7 +21,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SCRIPT = ROOT / "ci" / "cancel_superseded.py"
-WORKFLOW = ROOT / ".github" / "workflows" / "pr-pull.yaml"
+WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
 
 
 def load():
@@ -85,7 +85,7 @@ class WorkflowTest(unittest.TestCase):
         self.job = m.group(1)
 
     def test_runs_only_for_the_merge_queue(self):
-        self.assertIn("if: github.event_name == 'merge_group'", self.job)
+        self.assertIn("if: ${{ !cancelled() && github.event_name == 'merge_group' }}", self.job)
 
     def test_only_this_job_can_cancel_runs(self):
         self.assertIn("actions: write", self.job)

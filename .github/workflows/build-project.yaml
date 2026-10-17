@@ -1109,10 +1109,10 @@ jobs:
       - uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ${{ github.workspace }}/.tier2-zccache
-          key: tier2-zccache-linux-both-${{ github.sha }}
+          key: zccache-tier2-linux-both-${{ github.sha }}
           restore-keys: |
-            tier2-zccache-linux-both-
-            tier2-zccache-linux-
+            zccache-tier2-linux-both-
+            zccache-tier2-linux-
       # zccache has no age-based eviction (ccache --evict-older-than), so a
       # master push drops a restored cache over 2 GiB and rebuilds it cold:
       # the saved cache stays about the size of one build.
@@ -1188,7 +1188,7 @@ jobs:
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
         with:
           path: ${{ github.workspace }}/.tier2-zccache
-          key: tier2-zccache-linux-both-${{ github.sha }}
+          key: zccache-tier2-linux-both-${{ github.sha }}
 
   rust-linux-tier2:
     name: Rust Tier 2 Linux 🐧 (${{ matrix.mode }} ${{ matrix.shard }}/3)

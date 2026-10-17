@@ -185,7 +185,7 @@ merge PR.
   through the same groups. Extend it when a component converts.
 - A change to `cmake/common/`, `cmake/pch/` or any group or precompiled
   header must pass a full Windows and macOS build
-  (`gh workflow run pr-pull.yaml --ref <branch>`) before it merges: PR CI is
+  (`gh workflow run ci.yml --ref <branch>`) before it merges: PR CI is
   path-scoped and does not build those apps.
 
 ## Transition

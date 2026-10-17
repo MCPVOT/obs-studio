@@ -14,12 +14,25 @@ concurrency:
   group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
   cancel-in-progress: true
 jobs:
+  # zackees/ci.yml: the first job is ci-pre.yml (the cache janitor) and every
+  # other job runs after it. The sweep is maintenance, not a check: its
+  # cache-janitor group may cancel a pending sweep and a fork PR's token
+  # cannot delete, so jobs run whatever its result (!cancelled()) and CI Gate
+  # leaves it out.
+  ci-pre:
+    name: CI Pre 🧹
+    uses: ./.github/workflows/ci-pre.yml
+    permissions:
+      actions: write
+      contents: read
+
   # When master moves, GitHub starts a new queue run per queued PR, but a
   # queue ref carries the base commit, so the concurrency group above never
   # pairs it with the old one, which would keep waiting for a runner (#986).
   cancel-superseded:
     name: Cancel Superseded Queue Runs 🧹
-    if: github.event_name == 'merge_group'
+    needs: ci-pre
+    if: ${{ !cancelled() && github.event_name == 'merge_group' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -35,18 +48,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: uv run ci/cancel_superseded.py
-
-  # zackees/ci.yml: the first job is ci-pre.yml (the cache janitor) and every
-  # other job runs after it. The sweep is maintenance, not a check: its
-  # cache-janitor group may cancel a pending sweep and a fork PR's token
-  # cannot delete, so jobs run whatever its result (!cancelled()) and CI Gate
-  # leaves it out.
-  ci-pre:
-    name: CI Pre 🧹
-    uses: ./.github/workflows/ci-pre.yml
-    permissions:
-      actions: write
-      contents: read
 
   check-format:
     name: Format 🔍

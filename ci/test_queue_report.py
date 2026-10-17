@@ -23,7 +23,7 @@ spec = importlib.util.spec_from_file_location("queue_report", ROOT / "ci" / "que
 queue_report = importlib.util.module_from_spec(spec)
 sys.modules["queue_report"] = queue_report
 spec.loader.exec_module(queue_report)
-WORKFLOW = ROOT / ".github" / "workflows" / "pr-pull.yaml"
+WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
 
 
 def run(i: int, pr: int, created: str, sha: str = "a" * 40) -> dict:
