@@ -1,7 +1,4 @@
-#include "nvenc-internal.h"
-
-#include <stdio.h>
-#include <inttypes.h>
+#include "build/obs-nvenc.pch.h"
 
 /* NVIDIA uses bitfields for a variety of options. As it is not possible to
  * use offsetof() or similar with those we resort to macros here to avoid too
@@ -224,3 +221,8 @@ bool get_user_arg_int(struct nvenc_data *enc, const char *name, int *val)
 
 	return false;
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef APPLY_BIT_OPT
+#undef APPLY_INT_OPT
+#undef APPLY_QP_OPT

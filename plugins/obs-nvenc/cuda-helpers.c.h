@@ -1,13 +1,4 @@
-#include "obs-nvenc.h"
-
-#include "nvenc-internal.h"
-#include "cuda-helpers.h"
-
-#include <util/platform.h>
-#include <util/threading.h>
-#include <util/config-file.h>
-#include <util/dstr.h>
-#include <util/pipe.h>
+#include "build/obs-nvenc.pch.h"
 
 static pthread_mutex_t init_mutex = PTHREAD_MUTEX_INITIALIZER;
 CudaFunctions *cu = NULL;

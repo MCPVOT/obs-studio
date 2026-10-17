@@ -1,9 +1,4 @@
-#include "nvenc-internal.h"
-#include "nvenc-override.h"
-
-#include <obs-nal.h>
-#include <util/darray.h>
-#include <util/dstr.h>
+#include "build/obs-nvenc.pch.h"
 
 /* ========================================================================= */
 
@@ -1545,3 +1540,9 @@ void register_encoders(void)
 		obs_register_encoder(&av1_nvenc_soft_info);
 	}
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef EXTRA_BUFFERS
+#undef min
+#undef max
+#undef PIXELCOUNT_4K

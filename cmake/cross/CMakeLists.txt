@@ -282,19 +282,7 @@ if(_host STREQUAL WINDOWS)
   _obs_cross_plugin(
     obs-nvenc-cross
     DIR plugins/obs-nvenc
-    SOURCES
-      cuda-helpers.c
-      cuda-load.c
-      nvenc-compat.c
-      nvenc-cuda.c
-      nvenc-d3d11.c
-      nvenc-helpers.c
-      nvenc-load.c
-      nvenc-opts-parser.c
-      nvenc-properties.c
-      nvenc.c
-      nvenc-override.c
-      obs-nvenc.c
+    SOURCES build/obs-nvenc.core+.h.c build/obs-nvenc.windows+.h.c build/obs-nvenc.cuda-load+.h.c build/obs-nvenc.override+.h.c
     INCLUDES shared/opts-parser
   )
   _obs_cross_plugin(coreaudio-encoder-cross DIR plugins/coreaudio-encoder SOURCES encoder.cpp)

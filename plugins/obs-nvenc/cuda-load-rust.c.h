@@ -1,7 +1,4 @@
-#include "obs-nvenc.h"
-
-#include "nvenc-internal.h"
-#include "cuda-helpers.h"
+#include "build/obs-nvenc.pch.h"
 
 /* ENABLE_RUST_LIBOBS replacement for cuda-load.c: the library search and
  * symbol lookup live in rust/obs-nvenc (src/ffi). This file keeps what
@@ -88,3 +85,8 @@ bool init_cuda_internal(obs_encoder_t *encoder)
 	success = true;
 	return true;
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef OBS_NVENC_CUDA_OK
+#undef OBS_NVENC_CUDA_LIB_FAILED
+#undef OBS_NVENC_CUDA_FUNCS_FAILED

@@ -1,6 +1,4 @@
-#include <obs-module.h>
-
-#include "obs-nvenc.h"
+#include "build/obs-nvenc.pch.h"
 
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE("obs-nvenc", "en-US")

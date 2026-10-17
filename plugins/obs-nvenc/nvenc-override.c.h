@@ -1,4 +1,4 @@
-#include "nvenc-override.h"
+#include "build/obs-nvenc-override.pch.h"
 
 bool nvenc_lookahead_enabled(bool preset_enables, bool explicit_setting, bool setting_on)
 {

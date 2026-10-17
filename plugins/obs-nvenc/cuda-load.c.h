@@ -1,9 +1,4 @@
-#include "obs-nvenc.h"
-
-#include "nvenc-internal.h"
-#include "cuda-helpers.h"
-
-#include <util/platform.h>
+#include "build/obs-nvenc.pch.h"
 
 static void *cuda_lib = NULL;
 

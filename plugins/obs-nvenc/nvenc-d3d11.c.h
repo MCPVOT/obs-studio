@@ -1,5 +1,4 @@
-#include "nvenc-internal.h"
-#include "nvenc-helpers.h"
+#include "build/obs-nvenc.pch.h"
 
 /*
  * NVENC implementation using Direct3D 11 context and textures

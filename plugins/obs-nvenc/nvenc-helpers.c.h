@@ -1,11 +1,4 @@
-#include "obs-nvenc.h"
-#include "nvenc-helpers.h"
-
-#include <util/platform.h>
-#include <util/threading.h>
-#include <util/config-file.h>
-#include <util/dstr.h>
-#include <util/pipe.h>
+#include "build/obs-nvenc.pch.h"
 
 static pthread_mutex_t nvenc_init_mutex = PTHREAD_MUTEX_INITIALIZER;
 NV_ENCODE_API_FUNCTION_LIST nv = {NV_ENCODE_API_FUNCTION_LIST_VER};
@@ -384,3 +377,7 @@ void obs_nvenc_unload(void)
 {
 	pthread_mutex_destroy(&nvenc_init_mutex);
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef nvh_error
+#undef NVH_FAILED

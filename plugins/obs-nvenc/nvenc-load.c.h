@@ -1,7 +1,4 @@
-#include "obs-nvenc.h"
-#include "nvenc-helpers.h"
-
-#include <util/platform.h>
+#include "build/obs-nvenc.pch.h"
 
 void *nvenc_lib = NULL;
 

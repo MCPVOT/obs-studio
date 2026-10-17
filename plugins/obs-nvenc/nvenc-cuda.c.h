@@ -1,5 +1,4 @@
-#include "nvenc-internal.h"
-#include "nvenc-helpers.h"
+#include "build/obs-nvenc.pch.h"
 
 /*
  * NVENC implementation using CUDA context and arrays

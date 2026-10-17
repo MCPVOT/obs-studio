@@ -1,4 +1,4 @@
-#include "nvenc-internal.h"
+#include "build/obs-nvenc.pch.h"
 
 void nvenc_properties_read(struct nvenc_properties *props, obs_data_t *settings)
 {
