@@ -1355,6 +1355,9 @@ jobs:
       FFMPEG_ASSET: ffmpeg-8.1.2-linux-x86_64-glibc2.28-release.tar.zst
       FFMPEG_SHA256: 8796ecdb273688c21f90b75a4e84acfc84ab35e69cacb551a6d8ed452961fcb4
       CCACHE_DIR: ${{ github.workspace }}/.qt-ccache
+      # The measured warm entry is ~1.11 GB; preserve that working set and
+      # bound future growth below ci.toml's 1.3 GB archive allowance.
+      CCACHE_MAXSIZE: 1200M
     defaults:
       run:
         shell: bash
@@ -1409,8 +1412,22 @@ jobs:
             libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 \
             libxcb-xkb1 libxkbcommon-x11-0 libxcb-shape0 libxcb-sync1 libegl1
 
+      - name: Set Qt Cache Limit 🗄️
+        run: |
+          ccache --max-size="$CCACHE_MAXSIZE"
+          ccache --zero-stats
+          ccache --version | head -1
+          du -sh "$CCACHE_DIR"
+
       - name: Build Frontend and Run Qt Tests 🏗️
         run: ci/linux_qt_frontend.sh "${{ runner.temp }}/qt" "${{ runner.temp }}/ffmpeg" "${{ runner.temp }}/qt-build"
+
+      - name: Report Qt Cache 🗄️
+        if: always()
+        run: |
+          if [ "$GITHUB_REF" = refs/heads/master ]; then ccache --cleanup; fi
+          ccache --show-stats --verbose
+          du -sh "$CCACHE_DIR"
 
       - name: Save Qt ccache 💾
         uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
