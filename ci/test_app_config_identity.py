@@ -169,7 +169,7 @@ class AppConfigIdentityTest(unittest.TestCase):
             )
 
     def test_settings_folder_uses_selected_application_identity(self):
-        source = (ROOT / "frontend/widgets/OBSBasic_MainControls.cpp").read_text()
+        source = (ROOT / "frontend/widgets/OBSBasic_MainControls.cpp.hpp").read_text()
         body = source.split(
             "void OBSBasic::on_actionShowSettingsFolder_triggered()", 1
         )[1].split("\n}", 1)[0]

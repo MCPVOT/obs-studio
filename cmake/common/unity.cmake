@@ -27,7 +27,6 @@ set(OBS_UNITY_BUILD_BATCH_SIZE 8 CACHE STRING "Sources per unity translation uni
 # earlier source's `using namespace std` (std::byte) in the same batch.
 set(
   _OBS_UNITY_SKIP_SOURCES
-  frontend/components/SourceTreeItem.cpp
   frontend/obs-main.cpp
   frontend/plugin-manager/PluginModuleLoader_Windows.cpp
   frontend/utility/AutoUpdateThread.cpp
@@ -35,7 +34,6 @@ set(
   frontend/utility/platform-windows.cpp
   frontend/utility/ScreenshotObj.cpp
   frontend/utility/system-info-windows.cpp
-  frontend/widgets/OBSQTDisplay.cpp
 )
 
 # Submodules build the way their upstream ships them (BUILD.md): one

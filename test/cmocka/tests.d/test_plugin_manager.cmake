@@ -20,7 +20,7 @@ if(OS_LINUX)
     add_executable(
       test_plugin_manager
       test_plugin_manager.cpp
-      "${CMAKE_SOURCE_DIR}/frontend/components/InfoChip.cpp"
+      "${CMAKE_SOURCE_DIR}/frontend/components/InfoChip.cpp.hpp"
       "${CMAKE_SOURCE_DIR}/frontend/components/InfoChip.hpp"
       "${_pm_dir}/InstalledPluginRow.cpp"
       "${_pm_dir}/InstalledPluginRow.hpp"
