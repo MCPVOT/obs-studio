@@ -266,9 +266,12 @@ jobs:
             cp "$symbols" "pkg/OBS-Studio-Rust-$VERSION-windows-$TARGET-symbols.zip"
           fi
 
-          # Rust must actually be linked into libobs.
-          lib=$(find build_* \( -name obs.dll -o -name 'libobs.so*' -o -path '*libobs.framework/Versions/A/libobs' \) -type f | head -1)
-          echo "libobs: $lib"
+          # Rust must actually be linked into libobs-with-rust, the
+          # never-installed twin of libobs: the package ships the C libobs
+          # (#1065, #1086).
+          lib=$(find build_* -path '*libobs-with-rust/*' \( -name obs.dll -o -name 'libobs.so*' -o -path '*libobs.framework/Versions/A/libobs' \) -type f | head -1)
+          echo "libobs-with-rust: $lib"
+          [ -n "$lib" ] || { echo "::error::libobs-with-rust was not built"; exit 1; }
           grep -a -q '/rustc/' "$lib" || { echo "::error::no Rust code in $lib"; exit 1; }
 
           # The build must name itself OBS-Studio-Rust <full release version> (#112, #631).
