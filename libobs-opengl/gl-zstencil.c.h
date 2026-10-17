@@ -15,7 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "gl-subsystem.h"
+#include "build/opengl.pch.h"
 
 static bool gl_init_zsbuffer(struct gs_zstencil_buffer *zs, uint32_t width, uint32_t height)
 {

@@ -22,17 +22,7 @@
  * Note: most of x11-related functionality was taken from gl-x11.c
  */
 
-#include <X11/Xlib.h>
-#include <X11/Xlib-xcb.h>
-
-#include <xcb/xcb.h>
-
-#include <stdio.h>
-
-#include "gl-egl-common.h"
-#include "gl-x11-egl.h"
-
-#include <glad/glad_egl.h>
+#include "build/opengl-nix.pch.h"
 
 typedef EGLDisplay(EGLAPIENTRYP PFNEGLGETPLATFORMDISPLAYEXTPROC)(EGLenum platform, void *native_display,
 								 const EGLint *attrib_list);

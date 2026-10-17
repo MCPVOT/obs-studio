@@ -296,6 +296,13 @@ if(_host STREQUAL WINDOWS)
     INCLUDES shared/opts-parser
   )
   _obs_cross_plugin(coreaudio-encoder-cross DIR plugins/coreaudio-encoder SOURCES encoder.cpp)
+  # libobs-opengl's unity groups (BUILD.md): the shared renderer and WGL.
+  _obs_cross_plugin(
+    libobs-opengl-cross
+    DIR libobs-opengl
+    SOURCES build/opengl.core+.h.c build/opengl.windows+.h.c
+    INCLUDES deps/glad/include
+  )
 elseif(_host STREQUAL MACOS)
   _obs_cross_plugin(
     mac-capture-cross
@@ -327,5 +334,13 @@ elseif(_host STREQUAL MACOS)
       plugin-properties.m
   )
   _obs_cross_plugin(mac-videotoolbox-cross DIR plugins/mac-videotoolbox SOURCES encoder.c)
+  # libobs-opengl's unity groups (BUILD.md): the shared renderer and CGL.
+  _obs_cross_plugin(
+    libobs-opengl-cross
+    DIR libobs-opengl
+    SOURCES build/opengl.core+.h.c build/opengl.macos-cocoa+.h.m
+    INCLUDES deps/glad/include
+    DEFINES GL_SILENCE_DEPRECATION
+  )
   _obs_cross_plugin(coreaudio-encoder-cross DIR plugins/coreaudio-encoder SOURCES encoder.cpp)
 endif()

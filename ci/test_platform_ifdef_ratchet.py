@@ -107,7 +107,7 @@ class PathTest(unittest.TestCase):
             "libobs/audio-monitoring/osx/coreaudio-output.c.h",
             "libobs/audio-monitoring/pulse/pulseaudio-output.c.h",
             "libobs/graphics/Foo.mm",
-            "libobs-opengl/gl-wayland-egl.c",
+            "libobs-opengl/gl-wayland-egl.c.h",
             "libobs-opengl/gl-x11-glx.c",
             # Same classifier as ci/ci_scope.py (ci/platform_paths.py, #1051).
             "plugins/obs-ffmpeg/vaapi-utils.c",

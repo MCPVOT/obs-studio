@@ -15,15 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include <assert.h>
-
-#include <graphics/vec2.h>
-#include <graphics/vec3.h>
-#include <graphics/vec4.h>
-#include <graphics/matrix3.h>
-#include <graphics/matrix4.h>
-#include "gl-subsystem.h"
-#include "gl-shaderparser.h"
+#include "build/opengl.pch.h"
 
 static inline void shader_param_free(struct gs_shader_param *param)
 {

@@ -15,15 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "gl-wayland-egl.h"
-
-#include <wayland-client.h>
-#include <wayland-egl.h>
-
-#include "gl-egl-common.h"
-#include "gl-egl-errors.h"
-
-#include <glad/glad_egl.h>
+#include "build/opengl-nix-wayland.pch.h"
 
 static const EGLint config_attribs_native[] = {EGL_SURFACE_TYPE,
 					       EGL_WINDOW_BIT,

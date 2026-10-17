@@ -15,12 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "gl-nix.h"
-#include "gl-x11-egl.h"
-
-#ifdef ENABLE_WAYLAND
-#include "gl-wayland-egl.h"
-#endif
+#include "build/opengl-nix.pch.h"
 
 static const struct gl_winsys_vtable *gl_vtable = NULL;
 

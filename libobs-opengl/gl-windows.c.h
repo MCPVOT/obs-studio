@@ -15,12 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-
-#include <util/darray.h>
-#include "gl-subsystem.h"
-#include <glad/glad_wgl.h>
+#include "build/opengl-windows.pch.h"
 
 /* Basically swapchain-specific information.  Fortunately for windows this is
  * super basic stuff */

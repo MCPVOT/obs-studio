@@ -15,7 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "gl-subsystem.h"
+#include "build/opengl.pch.h"
 
 static bool gl_init_volume(GLenum type, uint32_t num_levels, GLenum format, GLint internal_format, bool compressed,
 			   uint32_t width, uint32_t height, uint32_t depth, const uint8_t *const **p_data)
