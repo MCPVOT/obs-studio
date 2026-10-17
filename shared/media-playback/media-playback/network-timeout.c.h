@@ -14,9 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "network-timeout.h"
-
-#include <util/dstr.h>
+#include "build/media-playback.pch.h"
 
 /* Socket I/O timeout of FFmpeg's RTSP demuxer, in microseconds. A read that
  * gets no data for this long fails, which stops the media and makes the

@@ -138,12 +138,14 @@ include(unity)
 include(groups)
 
 set(_c_sources ${LIBOBS_SOURCES} ${LIBOBS_PORTED_SOURCES} ${LIBOBS_${_host}_SOURCES} ${LIBOBS_${_host}_PORTED_SOURCES})
-if(_host STREQUAL WINDOWS)
-  # OBS::obfuscate's interface source, compiled into libobs on Windows.
-  list(APPEND _c_sources util/windows/obfuscate.c)
-endif()
 # libobs's lists are unity groups (BUILD.md), which bring their own PCH variants.
 _obs_cross_object_library(libobs-cross ${_c_sources})
+if(_host STREQUAL WINDOWS)
+  # OBS::obfuscate's interface source, compiled into libobs on Windows. Its own
+  # target: as one of libobs-cross's own sources it would make that target a
+  # mixed one (cmake/common/groups.cmake), unlike the real libobs.
+  _obs_cross_object_library(libobs-cross-obfuscate util/windows/obfuscate.c)
+endif()
 # The C halves only the Rust build adds; the Rust itself is checked by the
 # cross lane (ci/local_gate.py, `soldr cargo clippy --target`).
 _obs_cross_object_library(libobs-cross-rust-shims ${LIBOBS_RUST_SOURCES})

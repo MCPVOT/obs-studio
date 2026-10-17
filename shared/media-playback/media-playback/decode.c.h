@@ -14,11 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "decode.h"
-
-#include "media-playback.h"
-#include "media.h"
-#include <libavutil/mastering_display_metadata.h>
+#include "build/media-playback.pch.h"
 
 /* AVPacket.opaque of a keyframe packet, for decoders with key_from_packet */
 static char key_packet_tag;

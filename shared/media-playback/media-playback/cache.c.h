@@ -14,12 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <media-io/audio-io.h>
-#include <util/platform.h>
-
-#include "media-playback.h"
-#include "cache.h"
-#include "media.h"
+#include "build/media-playback-cache.pch.h"
 
 extern bool mp_media_init2(mp_media_t *m);
 extern bool mp_media_prepare_frames(mp_media_t *m);

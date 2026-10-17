@@ -14,9 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "media-playback.h"
-#include "media.h"
-#include "cache.h"
+#include "build/media-playback.pch.h"
 
 struct media_playback {
 	bool is_cached;

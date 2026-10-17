@@ -64,18 +64,70 @@ function(_obs_group_read group out_pch out_members)
   set(${out_members} ${_members} PARENT_SCOPE)
 endfunction()
 
-# _obs_target_groups: set up <target>'s groups; marks it OBS_GROUPED.
+# _obs_target_groups: set up <target>'s groups (its own, and those the
+# INTERFACE libraries it links hand it, like shared/media-playback). A target
+# whose compiled sources are all groups is OBS_GROUPED: it gets the groups'
+# precompiled headers and no CMake batching. A mixed target (a plugin that
+# compiles a converted shared library's group next to its own sources) keeps
+# CMake's unity batches and profile PCH for its other sources; the groups stay
+# out of both and include their header textually.
 function(_obs_target_groups target)
   get_target_property(_sources ${target} SOURCES)
   get_target_property(_source_dir ${target} SOURCE_DIR)
-  set(_groups "")
+  set(_candidates "")
   foreach(_source IN LISTS _sources)
-    if(_source MATCHES "${_OBS_GROUP_REGEX}" AND NOT _source MATCHES "[<>$]")
+    if(NOT _source MATCHES "[<>$]")
       cmake_path(ABSOLUTE_PATH _source BASE_DIRECTORY "${_source_dir}" NORMALIZE OUTPUT_VARIABLE _absolute)
+      list(APPEND _candidates "${_absolute}")
+    endif()
+  endforeach()
+  set(_interface "")
+  get_target_property(_links ${target} LINK_LIBRARIES)
+  foreach(_link IN LISTS _links)
+    if(TARGET "${_link}")
+      get_target_property(_link_sources "${_link}" INTERFACE_SOURCES)
+      get_target_property(_link_dir "${_link}" SOURCE_DIR)
+      foreach(_source IN LISTS _link_sources)
+        if(_source AND NOT _source MATCHES "[<>$]")
+          cmake_path(ABSOLUTE_PATH _source BASE_DIRECTORY "${_link_dir}" NORMALIZE OUTPUT_VARIABLE _absolute)
+          list(APPEND _interface "${_absolute}")
+        endif()
+      endforeach()
+    endif()
+  endforeach()
+  # Only the target's own plain sources make it mixed: one an INTERFACE
+  # library hands a grouped target (OBS::obfuscate's obfuscate.c in libobs)
+  # just compiles on its own.
+  set(_groups "")
+  set(_others "")
+  foreach(_absolute IN LISTS _candidates)
+    if(_absolute MATCHES "${_OBS_GROUP_REGEX}")
+      list(APPEND _groups "${_absolute}")
+    elseif(_absolute MATCHES "\\.(c|cc|cpp|cxx|m|mm)$")
+      list(APPEND _others "${_absolute}")
+    endif()
+  endforeach()
+  foreach(_absolute IN LISTS _interface)
+    if(_absolute MATCHES "${_OBS_GROUP_REGEX}")
       list(APPEND _groups "${_absolute}")
     endif()
   endforeach()
+  list(REMOVE_DUPLICATES _groups)
   if(NOT _groups)
+    return()
+  endif()
+  if(_others)
+    foreach(_group IN LISTS _groups)
+      _obs_group_read("${_group}" _pch _members)
+      foreach(_member IN LISTS _members)
+        set_property(GLOBAL PROPERTY "_OBS_IMPL_OWNER:${_member}" ${target})
+      endforeach()
+    endforeach()
+    set_source_files_properties(
+      ${_groups}
+      TARGET_DIRECTORY ${target}
+      PROPERTIES SKIP_PRECOMPILE_HEADERS ON SKIP_UNITY_BUILD_INCLUSION ON
+    )
     return()
   endif()
   set_property(TARGET ${target} PROPERTY OBS_GROUPED TRUE)

@@ -14,17 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <util/platform.h>
-
-#include <assert.h>
-
-#include "media-playback.h"
-#include "media.h"
-#include "network-timeout.h"
-#include "closest-format.h"
-
-#include <libavdevice/avdevice.h>
-#include <libavutil/imgutils.h>
+#include "build/media-playback.pch.h"
 
 static int64_t base_sys_ts = 0;
 

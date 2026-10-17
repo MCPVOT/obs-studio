@@ -116,6 +116,11 @@ Two exceptions, both after the code starts:
 - **X-macro tables** (a header without `#pragma once` or an include guard,
   such as `obs-hotkeys.h`) included as data.
 
+A C test that `#include`s a source file by its old name (`#include "media.c"`)
+keeps working through a one-line forwarding file left at that name
+(`media.c`: `#include "media.c.h"`). The build never compiles it, and the
+unchanged C test needs no edit.
+
 ### 3. Unity and precompiled headers are always on
 
 Converted components build one way: each group is one translation unit, and

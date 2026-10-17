@@ -30,7 +30,6 @@ set(
   plugins/image-source/obs-slideshow.c
   plugins/win-capture/window-capture.c
   plugins/obs-ffmpeg/obs-ffmpeg-mpegts.c
-  shared/media-playback/media-playback/cache.c
   plugins/frontend-tools/captions.cpp
   plugins/frontend-tools/captions-mssapi.cpp
   plugins/frontend-tools/captions-mssapi-stream.cpp
