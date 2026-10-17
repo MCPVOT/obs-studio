@@ -1,6 +1,8 @@
 name: CI Pre
-# zackees/ci.yml's fast first workflow (docs/policy-general.md, GEN-014..018):
-# ci.yml calls it as its first job. Concurrency is per job here, never
+# zackees/ci.yml's cleanup workflow (docs/policy-general.md, GEN-014..018):
+# ci.yml calls it on all PR and queue runs; push.yaml calls it on master.
+# Cache deletion runs only on trusted queue and master events.
+# Concurrency is per job here, never
 # workflow-wide, and nothing is installed: ci_lint is stdlib-only python3.
 #
 # cache-janitor deletes Actions caches that ci.toml's [cache.family] entries
@@ -16,6 +18,7 @@ permissions:
 jobs:
   cache-janitor:
     name: Cache Janitor 🧹
+    if: github.event_name == 'merge_group' || (github.event_name == 'push' && github.ref == 'refs/heads/master')
     runs-on: ubuntu-26.04
     timeout-minutes: 5
     # One sweep at a time, repo-wide; a running sweep is never cancelled.

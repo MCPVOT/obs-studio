@@ -12,6 +12,14 @@ on:
 permissions:
   contents: write
 jobs:
+  ci-pre:
+    name: CI Pre 🧹
+    if: github.ref == 'refs/heads/master'
+    uses: ./.github/workflows/ci-pre.yml
+    permissions:
+      actions: write
+      contents: read
+
   check-format:
     name: Format 🔍
     if: github.ref_name == 'master'

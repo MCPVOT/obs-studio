@@ -14,11 +14,8 @@ concurrency:
   group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
   cancel-in-progress: true
 jobs:
-  # zackees/ci.yml: the first job is ci-pre.yml (the cache janitor) and every
-  # other job runs after it. The sweep is maintenance, not a check: its
-  # cache-janitor group may cancel a pending sweep and a fork PR's token
-  # cannot delete, so jobs run whatever its result (!cancelled()) and CI Gate
-  # leaves it out.
+  # Run the pre-work entry point for every PR and queue run. Its cache janitor
+  # job runs only with a trusted queue token. No CI job waits for pre-work.
   ci-pre:
     name: CI Pre 🧹
     uses: ./.github/workflows/ci-pre.yml
@@ -31,7 +28,6 @@ jobs:
   # pairs it with the old one, which would keep waiting for a runner (#986).
   cancel-superseded:
     name: Cancel Superseded Queue Runs 🧹
-    needs: ci-pre
     if: ${{ !cancelled() && github.event_name == 'merge_group' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -51,7 +47,6 @@ jobs:
 
   check-format:
     name: Format 🔍
-    needs: ci-pre
     if: ${{ !cancelled() }}
     uses: ./.github/workflows/check-format.yaml
     permissions:
@@ -59,7 +54,6 @@ jobs:
 
   build-project:
     name: Build 🧱
-    needs: ci-pre
     if: ${{ !cancelled() }}
     uses: ./.github/workflows/build-project.yaml
     secrets: inherit
@@ -71,7 +65,6 @@ jobs:
   # its files did not change.
   validate-data:
     name: Validate Data 🕵️
-    needs: ci-pre
     if: ${{ !cancelled() && github.base_ref == 'master' }}
     runs-on: ubuntu-latest
     permissions:
@@ -109,7 +102,6 @@ jobs:
 
   update-documentation:
     name: Update Documentation 📖
-    needs: ci-pre
     if: ${{ !cancelled() && github.repository_owner == 'obsproject' && github.base_ref == 'master' }}
     runs-on: ubuntu-26.04
     steps:
@@ -133,7 +125,6 @@ jobs:
   # are skipped (and so pass CI Gate) unless the PR touches those files.
   appimage-changes:
     name: AppImage Changes 🔎
-    needs: ci-pre
     if: ${{ !cancelled() && github.event_name == 'pull_request' }}
     runs-on: ubuntu-26.04
     timeout-minutes: 5
@@ -151,9 +142,6 @@ jobs:
 
   appimage:
     name: AppImage 📦
-    # !cancelled(): without it the implicit success() also checks ci-pre, and
-    # a fork PR's janitor fails (read-only token), so the AppImage test was
-    # skipped on every fork PR that changes build-aux/appimage.
     needs: appimage-changes
     if: ${{ !cancelled() && needs.appimage-changes.outputs.changed == '1' }}
     uses: ./.github/workflows/appimage.yaml
