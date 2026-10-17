@@ -1282,8 +1282,9 @@ jobs:
         with:
           name: tier2-cost
           path: .tier2-cost/ctest-cost-*.txt
+          include-hidden-files: true
           retention-days: 1
-          if-no-files-found: ignore
+          if-no-files-found: error
 
   rust-linux-tier2-done:
     name: Rust Tier 2 Linux 🐧
@@ -1327,6 +1328,7 @@ jobs:
             bash rust/tools/linux-validate/merge-costs.sh "$@" >".tier2-cost/ctest-cost-$mode.txt"
             echo "$mode: $(grep -c -v -e '^---$' ".tier2-cost/ctest-cost-$mode.txt") lines"
           done
+          bash rust/tools/linux-validate/check-costs.sh .tier2-cost
       - uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         with:

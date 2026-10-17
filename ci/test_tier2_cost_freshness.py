@@ -23,6 +23,7 @@ ROOT = Path(__file__).resolve().parent.parent
 MERGE = ROOT / "rust" / "tools" / "linux-validate" / "merge-costs.sh"
 VALIDATE = ROOT / "rust" / "tools" / "linux-validate" / "validate.sh"
 WORKFLOW = ROOT / ".github" / "workflows" / "build-project.yaml"
+CHECK = ROOT / "rust" / "tools" / "linux-validate" / "check-costs.sh"
 
 
 def job(name: str) -> str:
@@ -61,6 +62,16 @@ class MergeCostsTest(unittest.TestCase):
 
 
 class WorkflowTest(unittest.TestCase):
+    def test_upload_includes_hidden_timings_and_rejects_missing_files(self):
+        j = job("rust-linux-tier2")
+        upload = j[j.index("- name: Upload Test Timings"):]
+        self.assertIn("include-hidden-files: true", upload)
+        self.assertIn("if-no-files-found: error", upload)
+
+    def test_cache_save_requires_valid_timings(self):
+        j = job("rust-linux-tier2-done")
+        self.assertLess(j.index("check-costs.sh .tier2-cost"), j.index("actions/cache/save@"))
+
     def test_validate_reads_a_cost_dir(self):
         text = VALIDATE.read_text(encoding="utf-8")
         self.assertIn("OBS_TIER2_COST_DIR", text)
@@ -92,6 +103,27 @@ class WorkflowTest(unittest.TestCase):
         j = job("rust-linux-tier2-build")
         self.assertIn("restore-keys: tier2-ctest-cost-", j)
         self.assertIn("OBS_TIER2_COST_DIR", j)
+
+
+class CheckCostsTest(unittest.TestCase):
+    def check(self, off: str | None, on: str | None) -> subprocess.CompletedProcess:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for mode, body in (("OFF", off), ("ON", on)):
+                if body is not None:
+                    (root / f"ctest-cost-{mode}.txt").write_text(body)
+            return subprocess.run(["bash", str(CHECK), directory], capture_output=True, text=True)
+
+    def test_both_modes_have_measured_tests(self):
+        result = self.check("test_one 1 0.2\n---\n", "test_one 2 0.3\n---\n")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("OFF: 1 measured tests", result.stdout)
+        self.assertIn("ON: 1 measured tests", result.stdout)
+
+    def test_empty_or_unmeasured_modes_fail(self):
+        for bad in (None, "", "---\n", "test_one 0 0\n---\n"):
+            with self.subTest(body=bad):
+                self.assertNotEqual(self.check("test_one 1 0.2\n---\n", bad).returncode, 0)
 
 
 if __name__ == "__main__":
