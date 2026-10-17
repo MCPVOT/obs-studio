@@ -88,6 +88,70 @@ static inline void udev_signal_event(struct udev_device *dev)
 }
 
 /**
+ * Wait for udev events until the stop event is signaled.
+ *
+ * Calls on_ready whenever the monitor fd is readable.
+ *
+ * @param fd the udev monitor fd
+ * @param stop_fd the eventfd that wakes the loop on shutdown
+ * @param stop the event that ends the loop
+ * @param on_ready called when fd has data
+ * @param ctx passed to on_ready
+ * @return the number of poll iterations
+ */
+static unsigned long udev_monitor_loop(int fd, int stop_fd, os_event_t *stop, void (*on_ready)(void *), void *ctx)
+{
+	unsigned long iterations = 0;
+
+	while (os_event_try(stop) == EAGAIN) {
+		struct pollfd fds[2];
+
+		iterations++;
+
+		fds[0].fd = fd;
+		fds[0].events = POLLIN;
+		fds[0].revents = 0;
+		fds[1].fd = stop_fd;
+		fds[1].events = POLLIN;
+		fds[1].revents = 0;
+
+		int ret = poll(fds, 2, 1000);
+		if (ret < 0 && errno != EINTR) {
+			blog(LOG_WARNING, "v4l2: udev poll failed (errno %d), stopping hot-plug updates", errno);
+			break;
+		}
+		if (ret <= 0)
+			continue;
+
+		for (int i = 0; i < 2; i++) {
+			if (fds[i].revents & (POLLERR | POLLHUP | POLLNVAL)) {
+				blog(LOG_WARNING, "v4l2: udev %s fd reported revents 0x%x, stopping hot-plug updates",
+				     i == 0 ? "monitor" : "stop", (unsigned)fds[i].revents);
+				return iterations;
+			}
+		}
+
+		if (!(fds[0].revents & POLLIN))
+			continue;
+
+		on_ready(ctx);
+	}
+
+	return iterations;
+}
+
+static void udev_receive(void *vmon)
+{
+	struct udev_device *dev = udev_monitor_receive_device(vmon);
+	if (!dev)
+		return;
+
+	udev_signal_event(dev);
+
+	udev_device_unref(dev);
+}
+
+/**
  * Event listener thread
  */
 static void *udev_event_thread(void *vptr)
@@ -97,7 +161,6 @@ static void *udev_event_thread(void *vptr)
 	int fd;
 	struct udev *udev;
 	struct udev_monitor *mon;
-	struct udev_device *dev;
 
 	/* set up udev monitoring */
 	os_set_thread_name("v4l2: udev");
@@ -110,29 +173,7 @@ static void *udev_event_thread(void *vptr)
 	/* set up fds */
 	fd = udev_monitor_get_fd(mon);
 
-	while (os_event_try(udev_event) == EAGAIN) {
-		struct pollfd fds[2];
-
-		fds[0].fd = fd;
-		fds[0].events = POLLIN;
-		fds[0].revents = 0;
-		fds[1].fd = udev_event_fd;
-		fds[1].events = POLLIN;
-
-		if (poll(fds, 2, 1000) <= 0)
-			continue;
-
-		if (!(fds[0].revents & POLLIN))
-			continue;
-
-		dev = udev_monitor_receive_device(mon);
-		if (!dev)
-			continue;
-
-		udev_signal_event(dev);
-
-		udev_device_unref(dev);
-	}
+	udev_monitor_loop(fd, udev_event_fd, udev_event, udev_receive, mon);
 
 	udev_monitor_unref(mon);
 	udev_unref(udev);
