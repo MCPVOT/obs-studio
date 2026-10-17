@@ -1,7 +1,6 @@
 #include "plugins/linux-capture/build/linux-capture-nix.pch.h"
 
 #define WIN_STRING_DIV "\r\n"
-#define FIND_WINDOW_INTERVAL 2.0
 
 static Display *disp = NULL;
 static xcb_connection_t *xcomp_conn = NULL;
@@ -28,7 +27,7 @@ struct xcompcap {
 	bool include_border;
 	bool exclude_alpha;
 
-	float window_check_time;
+	struct xcomp_search search;
 	bool window_changed;
 	bool window_hooked;
 
@@ -592,40 +591,48 @@ static void xcompcap_video_tick(void *data, float seconds)
 		calldata_free(&signal_data);
 	}
 
-	// Reacquire window after interval or immediately if reconfigured.
-	s->window_check_time += seconds;
+	// Reacquire window after a backoff interval or immediately if
+	// reconfigured. A window that stays unmapped (minimized, other
+	// workspace) is searched less and less often (#1357); a MapNotify on it
+	// sets window_changed through the watcher.
 	bool window_lost = !xcomp_window_exists(xcomp_conn, s->win) || !s->gltex;
-	if ((window_lost && (double)s->window_check_time > FIND_WINDOW_INTERVAL) || s->window_changed) {
-		watcher_unregister(xcomp_conn, s);
-
+	bool forced = s->window_changed;
+	if (xcomp_search_due(&s->search, seconds, window_lost, forced)) {
 		s->window_changed = false;
-		s->window_check_time = 0.0;
-		s->win = xcomp_find_window(xcomp_conn, disp, s->windowName);
+		xcb_window_t found = xcomp_find_window(xcomp_conn, disp, s->windowName);
+		bool viewable = xcomp_window_exists(xcomp_conn, found);
 
-		// Send a hooked signal if a new window has been found
-		if (!s->window_hooked && xcomp_window_exists(xcomp_conn, s->win)) {
-			s->window_hooked = true;
+		if (xcomp_search_needs_rebuild(s->win, found, viewable, forced)) {
+			watcher_unregister(xcomp_conn, s);
+			s->win = found;
 
-			signal_handler_t *sh = obs_source_get_signal_handler(s->source);
-			calldata_t signal_data = {0};
-			calldata_set_ptr(&signal_data, "source", s->source);
-			struct dstr wname = xcomp_window_name(xcomp_conn, disp, s->win);
-			struct dstr wcls = xcomp_window_class(xcomp_conn, s->win);
-			calldata_set_string(&signal_data, "name", wname.array);
-			calldata_set_string(&signal_data, "class", wcls.array);
-			signal_handler_signal(sh, "hooked", &signal_data);
-			dstr_free(&wname);
-			dstr_free(&wcls);
-			calldata_free(&signal_data);
+			// Send a hooked signal if a new window has been found
+			if (!s->window_hooked && viewable) {
+				s->window_hooked = true;
+
+				signal_handler_t *sh = obs_source_get_signal_handler(s->source);
+				calldata_t signal_data = {0};
+				calldata_set_ptr(&signal_data, "source", s->source);
+				struct dstr wname = xcomp_window_name(xcomp_conn, disp, s->win);
+				struct dstr wcls = xcomp_window_class(xcomp_conn, s->win);
+				calldata_set_string(&signal_data, "name", wname.array);
+				calldata_set_string(&signal_data, "class", wcls.array);
+				signal_handler_signal(sh, "hooked", &signal_data);
+				dstr_free(&wname);
+				dstr_free(&wcls);
+				calldata_free(&signal_data);
+			}
+
+			watcher_register(xcomp_conn, s);
+			xcomp_cleanup_pixmap(disp, s);
+			// Avoid excessive logging. We expect this to fail while windows are
+			// minimized or on offscreen workspaces or already captured on NVIDIA.
+			xcomp_create_pixmap(xcomp_conn, s, LOG_DEBUG);
+			xcb_xcursor_offset_win(xcomp_conn, s->cursor, s->win);
+			xcb_xcursor_offset(s->cursor, s->cursor->x_org + s->crop_left, s->cursor->y_org + s->crop_top);
 		}
 
-		watcher_register(xcomp_conn, s);
-		xcomp_cleanup_pixmap(disp, s);
-		// Avoid excessive logging. We expect this to fail while windows are
-		// minimized or on offscreen workspaces or already captured on NVIDIA.
-		xcomp_create_pixmap(xcomp_conn, s, LOG_DEBUG);
-		xcb_xcursor_offset_win(xcomp_conn, s->cursor, s->win);
-		xcb_xcursor_offset(s->cursor, s->cursor->x_org + s->crop_left, s->cursor->y_org + s->crop_top);
+		xcomp_search_done(&s->search, s->gltex != NULL, forced);
 	}
 
 	if (!s->gltex)
@@ -887,6 +894,7 @@ static void xcompcap_update(void *data, obs_data_t *settings)
 	watcher_register(xcomp_conn, s);
 	xcomp_cleanup_pixmap(disp, s);
 	xcomp_create_pixmap(xcomp_conn, s, LOG_ERROR);
+	xcomp_search_reset(&s->search);
 	xcb_xcursor_offset_win(xcomp_conn, s->cursor, s->win);
 	xcb_xcursor_offset(s->cursor, s->cursor->x_org + s->crop_left, s->cursor->y_org + s->crop_top);
 
@@ -965,4 +973,3 @@ void xcomposite_unload(void)
 
 /* File-local macros (BUILD.md): out of the next file in the unity group. */
 #undef WIN_STRING_DIV
-#undef FIND_WINDOW_INTERVAL

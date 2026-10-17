@@ -28,6 +28,7 @@
 
 #include "xhelpers.h"
 #include "xcursor-xcb.h"
+#include "plugins/linux-capture/xcomposite-search.h"
 #include <util/platform.h>
 #include <util/dstr.h>
 #include <util/darray.h>

@@ -360,6 +360,12 @@ area.
 
 ### Video capture
 
+- An XComposite window capture whose window is minimized or on another
+  workspace no longer searches every window and rebuilds its pixmap every
+  2 s; the search backs off to 30 s and runs at once when the window maps
+  again or the settings change. *Linux*, 2026-10-17. Issue
+  [#1357](https://github.com/obs-rust/obs-studio/issues/1357), PR
+  [#1366](https://github.com/obs-rust/obs-studio/pull/1366).
 - After a PipeWire restart, PipeWire screen capture and PulseAudio audio
   sources reconnect automatically; the screen shows its last frame until
   capture returns. *Linux*, 2026-10-10. Issue
