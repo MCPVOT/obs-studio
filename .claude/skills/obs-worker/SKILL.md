@@ -97,6 +97,12 @@ As soon as the RED commit exists, push and open a PR against `master`
 gh pr create --repo obs-rust/obs-studio --base master --draft
 ```
 
+For a focused CI/configuration fix, run and record local RED evidence, then
+push the separate RED and GREEN commits together when the fix is ready. A
+remote RED run is not required. Documentation-only changes need no RED →
+GREEN test. This is the exception in coordination.md §4; ports still follow
+the normal early-PR workflow.
+
 The description names the RED commit and how it fails, then the GREEN
 result. Use `Fixes #N` only when the PR completes the issue, `Refs #N`
 otherwise. A user-visible change (behavior, a setting, UI, log output, a
@@ -138,10 +144,13 @@ running, wait and retry.
 
 - Mark the PR ready when CI is green, then queue it: `gh pr merge <N>`.
   The merge queue reruns CI on the merge result; `CI Gate ✅` decides.
-  Rebase by hand only when GitHub reports a conflict. Workers never use
-  `gh pr merge --admin` or push to master: a merge outside the queue
-  rebuilds every queued PR. The admin bypass is for maintainers only
-  (coordination.md §8).
+  Rebase by hand only when GitHub reports a conflict. Never push to master.
+  An agent may use `gh pr merge --admin` only with explicit maintainer
+  authorization for that landing and under coordination.md §8: recheck
+  that the queue is empty immediately before merging; otherwise queue and
+  jump to the front. Run focused checks, and wait for PR `CI Gate ✅` on
+  workflow-graph changes. Record the authorization and evidence in the PR.
+  Do not ask again for authorization already given in the session.
 - When the issue closes, comment what fixed it, what's left, and the
   follow-up issue for the rest. Tick the tracking-issue checkbox.
 - Stopping early: comment `Releasing <item>` and link the branch; the

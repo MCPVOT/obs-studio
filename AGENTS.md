@@ -44,6 +44,15 @@ PR (a draft is fine) as soon as the RED test exists; a red CI run on a PR is
 expected, not a process failure. Do not build fork or self-hosted CI to
 pre-validate PRs. What stays mandatory: RED then GREEN, differential and Tier 2
 coverage, and no edits to C tests or public headers.
+For focused CI/configuration fixes, record local RED evidence and push the
+RED and GREEN commits together when ready; a remote RED run is not required.
+Documentation-only updates do not need RED → GREEN tests. See
+[coordination.md](docs/rust-port/coordination.md#4-pull-requests).
+
+`ci-pre.yml` remains the general pre-work entry point on PRs. Only its cache
+janitor job skips PR events; it runs on merge-group and master-push events,
+outside the build and required-gate dependency graph. See
+[the pre-work policy](docs/ci-tooling.md#pre-work-cache-maintenance-and-cancellation).
 
 ## Local gate (recommended, not required)
 

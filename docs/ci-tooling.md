@@ -335,6 +335,12 @@ that CI will run the Linux jobs itself.
 
 ## Before you push
 
+For a focused CI/configuration bug fix, keep the RED and GREEN commits and
+record the local failing and passing commands, but push them together when
+the fix is ready. A separate remote RED run is not required. This avoids
+spending runner time on an already-fixed failure; see
+[coordination.md](rust-port/coordination.md#4-pull-requests).
+
 1. Claim the issue and check open PRs ([coordination.md](rust-port/coordination.md)).
 2. Commit RED, then GREEN.
 3. `./lint --fix`, then commit what it changed.
@@ -360,6 +366,41 @@ that CI will run the Linux jobs itself.
 - Platform-only failures (macOS, Windows) can't be reproduced on Linux. The
   Tier 2 harnesses print crash stacks (`cdb` on Windows, `lldb` on macOS) to
   read in the log; use those before pushing guesses.
+
+## Pre-work, cache maintenance and cancellation
+
+`ci-pre.yml` is the general entry point for pre-work. Pull calls it for every
+PR and merge-group run; Push calls it on master. Put each operation's event
+condition on that operation's job. Do not skip the whole entry point merely
+because one maintenance operation does not apply.
+
+The cache janitor runs only for `merge_group` or a `push` to
+`refs/heads/master`. Fork PR tokens cannot delete repository caches, so PR
+pushes must skip the janitor job. Keep cache deletion out of untrusted PR
+events; do not switch to `pull_request_target` to obtain a write token.
+
+Cache cleanup is best-effort maintenance. It has no dependents in the Pull
+or Push workflow and is excluded from `CI Gate ✅`. Its own failures remain
+visible for investigation, but cannot delay builds, queue cancellation or
+merging. Keep the repo-wide `cache-janitor` concurrency group with
+`cancel-in-progress: false`. A future pre-work job that is required for
+correctness needs its own explicit dependency design; the janitor's policy
+does not make all future pre-work optional.
+
+Merge-queue throughput takes priority over housekeeping. Superseded-run
+cancellation must start without waiting for cleanup. Let workflow
+concurrency eagerly cancel obsolete PR runs; if a superseded run still
+occupies the slot, request its cancellation rather than waiting for a known
+obsolete result. GitHub cancellation is asynchronous, so confirm the old
+run has stopped before calling it canceled. Cancel obsolete work, not a
+current required check simply because it is red. A janitor failure is a
+maintenance incident; a failure of the current required gate blocks normal
+queueing and needs investigation.
+
+Changes to this policy need corresponding updates in `ci/test_ci_pre.py`
+and the workflow call sites. Decisions and evidence for the current behavior
+are tracked in [#1269](https://github.com/obs-rust/obs-studio/issues/1269)
+and [#1270](https://github.com/obs-rust/obs-studio/pull/1270).
 
 ## Where this is going (open gaps)
 

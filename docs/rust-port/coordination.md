@@ -82,6 +82,11 @@ this document covers *who does what, and when*.
   build fork or self-hosted CI to pre-validate PRs. Local errors from your
   environment (soldr permissions, disk, Docker, host packages):
   [troubleshooting.md](troubleshooting.md).
+  For a focused CI/configuration bug fix, local RED evidence plus a separate
+  GREEN commit is sufficient: push both together when ready rather than
+  requiring a remote RED run. Record both commands/results in the PR. This
+  exception changes push timing, not the RED → GREEN requirement or the
+  required gate. Documentation-only updates do not need RED → GREEN tests.
 - **Merge queue:** master merges go through GitHub's merge queue. Queue a
   green PR with `gh pr merge <N>` (or the "Merge when ready" button); the
   queue reruns PR CI on the merge result with current master, and the
@@ -153,15 +158,18 @@ this document covers *who does what, and when*.
 
 `master` blocks force pushes and deletion, including for administrators.
 
-Every change reaches master through GitHub's merge queue (ruleset "master
+By default, changes reach master through GitHub's merge queue (ruleset "master
 merge queue (#692)", squash merges). Queue a green PR with
-`gh pr merge <N>`. Agents and contributors never use `gh pr merge --admin`
+`gh pr merge <N>`. Agents and contributors do not use `gh pr merge --admin`
+without explicit maintainer authorization under the bypass policy below,
 and never push to master.
 The queue reruns PR CI on the merge result with current master, and the one
 required check is `CI Gate ✅` (`ci.yml`). That job always reports: it
-passes when every other job passed or was skipped (out of scope, attested by
-the local gate on the PR, or covered by a lane proof) and fails when any job
+passes when every required job passed or was skipped (out of scope, attested by
+the local gate on the PR, or covered by a lane proof) and fails when a required job
 failed or was cancelled.
+The cache janitor is maintenance and is excluded from this gate; see
+[the pre-work policy](../ci-tooling.md#pre-work-cache-maintenance-and-cancellation).
 
 Why the queue and not rebase-and-merge per PR (#699): over a day of queue
 runs (58 runs, 37 PRs), 57 runs were green and one PR was removed for a
@@ -185,6 +193,16 @@ keeping CI (#930 E2):
 `gh api graphql -f query='mutation{enqueuePullRequest(input:{pullRequestId:"<node id>",jump:true}){mergeQueueEntry{position}}}'`
 (the PR's own `CI Gate ✅` must already be green; GitHub refuses a PR whose
 checks are pending or failing).
+
+Explicit maintainer instructions to admin-merge authorize an agent to use
+this exception; do not ask for the same authorization again. Recheck the
+queue immediately before merging. If it has entries, use the queue and
+jump-to-front path above to preserve their work. With an empty queue, a
+small docs or CI fix may use the authorized bypass. Run focused checks
+first; for a change to the workflow graph, wait for its PR `CI Gate ✅` to
+pass before bypassing the redundant merge-group run. Record the
+authorization, queue state and validation in the PR. Authorization for one
+landing does not grant a standing bypass for unrelated work.
 
 Each queue run's `CI Gate ✅` job summary shows its wall time, runner time
 and attempt number (`ci/queue_report.py`); an attempt 2 or later is a
