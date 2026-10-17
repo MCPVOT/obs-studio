@@ -4,7 +4,7 @@
 # (default ~/.local/bin) after checking its SHA-256. It is the compiler
 # launcher of every Linux CMake build here: Tier 2 (the Dockerfile next to
 # this script), the Ubuntu build, the AppImage and the sanitizers. soldr
-# 0.9.33 embeds the same zccache for rustc but exposes no C launcher.
+# 0.9.35 embeds the same zccache for rustc but exposes no C launcher.
 set -eu
 ZCCACHE_VERSION="1.15.4"
 dest=${1:-"$HOME/.local/bin"}
