@@ -151,8 +151,11 @@ jobs:
 
   appimage:
     name: AppImage 📦
+    # !cancelled(): without it the implicit success() also checks ci-pre, and
+    # a fork PR's janitor fails (read-only token), so the AppImage test was
+    # skipped on every fork PR that changes build-aux/appimage.
     needs: appimage-changes
-    if: needs.appimage-changes.outputs.changed == '1'
+    if: ${{ !cancelled() && needs.appimage-changes.outputs.changed == '1' }}
     uses: ./.github/workflows/appimage.yaml
     # appimage.yaml's release job asks for contents: write; it only runs for
     # a tag push, so on a PR it is skipped (release-rust.yaml grants the same).
