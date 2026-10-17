@@ -1,15 +1,4 @@
-#include "common_utils.h"
-#include "common_directx11.h"
-
-#include <util/windows/device-enum.h>
-#include <util/config-file.h>
-#include <util/platform.h>
-#include <util/pipe.h>
-#include <util/dstr.h>
-
-#include <intrin.h>
-#include <inttypes.h>
-#include <obs-module.h>
+#include "plugins/obs-qsv11/build/obs-qsv11-windows.pch.hpp"
 
 /* =======================================================
  * Windows implementation of OS-specific utility functions

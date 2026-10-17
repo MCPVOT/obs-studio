@@ -54,12 +54,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "QSV_Encoder_Internal.h"
-#include "QSV_Encoder.h"
-#include <vpl/mfxstructures.h>
-#include <vpl/mfxvideo++.h>
-#include <vpl/mfxdispatcher.h>
-#include <obs-module.h>
+#include "plugins/obs-qsv11/build/obs-qsv11.pch.hpp"
 
 #define do_log(level, format, ...) blog(level, "[qsv encoder: '%s'] " format, "msdk_impl", ##__VA_ARGS__)
 
@@ -981,3 +976,8 @@ void QSV_Encoder_Internal::ClearROI()
 
 /* File-local macros: keep them out of the next source of a unity build. */
 #undef do_log
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef warn
+#undef info
+#undef debug

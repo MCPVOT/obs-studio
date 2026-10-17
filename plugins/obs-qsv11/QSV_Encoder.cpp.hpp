@@ -57,12 +57,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // QSV_Encoder.cpp : Defines the exported functions for the DLL application.
 //
 
-#include "QSV_Encoder.h"
-#include "QSV_Encoder_Internal.h"
-#include "common_utils.h"
-#include <obs-module.h>
-#include <string>
-#include <atomic>
+#include "plugins/obs-qsv11/build/obs-qsv11.pch.hpp"
 
 #define do_log(level, format, ...) blog(level, "[qsv encoder: '%s'] " format, "msdk_impl", ##__VA_ARGS__)
 

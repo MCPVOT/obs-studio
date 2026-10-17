@@ -1,4 +1,4 @@
-#include "common_utils.h"
+#include "plugins/obs-qsv11/build/obs-qsv11.pch.hpp"
 
 // =================================================================
 // Utility functions, not directly tied to Intel Media SDK functionality

@@ -291,6 +291,13 @@ if(_host STREQUAL WINDOWS)
     SOURCES build/nv-filters.windows+.h.c build/nv-filters.windows-afx+.h.c build/nv-filters.windows-vfx+.h.c
     DEFINES LIBNVAFX_ENABLED LIBNVVFX_ENABLED
   )
+  # obs-qsv11's unity groups (BUILD.md) with the prebuilt VPL headers; not
+  # the windows group, which needs ATL (atlbase.h), absent from xwin's SDK.
+  _obs_cross_plugin(
+    obs-qsv11-cross
+    DIR plugins/obs-qsv11
+    SOURCES build/obs-qsv11.c+.h.c build/obs-qsv11.core+.hpp.cpp
+  )
   # obs-text's unity group (BUILD.md).
   _obs_cross_plugin(obs-text-cross DIR plugins/obs-text SOURCES build/obs-text.windows+.hpp.cpp)
   # libobs-d3d11's unity group (BUILD.md).

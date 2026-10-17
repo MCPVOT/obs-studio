@@ -1,8 +1,4 @@
-#include "common_directx11.h"
-
-#include <obs.h>
-#include <obs-encoder.h>
-#include <map>
+#include "plugins/obs-qsv11/build/obs-qsv11-windows.pch.hpp"
 
 ID3D11Device *g_pD3D11Device = nullptr;
 ID3D11DeviceContext *g_pD3D11Ctx = nullptr;

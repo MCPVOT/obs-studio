@@ -18,17 +18,13 @@ endif()
 target_sources(
   obs-qsv11
   PRIVATE
-    $<$<PLATFORM_ID:Linux>:common_utils_linux.cpp>
-    $<$<PLATFORM_ID:Windows>:common_directx11.cpp>
+    $<$<PLATFORM_ID:Linux>:build/obs-qsv11.linux+.hpp.cpp>
+    $<$<PLATFORM_ID:Windows>:build/obs-qsv11.windows+.hpp.cpp>
     $<$<PLATFORM_ID:Windows>:common_directx11.h>
-    $<$<PLATFORM_ID:Windows>:common_utils_windows.cpp>
-    common_utils.cpp
+    build/obs-qsv11.core+.hpp.cpp
+    build/obs-qsv11.c+.h.c
     common_utils.h
-    obs-qsv11-plugin-main.c
-    obs-qsv11.c
-    QSV_Encoder.cpp
     QSV_Encoder.h
-    QSV_Encoder_Internal.cpp
     QSV_Encoder_Internal.h
 )
 

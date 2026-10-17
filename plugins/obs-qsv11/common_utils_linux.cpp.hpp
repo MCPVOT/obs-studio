@@ -1,25 +1,4 @@
-#include "common_utils.h"
-
-#include <time.h>
-#include <cpuid.h>
-
-#include <va/va_drm.h>
-#include <va/va_drmcommon.h>
-#include <va/va_str.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <string.h>
-#include <dirent.h>
-
-#include <obs.h>
-#include <obs-encoder.h>
-#include <obs-nix-platform.h>
-#include <graphics/graphics.h>
-#include <util/c99defs.h>
-#include <util/dstr.h>
-#include <util/bmem.h>
+#include "plugins/obs-qsv11/build/obs-qsv11-linux.pch.hpp"
 
 // Set during check_adapters to work-around VPL dispatcher not setting a VADisplay
 // for the MSDK runtime.
@@ -527,3 +506,6 @@ void check_adapters(struct adapter_info *adapters, size_t *adapter_count)
 	gs_enum_adapters(check_adapter, adapters);
 	obs_leave_graphics();
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef DEVICE_MGR_TYPE
