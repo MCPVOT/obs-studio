@@ -116,6 +116,14 @@ static bool dacast_ingest_update(void *param, struct file_download_data *data)
 	return true;
 }
 
+/* The download attempt ended (#1347): a failed request never reaches
+ * dacast_ingest_update, so the wait ends here. */
+static void dacast_ingest_update_done(void *param, bool success)
+{
+	(void)param;
+	ingest_refresh_wait_complete(&dacast_refresh_wait, success);
+}
+
 struct dacast_ingest *dacast_ingest(const char *key)
 {
 	pthread_mutex_lock(&mutex);
@@ -150,8 +158,9 @@ void dacast_ingests_load_data(const char *server, const char *key)
 		dacast_update_info = NULL;
 	}
 
-	dacast_update_info = update_info_create_single("[dacast ingest load data] ", get_module_name(), uri.array,
-						       dacast_ingest_update, (void *)(uintptr_t)key);
+	dacast_update_info = update_info_create_single_with_done("[dacast ingest load data] ", get_module_name(),
+								 uri.array, dacast_ingest_update,
+								 dacast_ingest_update_done, (void *)(uintptr_t)key);
 
 	if (!os_atomic_load_bool(&ingests_loaded))
 		ingest_refresh_wait_for(&dacast_refresh_wait, TIMEOUT_SEC * 1000);

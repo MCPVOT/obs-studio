@@ -819,6 +819,12 @@ area.
   [#1137](https://github.com/obs-rust/obs-studio/issues/1137), PR
   [#1138](https://github.com/obs-rust/obs-studio/pull/1138), upstream
   [obsproject/obs-studio#14014](https://github.com/obsproject/obs-studio/issues/14014).
+- Starting a Twitch, Amazon IVS or Dacast stream while their ingest server
+  list cannot be downloaded no longer stalls 3 s before connecting (5 s in
+  the Auto-Configuration Wizard): the wait ends as soon as the download
+  fails. *All*, 2026-10-17. Issue
+  [#1347](https://github.com/obs-rust/obs-studio/issues/1347), PR
+  [#1353](https://github.com/obs-rust/obs-studio/pull/1353).
 
 ### Sources and filters
 

@@ -120,6 +120,14 @@ static bool ingest_update(void *param, struct file_download_data *data)
 	return true;
 }
 
+/* The download attempt ended (#1347): a failed request never reaches
+ * ingest_update, so the wait ends here. */
+static void ingest_update_done(void *param, bool success)
+{
+	struct service_ingests *service = param;
+	ingest_refresh_wait_complete(&service->refresh_wait, success);
+}
+
 void service_ingests_refresh(struct service_ingests *si, int seconds, const char *log_prefix, const char *file_url)
 {
 	if (os_atomic_load_bool(&si->ingests_refreshed))
@@ -129,7 +137,8 @@ void service_ingests_refresh(struct service_ingests *si, int seconds, const char
 		os_atomic_set_bool(&si->ingests_refreshing, true);
 		ingest_refresh_wait_reset(&si->refresh_wait);
 
-		si->update_info = update_info_create_single(log_prefix, get_module_name(), file_url, ingest_update, si);
+		si->update_info = update_info_create_single_with_done(log_prefix, get_module_name(), file_url,
+								      ingest_update, ingest_update_done, si);
 	}
 
 	/* wait `seconds` max when no ingest list is loaded yet */

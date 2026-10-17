@@ -25,6 +25,7 @@ struct update_info {
 	char *etag_remote;
 
 	confirm_file_callback_t callback;
+	update_done_callback_t done_callback;
 	void *param;
 
 	pthread_t thread;
@@ -488,33 +489,51 @@ update_info_t *update_info_create(const char *log_prefix, const char *user_agent
 	return info;
 }
 
-static void *single_file_thread(void *data)
+static bool single_file_download(struct update_info *info)
 {
-	struct update_info *info = data;
 	struct file_download_data download_data;
 	long response_code;
+	bool confirm;
 
 	info->curl = curl_easy_init();
 	if (!info->curl) {
 		warn("Could not initialize Curl");
-		return NULL;
+		return false;
 	}
 
 	if (!do_http_request(info, info->url, &response_code))
-		return NULL;
+		return false;
 	if (!info->file_data.array || !info->file_data.array[0])
-		return NULL;
+		return false;
 
 	download_data.name = info->url;
 	download_data.version = 0;
 	download_data.buffer.da = info->file_data.da;
-	info->callback(info->param, &download_data);
+	confirm = info->callback(info->param, &download_data);
 	info->file_data.da = download_data.buffer.da;
+	return confirm;
+}
+
+static void *single_file_thread(void *data)
+{
+	struct update_info *info = data;
+	bool success = single_file_download(info);
+
+	/* Tell an opted-in user the attempt ended, failure included (#1347). */
+	if (info->done_callback)
+		info->done_callback(info->param, success);
 	return NULL;
 }
 
 update_info_t *update_info_create_single(const char *log_prefix, const char *user_agent, const char *file_url,
 					 confirm_file_callback_t confirm_callback, void *param)
+{
+	return update_info_create_single_with_done(log_prefix, user_agent, file_url, confirm_callback, NULL, param);
+}
+
+update_info_t *update_info_create_single_with_done(const char *log_prefix, const char *user_agent, const char *file_url,
+						   confirm_file_callback_t confirm_callback,
+						   update_done_callback_t done_callback, void *param)
 {
 	struct update_info *info;
 
@@ -526,6 +545,7 @@ update_info_t *update_info_create_single(const char *log_prefix, const char *use
 	info->user_agent = bstrdup(user_agent);
 	info->url = bstrdup(file_url);
 	info->callback = confirm_callback;
+	info->done_callback = done_callback;
 	info->param = param;
 
 	if (pthread_create(&info->thread, NULL, single_file_thread, info) == 0)
