@@ -29,6 +29,12 @@ jobs:
 
   build-project:
     name: Build 🧱
+    # Preserve one active cache-warming build and only the latest pending
+    # master snapshot. Burst merges must not flood the runner pool (#1286).
+    # Other refs remain independent; pre-work lives outside this group.
+    concurrency:
+      group: push-build-${{ github.ref == 'refs/heads/master' && 'master' || github.run_id }}
+      cancel-in-progress: false
     uses: ./.github/workflows/build-project.yaml
     secrets: inherit
     permissions:

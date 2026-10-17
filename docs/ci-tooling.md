@@ -479,3 +479,45 @@ The action saves the cook snapshot after consumers run. Thus a release
 archive can also carry dev artifacts. Keep dependency cooking enabled
 unless setup plus consumer measurements demonstrate that removing it is
 faster; do not decide from the profile name alone.
+
+## Background master build concurrency
+
+Merge-queue CI remains the required merge check. Full post-merge master
+builds warm caches and validate deferred lanes, but overlapping generations
+compete with the queue for runners. The Push workflow therefore applies
+concurrency only to its `build-project` reusable-workflow call: one active
+master build finishes, and GitHub retains only the newest pending build.
+Tag/release-branch calls use unique run IDs and remain independent.
+
+Keep `cancel-in-progress: false`: continuous merges must not repeatedly
+interrupt active cache saves and prevent warming. Intermediate pending
+master build calls can be cancelled as superseded; all required PR and
+merge-group checks still run under their own policy. This trades per-commit
+background coverage for latest-snapshot validation and less runner
+contention. A plugin change in a superseded pending generation may wait
+for later work to warm that scoped plugin cache. Measure runner wait and
+queue wall time before claiming a throughput gain.
+
+Do not move this group to Push workflow scope. `ci-pre` remains an
+independent general pre-work entry point, and its janitor keeps its own
+non-cancelling repository-wide concurrency policy. A completed run's
+`cancelled` pending janitor job is not evidence that its deletion script
+failed: inspect whether it ever started before attributing the outcome.
+
+GitHub documents [job concurrency on reusable-workflow calls](https://docs.github.com/en/actions/reference/workflows-and-actions/reusing-workflow-configurations)
+and [the default single-pending concurrency behavior](https://docs.github.com/en/actions/concepts/workflows-and-actions/concurrency).
+
+### Compiler and cache log evidence
+
+Add `--include-logs` to `ci/cache_metrics.py` to collect sampled terminal
+runs' latest-attempt logs alongside the existing API responses. Raw logs
+are cached per run/attempt, and each record/summary includes recognized
+per-job archive byte observations, compiler reports, saved keys and CTest
+counts. Missing logs or counters remain unknown.
+
+A restored archive does not imply compiler hits: one observed zccache
+rollout restored 278 MB but reported 772 cold compilations. Keep C/C++
+build totals separate from soldr session counters and ccache reports;
+their scopes differ. Archive messages can repeat and must not be summed
+as network transfer totals. Stratify compiler-version rollouts and cold
+cache seeds before comparing warm lane performance.

@@ -42,7 +42,58 @@ def cohort(files: list[str]) -> str:
     return "code"
 
 
-def collect(repo: str, start: str, end: str, output: Path, per_group: int) -> dict:
+def parse_cache_logs(text: str) -> dict:
+    """Keep independent observations; archive restores are not compiler hits.
+
+    Reports from different tools/scopes are never summed. Missing counters
+    remain absent, and repeated archive messages are not a transfer total.
+    """
+    result = {}
+    for line in text.splitlines():
+        fields = line.split("\t", 2)
+        if len(fields) != 3:
+            continue
+        name, _, message = fields
+        observations = {}
+        archive = re.search(r"Cache Size:.*?\((\d+) B\)", message)
+        if archive:
+            observations["archive_bytes"] = int(archive[1])
+        compiled = re.search(r"Compilations:\s+(\d+) total \((\d+) cached, (\d+) cold, (\d+) non-cacheable\)", message)
+        session = re.search(r"final zccache session stats: hits=(\d+) misses=(\d+) compilations=(\d+) non_cacheable=(\d+) errors=(\d+)", message)
+        hits = re.search(r"\bHits:\s+(\d+)\s*/\s*(\d+)", message)
+        if compiled:
+            observations["compiler_reports"] = dict(zip(("total", "cached", "cold", "non_cacheable"), map(int, compiled.groups())), kind="zccache-build")
+        elif session:
+            observations["compiler_reports"] = dict(zip(("hits", "misses", "compilations", "non_cacheable", "errors"), map(int, session.groups())), kind="soldr-session")
+        elif hits:
+            observations["compiler_reports"] = {"kind": "ccache", "hits": int(hits[1]), "cacheable": int(hits[2])}
+        tests = re.search(r"(\d+) tests failed out of (\d+)", message)
+        if tests:
+            observations["ctest_reports"] = {"total": int(tests[2]), "failed": int(tests[1])}
+        saved = re.search(r"Cache saved with key: (\S+)", message)
+        if saved:
+            observations["saved_keys"] = saved[1]
+        version = re.search(r"\bzccache (\d+\.\d+\.\d+)\s*$", message)
+        if version:
+            observations["zccache_versions"] = version[1]
+        for kind, value in observations.items():
+            result.setdefault(name, {}).setdefault(kind, []).append(value)
+    return result
+
+
+def collect_logs(repo: str, run_id: int, attempt: int, output: Path) -> dict:
+    path = output / f"run-{run_id}-attempt-{attempt}.log"
+    try:
+        if not path.exists():
+            command = ["gh", "run", "view", str(run_id), "-R", repo, "--attempt", str(attempt), "--log"]
+            text = subprocess.run(command, check=True, capture_output=True, text=True).stdout
+            path.write_text(text)
+        return {"jobs": parse_cache_logs(path.read_text()), "error": None}
+    except subprocess.CalledProcessError as error:
+        return {"jobs": {}, "error": str(error)}
+
+
+def collect(repo: str, start: str, end: str, output: Path, per_group: int, include_logs: bool = False) -> dict:
     output.mkdir(parents=True, exist_ok=True)
     raw = []
     coverage = {}
@@ -122,6 +173,8 @@ def collect(repo: str, start: str, end: str, output: Path, per_group: int) -> di
             "runner_minutes": round(sum(seconds(j.get("started_at"), j.get("completed_at"))
                                         for j in jobs if j["conclusion"] != "skipped") / 60, 3),
         }
+        if include_logs:
+            record["log_evidence"] = collect_logs(repo, run_id, detail["run_attempt"], output)
         (output / f"run-{run_id}.json").write_text(json.dumps(record, indent=2) + "\n")
         return record
 
@@ -170,6 +223,15 @@ def collect(repo: str, start: str, end: str, output: Path, per_group: int) -> di
             f"median_{key}": statistics.median(sample[key] for sample in samples)
             for key in ("job_seconds", "soldr_setup_seconds")
         }}
+    if include_logs:
+        summary["log_evidence"] = [{"run_id": r["databaseId"], "event": r["event"], "cohort": r["cohort"],
+                                    **r["log_evidence"]} for r in records]
+        summary["limitations"].extend([
+            "Log counters have different compiler/job scopes and are not summed.",
+            "Archive byte observations can repeat and are not total transfer bytes.",
+            "Missing/expired logs or absent counters are unknown, never zero hits.",
+            "Compiler-version changes require separate cold/warm cohorts.",
+        ])
     (output / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
     return summary
 
@@ -181,7 +243,8 @@ if __name__ == "__main__":
     parser.add_argument("--end", default=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"))
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--per-group", type=int, default=12)
+    parser.add_argument("--include-logs", action="store_true", help="Collect cached per-attempt logs and observed compiler/cache/test counters")
     args = parser.parse_args()
     if args.per_group < 1 or stamp(args.start) >= stamp(args.end):
         parser.error("Use a positive per-group count and an increasing UTC time window")
-    print(json.dumps(collect(args.repo, args.start, args.end, args.output, args.per_group), indent=2))
+    print(json.dumps(collect(args.repo, args.start, args.end, args.output, args.per_group, args.include_logs), indent=2))

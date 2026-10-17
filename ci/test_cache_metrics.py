@@ -14,6 +14,27 @@ SPEC.loader.exec_module(metrics)
 
 
 class CacheMetricsTest(unittest.TestCase):
+    def test_archive_restore_is_distinct_from_compiler_hits(self):
+        log = "\n".join([
+            "Tier2\tRestore cache\t2026-10-17T18:39:59Z Cache Size: ~266 MB (278493433 B)",
+            "Tier2\tBuild\t2026-10-17T18:46:22Z Compilations: 772 total (0 cached, 772 cold, 0 non-cacheable)",
+            "Gate\tPost setup\t2026-10-17T18:47:01Z final zccache session stats: hits=0 misses=73 compilations=75 non_cacheable=0 errors=2",
+            "Qt\tReport cache\t2026-10-17T18:47:02Z Hits: 304 / 304 (100.0%)",
+            "Tests ON\tTest\t2026-10-17T18:47:03Z 100% tests passed, 0 tests failed out of 283",
+            "Tier2\tSave\t2026-10-17T18:47:04Z Cache saved with key: zccache-tier2-linux-both-abc",
+        ])
+        parsed = metrics.parse_cache_logs(log)
+        self.assertEqual(parsed["Tier2"]["archive_bytes"], [278493433])
+        self.assertEqual(parsed["Tier2"]["compiler_reports"][0]["cached"], 0)
+        self.assertEqual(parsed["Tier2"]["compiler_reports"][0]["cold"], 772)
+        self.assertEqual(parsed["Gate"]["compiler_reports"][0]["errors"], 2)
+        self.assertEqual(parsed["Qt"]["compiler_reports"][0]["hits"], 304)
+        self.assertEqual(parsed["Tests ON"]["ctest_reports"], [{"total": 283, "failed": 0}])
+        self.assertEqual(parsed["Tier2"]["saved_keys"], ["zccache-tier2-linux-both-abc"])
+
+    def test_missing_log_counters_are_not_invented(self):
+        self.assertEqual(metrics.parse_cache_logs("Build\tstep\t2026-10-17T18:00:00Z Cache restored successfully"), {})
+
     def test_source_cohort_requires_files(self):
         self.assertEqual(metrics.cohort([]), "unknown")
         self.assertEqual(metrics.cohort(["docs/a.md", "AGENTS.md"]), "docs")
