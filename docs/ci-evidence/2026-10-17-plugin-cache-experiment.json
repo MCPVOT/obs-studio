@@ -1,0 +1,16 @@
+{
+  "issue": 1286,
+  "target": "linux-v4l2",
+  "stage": "cold/warm CI validation pending",
+  "reference_commit": "01a48dce31676d020754c4fa6e943bf48686144b",
+  "input_tree_fingerprint_sha256": "c6c646db3a1a93b7228aeb2584669938724bde126f6c05520a0eab7a824c40c0",
+  "fingerprint_scope": "Git tree rows for plugin/libobs/shared/deps/cmake/rust/root build inputs, excluding Markdown. Generated Git version metadata can still differ.",
+  "cache_prefix": "targets-ccache-linux-",
+  "configuration": "Existing Fast Gate scoped target CMake configuration; trusted master saves, PRs restore.",
+  "measurements": [],
+  "notes": [
+    "Capture real compiler hits and full job/step durations; no archive HIT inference.",
+    "Keep the original compiler outputs/caches; do not clear the cache to manufacture a cold sample.",
+    "This JSON accompanies developer build notes so the existing master Push paths-ignore for Markdown does not suppress trusted warming."
+  ]
+}
