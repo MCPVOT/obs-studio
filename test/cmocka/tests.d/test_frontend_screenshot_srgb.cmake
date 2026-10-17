@@ -12,7 +12,11 @@ if(OS_LINUX AND TARGET OBS::libobs-opengl)
     find_package(Qt6 QUIET COMPONENTS Widgets)
   endif()
   if(TARGET Qt6::Widgets)
-    add_executable(test_frontend_screenshot_srgb test_frontend_screenshot_srgb.cpp "${_fe_util}/screenshot-render.cpp.hpp")
+    add_executable(
+      test_frontend_screenshot_srgb
+      test_frontend_screenshot_srgb.cpp
+      "${_fe_util}/screenshot-render.cpp.hpp"
+    )
     target_compile_definitions(
       test_frontend_screenshot_srgb
       PRIVATE GRAPHICS_MODULE_PATH="$<TARGET_FILE:OBS::libobs-opengl>"
