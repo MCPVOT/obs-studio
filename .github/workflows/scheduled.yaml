@@ -32,70 +32,15 @@ jobs:
           runServiceChecks: true
           createPullRequest: true
 
-  cache-cleanup:
-    name: Cache Cleanup 🧹
-    # Not in forks: a fork's schedule fails there and mails its owner (#1258).
-    if: github.event_name != 'schedule' || github.repository == 'obs-rust/obs-studio'
-    runs-on: ubuntu-26.04
-    permissions:
-      actions: write
-    steps:
-      - name: Remove Stale Compiler Caches
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          : Remove Stale Compiler Caches
-
-          # The jq expressions below use multiple 'select' calls to filter
-          # each item in the array with the 'actions_caches' key.
-          # First it only selects objects whose 'ref' element has the value
-          # 'refs/heads/master', of those objects only those whose 'key'
-          # value matches the specified expression, before finally only
-          # selecting the 'id' and 'key' elements for a new object.
-          # The final 'join' command combines both elements with a semicolon
-          # into a raw string which can then be parsed directly.
-
-          echo '::group::Processing master branch cache entries'
-          while IFS=";" read -r cache_id cache_name; do
-            if [[ "${cache_name}" ]]; then
-              result=true
-              gh api -X DELETE repos/${GITHUB_REPOSITORY}/actions/caches?key=${cache_name} --jq '.total_count' &> /dev/null || result=false
-
-              if ${result}; then
-                echo "Deleted cache entry ${cache_name}"
-              else
-                echo "::warning::Unable to delete cache entry ${cache_name}"
-              fi
-            fi
-          done <<< \
-          "$(gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/caches?per_page=100" \
-            --jq '.actions_caches.[] | select(.ref|test("refs/heads/master")) | select(.key|test("(^|-)(z?ccache|xcode)-")) | {id, key} | join(";")')"
-          echo '::endgroup::'
-
-
-          echo '::group::Processing pull request cache entries'
-          while IFS=";" read -r cache_id cache_name cache_ref; do
-            if [[ "${cache_name}" ]]; then
-              result=true
-              gh api -X DELETE repos/${GITHUB_REPOSITORY}/actions/caches?key=${cache_name} --jq '.total_count' &> /dev/null || result=false
-
-              pr_number=$(echo ${cache_ref} | cut -d '/' -f 3)
-
-              if ${result}; then
-                echo "Deleted PR #${pr_number} cache entry ${cache_name}"
-              else
-                echo "::warning::Unable to delete PR #${pr_number} cache entry ${cache_name}"
-              fi
-            fi
-          done <<< \
-            "$(gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/caches?per_page=100" \
-              --jq '.actions_caches.[] | select(.ref|test("refs/heads/master")|not) | select(.key|test("(^|-)z?ccache-")) | {id, key, ref} | join(";")')"
-          echo '::endgroup::'
-
+  # Queue/master janitor owns cache retention through ci.toml. Nightly
+  # builds reuse those caches rather than purging them before every build.
   build-project:
     name: Build 🧱
     uses: ./.github/workflows/build-project.yaml
-    needs: cache-cleanup
+    permissions:
+      actions: read
+      contents: read
+    if: github.event_name != 'schedule' || github.repository == 'obs-rust/obs-studio'
     secrets: inherit
 
   report-nightly-failure:
@@ -130,7 +75,7 @@ jobs:
   analyze-project:
     name: Analyze 🔬
     uses: ./.github/workflows/analyze-project.yaml
-    needs: cache-cleanup
+    if: github.event_name != 'schedule' || github.repository == 'obs-rust/obs-studio'
     secrets: inherit
     permissions:
       security-events: write
