@@ -314,13 +314,10 @@ elseif(_host STREQUAL MACOS)
     OBJC_MODULES
     DIR plugins/mac-avcapture
     SOURCES
-      avcapture-audio-planes.c
-      legacy/av-capture.mm
-      OBSAVCapture.m
-      OBSAVCapturePresetInfo.m
-      AVCaptureDeviceFormat+OBSListable.m
-      plugin-main.m
-      plugin-properties.m
+      build/mac-avcapture.objc-macos+.h.m
+      build/mac-avcapture.audio-planes+.h.c
+      build/mac-avcapture.legacy-macos+.hpp.mm
+    INCLUDES plugins/mac-avcapture/legacy
   )
   # decklink's unity groups (BUILD.md) with the macOS SDK headers; Windows
   # needs the SDK's MIDL-generated header.

@@ -5,9 +5,7 @@
 //  Created by Patrick Heyer on 2023-03-07.
 //
 
-#import "OBSAVCapture.h"
-#import "plugin-properties.h"
-#import "AVCaptureDeviceFormat+OBSListable.h"
+#include "build/mac-avcapture.pch.h"
 
 extern const char *av_capture_get_text(const char *text_id);
 

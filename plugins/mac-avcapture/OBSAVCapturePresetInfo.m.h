@@ -5,7 +5,7 @@
 //  Created by Patrick Heyer on 2023-03-07.
 //
 
-#import <OBSAVCapturePresetInfo.h>
+#include "build/mac-avcapture.pch.h"
 
 @implementation OBSAVCapturePresetInfo
 

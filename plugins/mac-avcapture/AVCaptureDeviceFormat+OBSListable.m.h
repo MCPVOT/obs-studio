@@ -5,7 +5,7 @@
 //  Created by jcm on 7/9/24.
 //
 
-#import "OBSAVCapture.h"
+#include "build/mac-avcapture.pch.h"
 
 @implementation AVCaptureDeviceFormat (OBSListable)
 

@@ -5,7 +5,7 @@
 //  Created by Patrick Heyer on 2023-03-07.
 //
 
-#import "plugin-main.h"
+#include "build/mac-avcapture.pch.h"
 
 #pragma mark av-capture API
 

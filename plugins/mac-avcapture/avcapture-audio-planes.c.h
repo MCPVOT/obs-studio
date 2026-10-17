@@ -13,9 +13,7 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "avcapture-audio-planes.h"
-
-#include <media-io/media-io-defs.h>
+#include "build/mac-avcapture-audio-planes.pch.h"
 
 /* obs_source_audio::data[] and OBSAVCaptureAudioFrame::data both carry a
  * fixed table of MAX_AV_PLANES (media-io-defs.h) plane pointers. */

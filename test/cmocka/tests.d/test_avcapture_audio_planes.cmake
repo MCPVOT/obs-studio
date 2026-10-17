@@ -3,7 +3,7 @@ if(TARGET OBS::libobs)
   add_executable(
     test_avcapture_audio_planes
     test_avcapture_audio_planes.c
-    "${CMAKE_SOURCE_DIR}/plugins/mac-avcapture/avcapture-audio-planes.c"
+    "${CMAKE_SOURCE_DIR}/plugins/mac-avcapture/avcapture-audio-planes.c.h"
   )
   target_include_directories(
     test_avcapture_audio_planes
