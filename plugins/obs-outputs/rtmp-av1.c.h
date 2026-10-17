@@ -15,11 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "rtmp-av1.h"
-#include "utils.h"
-
-#include <obs.h>
-#include <util/array-serializer.h>
+#include "build/obs-outputs-av1.pch.h"
 
 /* Adapted from FFmpeg's libavformat/av1.c for our FLV muxer. */
 
@@ -604,3 +600,20 @@ void obs_parse_av1_packet(struct encoder_packet *av1_packet, const struct encode
 
 /* File-local macros: keep them out of the next source of a unity build. */
 #undef skip_bits
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef AV1_OBU_SEQUENCE_HEADER
+#undef AV1_OBU_TEMPORAL_DELIMITER
+#undef AV1_OBU_REDUNDANT_FRAME_HEADER
+#undef AV1_OBU_TILE_LIST
+#undef AV1_OBU_PADDING
+#undef AV1_OBU_METADATA
+#undef AV1_OBU_TILE_GROUP
+#undef AV1_OBU_FRAME
+#undef AV1_OBU_FRAME_HEADER
+#undef FF_PROFILE_AV1_MAIN
+#undef FF_PROFILE_AV1_HIGH
+#undef FF_PROFILE_AV1_PROFESSIONAL
+#undef MAX_OBU_HEADER_SIZE
+#undef get_bits_long
+#undef skip_bits_long

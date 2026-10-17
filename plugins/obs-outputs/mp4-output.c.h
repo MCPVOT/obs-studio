@@ -15,19 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "mp4-mux.h"
-
-#include <inttypes.h>
-
-#include <obs-module.h>
-#include <util/platform.h>
-#include <util/deque.h>
-#include <util/dstr.h>
-#include <util/threading.h>
-#include <util/buffered-file-serializer.h>
-#include <bpm.h>
-
-#include <opts-parser.h>
+#include "build/obs-outputs.pch.h"
 
 #define do_log(level, format, ...)                                                                 \
 	blog(level, "[%s output: '%s'] " format, out->muxer_flavor == FLAVOR_MOV ? "mov" : "mp4", \
@@ -637,3 +625,7 @@ struct obs_output_info mov_output_info = {
 
 /* File-local macros: keep them out of the next source of a unity build. */
 #undef do_log
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef warn
+#undef info

@@ -566,7 +566,7 @@ if(TARGET OBS::outputs)
   add_executable(
     test_flv_mux
     test_flv_mux.c
-    "${CMAKE_SOURCE_DIR}/plugins/obs-outputs/flv-mux.c"
+    "${CMAKE_SOURCE_DIR}/plugins/obs-outputs/flv-mux.c.h"
     "${CMAKE_SOURCE_DIR}/plugins/obs-outputs/librtmp/amf.c"
     "${CMAKE_SOURCE_DIR}/plugins/obs-outputs/librtmp/log.c"
   )

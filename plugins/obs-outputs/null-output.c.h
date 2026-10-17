@@ -15,8 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include <util/threading.h>
-#include <obs-module.h>
+#include "build/obs-outputs.pch.h"
 
 struct null_output {
 	obs_output_t *output;

@@ -15,13 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "rtmp-hevc.h"
-#include "utils.h"
-
-#include <obs.h>
-#include <obs-nal.h>
-#include <obs-hevc.h>
-#include <util/array-serializer.h>
+#include "build/obs-outputs-hevc.pch.h"
 
 /* Adapted from FFmpeg's libavformat/hevc.c for our FLV muxer. */
 
@@ -878,3 +872,7 @@ done:
 
 /* File-local macros: keep them out of the next source of a unity build. */
 #undef skip_bits
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef skip_bits_long
+#undef HEVC_MAX_SHORT_TERM_REF_PIC_SETS

@@ -1,5 +1,6 @@
+#include "build/obs-outputs-windows.pch.h"
+
 #ifdef _WIN32
-#include "rtmp-stream.h"
 
 static void fatal_sock_shutdown(struct rtmp_stream *stream)
 {
@@ -318,3 +319,6 @@ void *socket_thread_windows(void *data)
 	return NULL;
 }
 #endif
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef LATENCY_FACTOR

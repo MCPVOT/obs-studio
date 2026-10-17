@@ -15,11 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#define _WINSOCK_DEPRECATED_NO_WARNINGS
-
-#include "net-if.h"
-#include <util/platform.h>
-#include <util/dstr.h>
+#include "build/obs-outputs-net-if.pch.h"
 
 #define do_log(level, format, ...) blog(level, "[net if] " format, ##__VA_ARGS__)
 
@@ -266,3 +262,8 @@ void netif_get_addrs(struct netif_saddr_data *ifaddrs)
 
 /* File-local macros: keep them out of the next source of a unity build. */
 #undef do_log
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef warn
+#undef info
+#undef debug

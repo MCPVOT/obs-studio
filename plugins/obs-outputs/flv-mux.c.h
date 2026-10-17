@@ -15,13 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include <obs.h>
-#include <stdio.h>
-#include <util/dstr.h>
-#include <util/array-serializer.h>
-#include "flv-mux.h"
-#include "obs-output-ver.h"
-#include "rtmp-helpers.h"
+#include "build/obs-outputs.pch.h"
 
 /* TODO: FIXME: this is currently hard-coded to h264 and aac!  ..not that we'll
  * use anything else for a long time. */
@@ -645,3 +639,9 @@ void flv_packet_metadata(enum video_id_t codec_id, uint8_t **output, size_t *siz
 	*output = data.bytes.array;
 	*size = data.bytes.num;
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef AUDIODATA_AAC
+#undef AUDIO_FRAMETYPE_OFFSET
+#undef VIDEO_FRAMETYPE_OFFSET
+#undef FLV_INFO_SIZE_OFFSET

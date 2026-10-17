@@ -15,20 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include <stdio.h>
-#include <obs-module.h>
-#include <obs-avc.h>
-#ifdef ENABLE_HEVC
-#include "rtmp-hevc.h"
-#include <obs-hevc.h>
-#endif
-#include "rtmp-av1.h"
-#include <util/platform.h>
-#include <util/dstr.h>
-#include <util/threading.h>
-#include <inttypes.h>
-#include "color-enums.h"
-#include "flv-mux.h"
+#include "build/obs-outputs.pch.h"
 
 #define do_log(level, format, ...) \
 	blog(level, "[flv output: '%s'] " format, obs_output_get_name(stream->output), ##__VA_ARGS__)
@@ -544,3 +531,7 @@ struct obs_output_info flv_output_info = {
 
 /* File-local macros: keep them out of the next source of a unity build. */
 #undef do_log
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef warn
+#undef info

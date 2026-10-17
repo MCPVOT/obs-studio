@@ -15,19 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "mp4-mux-internal.h"
-
-#include "rtmp-hevc.h"
-#include "rtmp-av1.h"
-
-#include <obs-avc.h>
-#include <obs-hevc.h>
-#include <obs-module.h>
-#include <util/dstr.h>
-#include <util/platform.h>
-#include <util/array-serializer.h>
-
-#include <time.h>
+#include "build/obs-outputs-mp4-mux.pch.h"
 
 /*
  * (Mostly) compliant MP4 muxer for fun and profit.
@@ -3044,3 +3032,7 @@ bool mp4_mux_finalise(struct mp4_mux *mux)
 
 /* File-local macros: keep them out of the next source of a unity build. */
 #undef do_log
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef warn
+#undef info

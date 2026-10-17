@@ -26,7 +26,6 @@ set(_OBS_PCH_DIR "${CMAKE_CURRENT_LIST_DIR}/../pch")
 set(
   _OBS_PCH_SKIP_SOURCES
   plugins/obs-outputs/librtmp/rtmp.c
-  plugins/obs-outputs/net-if.c
   plugins/obs-browser/browser-app.cpp
   plugins/obs-browser/obs-browser-page/obs-browser-page-main.cpp
 )

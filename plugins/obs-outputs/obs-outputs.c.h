@@ -1,9 +1,4 @@
-#include <obs-module.h>
-
-#ifdef _WIN32
-#include <winsock2.h>
-#include <mbedtls/threading.h>
-#endif
+#include "build/obs-outputs.pch.h"
 
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE("obs-outputs", "en-US")

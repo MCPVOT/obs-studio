@@ -64,8 +64,6 @@
 #include <util/threading.h>
 #include <util/dstr.h>
 
-#define FALLBACK_FRAMERATE 30
-
 #ifdef HAVE_UDEV
 #include "v4l2-udev.h"
 #endif

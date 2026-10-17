@@ -15,18 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "rtmp-stream.h"
-#include "rtmp-av1.h"
-#include "rtmp-hevc.h"
-
-#include <obs-avc.h>
-#include <obs-hevc.h>
-
-#include <jansson.h>
-
-#ifdef _WIN32
-#include <util/windows/win-version.h>
-#endif
+#include "build/obs-outputs-rtmp.pch.h"
 
 #ifndef SEC_TO_NSEC
 #define SEC_TO_NSEC 1000000000ULL
@@ -2053,3 +2042,13 @@ struct obs_output_info rtmp_output_info = {
 	.get_connect_time_ms = rtmp_stream_connect_time,
 	.get_dropped_frames = rtmp_stream_dropped_frames,
 };
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef SEC_TO_NSEC
+#undef MSEC_TO_USEC
+#undef MSEC_TO_NSEC
+#undef DBR_INC_TIMER
+#undef DBR_TRIGGER_USEC
+#undef MIN_ESTIMATE_DURATION_MS
+#undef MAX_ESTIMATE_DURATION_MS
+#undef socklen_t

@@ -16,6 +16,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include "build/linux-v4l2-nix.pch.h"
 
+#define FALLBACK_FRAMERATE 30
+
 /* The new dv timing api was introduced in Linux 3.4
  * Currently we simply disable dv timings when this is not defined */
 #if !defined(VIDIOC_ENUM_DV_TIMINGS) || !defined(V4L2_IN_CAP_DV_TIMINGS)
@@ -1499,3 +1501,4 @@ struct obs_source_info v4l2_input = {
 #undef V4L2_FOURCC_STR
 #undef BUSY_CHECK_NS
 #undef FORCE_TIMEOUT_MS
+#undef FALLBACK_FRAMERATE

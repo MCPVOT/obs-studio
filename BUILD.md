@@ -82,7 +82,12 @@ static inline void cf_convert_from_escape_literal(...)
 Everything a file needs (system headers, the component's own headers, the
 feature macros that must precede them such as `_FILE_OFFSET_BITS` or
 `WIN32_LEAN_AND_MEAN`, and the platform conditionals around them) lives in
-that header, in the order the files need it. So the precompiled header is
+that header, in the order the files need it. A file's own macros (`do_log`, a
+`FALLBACK_FRAMERATE`) stay in the file, right after its include: only the
+macros that set up headers move. A header that defines macros of its own
+(obs-outputs' `rtmp-stream.h` defines `do_log`) puts its includers in a
+family of their own, and a header that defines data (`mp4-mux-internal.h`)
+stays out of headers the C tests compile more than once. So the precompiled header is
 exactly what its files depend on, every member of a group sees the same
 thing whether it is compiled in the group or alone, and nothing is
 force-included in front of anything.
