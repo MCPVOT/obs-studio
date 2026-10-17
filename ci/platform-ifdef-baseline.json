@@ -85,6 +85,7 @@
   "libobs/util/profiler-io.c.h": 2,
   "libobs/util/profiler.h": 1,
   "libobs/util/utf8.c.h": 1,
+  "plugins/coreaudio-encoder/build/coreaudio-encoder.pch.hpp": 2,
   "plugins/decklink/platform.hpp": 4,
   "plugins/frontend-tools/auto-scene-switcher.cpp": 1,
   "plugins/frontend-tools/captions-mssapi-stream.hpp": 1,

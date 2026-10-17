@@ -10,7 +10,10 @@ endif()
 add_library(coreaudio-encoder MODULE)
 add_library(OBS::coreaudio-encoder ALIAS coreaudio-encoder)
 
-target_sources(coreaudio-encoder PRIVATE encoder.cpp $<$<PLATFORM_ID:Windows>:windows-imports.h>)
+target_sources(
+  coreaudio-encoder
+  PRIVATE build/coreaudio-encoder.core+.hpp.cpp $<$<PLATFORM_ID:Windows>:windows-imports.h>
+)
 
 target_link_libraries(
   coreaudio-encoder
