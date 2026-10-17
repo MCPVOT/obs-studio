@@ -165,6 +165,7 @@ void OBSBasic::RecordingStart()
 	OnEvent(OBS_FRONTEND_EVENT_RECORDING_STARTED);
 
 	if (!diskFullTimer->isActive()) {
+		diskSpaceCheckSince = os_gettime_ns();
 		diskFullTimer->start(1000);
 	}
 
@@ -405,7 +406,23 @@ bool OBSBasic::LowDiskSpace(enum record_disk_check when)
 
 void OBSBasic::CheckDiskSpaceRemaining()
 {
-	if (LowDiskSpace(RECORD_DISK_CHECK_RUNNING)) {
+	/* #1282: query off the UI thread (a hung network path blocks for
+	 * seconds) and act on the last value finished since recording started;
+	 * do nothing until one exists. */
+	if (IsFFmpegOutputToURL()) {
+		return;
+	}
+	const char *path = GetCurrentOutputPath();
+	if (!path) {
+		return;
+	}
+	diskSpaceMonitor->request(path);
+	DiskSpaceSample sample = diskSpaceMonitor->latest(path);
+	if (!sample.valid || sample.timestamp_ns < diskSpaceCheckSince) {
+		return;
+	}
+
+	if (sample.bytes < RECORD_MIN_FREE_BYTES) {
 		StopRecording();
 		StopReplayBuffer();
 

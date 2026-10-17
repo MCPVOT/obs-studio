@@ -1154,6 +1154,11 @@ area.
   [#1143](https://github.com/obs-rust/obs-studio/issues/1143), PR
   [#1144](https://github.com/obs-rust/obs-studio/pull/1144), upstream
   [obsproject/obs-studio#13209](https://github.com/obsproject/obs-studio/issues/13209).
+- Recording to a network or NAS path that stops responding no longer
+  freezes the window every second: the free-space check while recording and
+  in the Stats window runs off the UI thread. *All*, 2026-10-17. Issue
+  [#1282](https://github.com/obs-rust/obs-studio/issues/1282), PR
+  [#1336](https://github.com/obs-rust/obs-studio/pull/1336).
 
 ### Scripting
 

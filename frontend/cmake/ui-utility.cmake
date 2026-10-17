@@ -9,6 +9,8 @@ target_sources(
     utility/CrashHandler.hpp
     build/frontend.utility-crash-sentinel-dir+.hpp.cpp
     utility/crash-sentinel-dir.hpp
+    build/frontend.utility-disk-space-monitor+.hpp.cpp
+    utility/disk-space-monitor.hpp
     utility/settings-migration.hpp
     utility/unclean-launch.hpp
     utility/output-start-log.hpp

@@ -300,6 +300,7 @@ OBSBasic::OBSBasic(QWidget *parent) : OBSMainWindow(parent), undo_s(ui), ui(new 
 	connect(cpuUsageTimer.data(), &QTimer::timeout, ui->statusbar, &OBSBasicStatusBar::UpdateCPUUsage);
 	cpuUsageTimer->start(3000);
 
+	diskSpaceMonitor = std::make_unique<DiskSpaceMonitor>();
 	diskFullTimer = new QTimer(this);
 	connect(diskFullTimer, &QTimer::timeout, this, &OBSBasic::CheckDiskSpaceRemaining);
 

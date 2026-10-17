@@ -4,6 +4,8 @@
 #include <obs.hpp>
 #include <util/platform.h>
 
+#include <utility/disk-space-monitor.hpp>
+
 #include <QFrame>
 #include <QPointer>
 #include <QTimer>
@@ -31,6 +33,9 @@ class OBSBasicStats : public QFrame {
 	QTimer timer;
 	QTimer recTimeLeft;
 	uint64_t num_bytes = 0;
+	bool num_bytes_valid = false;
+	/* #1282: free space is queried off the UI thread */
+	DiskSpaceMonitor diskSpace;
 	std::vector<long double> bitrates;
 
 	struct OutputLabels {

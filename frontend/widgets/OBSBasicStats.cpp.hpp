@@ -309,7 +309,15 @@ void OBSBasicStats::Update()
 #define MBYTE (1024ULL * 1024ULL)
 #define GBYTE (1024ULL * 1024ULL * 1024ULL)
 #define TBYTE (1024ULL * 1024ULL * 1024ULL * 1024ULL)
-	num_bytes = os_get_free_disk_space(path);
+	/* #1282: show the last value queried off the UI thread; leave the
+	 * label empty until one exists for this path. */
+	DiskSpaceSample sample;
+	if (path) {
+		diskSpace.request(path);
+		sample = diskSpace.latest(path);
+	}
+	num_bytes_valid = sample.valid;
+	num_bytes = sample.bytes;
 	QString abrv = QStringLiteral(" MB");
 	long double num;
 
@@ -323,9 +331,11 @@ void OBSBasicStats::Update()
 	}
 
 	str = QString::number(num, 'f', 1) + abrv;
-	hddSpace->setText(str);
+	hddSpace->setText(num_bytes_valid ? str : QString());
 
-	if (num_bytes < GBYTE) {
+	if (!num_bytes_valid) {
+		setClasses(hddSpace, "");
+	} else if (num_bytes < GBYTE) {
 		setClasses(hddSpace, "text-danger");
 	} else if (num_bytes < (5 * GBYTE)) {
 		setClasses(hddSpace, "text-warning");
@@ -445,7 +455,7 @@ void OBSBasicStats::ResetRecTimeLeft()
 
 void OBSBasicStats::RecordingTimeLeft()
 {
-	if (bitrates.empty()) {
+	if (bitrates.empty() || !num_bytes_valid) {
 		return;
 	}
 

@@ -28,6 +28,7 @@
 #include <utility/PreviewProgramSizeObserver.hpp>
 #include <utility/VCamConfig.hpp>
 #include <utility/platform.hpp>
+#include <utility/disk-space-monitor.hpp>
 #include <utility/record-disk-space.h>
 #include <utility/undo_stack.hpp>
 
@@ -1021,6 +1022,9 @@ public:
 	 */
 private:
 	QPointer<QTimer> diskFullTimer;
+	/* #1282: the running check reads free space queried off the UI thread */
+	std::unique_ptr<DiskSpaceMonitor> diskSpaceMonitor;
+	uint64_t diskSpaceCheckSince = 0;
 	bool recordingStopping = false;
 	bool recordingStarted = false;
 	bool isRecordingPausable = false;
