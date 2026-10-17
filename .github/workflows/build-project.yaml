@@ -333,6 +333,7 @@ jobs:
           key: zccache-ubuntu-${{ matrix.os }}-x86_64-rust${{ matrix.rust }}-${{ needs.check-event.outputs.config }}-${{ github.sha }}
           restore-keys: |
             zccache-ubuntu-${{ matrix.os }}-x86_64-rust${{ matrix.rust }}-${{ needs.check-event.outputs.config }}-
+            zccache-ubuntu-${{ matrix.os }}-x86_64-rust${{ matrix.rust == 'ON' && 'OFF' || 'ON' }}-${{ needs.check-event.outputs.config }}-
             zccache-ubuntu-${{ matrix.os }}-x86_64-rust${{ matrix.rust }}-
 
       # Consume restored objects before sizing the next snapshot. A normal

@@ -12,6 +12,33 @@ def ubuntu_job():
     return re.search(r'^  ubuntu-build:\n(.*?)(?=^  [a-z0-9-]+:\n)',text,re.M|re.S).group(1)
 
 class UbuntuCachePreserveTest(unittest.TestCase):
+    def test_surviving_opposite_mode_can_warm_same_runner_and_configuration(self):
+        block=ubuntu_job().split('restore-keys: |',1)[1].split('\n\n',1)[0]
+        for mode,opposite in [('OFF','ON'),('ON','OFF')]:
+            rendered=block
+            for expression,value in {
+                '${{ matrix.os }}':'ubuntu-26.04',
+                '${{ matrix.rust }}':mode,
+                "${{ matrix.rust == 'ON' && 'OFF' || 'ON' }}":opposite,
+                '${{ needs.check-event.outputs.config }}':'RelWithDebInfo',
+            }.items():
+                rendered=rendered.replace(expression,value)
+            self.assertNotIn('${{',rendered)
+            prefixes=rendered.split()
+            own=f'zccache-ubuntu-ubuntu-26.04-x86_64-rust{mode}-RelWithDebInfo-old'
+            survivor=f'zccache-ubuntu-ubuntu-26.04-x86_64-rust{opposite}-RelWithDebInfo-new'
+            incompatible=[
+                survivor.replace('ubuntu-26.04','ubuntu-24.04'),
+                survivor.replace('x86_64','aarch64'),
+                survivor.replace('RelWithDebInfo','Debug'),
+            ]
+            def restore(keys):
+                return next((key for prefix in prefixes for key in keys if key.startswith(prefix)),None)
+            with self.subTest(mode=mode):
+                self.assertEqual(restore([survivor,*incompatible]),survivor)
+                self.assertEqual(restore([survivor,own]),own)
+                self.assertIsNone(restore(incompatible))
+
     def test_restored_cache_is_not_deleted_before_build(self):
         job=ubuntu_job()
         before=job[:job.index('- name: Build OBS Studio')]
