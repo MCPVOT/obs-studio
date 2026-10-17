@@ -6,7 +6,10 @@ find_package(VPL 2.9 REQUIRED)
 
 target_sources(obs-qsv-test PRIVATE build/obs-qsv-test.windows+.hpp.cpp)
 
-target_compile_definitions(obs-qsv-test PRIVATE "$<$<BOOL:${ENABLE_HEVC}>:ENABLE_HEVC>")
+target_compile_definitions(
+  obs-qsv-test
+  PRIVATE "$<$<BOOL:${ENABLE_HEVC}>:ENABLE_HEVC>" OBS_QSV_HOST_DEFS="plugins/obs-qsv11/bits/windows_defs.h"
+)
 
 target_link_libraries(
   obs-qsv-test

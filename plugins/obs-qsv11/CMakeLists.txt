@@ -19,13 +19,24 @@ target_sources(
   obs-qsv11
   PRIVATE
     $<$<PLATFORM_ID:Linux>:build/obs-qsv11.linux+.hpp.cpp>
+    $<$<PLATFORM_ID:Linux>:build/obs-qsv11.linux-c+.h.c>
     $<$<PLATFORM_ID:Windows>:build/obs-qsv11.windows+.hpp.cpp>
+    $<$<PLATFORM_ID:Windows>:build/obs-qsv11.windows-c+.h.c>
     $<$<PLATFORM_ID:Windows>:common_directx11.h>
     build/obs-qsv11.core+.hpp.cpp
     build/obs-qsv11.c+.h.c
     common_utils.h
+    qsv-host.h
     QSV_Encoder.h
     QSV_Encoder_Internal.h
+)
+
+# The host's bits/<os>_defs.h for common_utils.h (#860).
+target_compile_definitions(
+  obs-qsv11
+  PRIVATE
+    $<$<PLATFORM_ID:Linux>:OBS_QSV_HOST_DEFS="plugins/obs-qsv11/bits/linux_defs.h">
+    $<$<PLATFORM_ID:Windows>:OBS_QSV_HOST_DEFS="plugins/obs-qsv11/bits/windows_defs.h">
 )
 
 target_compile_options(

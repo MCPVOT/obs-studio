@@ -1271,11 +1271,7 @@ static bool obs_qsv_encode_tex(void *data, struct encoder_texture *tex, int64_t 
 {
 	struct obs_qsv *obsqsv = data;
 
-#ifdef _WIN32
-	if (!tex || tex->handle == GS_INVALID_HANDLE) {
-#else
-	if (!tex || !tex->tex[0] || !tex->tex[1]) {
-#endif
+	if (!qsv_host_texture_valid(tex)) {
 		warn("Encode failed: bad texture handle");
 		*next_key = lock_key;
 		return false;

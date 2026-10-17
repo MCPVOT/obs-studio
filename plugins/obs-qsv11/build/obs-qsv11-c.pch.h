@@ -21,3 +21,6 @@
 #include <obs-avc.h>
 
 #include "plugins/obs-qsv11/QSV_Encoder.h"
+
+/* qsv-host interface (#860) */
+#include "plugins/obs-qsv11/qsv-host.h"

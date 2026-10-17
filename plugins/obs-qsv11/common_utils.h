@@ -42,11 +42,8 @@ constexpr inline int INTEL_VENDOR_ID = 0x8086;
 //  - mfxTime
 //  - MSDK_FOPEN
 //  - MSDK_SLEEP
-#if defined(_WIN32) || defined(_WIN64)
-#include "bits/windows_defs.h"
-#elif defined(__linux__)
-#include "bits/linux_defs.h"
-#endif
+// The host's bits/<os>_defs.h, named by CMake (OBS_QSV_HOST_DEFS).
+#include OBS_QSV_HOST_DEFS
 
 // =================================================================
 // Helper macro definitions...

@@ -24,3 +24,6 @@
 #include <intrin.h>
 #include <inttypes.h>
 #include <obs-module.h>
+
+/* qsv-host interface (#860) */
+#include "plugins/obs-qsv11/qsv-host.h"

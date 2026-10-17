@@ -93,18 +93,7 @@ QSV_Encoder_Internal::QSV_Encoder_Internal(mfxVersion &version, bool useTexAlloc
 	tempImpl.Type = MFX_VARIANT_TYPE_U32;
 	tempImpl.Data.U32 = INTEL_VENDOR_ID;
 	MFXSetConfigFilterProperty(cfg, (const mfxU8 *)"mfxImplDescription.VendorID", tempImpl);
-#if defined(_WIN32)
-	m_bUseD3D11 = true;
-	m_bUseTexAlloc = true;
-
-	tempImpl.Type = MFX_VARIANT_TYPE_U32;
-	tempImpl.Data.U32 = MFX_ACCEL_MODE_VIA_D3D11;
-	MFXSetConfigFilterProperty(cfg, (const mfxU8 *)"mfxImplDescription.AccelerationMode", tempImpl);
-#else
-	tempImpl.Type = MFX_VARIANT_TYPE_U32;
-	tempImpl.Data.U32 = MFX_ACCEL_MODE_VIA_VAAPI;
-	MFXSetConfigFilterProperty(cfg, (const mfxU8 *)"mfxImplDescription.AccelerationMode", tempImpl);
-#endif
+	qsv_host_select_accel_mode(cfg, &m_bUseD3D11, &m_bUseTexAlloc);
 	sts = MFXCreateSession(loader, 0, &m_session);
 	if (sts == MFX_ERR_NONE) {
 		MFXQueryVersion(m_session, &version);
@@ -371,19 +360,7 @@ mfxStatus QSV_Encoder_Internal::InitParams(qsv_param_t *pParams, enum qsv_codec 
 	}
 #endif
 
-#if defined(_WIN32)
-	// TODO: Ask about this one on VAAPI too.
-	memset(&m_ExtVideoSignalInfo, 0, sizeof(m_ExtVideoSignalInfo));
-	m_ExtVideoSignalInfo.Header.BufferId = MFX_EXTBUFF_VIDEO_SIGNAL_INFO;
-	m_ExtVideoSignalInfo.Header.BufferSz = sizeof(m_ExtVideoSignalInfo);
-	m_ExtVideoSignalInfo.VideoFormat = pParams->VideoFormat;
-	m_ExtVideoSignalInfo.VideoFullRange = pParams->VideoFullRange;
-	m_ExtVideoSignalInfo.ColourDescriptionPresent = 1;
-	m_ExtVideoSignalInfo.ColourPrimaries = pParams->ColourPrimaries;
-	m_ExtVideoSignalInfo.TransferCharacteristics = pParams->TransferCharacteristics;
-	m_ExtVideoSignalInfo.MatrixCoefficients = pParams->MatrixCoefficients;
-	extendedBuffers.push_back((mfxExtBuffer *)&m_ExtVideoSignalInfo);
-#endif
+	qsv_host_add_video_signal_info(&m_ExtVideoSignalInfo, pParams, extendedBuffers);
 
 	// CLL and Chroma location in HEVC only supported by VPL
 	if (m_ver.Major >= 2) {

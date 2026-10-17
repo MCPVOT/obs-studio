@@ -298,7 +298,8 @@ if(_host STREQUAL WINDOWS)
   _obs_cross_plugin(
     obs-qsv11-cross
     DIR plugins/obs-qsv11
-    SOURCES build/obs-qsv11.c+.h.c build/obs-qsv11.core+.hpp.cpp
+    SOURCES build/obs-qsv11.c+.h.c build/obs-qsv11.core+.hpp.cpp build/obs-qsv11.windows-c+.h.c
+    DEFINES OBS_QSV_HOST_DEFS="plugins/obs-qsv11/bits/windows_defs.h"
   )
   # obs-text's unity group (BUILD.md).
   _obs_cross_plugin(obs-text-cross DIR plugins/obs-text SOURCES build/obs-text.windows+.hpp.cpp)
@@ -339,7 +340,12 @@ if(_host STREQUAL WINDOWS)
     "${CMAKE_BINARY_DIR}/virtualcam-module-cross/virtualcam-guid.h"
   )
   _obs_cross_plugin(obs-amf-test-cross DIR plugins/obs-ffmpeg/obs-amf-test SOURCES build/obs-amf-test.windows+.hpp.cpp)
-  _obs_cross_plugin(obs-qsv-test-cross DIR plugins/obs-qsv11/obs-qsv-test SOURCES build/obs-qsv-test.windows+.hpp.cpp)
+  _obs_cross_plugin(
+    obs-qsv-test-cross
+    DIR plugins/obs-qsv11/obs-qsv-test
+    SOURCES build/obs-qsv-test.windows+.hpp.cpp
+    DEFINES OBS_QSV_HOST_DEFS="plugins/obs-qsv11/bits/windows_defs.h"
+  )
   _obs_cross_plugin(
     obs-ffmpeg-amf-cross
     DIR plugins/obs-ffmpeg

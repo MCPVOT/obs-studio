@@ -509,3 +509,24 @@ void check_adapters(struct adapter_info *adapters, size_t *adapter_count)
 
 /* File-local macros (BUILD.md): out of the next file in the unity group. */
 #undef DEVICE_MGR_TYPE
+
+void qsv_host_select_accel_mode(mfxConfig cfg, bool *use_d3d11, bool *use_tex_alloc)
+{
+	mfxVariant tempImpl;
+
+	UNUSED_PARAMETER(use_d3d11);
+	UNUSED_PARAMETER(use_tex_alloc);
+
+	tempImpl.Type = MFX_VARIANT_TYPE_U32;
+	tempImpl.Data.U32 = MFX_ACCEL_MODE_VIA_VAAPI;
+	MFXSetConfigFilterProperty(cfg, (const mfxU8 *)"mfxImplDescription.AccelerationMode", tempImpl);
+}
+
+/* No video signal info buffer on VA-API (see the Windows TODO). */
+void qsv_host_add_video_signal_info(mfxExtVideoSignalInfo *info, const qsv_param_t *pParams,
+				    std::vector<mfxExtBuffer *> &extendedBuffers)
+{
+	UNUSED_PARAMETER(info);
+	UNUSED_PARAMETER(pParams);
+	UNUSED_PARAMETER(extendedBuffers);
+}
