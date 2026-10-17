@@ -599,6 +599,29 @@ The upstream replay-precision issue remains
 does not address same-stat source edits or justify removing the correctness
 safeguards. Native Windows input tracking still requires CI validation.
 
+### Host and container cache identities
+
+The pinned janitor's superseded-generation check groups by family and key
+shape, ignoring GitHub cache version. An offline probe marks a valid host
+archive superseded by a newer container archive with the same cook key and
+different version, even though both fit the family allowance. The observed
+18,020,243-byte Linux release entry's version matches the container archive
+path, not the host path. This does not prove a particular historical deletion.
+
+Use the existing `cache-key-suffix` input to distinguish `linux-host-v1`
+and `linux-container-v1`, keeping compatible host jobs together. The pinned
+superseded-generation check retains both namespaced fixtures. Profiles and
+master-only saves stay unchanged. The input also namespaces the action's Rust
+build-cache: first consumers can miss until trusted master seeds exist.
+Registry, toolchain, mini and standalone C/C++ keys stay shared as before;
+disabled layers stay disabled. No warm entry is forcibly deleted.
+[Identity probe and side effects](ci-evidence/2026-10-17-cook-layout-namespaces.json).
+
+Full validation's Fast Gate independently reported a base restore miss and
+later reservation conflict. Its cause remains unproven; namespace isolation
+is not evidence that this conflict is fixed. Measure fresh seeds and later
+consumers before claiming improved deep reuse or a throughput gain.
+
 ## Post-job cook-profile comparison
 
 The pinned action saves its cook archive **after** the job's consumers, so

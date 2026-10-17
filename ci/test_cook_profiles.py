@@ -14,6 +14,22 @@ def jobs(path):
 
 
 class CookProfilesTest(unittest.TestCase):
+    def test_linux_runner_layouts_have_distinct_cook_namespaces(self):
+        workflow = jobs(ROOT / ".github/workflows/build-project.yaml")
+
+        def namespace(name):
+            match = re.search(r"^\s+cache-key-suffix: (\S+)$", workflow[name], re.M)
+            self.assertIsNotNone(match, name)
+            return match[1]
+
+        host = {namespace(name) for name in ("rust-tests-linux", "rust-cross-lint", "rust-cross-lint-release")}
+        self.assertEqual(len(host), 1, "Compatible host jobs must share the same namespace")
+        self.assertNotIn(namespace("rust-linux-tier2-build"), host,
+                         "Different archive-path versions must not share janitor identity")
+        for name in ("rust-tests", "rust-tier2"):
+            self.assertNotIn("cache-key-suffix:", workflow[name],
+                             "Do not invalidate unrelated Windows/macOS caches")
+
     def test_build_consumers_declare_the_profile_policy(self):
         expected = {
             "rust-tests-linux": "${{ needs.check-event.outputs.core == 'true' && '--release' || '--profile dev' }}",

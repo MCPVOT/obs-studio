@@ -869,6 +869,9 @@ jobs:
           # No observed reuse in deferred Fast Gate; full/master sessions can consume it.
           build-cache: ${{ needs.check-event.outputs.deferred != 'true' }}
           prebuild-deps-flags: ${{ needs.check-event.outputs.core == 'true' && '--release' || '--profile dev' }}
+          # Host/container archive paths have different Actions-cache versions.
+          # Explicit identities stop the janitor treating them as duplicates.
+          cache-key-suffix: linux-host-v1
           save-cache-remote: ${{ github.ref == 'refs/heads/master' }}
           # The lanes add x86_64-pc-windows-gnu mid-job; the toolchain cache
           # would save it without its std (zackees/setup-soldr#507, #969).
@@ -1025,6 +1028,7 @@ jobs:
         with:
           version: 0.9.35
           prebuild-deps-flags: --profile dev
+          cache-key-suffix: linux-host-v1
           save-cache-remote: ${{ github.ref == 'refs/heads/master' }}
           # The cross lane adds targets mid-job (see the Rust Tests job, #969).
           solo-toolchain-cache: false
@@ -1067,6 +1071,7 @@ jobs:
         with:
           version: 0.9.35
           prebuild-deps-flags: --profile dev
+          cache-key-suffix: linux-host-v1
           save-cache-remote: ${{ github.ref == 'refs/heads/master' }}
           # cross-release installs target std libraries after setup (#507/#969).
           solo-toolchain-cache: false
@@ -1223,6 +1228,7 @@ jobs:
         with:
           version: 0.9.35
           prebuild-deps-flags: --release
+          cache-key-suffix: linux-container-v1
           save-cache-remote: ${{ github.ref == 'refs/heads/master' }}
           shims: true
 
