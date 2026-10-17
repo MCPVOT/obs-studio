@@ -91,6 +91,8 @@ tier2-ccache = { prefix = "tier2-ccache-linux-", max = "110MB" }
 # Tier 2's apt downloads (#1055) and the per-target Linux plugin builds' ccache.
 tier2-apt = { prefix = "tier2-apt-", max = "400MB" }
 targets-ccache = { prefix = "targets-ccache-linux-", max = "300MB" }
+# Host package archive: measured ~147 MB; isolated from container package versions.
+targets-apt = { prefix = "targets-apt-", max = "200MB", evict = "lru" }
 # Added on master after #957 was written.
 tier2-ctest-cost = { prefix = "tier2-ctest-cost-", max = "1MB" }
 windows-tier2-ccache = { prefix = "windows-tier2-ccache-", max = "800MB", evict = "lru" }

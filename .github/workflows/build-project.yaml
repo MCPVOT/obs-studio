@@ -906,21 +906,40 @@ jobs:
           path: ${{ github.workspace }}/.targets-ccache
           key: targets-ccache-linux-${{ github.sha }}
           restore-keys: targets-ccache-linux-
+      # The host package set differs from the Tier 2 container. Keep only
+      # host .debs in a workspace-relative archive; PRs restore, master saves.
+      - name: Prepare Touched Target apt Directory
+        if: needs.check-event.outputs.linux_targets != '' && (needs.check-event.outputs.deferred == 'true' || (github.event_name == 'push' && github.ref == 'refs/heads/master'))
+        run: mkdir -p "${GITHUB_WORKSPACE}/.targets-apt"
+      - name: Restore Touched Target apt Downloads
+        if: needs.check-event.outputs.linux_targets != '' && (needs.check-event.outputs.deferred == 'true' || (github.event_name == 'push' && github.ref == 'refs/heads/master'))
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ github.workspace }}/.targets-apt/*.deb
+          key: targets-apt-ubuntu2604-${{ hashFiles('rust/tools/linux-validate/apt-packages.txt') }}-${{ github.sha }}
+          restore-keys: targets-apt-ubuntu2604-${{ hashFiles('rust/tools/linux-validate/apt-packages.txt') }}-
       - name: Build Touched Linux Targets 🧱
         if: needs.check-event.outputs.linux_targets != '' && (needs.check-event.outputs.deferred == 'true' || (github.event_name == 'push' && github.ref == 'refs/heads/master'))
         env:
           TARGETS: ${{ needs.check-event.outputs.linux_targets }}
           CCACHE_DIR: ${{ github.workspace }}/.targets-ccache
+          APT_ARCHIVES: ${{ github.workspace }}/.targets-apt
         run: |
           git submodule update --init --recursive -q
           sudo apt-get update -qq
+          shopt -s nullglob
+          packages=("$APT_ARCHIVES"/*.deb)
+          echo "apt archives available: ${#packages[@]}"
           # Distro Qt headers only so configure passes: plugins/frontend-tools is a
           # core module that calls find_package(Qt6 REQUIRED). Nothing Qt is built
           # or tested here (only the touched targets); that is the Qt lane's job.
           grep -v '^#' rust/tools/linux-validate/apt-packages.txt |
-            xargs "${GITHUB_WORKSPACE}/.github/scripts/retry" sudo apt-get install -y --no-install-recommends
+            xargs "${GITHUB_WORKSPACE}/.github/scripts/retry" sudo apt-get install -o "Dir::Cache::archives=$APT_ARCHIVES" -o Binary::apt-get::APT::Keep-Downloaded-Packages=true -y --no-install-recommends
           # The launcher below; apt-packages.txt no longer lists it (#957, #1183).
-          "${GITHUB_WORKSPACE}/.github/scripts/retry" sudo apt-get install -y --no-install-recommends ccache
+          "${GITHUB_WORKSPACE}/.github/scripts/retry" sudo apt-get install -o "Dir::Cache::archives=$APT_ARCHIVES" -o Binary::apt-get::APT::Keep-Downloaded-Packages=true -y --no-install-recommends ccache
+          packages=("$APT_ARCHIVES"/*.deb)
+          echo "apt archive retained packages: ${#packages[@]}"
+          if [ "${#packages[@]}" -gt 0 ]; then du -ch "${packages[@]}" | tail -1; fi
           ccache --max-size=250M
           ccache --zero-stats
           cmake -S . -B "${RUNNER_TEMP}/targets" -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo \
@@ -943,6 +962,13 @@ jobs:
         with:
           path: ${{ github.workspace }}/.targets-ccache
           key: targets-ccache-linux-${{ github.sha }}
+
+      - name: Save Touched Target apt Downloads
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master' && needs.check-event.outputs.linux_targets != ''
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ github.workspace }}/.targets-apt/*.deb
+          key: targets-apt-ubuntu2604-${{ hashFiles('rust/tools/linux-validate/apt-packages.txt') }}-${{ github.sha }}
 
       # Skipped when a trusted run already passed these exact inputs.
       - name: Local Gate (rust-test) 🧪

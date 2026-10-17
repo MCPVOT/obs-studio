@@ -48,6 +48,23 @@ class AptCacheTest(unittest.TestCase):
             install_git = j[j.index("Install Git"):j.index("actions/checkout@")]
             self.assertIn("zstd", install_git, name)
 
+    def test_scoped_host_archive_is_used_and_only_master_saves(self):
+        text=WORKFLOW.read_text()
+        restore=text.index('- name: Restore Touched Target apt Downloads')
+        build=text.index('- name: Build Touched Linux Targets')
+        self.assertLess(restore,build)
+        self.assertIn('path: ${{ github.workspace }}/.targets-apt/*.deb',text[restore:build])
+        self.assertIn('targets-apt-ubuntu2604-',text[restore:build])
+        install=text[build:text.index('- name: Save Touched Target ccache',build)]
+        self.assertIn('Dir::Cache::archives=$APT_ARCHIVES',install)
+        self.assertIn('APT::Keep-Downloaded-Packages=true',install)
+        save=text[text.index('- name: Save Touched Target apt Downloads'):]
+        save=save.split('\n\n',1)[0]
+        self.assertIn("github.event_name == 'push'",save)
+        self.assertIn("refs/heads/master",save)
+        self.assertIn('/.targets-apt/*.deb',save)
+        self.assertIn('evict = "lru"',(WORKFLOW.parents[2]/'ci.toml').read_text().split('targets-apt =',1)[1].splitlines()[0])
+
     def test_only_master_build_job_saves(self):
         # Every PR and queue run saved its own 323 MB entry and pushed the
         # repo past its 10 GB cache limit, evicting the ccache.

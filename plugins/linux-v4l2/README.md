@@ -23,3 +23,8 @@ Read the compiler's hit/miss statistics and total job time together.
 Downloading an Actions cache archive alone does not establish reuse.
 The [CI cache audit](../../docs/ci-cache-audit-2026-10-17.md) tracks the
 controlled cold/warm measurement and its source/runner limitations.
+
+The scoped build restores a host-specific apt package archive before
+installing its distro dependencies. It refreshes apt metadata normally and
+downloads missing package versions as needed. Trusted master builds save
+this bounded archive; PRs and merge groups only restore it.
