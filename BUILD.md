@@ -23,6 +23,14 @@ cache):
 | Precompiled headers | 322 s | 1798 s |
 | Precompiled headers + unity | 198 s | 1053 s |
 
+Those are broader native-build measurements, not isolated libobs timings.
+A separate libobs-only experiment (GCC 15.2, RelWithDebInfo, `-j8`, three
+trials per condition) measured uncached medians of 9.75 → 9.41 s wall and
+63.48 → 46.62 s CPU; the wall-time ranges overlap. Warm ccache rebuilds
+measured 1.54 → 1.44 s, with all cacheable compilations hitting. See the
+[scoped results, raw evidence and reproduction commands](docs/ci-cache-audit-2026-10-17.md#isolated-c-libobs-build)
+before applying either result to CI runner or full-app timing claims.
+
 CMake's own `UNITY_BUILD` got us those numbers but batches sources by count
 in list order. Each OS has a different source list, so each OS gets different
 batches, and a name clash between two files appears only on the platform

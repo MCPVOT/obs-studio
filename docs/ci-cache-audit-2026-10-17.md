@@ -3,6 +3,75 @@
 Implementation and measurement tracker:
 [obs-studio#1286](https://github.com/obs-rust/obs-studio/issues/1286).
 
+## Isolated C libobs build
+
+Measured the `libobs` target alone, with Rust libobs, frontend, scripting,
+browser, websocket and unit-test builds disabled. Source revisions were
+`be611227b18bc9df89ad089992e6f05eda6e53ba` (immediately before #1128) and
+`d145635326a4753e729a4767eb233911258ef82b` (explicit unity/PCH groups).
+Both used the same Nix dependency environment, GCC 15.2, RelWithDebInfo,
+eight parallel jobs, and an AMD Ryzen 7 3700X. This is a local Linux build
+experiment, not a GitHub runner measurement or an application benchmark.
+
+| Condition | Before median wall (range), s | Current median wall (range), s | Before/current median CPU, s |
+| --- | --- | --- | --- |
+| Compiler cache disabled, 3 trials | 9.749 (9.654–9.899) | 9.407 (9.390–9.932) | 63.482 / 46.620 |
+| Warm ccache rebuild, 3 trials | 1.543 (1.541–1.556) | 1.435 (1.428–1.447) | 2.652 / 2.368 |
+
+The uncached wall medians differ by 3.5%, with overlapping ranges; this
+experiment does not establish a robust wall-time gain. CPU work fell 26.6%.
+The warm wall difference is 0.108 s (7.0%). Neither result supports calling
+the broader 315 → 198 s benchmark a libobs-only improvement. The revisions
+also contain intervening source changes, so this comparison measures the
+two actual revisions rather than isolating unity as the sole cause. Load
+averages are recorded per trial; no attempt was made to monopolize the host.
+
+With ccache 4.13.6, every measured warm trial had 125/125 cacheable hits
+before and 39/39 now. The initial cache-population build is retained in the
+raw data but excluded from warm medians. Warm trials remove compiler
+outputs before building, so they are real rebuilds rather than Ninja
+no-ops. Current PCH outputs cover `libobs`, `libobs-objects`,
+`libobs-core-modules`, and `libobs-version`; the remaining group families
+include their own headers textually under the build policy.
+
+[Raw trials, compiler settings, environment and cache statistics](ci-evidence/libobs-2026-10-17/)
+are committed with the report. Configure and Nix environment startup time
+are excluded from build timings. Existing application build directories and
+global caches were preserved; benchmark outputs and per-revision ccache
+stores live under the same checkout's ignored `build_ci_audit/` directory.
+
+### Reproduce
+
+Use the same checkout, switching source revisions between experiments.
+Save the measurement helper under `build_ci_audit/` before checking out an
+older revision that predates the helper. Run configure and measurement
+inside the same dependency environment, for example
+`nix-shell rust/tools/sanitize/shell.nix` on this Linux host.
+
+```sh
+mkdir -p build_ci_audit
+cp ci/benchmark_libobs.py build_ci_audit/benchmark_libobs.py
+# Switch to the revision being measured; use a new directory per revision.
+cmake -S . -B build_ci_audit/libobs-example -G Ninja \
+  -DCMAKE_BUILD_TYPE=RelWithDebInfo -DOBS_BUILD_NUMBER=1 \
+  -DENABLE_FRONTEND=OFF -DENABLE_SCRIPTING=OFF -DENABLE_BROWSER=OFF \
+  -DENABLE_WEBSOCKET=OFF -DENABLE_RUST_LIBOBS=OFF -DENABLE_UNIT_TESTS=OFF \
+  -DENABLE_AJA=OFF -DENABLE_WEBRTC=OFF -DENABLE_QSV11=OFF \
+  -DENABLE_VST=OFF -DENABLE_DECKLINK=OFF \
+  -DENABLE_ZCCACHE=OFF -DENABLE_CCACHE=OFF
+uv run build_ci_audit/benchmark_libobs.py \
+  --build build_ci_audit/libobs-example --output build_ci_audit/example-cold \
+  --repetitions 3 --jobs 8 --rebuild
+```
+
+For warm-cache trials, add ccache to the environment, reconfigure the same
+dedicated build with `-DCMAKE_C_COMPILER_LAUNCHER=ccache` and
+`-DCMAKE_CXX_COMPILER_LAUNCHER=ccache`, set a fresh per-revision `CCACHE_DIR`
+under `build_ci_audit/` and `CCACHE_MAXSIZE=250M`, then run the helper with
+`--repetitions 4 --rebuild --cache-stats`. The first trial populates the
+empty cache; compare the next three. The helper requires `safe-rm` to move
+only the dedicated build's compiler outputs to trash before each trial.
+
 ## Rust compiler cache: verified blocker
 
 The pinned soldr 0.9.35 still reproduces
