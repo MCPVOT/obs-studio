@@ -5,6 +5,12 @@
 
 #pragma once
 
+/* AVCaptureDeviceFormat+OBSListable declares its category properties
+ * read-write and implements only their getters (the setters go through
+ * associated objects in the getters). Compiled as its own main file this was
+ * never reported; in the unity group clang reports it under -Werror. */
+#pragma clang diagnostic ignored "-Wobjc-property-implementation"
+
 /* AVCaptureDeviceFormat+OBSListable.m */
 #import "plugins/mac-avcapture/OBSAVCapture.h"
 
