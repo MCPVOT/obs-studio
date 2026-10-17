@@ -15,21 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include <stdio.h>
-#include <string.h>
-#include <util/bmem.h>
-#include <util/dstr.h>
-#include <util/darray.h>
-#include <util/platform.h>
-#include <util/threading.h>
-#include <obs-module.h>
-#include <opts-parser.h>
-
-#ifndef _STDINT_H_INCLUDED
-#define _STDINT_H_INCLUDED
-#endif
-
-#include <x264.h>
+#include "build/obs-x264.pch.h"
 
 #define do_log_enc(level, encoder, format, ...) \
 	blog(level, "[x264 encoder: '%s'] " format, obs_encoder_get_name(encoder), ##__VA_ARGS__)
@@ -877,3 +863,24 @@ struct obs_encoder_info obs_x264_encoder = {
 	.caps = OBS_ENCODER_CAP_DYN_BITRATE | OBS_ENCODER_CAP_ROI,
 	.request_keyframe = obs_x264_request_keyframe,
 };
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef do_log_enc
+#undef do_log
+#undef warn
+#undef warn_enc
+#undef info
+#undef debug
+#undef TEXT_RATE_CONTROL
+#undef TEXT_BITRATE
+#undef TEXT_CUSTOM_BUF
+#undef TEXT_BUF_SIZE
+#undef TEXT_VFR
+#undef TEXT_CRF
+#undef TEXT_KEYINT_SEC
+#undef TEXT_PRESET
+#undef TEXT_PROFILE
+#undef TEXT_TUNE
+#undef TEXT_NONE
+#undef TEXT_X264_OPTS
+#undef OPENCL_ALIAS

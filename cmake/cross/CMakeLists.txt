@@ -383,3 +383,11 @@ _obs_cross_plugin(
   INCLUDES shared/media-playback shared/opts-parser
   DEFINES ENABLE_FFMPEG_LOGGING ENABLE_FFMPEG_NVENC NEW_MPEGTS_OUTPUT
 )
+
+# obs-x264's unity group (BUILD.md).
+_obs_cross_plugin(
+  obs-x264-cross
+  DIR plugins/obs-x264
+  SOURCES build/obs-x264.core+.h.c
+  INCLUDES shared/opts-parser
+)
