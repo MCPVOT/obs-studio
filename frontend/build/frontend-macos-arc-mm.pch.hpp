@@ -5,6 +5,10 @@
 
 #pragma once
 
+/* In the unity group the Objective-C++ files are included headers, where
+ * clang checks nullability completeness (as mac-virtualcam's, #1212). */
+#pragma clang diagnostic ignored "-Wnullability-completeness"
+
 /* utility/CrashHandler_MacOS.mm (the group builds with -fmodules) */
 @import Foundation;
 #import "frontend/utility/CrashHandler.hpp"

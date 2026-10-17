@@ -5,6 +5,10 @@
 
 #pragma once
 
+/* In the unity group the Objective-C++ files are included headers, where
+ * clang checks nullability completeness (as mac-virtualcam's, #1212). */
+#pragma clang diagnostic ignored "-Wnullability-completeness"
+
 /* utility/crypto-helpers-mac.mm */
 #include "frontend/utility/crypto-helpers.hpp"
 
