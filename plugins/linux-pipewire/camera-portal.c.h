@@ -327,16 +327,26 @@ static struct dstr aspect_ratio_from_spa_rectangle(struct spa_rectangle rect)
 	return str;
 }
 
+/* libcamera lists each pixel format's default size first, then every size,
+ * so the same format and size can come twice (obs-rust/obs-studio#1068). */
+struct listed_format {
+	uint32_t format;
+	struct spa_rectangle resolution;
+};
+
 static void camera_format_list(struct camera_device *dev, obs_property_t *prop)
 {
 	struct param *p;
 	obs_data_t *data = NULL;
 	struct dstr str = {};
+	g_autoptr(GArray) listed = g_array_new(FALSE, FALSE, sizeof(struct listed_format));
 
 	obs_property_list_clear(prop);
 
 	spa_list_for_each(p, &dev->param_list, link)
 	{
+		struct listed_format listed_format;
+		bool already_listed = false;
 		struct dstr aspect_ratio;
 		uint32_t media_type, media_subtype;
 		uint32_t format = 0;
@@ -377,6 +387,18 @@ static void camera_format_list(struct camera_device *dev, obs_property_t *prop)
 
 		if (spa_pod_parse_object(p->param, SPA_TYPE_OBJECT_Format, format ? &format : NULL,
 					 SPA_FORMAT_VIDEO_size, SPA_POD_Rectangle(&resolution)) < 0)
+			continue;
+
+		for (guint i = 0; i < listed->len; i++) {
+			const struct listed_format *f = &g_array_index(listed, struct listed_format, i);
+
+			if (f->format == format && f->resolution.width == resolution.width &&
+			    f->resolution.height == resolution.height) {
+				already_listed = true;
+				break;
+			}
+		}
+		if (already_listed)
 			continue;
 
 		obs_data_set_int(data, "width", resolution.width);
@@ -446,6 +468,10 @@ static void camera_format_list(struct camera_device *dev, obs_property_t *prop)
 
 		dstr_catf(&str, " - %s", format_name);
 		obs_property_list_add_string(prop, str.array, obs_data_get_json(data));
+
+		listed_format.format = format;
+		listed_format.resolution = resolution;
+		g_array_append_val(listed, listed_format);
 	}
 
 	g_clear_pointer(&data, obs_data_release);
