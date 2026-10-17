@@ -170,7 +170,19 @@ function(_obs_target_impl_languages target)
     endif()
     cmake_path(ABSOLUTE_PATH _source BASE_DIRECTORY "${_source_dir}" NORMALIZE OUTPUT_VARIABLE _absolute)
     _obs_file_language("${_absolute}" _language)
-    set_source_files_properties("${_absolute}" TARGET_DIRECTORY ${target} PROPERTIES LANGUAGE ${_language})
+    # Xcode takes a file's type from its extension, whatever LANGUAGE says: a
+    # .c.h would be a header there and never compile, so the C tests that pin
+    # one libobs file would link libobs's copy (or fail to, for hidden
+    # symbols: test_video_io_hidden).
+    set(_xcode_types_C sourcecode.c.c)
+    set(_xcode_types_CXX sourcecode.cpp.cpp)
+    set(_xcode_types_OBJC sourcecode.c.objc)
+    set(_xcode_types_OBJCXX sourcecode.cpp.objcpp)
+    set_source_files_properties(
+      "${_absolute}"
+      TARGET_DIRECTORY ${target}
+      PROPERTIES LANGUAGE ${_language} XCODE_EXPLICIT_FILE_TYPE ${_xcode_types_${_language}}
+    )
     get_property(_owner GLOBAL PROPERTY "_OBS_IMPL_OWNER:${_absolute}")
     if(_owner AND NOT _owner STREQUAL target)
       list(APPEND _owners ${_owner})
