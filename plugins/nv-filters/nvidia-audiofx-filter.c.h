@@ -1,11 +1,4 @@
-#include <stdint.h>
-#include <inttypes.h>
-#include <obs-module.h>
-#include <util/deque.h>
-#include <util/threading.h>
-#include <media-io/audio-resampler.h>
-#include "nvafx-load.h"
-#include <pthread.h>
+#include "build/nv-filters-windows-afx.pch.h"
 
 /* -------------------------------------------------------- */
 #define do_log(level, format, ...) \

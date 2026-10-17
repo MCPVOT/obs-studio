@@ -1,12 +1,4 @@
-#import <AppKit/AppKit.h>
-#import <IOSurface/IOSurface.h>
-#import <ScriptingBridge/ScriptingBridge.h>
-#import <Syphon/Syphon.h>
-
-#import <obs-module.h>
-#import <AvailabilityMacros.h>
-
-#import "SyphonOBSClient.h"
+#include "build/mac-syphon-macos-objc.pch.h"
 
 #define LOG(level, message, ...) blog(level, "%s: " message, obs_source_get_name(s->source), ##__VA_ARGS__)
 

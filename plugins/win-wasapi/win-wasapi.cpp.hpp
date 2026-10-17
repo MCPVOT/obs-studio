@@ -1,26 +1,4 @@
-#include "wasapi-notify.hpp"
-#include "enum-wasapi.hpp"
-
-#include <obs-module.h>
-#include <obs.h>
-#include <util/dstr.h>
-#include <util/platform.h>
-#include <util/windows/HRError.hpp>
-#include <util/windows/ComPtr.hpp>
-#include <util/windows/WinHandle.hpp>
-#include <util/windows/CoTaskMemPtr.hpp>
-#include <util/windows/win-version.h>
-#include <util/windows/window-helpers.h>
-#include <util/threading.h>
-#include <util/util_uint64.h>
-
-#include <atomic>
-#include <cinttypes>
-
-#include <audioclientactivationparams.h>
-#include <avrt.h>
-#include <RTWorkQ.h>
-#include <wrl/implements.h>
+#include "build/win-wasapi-windows.pch.hpp"
 
 using namespace std;
 

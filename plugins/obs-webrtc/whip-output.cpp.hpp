@@ -1,7 +1,4 @@
-#include "whip-output.h"
-#include "whip-utils.h"
-
-#include <obs.hpp>
+#include "build/obs-webrtc.pch.hpp"
 
 /*
  * Sets the maximum size for a video fragment. Effective range is

@@ -15,12 +15,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <stdint.h>
-#include <xcb/xfixes.h>
-#include <xcb/xcb.h>
-
-#include <util/bmem.h>
-#include "xcursor-xcb.h"
+#include "build/linux-capture-nix.pch.h"
 
 /*
  * Create the cursor texture, either by updating if the new cursor has the same

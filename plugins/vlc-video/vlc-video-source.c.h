@@ -1,10 +1,4 @@
-#include "vlc-video-plugin.h"
-#include "vlc-audio-order.h"
-#include "vlc-drain-gate.h"
-#include <media-io/video-frame.h>
-#include <util/threading.h>
-#include <util/platform.h>
-#include <util/dstr.h>
+#include "build/vlc-video.pch.h"
 
 #define do_log(level, format, ...) \
 	blog(level, "[vlc_source: '%s'] " format, obs_source_get_name(ss->source), ##__VA_ARGS__)

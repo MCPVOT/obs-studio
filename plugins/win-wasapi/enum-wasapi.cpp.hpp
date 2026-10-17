@@ -1,10 +1,4 @@
-#include "enum-wasapi.hpp"
-
-#include <util/base.h>
-#include <util/platform.h>
-#include <util/windows/HRError.hpp>
-#include <util/windows/ComPtr.hpp>
-#include <util/windows/CoTaskMemPtr.hpp>
+#include "build/win-wasapi-windows.pch.hpp"
 
 using namespace std;
 

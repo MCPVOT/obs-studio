@@ -15,10 +15,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "jack-wrapper.h"
-
-#include <obs-module.h>
-#include <util/dstr.h>
+#include "build/linux-jack-nix.pch.h"
 
 /**
  * Returns the name of the plugin

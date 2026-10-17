@@ -1,8 +1,4 @@
-#include "wasapi-notify.hpp"
-
-#include <obs-module.h>
-
-#include <util/windows/win-version.h>
+#include "build/win-wasapi-windows.pch.hpp"
 
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE("win-wasapi", "en-US")

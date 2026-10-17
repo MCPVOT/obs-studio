@@ -1,26 +1,4 @@
-#include <obs-module.h>
-#include <obs-nix-platform.h>
-#include <glad/glad.h>
-#include <X11/Xlib.h>
-#include <X11/Xutil.h>
-#include <X11/Xlib-xcb.h>
-#include <xcb/xcb.h>
-#include <xcb/composite.h>
-#include <pthread.h>
-
-#include <stdlib.h>
-#include <string.h>
-#include <stdint.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include <ctype.h>
-
-#include "xhelpers.h"
-#include "xcursor-xcb.h"
-#include "xcomposite-input.h"
-#include <util/platform.h>
-#include <util/dstr.h>
-#include <util/darray.h>
+#include "build/linux-capture-nix.pch.h"
 
 #define WIN_STRING_DIV "\r\n"
 #define FIND_WINDOW_INTERVAL 2.0

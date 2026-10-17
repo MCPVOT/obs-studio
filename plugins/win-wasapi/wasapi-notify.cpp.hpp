@@ -1,9 +1,4 @@
-#include "wasapi-notify.hpp"
-
-#include <windows.h>
-#include <assert.h>
-
-#include <util/threading.h>
+#include "build/win-wasapi-windows.pch.hpp"
 
 class NotificationClient : public IMMNotificationClient {
 	volatile long refs = 1;

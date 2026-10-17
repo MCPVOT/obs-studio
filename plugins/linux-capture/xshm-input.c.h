@@ -15,18 +15,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <inttypes.h>
-#include <xcb/randr.h>
-#include <xcb/shm.h>
-#include <xcb/xfixes.h>
-#include <xcb/xinerama.h>
-
-#include <obs-module.h>
-#include <util/dstr.h>
-#include "xcursor-xcb.h"
-#include "xhelpers.h"
+#include "build/linux-capture-nix.pch.h"
 
 #define XSHM_DATA(voidptr) struct xshm_data *data = voidptr;
 

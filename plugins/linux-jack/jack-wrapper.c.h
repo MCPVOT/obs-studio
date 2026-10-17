@@ -15,12 +15,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "jack-wrapper.h"
-
-#include <util/threading.h>
-#include <stdio.h>
-
-#include <util/platform.h>
+#include "build/linux-jack-nix.pch.h"
 
 #define blog(level, msg, ...) blog(level, "jack-input: " msg, ##__VA_ARGS__)
 

@@ -1,9 +1,4 @@
-#include <obs-module.h>
-#include <util/threading.h>
-#include <dxgi.h>
-#include <d3d11.h>
-#include <d3d11_1.h>
-#include "nvvfx-load.h"
+#include "build/nv-filters-windows-vfx.pch.h"
 /* -------------------------------------------------------- */
 
 #define do_log(level, format, ...) \

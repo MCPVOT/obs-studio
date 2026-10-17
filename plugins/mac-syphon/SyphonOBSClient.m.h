@@ -1,4 +1,4 @@
-#import "SyphonOBSClient.h"
+#include "build/mac-syphon-macos-objc.pch.h"
 
 @implementation SyphonOBSClient
 

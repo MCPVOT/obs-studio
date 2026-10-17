@@ -1,7 +1,4 @@
-#include <obs-module.h>
-
-#include "whip-output.h"
-#include "whip-service.h"
+#include "build/obs-webrtc.pch.hpp"
 
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE("obs-webrtc", "en-US")

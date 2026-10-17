@@ -1,9 +1,4 @@
-#ifdef _WIN32
-#include <windows.h>
-#endif
-
-#include <util/platform.h>
-#include "vlc-video-plugin.h"
+#include "build/vlc-video.pch.h"
 
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE("vlc-video", "en-US")

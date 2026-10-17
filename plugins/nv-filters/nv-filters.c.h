@@ -1,4 +1,4 @@
-#include <obs-module.h>
+#include "build/nv-filters-windows.pch.h"
 
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE("nv-filters", "en-US")

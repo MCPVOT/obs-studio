@@ -271,7 +271,7 @@ if(_host STREQUAL WINDOWS)
   _obs_cross_plugin(
     win-wasapi-cross
     DIR plugins/win-wasapi
-    SOURCES enum-wasapi.cpp plugin-main.cpp wasapi-notify.cpp win-wasapi.cpp
+    SOURCES build/win-wasapi.windows+.hpp.cpp
   )
   _obs_cross_plugin(
     win-dshow-cross
@@ -308,6 +308,13 @@ if(_host STREQUAL WINDOWS)
       obs-inject-library/build/inject-library.windows+.h.c
       obs-shared-memory-queue/build/shared-memory-queue.windows+.h.c
     INCLUDES shared/ipc-util shared/obs-inject-library shared/obs-shared-memory-queue shared/obs-tiny-nv12-scale libobs/util/windows
+  )
+  # nv-filters' unity groups (BUILD.md), with both optional effects.
+  _obs_cross_plugin(
+    nv-filters-cross
+    DIR plugins/nv-filters
+    SOURCES build/nv-filters.windows+.h.c build/nv-filters.windows-afx+.h.c build/nv-filters.windows-vfx+.h.c
+    DEFINES LIBNVAFX_ENABLED LIBNVVFX_ENABLED
   )
   # libobs-d3d11's unity group (BUILD.md).
   _obs_cross_plugin(libobs-d3d11-cross DIR libobs-d3d11 SOURCES build/d3d11.core+.hpp.cpp DEFINES GPU_PRIORITY_VAL=0)
