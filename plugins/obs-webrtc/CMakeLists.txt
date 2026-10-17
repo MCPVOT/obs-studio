@@ -13,7 +13,16 @@ add_library(OBS::webrtc ALIAS obs-webrtc)
 
 target_sources(
   obs-webrtc
-  PRIVATE build/obs-webrtc.core+.hpp.cpp whip-output.h whip-service.h whip-utils.h whip-rtp-timestamp.h
+  PRIVATE
+    $<$<PLATFORM_ID:Darwin>:build/obs-webrtc.macos+.hpp.cpp>
+    $<$<PLATFORM_ID:Linux,FreeBSD,OpenBSD>:build/obs-webrtc.posix+.hpp.cpp>
+    $<$<PLATFORM_ID:Windows>:build/obs-webrtc.windows+.hpp.cpp>
+    build/obs-webrtc.core+.hpp.cpp
+    whip-output.h
+    whip-service.h
+    whip-utils.h
+    whip-host.h
+    whip-rtp-timestamp.h
 )
 
 target_link_libraries(obs-webrtc PRIVATE OBS::libobs LibDataChannel::LibDataChannel CURL::libcurl)

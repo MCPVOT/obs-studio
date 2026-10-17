@@ -2,6 +2,8 @@
 
 #include <obs.h>
 
+#include "whip-host.h"
+
 #include <string>
 #include <random>
 #include <sstream>
@@ -58,20 +60,6 @@ static size_t curl_header_function(char *data, size_t size, size_t nmemb, void *
 
 static inline std::string generate_user_agent()
 {
-#ifdef _WIN64
-#define OS_NAME "Windows x86_64"
-#elif __APPLE__
-#define OS_NAME "Mac OS X"
-#elif __OpenBSD__
-#define OS_NAME "OpenBSD"
-#elif __FreeBSD__
-#define OS_NAME "FreeBSD"
-#elif __linux__ && __LP64__
-#define OS_NAME "Linux x86_64"
-#else
-#define OS_NAME "Linux"
-#endif
-
 	// Build the user-agent string
 	std::stringstream ua;
 	// User agent header prefix
@@ -79,7 +67,7 @@ static inline std::string generate_user_agent()
 	// OBS version info
 	ua << "(OBS-Studio/" << obs_get_version_string() << "; ";
 	// Operating system version info
-	ua << OS_NAME << "; " << obs_get_locale() << ")";
+	ua << whip_host_os_name() << "; " << obs_get_locale() << ")";
 
 	return ua.str();
 }

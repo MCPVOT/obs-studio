@@ -128,7 +128,6 @@
   "plugins/obs-vst/headers/EditorWidget.h": 6,
   "plugins/obs-vst/headers/VSTPlugin.h": 5,
   "plugins/obs-vst/obs-vst.cpp.hpp": 12,
-  "plugins/obs-webrtc/whip-utils.h": 5,
   "plugins/vlc-video/vlc-video-plugin.h": 1,
   "shared/ipc-util/ipc-util/platform-pipe-compat.h": 1,
   "shared/ipc-util/ipc-util/platform-pipe.h": 1,
