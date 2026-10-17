@@ -218,20 +218,7 @@ if(_host STREQUAL WINDOWS)
   _obs_cross_plugin(
     win-capture-cross
     DIR plugins/win-capture
-    SOURCES
-      app-helpers.c
-      audio-helpers.c
-      compat-helpers.c
-      cursor-capture.c
-      dc-capture.c
-      duplicator-monitor-capture.c
-      game-capture-file-init.c
-      game-capture.c
-      load-graphics-offsets.c
-      monitor-capture.c
-      nt-stuff.c
-      plugin-main.c
-      window-capture.c
+    SOURCES build/win-capture.windows+.h.c build/win-capture.window-capture-windows+.h.c
     INCLUDES shared/obs-hook-config shared/obs-inject-library shared/ipc-util shared/file-updater libobs-winrt
     DEFINES COMPAT_URL="cross-check"
   )
