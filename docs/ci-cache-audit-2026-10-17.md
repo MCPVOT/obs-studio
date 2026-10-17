@@ -502,6 +502,57 @@ an overlay base, so the bounded family remains relevant after that migration.
 Security analysis stays outside PR/merge-group admission. Its cache behavior
 is independent of the compiler-cache hit rates used to assess build speed.
 
+## Queue publication and deeper unit-test caching
+
+The proposed single publisher must account for GitHub's branch-scoped caches:
+temporary merge-group caches are not shared default-branch seeds. A queue
+payload could be promoted by an existing master-push workflow after verifying
+the successful queue run and matching source tree. That publisher would be
+the cache-write exception; ordinary jobs could enforce `cache-mode: read`.
+No publication-policy change or promotion implementation is claimed here.
+GitHub caches are immutable, so refreshed payloads need generation keys.
+
+Deep Rust state is already present: the pinned setup action's native macOS
+post-step saved a `full` archive with 8,238 files, and the local dev archive
+contains test fingerprints and incremental state. With the pinned action's
+default `cook-delta: false`, a warm base selects no save layer. Measure bounded
+generation refresh and consumption before adding a duplicate target archive.
+
+The existing Tier 2 execution-tree artifact is 177,234,558 bytes in run
+39069670404. It contains binaries/runtime files, excludes objects and Cargo
+state, and currently transfers work from the build job to OFF/ON test jobs.
+Exact-input reuse could save compilation work; it cannot replace executing
+tests, and it does not supply changed-source incremental reuse by itself.
+
+[A manual deep-cache probe](ci-evidence/2026-10-17-deep-test-cache-probe.json)
+demonstrates a separate invalidation problem with the compiler wrapper disabled:
+
+| Condition after target restore | Observed result |
+| --- | --- |
+| Unchanged source | Unit-test binary reused and executed successfully |
+| Ordinary nested edit adding `compile_error!` | Recompiled; exit 101 with current diagnostic |
+| Same edit preserving size and nanosecond mtime | Old unit-test binary executed; false success |
+| Invalidate changed package's fingerprints | Recompiled; exit 101; unchanged dependency stayed cached |
+
+The guard quarantines package fingerprints without deleting the cached
+dependency. The fixture knows which package changed; automatic content-to-package
+mapping, generated/build-script inputs and full-workspace invalidation remain
+unimplemented. This validates a mechanism, not production cache safety or a
+performance improvement. Preserve both existing safeguards while evaluating it.
+
+Run the probe in a new directory within this checkout:
+
+```sh
+uv run ci/deep_test_cache_probe.py \
+  --directory build_ci_audit/deep-cache-new \
+  --soldr /absolute/path/to/soldr --verify-guard
+```
+
+`--verify-guard` requires unchanged reuse, ordinary-edit rejection, guarded
+same-stamp rejection and dependency preservation. Without that flag the probe
+exits 1 when it reproduces stale unit-test success. Logs and the archive remain
+in the chosen directory. No global cache or daemon is purged.
+
 ## Post-job cook-profile comparison
 
 The pinned action saves its cook archive **after** the job's consumers, so
