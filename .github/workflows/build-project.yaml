@@ -847,6 +847,7 @@ jobs:
         with:
           # soldr 0.9.35 embeds zccache 1.15.4 (has zackees/zccache#1937).
           version: 0.9.35
+          prebuild-deps-flags: ${{ needs.check-event.outputs.core == 'true' && '--release' || '--profile dev' }}
           save-cache-remote: ${{ github.ref == 'refs/heads/master' }}
           # The lanes add x86_64-pc-windows-gnu mid-job; the toolchain cache
           # would save it without its std (zackees/setup-soldr#507, #969).
@@ -959,6 +960,7 @@ jobs:
         uses: zackees/setup-soldr@b782f606a2f3beadc35b9e3bf5b4565e005f52ed # v0.9.86
         with:
           version: 0.9.35
+          prebuild-deps-flags: --profile dev
           save-cache-remote: ${{ github.ref == 'refs/heads/master' }}
           # The cross lane adds targets mid-job (see the Rust Tests job, #969).
           solo-toolchain-cache: false
@@ -1000,6 +1002,7 @@ jobs:
         uses: zackees/setup-soldr@b782f606a2f3beadc35b9e3bf5b4565e005f52ed # v0.9.86
         with:
           version: 0.9.35
+          prebuild-deps-flags: --profile dev
           save-cache-remote: ${{ github.ref == 'refs/heads/master' }}
           # cross-release installs target std libraries after setup (#507/#969).
           solo-toolchain-cache: false
@@ -1036,6 +1039,7 @@ jobs:
         with:
           # soldr 0.9.35 embeds zccache 1.15.4 (has zackees/zccache#1937).
           version: 0.9.35
+          prebuild-deps-flags: --profile dev
           save-cache-remote: ${{ github.ref == 'refs/heads/master' }}
 
       - name: Set Up uv 🐍
@@ -1152,6 +1156,7 @@ jobs:
         uses: zackees/setup-soldr@b782f606a2f3beadc35b9e3bf5b4565e005f52ed # v0.9.86
         with:
           version: 0.9.35
+          prebuild-deps-flags: --release
           save-cache-remote: ${{ github.ref == 'refs/heads/master' }}
           shims: true
 
@@ -1477,6 +1482,7 @@ jobs:
           # soldr 0.9.35 embeds zccache 1.15.4, which names MSVC staticlib
           # outputs <crate>-<hash>.lib (zackees/zccache#1937).
           version: 0.9.35
+          prebuild-deps-flags: --release
           save-cache-remote: ${{ github.ref == 'refs/heads/master' }}
           shims: true
 

@@ -457,3 +457,25 @@ Each gap is a step toward the full protocol, and a good issue to pick up:
 - **Feed lessons back.** Problems found here, such as the stale zccache
   replay or the gate lock contention, belong in the tool's own repo, so every
   project using the protocol benefits.
+
+## Cook profiles and post-job snapshots
+
+All setup-soldr consumers declare their cook flags. Static-library and
+release jobs cook release dependencies. Native test and cross-check jobs
+use the dev profile; cross checks still install their target standard
+libraries through the existing gate, and host cooking does not imply
+that a cross-target dependency tree is prebuilt.
+
+Fast Gate retains release cooking for core changes and uses dev cooking
+when workspace core inputs are unchanged. The local post-job benchmark
+(#1317) measured unchanged medians of 57.259 s release, 36.170 s dev and
+72.136 s without cook; core rebuild medians favored release but varied
+widely. This is a policy to validate in live CI, not a universal profile
+speed claim. The action hashes profile flags into the cook cache key, so
+the dev rollout gets a separate archive generation. Master must seed it
+before later PRs can get a warm restore.
+
+The action saves the cook snapshot after consumers run. Thus a release
+archive can also carry dev artifacts. Keep dependency cooking enabled
+unless setup plus consumer measurements demonstrate that removing it is
+faster; do not decide from the profile name alone.
