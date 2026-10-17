@@ -35,5 +35,5 @@ if(OS_LINUX AND TARGET OBS::libobs-opengl AND TARGET OBS::media-playback)
     COMMAND test_media_cover_art_seek
     WORKING_DIRECTORY "${OBS_OUTPUT_DIR}/$<CONFIG>"
   )
-  set_tests_properties(test_media_cover_art_seek PROPERTIES TIMEOUT 120)
+  set_tests_properties(test_media_cover_art_seek PROPERTIES RUN_SERIAL TRUE TIMEOUT 120)
 endif()
