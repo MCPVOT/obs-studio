@@ -26,6 +26,9 @@ static void *fake_refresh_thread(void *data)
 	return NULL;
 }
 
+/* Upper bounds are against the 5000 ms timeout the old polling loop waited
+ * out, not against the 50 ms refresh: a loaded CI runner (macOS) can
+ * oversleep a 50 ms os_sleep_ms well past 150 ms. */
 static uint64_t run_wait(bool success, unsigned long delay_ms, unsigned long timeout_ms, bool *ended)
 {
 	struct ingest_refresh_wait w;
@@ -52,7 +55,7 @@ static void successful_refresh_ends_wait(void **state)
 	uint64_t ms = run_wait(true, 50, 5000, &ended);
 	assert_true(ended);
 	assert_true(ms >= 40);
-	assert_true(ms < 150);
+	assert_true(ms < 1000);
 }
 
 /* A refresh whose download arrived but did not parse still ends the wait:
@@ -63,7 +66,7 @@ static void failed_refresh_ends_wait(void **state)
 	bool ended;
 	uint64_t ms = run_wait(false, 50, 5000, &ended);
 	assert_true(ended);
-	assert_true(ms < 150);
+	assert_true(ms < 1000);
 }
 
 static void refresh_that_never_ends_times_out(void **state)
