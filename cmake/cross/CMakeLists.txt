@@ -276,7 +276,7 @@ if(_host STREQUAL WINDOWS)
   _obs_cross_plugin(
     win-dshow-cross
     DIR plugins/win-dshow
-    SOURCES dshow-plugin.cpp ffmpeg-decode.c win-dshow-encoder.cpp win-dshow.cpp
+    SOURCES build/win-dshow.windows+.hpp.cpp build/win-dshow.decode-windows+.h.c build/win-dshow.virtualcam-windows+.h.c
     INCLUDES deps/libdshowcapture deps/libdshowcapture/src shared/obs-tiny-nv12-scale shared/obs-shared-memory-queue
   )
   _obs_cross_plugin(
