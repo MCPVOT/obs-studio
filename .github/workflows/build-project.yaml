@@ -849,6 +849,8 @@ jobs:
         with:
           # soldr 0.9.35 embeds zccache 1.15.4 (has zackees/zccache#1937).
           version: 0.9.35
+          # No observed reuse in deferred Fast Gate; full/master sessions can consume it.
+          build-cache: ${{ needs.check-event.outputs.deferred != 'true' }}
           prebuild-deps-flags: ${{ needs.check-event.outputs.core == 'true' && '--release' || '--profile dev' }}
           save-cache-remote: ${{ github.ref == 'refs/heads/master' }}
           # The lanes add x86_64-pc-windows-gnu mid-job; the toolchain cache

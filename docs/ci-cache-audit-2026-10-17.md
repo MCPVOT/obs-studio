@@ -172,3 +172,49 @@ metadata, without adding another API request to the gate.
 Post-change measurements must use a separate window and preserve these
 cohort/coverage distinctions. The day-long post-change comparison remains
 open until the configuration changes have landed and that window exists.
+
+## Unused gate compiler-cache layer
+
+Master run [39056485478](https://github.com/obs-rust/obs-studio/actions/runs/39056485478),
+Fast Gate job 117465447413, restored a 1.2 KB build-cache archive (four
+files, 1.8 KB inflated) in 0.7 s. Its final session counters were zero
+hits, misses and compilations; post-job save skipped the zero-compile
+delta. The local gate explicitly bypasses this Rust compiler cache for
+lint, tests and cross checks because of the verified correctness blocker.
+
+Disable this layer only for deferred PR/merge-group Fast Gate runs,
+retaining cook and registry snapshots. The full-day sample contains 26
+PR and 18 merge-group Fast Gate session reports with no positive compiler
+hits (26 and 16 respectively had zero compilations). In contrast, 5/24
+master Fast Gate samples and 3/8 PR/queue cross-lint samples had positive
+hits. Keep full/master and cross-lint caching rather than extrapolating
+from the initial zero-counter run.
+
+The Rust wrapper bypass does not establish that every compiler-cache
+consumer is inactive: dependency cooking and C compiler work may still
+use it. [Captured sample coverage](ci-evidence/2026-10-17-gate-cache-consumption.json).
+This is a small measured operation to remove from the deferred path, not
+a claim of a large CI gain. Cold cook may lose potential compiler-cache
+reuse after a lock change; retain the published post-job cook snapshots
+and measure total live setup/consumer time. Concurrent action phase
+times must not be summed as sequential wall time.
+
+## Additional cache inventory: CodeQL overlays
+
+The cache API snapshot at 2026-10-17 18:39 UTC contained 43 entries totaling
+4,389,323,635 bytes (below the 10 GB repository budget). This is a live
+snapshot, not historical baseline occupancy. Qt's newest entry was
+1,114,881,014 bytes, reinforcing the pending sizing correction.
+
+GitHub's default CodeQL setup writes `codeql-overlay-base-database-*`
+entries outside the repository's explicit workflows. The snapshot included
+a 131,294,279-byte C++ base and Python bases around 11 MB. These keys have
+no matching declared family, so the janitor treats them as unknown after
+the grace window. They are consumed: PR run 39057119695, C++ job
+117467259478, restored the master overlay in about 3.7 s (18:13:17.924 to
+18:13:21.606). Master run 39057995138 saved a new base in about 5.1 s.
+
+A bounded retention family merits evaluation; blanket deletion discards
+observed reuse, but these logs alone do not measure the analysis speedup
+against a cold run. Keep this separate from compiler-cache hit rates and
+from the required merge gate, which does not wait for CodeQL.
