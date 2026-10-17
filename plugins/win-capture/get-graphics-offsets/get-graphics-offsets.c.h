@@ -1,7 +1,4 @@
-#include <inttypes.h>
-#include <stdio.h>
-#include <windows.h>
-#include "get-graphics-offsets.h"
+#include "plugins/win-capture/get-graphics-offsets/build/get-graphics-offsets.pch.h"
 
 int main(int argc, char *argv[])
 {

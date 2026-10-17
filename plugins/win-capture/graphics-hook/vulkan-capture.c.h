@@ -1,21 +1,4 @@
-#include <windows.h>
-#include "graphics-hook.h"
-
-#define VK_USE_PLATFORM_WIN32_KHR
-
-#include <malloc.h>
-#include <vulkan/vulkan.h>
-#include <vulkan/vk_layer.h>
-
-#include <vulkan/vulkan_win32.h>
-
-#define COBJMACROS
-#include <dxgi.h>
-#include <d3d11.h>
-
-#include "dxgi-helpers.hpp"
-
-#include "vulkan-capture.h"
+#include "plugins/win-capture/graphics-hook/build/graphics-hook-vulkan-capture.pch.h"
 
 /* ======================================================================== */
 /* defs/statics                                                             */
@@ -2101,3 +2084,9 @@ bool hook_vulkan(void)
 	}
 	return hooked;
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef GET_LDT
+#undef OBS_COLOR_ATTACHMENT_LIMIT
+#undef GETPROCADDR_IF_SUPPORTED
+#undef RETURN_FP_FOR_NULL_INSTANCE

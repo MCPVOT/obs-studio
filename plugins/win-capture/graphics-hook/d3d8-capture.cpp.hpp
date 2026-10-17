@@ -1,13 +1,4 @@
-#include <dxgi.h>
-
-#ifdef OBS_LEGACY
-#include "../d3d8-api/d3d8.h"
-#else
-#include <d3d8.h>
-#endif
-#include "graphics-hook.h"
-
-#include <detours.h>
+#include "plugins/win-capture/graphics-hook/build/graphics-hook-d3d8-capture.pch.hpp"
 
 typedef HRESULT(STDMETHODCALLTYPE *reset_t)(IDirect3DDevice8 *, D3DPRESENT_PARAMETERS *);
 typedef HRESULT(STDMETHODCALLTYPE *present_t)(IDirect3DDevice8 *, CONST RECT *, CONST RECT *, HWND, CONST RGNDATA *);

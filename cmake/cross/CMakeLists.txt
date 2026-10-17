@@ -232,22 +232,26 @@ if(_host STREQUAL WINDOWS)
     graphics-hook-cross
     DIR plugins/win-capture/graphics-hook
     SOURCES
-      d3d10-capture.cpp
-      d3d11-capture.cpp
-      d3d12-capture.cpp
-      d3d8-capture.cpp
-      d3d9-capture.cpp
-      dxgi-capture.cpp
-      gl-capture.c
-      graphics-hook.c
-      vulkan-capture.c
+      build/graphics-hook.d3d10-capture-windows+.hpp.cpp
+      build/graphics-hook.d3d11-capture-windows+.hpp.cpp
+      build/graphics-hook.d3d12-capture-windows+.hpp.cpp
+      build/graphics-hook.d3d8-capture-windows+.hpp.cpp
+      build/graphics-hook.d3d9-capture-windows+.hpp.cpp
+      build/graphics-hook.dxgi-capture-windows+.hpp.cpp
+      build/graphics-hook.gl-capture-windows+.h.c
+      build/graphics-hook.graphics-hook-windows+.h.c
+      build/graphics-hook.vulkan-capture-windows+.h.c
     INCLUDES shared/obs-hook-config shared/ipc-util shared/obs-d3d8-api plugins/win-capture
     DEFINES COMPILE_D3D12_HOOK COMPILE_VULKAN_HOOK
   )
   _obs_cross_plugin(
     get-graphics-offsets-cross
     DIR plugins/win-capture/get-graphics-offsets
-    SOURCES d3d8-offsets.cpp d3d9-offsets.cpp ddraw-offsets.cpp dxgi-offsets.cpp get-graphics-offsets.c
+    SOURCES
+      build/get-graphics-offsets.d3d8-offsets-windows+.hpp.cpp
+      build/get-graphics-offsets.d3d9-offsets-windows+.hpp.cpp
+      build/get-graphics-offsets.dxgi-offsets-windows+.hpp.cpp
+      build/get-graphics-offsets.get-graphics-offsets-windows+.h.c
     INCLUDES shared/obs-hook-config shared/obs-d3d8-api plugins/win-capture
   )
   # The hook and offsets helper don't link libobs: standard-library PCH, as

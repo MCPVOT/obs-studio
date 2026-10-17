@@ -1,18 +1,4 @@
-#ifdef _MSC_VER
-#pragma warning(disable : 4214) /* nonstandard extension, non-int bitfield */
-#pragma warning(disable : 4054) /* function pointer to data pointer */
-#endif
-
-#include <windows.h>
-
-#define COBJMACROS
-#include <dxgi.h>
-#include <d3d11.h>
-
-#include "gl-decs.h"
-#include "graphics-hook.h"
-
-#include <detours.h>
+#include "plugins/win-capture/graphics-hook/build/graphics-hook-gl-capture.pch.h"
 
 #define DUMMY_WINDOW_CLASS_NAME L"graphics_hook_gl_dummy_window"
 
@@ -879,3 +865,10 @@ bool hook_gl(void)
 
 	return success;
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef DUMMY_WINDOW_CLASS_NAME
+#undef GET_PROC
+#undef INIT_SUCCESS
+#undef INIT_FAILED
+#undef INIT_SHTEX_FAILED

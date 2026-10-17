@@ -10,7 +10,7 @@ endif()
 
 add_executable(inject-helper)
 
-target_sources(inject-helper PRIVATE inject-helper.c)
+target_sources(inject-helper PRIVATE build/inject-helper.inject-helper-windows+.h.c)
 
 target_link_libraries(inject-helper PRIVATE OBS::inject-library OBS::obfuscate)
 

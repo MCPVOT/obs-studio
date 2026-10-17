@@ -1,7 +1,4 @@
-#include <stdio.h>
-#include <windows.h>
-#include <d3d9.h>
-#include "get-graphics-offsets.h"
+#include "plugins/win-capture/get-graphics-offsets/build/get-graphics-offsets-d3d9-offsets.pch.hpp"
 
 typedef HRESULT(WINAPI *d3d9createex_t)(UINT, IDirect3D9Ex **);
 
@@ -353,3 +350,8 @@ void get_d3d9_offsets(struct d3d9_offsets *offsets)
 
 	d3d9_free(info);
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef MAX_CMP_SIZE
+#undef MAX_FUNC_SCAN_BYTES
+#undef get_offset

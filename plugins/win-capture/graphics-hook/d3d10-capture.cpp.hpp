@@ -1,8 +1,4 @@
-#include <d3d10.h>
-#include <dxgi.h>
-
-#include "dxgi-helpers.hpp"
-#include "graphics-hook.h"
+#include "plugins/win-capture/graphics-hook/build/graphics-hook-d3d10-capture.pch.hpp"
 
 struct d3d10_data {
 	ID3D10Device *device; /* do not release */

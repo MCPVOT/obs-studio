@@ -1,16 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <wchar.h>
-#include <windows.h>
-#include <shellapi.h>
-#include <stdbool.h>
-#ifdef OBS_LEGACY
-#include "../../../libobs/util/windows/obfuscate.h"
-#include "../inject-library.h"
-#else
-#include <util/windows/obfuscate.h>
-#include <inject-library.h>
-#endif
+#include "plugins/win-capture/inject-helper/build/inject-helper.pch.h"
 
 #if defined(_MSC_VER) && !defined(inline)
 #define inline __inline
@@ -116,3 +104,6 @@ int main(void)
 
 	return ret;
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef inline

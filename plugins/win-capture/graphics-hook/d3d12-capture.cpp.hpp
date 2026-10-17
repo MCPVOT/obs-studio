@@ -1,16 +1,6 @@
-#include <windows.h>
-#include "graphics-hook.h"
+#include "plugins/win-capture/graphics-hook/build/graphics-hook-d3d12-capture.pch.hpp"
 
 #if COMPILE_D3D12_HOOK
-
-#include <d3d11on12.h>
-#include <d3d12.h>
-#include <dxgi1_4.h>
-#include <inttypes.h>
-
-#include <detours.h>
-
-#include "dxgi-helpers.hpp"
 
 #define MAX_BACKBUFFERS 8
 
@@ -439,3 +429,6 @@ bool hook_d3d12(void)
 }
 
 #endif
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef MAX_BACKBUFFERS

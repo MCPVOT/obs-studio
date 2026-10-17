@@ -1,14 +1,4 @@
-#include <windows.h>
-#include <psapi.h>
-#include <inttypes.h>
-#include "graphics-hook.h"
-#ifdef OBS_LEGACY
-#include "../graphics-hook-ver.h"
-#include "../../libobs/util/windows/obfuscate.h"
-#else
-#include <graphics-hook-ver.h>
-#include <util/windows/obfuscate.h>
-#endif
+#include "plugins/win-capture/graphics-hook/build/graphics-hook.pch.h"
 
 #define DEBUG_OUTPUT
 
@@ -905,3 +895,10 @@ __declspec(dllexport) LRESULT CALLBACK dummy_debug_proc(int code, WPARAM wparam,
 
 	return CallNextHookEx(0, code, wparam, lparam);
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef DEBUG_OUTPUT
+#undef DbgOut
+#undef DEF_FLAGS
+#undef ALIGN
+#undef HOOK_NAME

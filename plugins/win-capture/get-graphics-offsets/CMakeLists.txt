@@ -15,7 +15,12 @@ add_executable(get-graphics-offsets)
 set_property(TARGET get-graphics-offsets PROPERTY OBS_DISABLE_UNITY_BUILD ON)
 target_sources(
   get-graphics-offsets
-  PRIVATE d3d8-offsets.cpp d3d9-offsets.cpp dxgi-offsets.cpp get-graphics-offsets.c get-graphics-offsets.h
+  PRIVATE
+    build/get-graphics-offsets.d3d8-offsets-windows+.hpp.cpp
+    build/get-graphics-offsets.d3d9-offsets-windows+.hpp.cpp
+    build/get-graphics-offsets.dxgi-offsets-windows+.hpp.cpp
+    build/get-graphics-offsets.get-graphics-offsets-windows+.h.c
+    get-graphics-offsets.h
 )
 
 target_link_libraries(

@@ -29,16 +29,16 @@ add_library(OBS::graphics-hook ALIAS graphics-hook)
 target_sources(
   graphics-hook
   PRIVATE
-    d3d10-capture.cpp
-    d3d11-capture.cpp
-    d3d12-capture.cpp
-    d3d8-capture.cpp
-    d3d9-capture.cpp
+    build/graphics-hook.d3d10-capture-windows+.hpp.cpp
+    build/graphics-hook.d3d11-capture-windows+.hpp.cpp
+    build/graphics-hook.d3d12-capture-windows+.hpp.cpp
+    build/graphics-hook.d3d8-capture-windows+.hpp.cpp
+    build/graphics-hook.d3d9-capture-windows+.hpp.cpp
     d3d9-patches.hpp
-    dxgi-capture.cpp
-    gl-capture.c
+    build/graphics-hook.dxgi-capture-windows+.hpp.cpp
+    build/graphics-hook.gl-capture-windows+.h.c
     gl-decs.h
-    graphics-hook.c
+    build/graphics-hook.graphics-hook-windows+.h.c
     graphics-hook.h
     graphics-hook.rc
 )
@@ -53,7 +53,7 @@ target_link_libraries(
 target_link_options(graphics-hook PRIVATE /IGNORE:4099)
 
 if(TARGET Vulkan::Vulkan)
-  target_sources(graphics-hook PRIVATE vulkan-capture.c vulkan-capture.h)
+  target_sources(graphics-hook PRIVATE build/graphics-hook.vulkan-capture-windows+.h.c vulkan-capture.h)
   target_link_libraries(graphics-hook PRIVATE Vulkan::Vulkan)
   target_compile_definitions(graphics-hook PRIVATE COMPILE_VULKAN_HOOK)
 endif()
