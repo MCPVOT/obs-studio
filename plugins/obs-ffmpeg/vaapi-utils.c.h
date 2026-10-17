@@ -2,17 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-#include "vaapi-utils.h"
-
-#include <util/bmem.h>
-#include <util/dstr.h>
-
-#include <va/va_drm.h>
-#include <va/va_str.h>
-
-#include <stdio.h>
-#include <unistd.h>
-#include <fcntl.h>
+#include "build/obs-ffmpeg-vaapi.pch.h"
 
 static bool version_logged = false;
 
@@ -377,3 +367,7 @@ const char *vaapi_get_hevc_default_device()
 }
 
 #endif // #ifdef ENABLE_HEVC
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef CHECK_PROFILE
+#undef CHECK_PROFILE_LP

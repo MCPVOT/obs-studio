@@ -15,17 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include <util/base.h>
-#include <util/deque.h>
-#include <util/darray.h>
-#include <util/dstr.h>
-#include <obs-module.h>
-
-#include <libavutil/channel_layout.h>
-#include <libavformat/avformat.h>
-
-#include "obs-ffmpeg-formats.h"
-#include "obs-ffmpeg-compat.h"
+#include "build/obs-ffmpeg.pch.h"
 
 #define do_log(level, format, ...) \
 	blog(level, "[FFmpeg %s encoder: '%s'] " format, enc->type, obs_encoder_get_name(enc->encoder), ##__VA_ARGS__)
@@ -575,3 +565,9 @@ struct obs_encoder_info flac_encoder_info = {
 
 /* File-local macros: keep them out of the next source of a unity build. */
 #undef do_log
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef warn
+#undef info
+#undef debug
+#undef MIN

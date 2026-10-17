@@ -28,7 +28,6 @@ set(OBS_UNITY_BUILD_BATCH_SIZE 8 CACHE STRING "Sources per unity translation uni
 set(
   _OBS_UNITY_SKIP_SOURCES
   plugins/win-capture/window-capture.c
-  plugins/obs-ffmpeg/obs-ffmpeg-mpegts.c
   plugins/frontend-tools/captions.cpp
   plugins/frontend-tools/captions-mssapi.cpp
   plugins/frontend-tools/captions-mssapi-stream.cpp

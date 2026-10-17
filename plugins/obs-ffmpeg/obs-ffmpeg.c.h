@@ -1,19 +1,4 @@
-#include <obs-module.h>
-#include <util/platform.h>
-#include <libavutil/avutil.h>
-#include <libavcodec/avcodec.h>
-#include <libavformat/avformat.h>
-
-#ifdef _WIN32
-#define INITGUID
-#include <dxgi.h>
-#endif
-
-#if !defined(_WIN32) && !defined(__APPLE__)
-#include "vaapi-utils.h"
-
-#define LIBAVUTIL_VAAPI_AVAILABLE
-#endif
+#include "build/obs-ffmpeg.pch.h"
 
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE("obs-ffmpeg", "en-US")

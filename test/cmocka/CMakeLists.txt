@@ -492,7 +492,7 @@ find_package(FFmpeg 8.0 REQUIRED avcodec avformat avutil)
 add_executable(
   test_svt_av1
   test_svt_av1.c
-  "${CMAKE_SOURCE_DIR}/plugins/obs-ffmpeg/obs-ffmpeg-video-encoders.c"
+  "${CMAKE_SOURCE_DIR}/plugins/obs-ffmpeg/obs-ffmpeg-video-encoders.c.h"
   "${CMAKE_SOURCE_DIR}/shared/opts-parser/opts-parser.c.h"
 )
 target_compile_definitions(

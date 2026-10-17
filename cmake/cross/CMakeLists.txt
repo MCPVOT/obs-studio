@@ -366,3 +366,20 @@ elseif(_host STREQUAL MACOS)
   )
   _obs_cross_plugin(coreaudio-encoder-cross DIR plugins/coreaudio-encoder SOURCES encoder.cpp)
 endif()
+
+# obs-ffmpeg's unity groups (BUILD.md) but VA-API, with every optional one.
+_obs_cross_plugin(
+  obs-ffmpeg-cross
+  DIR plugins/obs-ffmpeg
+  SOURCES
+    build/obs-ffmpeg.core+.h.c
+    build/obs-ffmpeg.logging+.h.c
+    build/obs-ffmpeg.mpegts+.h.c
+    build/obs-ffmpeg.mux+.h.c
+    build/obs-ffmpeg.nvenc+.h.c
+    build/obs-ffmpeg.output+.h.c
+    build/obs-ffmpeg.source+.h.c
+    build/obs-ffmpeg.video-encoders+.h.c
+  INCLUDES shared/media-playback shared/opts-parser
+  DEFINES ENABLE_FFMPEG_LOGGING ENABLE_FFMPEG_NVENC NEW_MPEGTS_OUTPUT
+)

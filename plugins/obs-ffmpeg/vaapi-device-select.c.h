@@ -15,9 +15,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "vaapi-device-select.h"
-
-#include <string.h>
+#include "build/obs-ffmpeg-vaapi-device-select.pch.h"
 
 static inline bool is_set(const char *path)
 {

@@ -15,12 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include <obs-avc.h>
-#ifdef ENABLE_HEVC
-#include <obs-hevc.h>
-#endif
-
-#include "obs-ffmpeg-video-encoders.h"
+#include "build/obs-ffmpeg-video-encoders.pch.h"
 
 #define do_log(level, format, ...) \
 	blog(level, "[FFmpeg NVENC encoder: '%s'] " format, obs_encoder_get_name(enc->ffve.encoder), ##__VA_ARGS__)
@@ -612,3 +607,10 @@ struct obs_encoder_info hevc_nvenc_encoder_info = {
 
 /* File-local macros: keep them out of the next source of a unity build. */
 #undef do_log
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef warn
+#undef info
+#undef debug
+#undef ENCODER_NAME_H264
+#undef ENCODER_NAME_HEVC

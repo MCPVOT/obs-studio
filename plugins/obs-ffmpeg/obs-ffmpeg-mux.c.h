@@ -14,15 +14,7 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
-#include "ffmpeg-mux/ffmpeg-mux.h"
-#include "obs-ffmpeg-mux.h"
-#include "obs-ffmpeg-formats.h"
-
-#ifdef _WIN32
-#include "util/windows/win-version.h"
-#endif
-
-#include <libavformat/avformat.h>
+#include "build/obs-ffmpeg-mux.pch.h"
 
 #define do_log(level, format, ...) \
 	blog(level, "[ffmpeg muxer: '%s'] " format, obs_output_get_name(stream->output), ##__VA_ARGS__)
@@ -1297,3 +1289,8 @@ struct obs_output_info replay_buffer = {
 
 /* File-local macros: keep them out of the next source of a unity build. */
 #undef do_log
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef warn
+#undef info
+#undef FFMPEG_MUX

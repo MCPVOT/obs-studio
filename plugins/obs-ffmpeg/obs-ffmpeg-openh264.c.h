@@ -16,7 +16,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "obs-ffmpeg-video-encoders.h"
+#include "build/obs-ffmpeg-video-encoders.pch.h"
 
 #define do_log(level, format, ...) \
 	blog(level, "[H.264 encoder: '%s'] " format, obs_encoder_get_name(enc->ffve.encoder), ##__VA_ARGS__)
@@ -252,3 +252,9 @@ struct obs_encoder_info openh264_encoder_info = {
 
 /* File-local macros: keep them out of the next source of a unity build. */
 #undef do_log
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef error
+#undef warn
+#undef info
+#undef debug

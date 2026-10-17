@@ -15,20 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include <obs-module.h>
-#include <util/deque.h>
-#include <util/threading.h>
-#include <util/dstr.h>
-#include <util/darray.h>
-#include <util/platform.h>
-
-#include "obs-ffmpeg-output.h"
-#include "obs-ffmpeg-formats.h"
-#include "obs-ffmpeg-compat.h"
-#include "obs-ffmpeg-rist.h"
-#include "obs-ffmpeg-srt.h"
-#include <libavutil/channel_layout.h>
-#include <libavutil/mastering_display_metadata.h>
+#include "build/obs-ffmpeg-mpegts.pch.h"
 
 /* ------------------------------------------------------------------------- */
 #define do_log(level, format, ...) \
@@ -1394,3 +1381,8 @@ struct obs_output_info ffmpeg_mpegts_muxer = {
 
 /* File-local macros: keep them out of the next source of a unity build. */
 #undef do_log
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef warn
+#undef info
+#undef error

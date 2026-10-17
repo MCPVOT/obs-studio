@@ -1,8 +1,4 @@
-#include "obs-ffmpeg-mux.h"
-#include <obs-avc.h>
-#ifdef ENABLE_HEVC
-#include <obs-hevc.h>
-#endif
+#include "build/obs-ffmpeg-mux.pch.h"
 
 #define do_log(level, format, ...) \
 	blog(level, "[ffmpeg hls muxer: '%s'] " format, obs_output_get_name(stream->output), ##__VA_ARGS__)
@@ -332,3 +328,7 @@ struct obs_output_info ffmpeg_hls_muxer = {
 
 /* File-local macros: keep them out of the next source of a unity build. */
 #undef do_log
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef warn
+#undef info

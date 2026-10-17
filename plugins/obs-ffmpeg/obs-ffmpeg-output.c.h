@@ -15,18 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include <obs-module.h>
-#include <util/deque.h>
-#include <util/threading.h>
-#include <util/dstr.h>
-#include <util/darray.h>
-#include <util/platform.h>
-
-#include "obs-ffmpeg-output.h"
-#include "obs-ffmpeg-formats.h"
-#include "obs-ffmpeg-compat.h"
-#include <libavutil/channel_layout.h>
-#include <libavutil/mastering_display_metadata.h>
+#include "build/obs-ffmpeg-output.pch.h"
 
 /* ------------------------------------------------------------------------- */
 

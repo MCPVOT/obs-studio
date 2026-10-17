@@ -1,5 +1,4 @@
-#include "obs-ffmpeg-video-encoders.h"
-#include <util/threading.h>
+#include "build/obs-ffmpeg-video-encoders.pch.h"
 
 #define do_log(level, format, ...) \
 	blog(level, "[%s encoder: '%s'] " format, enc->enc_name, obs_encoder_get_name(enc->encoder), ##__VA_ARGS__)
@@ -292,3 +291,11 @@ void ffmpeg_video_encoder_request_keyframe(struct ffmpeg_video_encoder *enc)
 /* File-local macros: keep them out of the next source of a unity build. */
 #undef SEC_TO_NSEC
 #undef do_log
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef error
+#undef warn
+#undef info
+#undef debug
+#undef TIMEOUT_MAX_SEC
+#undef TIMEOUT_MAX_NSEC

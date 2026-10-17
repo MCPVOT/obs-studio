@@ -1,7 +1,4 @@
-#include <obs-module.h>
-#include <util/darray.h>
-#include <util/threading.h>
-#include <libavutil/log.h>
+#include "build/obs-ffmpeg.pch.h"
 
 static DARRAY(struct log_context {
 	void *context;
