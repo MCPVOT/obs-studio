@@ -15,8 +15,8 @@
 # header per target, so there only the language with the most groups gets one.
 #
 # A target that compiles an implementation file directly (a C test building
-# one libobs file) gets it in its language, and the owning target's include
-# directories, since its header comes from there.
+# one libobs file) compiles a generated wrapper with a real extension that
+# includes it, with the owning target's include directories.
 #
 # _obs_groups_all runs before the deferred pass in pch.cmake.
 
@@ -155,39 +155,49 @@ function(_obs_target_groups target)
   _obs_pch_ccache(${target})
 endfunction()
 
-# _obs_target_impl_languages: implementation files <target> compiles
-# directly compile in their language. Their header comes from the owning
-# target, so <target> gets the owner's include directories: on the target, not
-# per source, since Xcode supports no generator expressions in per-source
-# settings.
+# _obs_target_impl_languages: a target that lists an implementation file
+# directly (a C test pinning one libobs file) compiles a generated one-line
+# wrapper with a real extension instead (<binary dir>/obs-impl/<target>/
+# <path>.c: #include "<the file>"), and the file itself is a header there.
+# Generators take a source's type from its extension: Xcode left a .c.h
+# uncompiled whatever LANGUAGE or XCODE_EXPLICIT_FILE_TYPE said, so
+# test_video_io_hidden failed to link. The file's header comes from its
+# owner, so <target> gets the owner's include directories (on the target:
+# Xcode supports no generator expressions in per-source settings).
 function(_obs_target_impl_languages target)
   get_target_property(_sources ${target} SOURCES)
   get_target_property(_source_dir ${target} SOURCE_DIR)
+  set(_extensions_C c)
+  set(_extensions_CXX cpp)
+  set(_extensions_OBJC m)
+  set(_extensions_OBJCXX mm)
   set(_owners "")
+  set(_wrappers "")
   foreach(_source IN LISTS _sources)
     if(NOT _source MATCHES "${_OBS_IMPL_REGEX}" OR _source MATCHES "[<>$]")
       continue()
     endif()
     cmake_path(ABSOLUTE_PATH _source BASE_DIRECTORY "${_source_dir}" NORMALIZE OUTPUT_VARIABLE _absolute)
     _obs_file_language("${_absolute}" _language)
-    # Xcode takes a file's type from its extension, whatever LANGUAGE says: a
-    # .c.h would be a header there and never compile, so the C tests that pin
-    # one libobs file would link libobs's copy (or fail to, for hidden
-    # symbols: test_video_io_hidden).
-    set(_xcode_types_C sourcecode.c.c)
-    set(_xcode_types_CXX sourcecode.cpp.cpp)
-    set(_xcode_types_OBJC sourcecode.c.objc)
-    set(_xcode_types_OBJCXX sourcecode.cpp.objcpp)
-    set_source_files_properties(
-      "${_absolute}"
-      TARGET_DIRECTORY ${target}
-      PROPERTIES LANGUAGE ${_language} XCODE_EXPLICIT_FILE_TYPE ${_xcode_types_${_language}}
+    cmake_path(RELATIVE_PATH _absolute BASE_DIRECTORY "${CMAKE_SOURCE_DIR}" OUTPUT_VARIABLE _relative)
+    string(REGEX REPLACE "\\.[^./]+\\.[^./]+$" "" _stem "${_relative}")
+    set(_wrapper "${CMAKE_BINARY_DIR}/obs-impl/${target}/${_stem}.${_extensions_${_language}}")
+    file(
+      CONFIGURE
+      OUTPUT "${_wrapper}"
+      CONTENT "/* Generated (cmake/common/groups.cmake). */\n#include \"${_absolute}\"\n"
+      @ONLY
     )
+    set_source_files_properties("${_absolute}" TARGET_DIRECTORY ${target} PROPERTIES HEADER_FILE_ONLY ON)
+    list(APPEND _wrappers "${_wrapper}")
     get_property(_owner GLOBAL PROPERTY "_OBS_IMPL_OWNER:${_absolute}")
     if(_owner AND NOT _owner STREQUAL target)
       list(APPEND _owners ${_owner})
     endif()
   endforeach()
+  if(_wrappers)
+    target_sources(${target} PRIVATE ${_wrappers})
+  endif()
   list(REMOVE_DUPLICATES _owners)
   foreach(_owner IN LISTS _owners)
     target_include_directories(${target} PRIVATE "$<TARGET_PROPERTY:${_owner},INCLUDE_DIRECTORIES>")

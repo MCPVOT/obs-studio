@@ -126,8 +126,10 @@ most groups). A group of another family includes its header textually.
 converted.
 
 A target that compiles one implementation file directly (a C test pinning a
-single libobs file) gets that file in its language, with the owning target's
-include directories, since its header comes from there.
+single libobs file) compiles a generated one-line wrapper with a real
+extension that includes it (generators, Xcode among them, take a source's
+type from its extension), with the owning target's include directories,
+since its header comes from there.
 
 ### 4. Every implementation file is in exactly one group
 
