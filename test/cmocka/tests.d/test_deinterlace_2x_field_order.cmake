@@ -20,5 +20,7 @@ if(OS_LINUX AND TARGET OBS::libobs-opengl)
     COMMAND test_deinterlace_2x_field_order
     WORKING_DIRECTORY "${OBS_OUTPUT_DIR}/$<CONFIG>"
   )
-  set_tests_properties(test_deinterlace_2x_field_order PROPERTIES TIMEOUT 300)
+  # Field delivery is measured in real time. Concurrent graphics/audio tests
+  # can starve a frame and trip the unchanged no-skipped-fields assertion (#456).
+  set_tests_properties(test_deinterlace_2x_field_order PROPERTIES RUN_SERIAL TRUE TIMEOUT 300)
 endif()
