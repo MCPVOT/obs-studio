@@ -231,7 +231,8 @@ function(_obs_target_impl_languages target)
     # same expression.
     set(_genex "")
     if(_source MATCHES "[<>$]")
-      string(REGEX MATCH "[^:<>$,;]+\\.(c\\.h|cpp\\.hpp|m\\.h|mm\\.hpp)" _inner "${_source}")
+      # An optional drive letter: on Windows the path is D:/a/... .
+      string(REGEX MATCH "([A-Za-z]:/)?[^:<>$,;]+\\.(c\\.h|cpp\\.hpp|m\\.h|mm\\.hpp)" _inner "${_source}")
       if(NOT _inner)
         continue()
       endif()
