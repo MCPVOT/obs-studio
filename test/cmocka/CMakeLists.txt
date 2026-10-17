@@ -10,6 +10,24 @@ endif()
 # new test cannot go unbuilt (and show up in ctest as "Not Run").
 add_custom_target(cmocka-tests)
 
+# The display tests' add_test commands wrap themselves in xvfb-run, found as
+# XVFB_RUN, XVFB_RUN_PROGRAM or XVFB_RUN_EXECUTABLE. Point all three at
+# xvfb-run-or-display.sh, which reuses the display ctest already runs under
+# instead of every test racing to start its own server (the fragments'
+# find_program keeps a variable that is already set).
+find_program(OBS_XVFB_RUN_REAL xvfb-run)
+if(OBS_XVFB_RUN_REAL)
+  configure_file(xvfb-run-or-display.sh.in "${CMAKE_CURRENT_BINARY_DIR}/xvfb-run-or-display.sh" @ONLY)
+  file(
+    CHMOD
+    "${CMAKE_CURRENT_BINARY_DIR}/xvfb-run-or-display.sh"
+    PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
+  )
+  foreach(_xvfb_var IN ITEMS XVFB_RUN XVFB_RUN_PROGRAM XVFB_RUN_EXECUTABLE)
+    set(${_xvfb_var} "${CMAKE_CURRENT_BINARY_DIR}/xvfb-run-or-display.sh" CACHE FILEPATH "" FORCE)
+  endforeach()
+endif()
+
 # Existing C tests are never edited to satisfy a new warning, and they pass
 # float to double varargs and math freely (as does the SWIG-generated code some
 # of them compile), so -Wdouble-promotion (obs-rust/obs-studio#516) covers the
