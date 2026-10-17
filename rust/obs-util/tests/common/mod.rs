@@ -47,3 +47,37 @@ impl Drop for ScratchDir {
         let _ = std::fs::remove_dir_all(&self.0);
     }
 }
+
+/// Runs `test` (its full path in the test binary, e.g.
+/// `threading_allocs::init_destroy_counts_one_bzalloc_per_live_handle`)
+/// alone in a child process, for checks of process-wide state such as
+/// `bnum_allocs()` that any other test running in parallel in the same
+/// binary would disturb (#1133).
+///
+/// In the child (marked by an environment variable) this returns `true`:
+/// the caller does the measurement there. In the parent it starts the
+/// child with `--exact <test> --test-threads=1`, asserts that it ran that
+/// one test and passed, and returns `false`.
+pub fn isolated(test: &str) -> bool {
+    const MARKER: &str = "OBS_UTIL_ISOLATED_TEST";
+    if std::env::var(MARKER).as_deref() == Ok(test) {
+        return true;
+    }
+    let exe = std::env::current_exe().expect("path of the test binary");
+    let out = std::process::Command::new(exe)
+        .args([test, "--exact", "--test-threads=1", "--nocapture"])
+        .env(MARKER, test)
+        .output()
+        .expect("start the isolated test process");
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        out.status.success(),
+        "isolated {test} failed:\n{stdout}\n{stderr}"
+    );
+    assert!(
+        stdout.contains("1 passed"),
+        "isolated {test} did not run exactly one test:\n{stdout}"
+    );
+    false
+}

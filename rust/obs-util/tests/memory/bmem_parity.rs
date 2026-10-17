@@ -68,9 +68,19 @@ fn alignment_matches_c() {
     assert_eq!(ours, theirs);
 }
 
-proptest! {
-    #[test]
-    fn matches_c_oracle(ops in prop::collection::vec(op(), 1..64), seed in any::<usize>()) {
+/// `counts()` reads process-global counters, so the property runs alone in a
+/// child process (#1133): the other tests of this binary allocate too.
+#[test]
+fn matches_c_oracle() {
+    if crate::common::isolated("bmem_parity::matches_c_oracle") {
+        proptest!(|(ops in prop::collection::vec(op(), 1..64), seed in any::<usize>())| {
+            check(ops, seed)?;
+        });
+    }
+}
+
+fn check(ops: Vec<Op>, seed: usize) -> Result<(), TestCaseError> {
+    {
         let mut slots: Vec<Slot> = Vec::new();
 
         for (step, op) in ops.into_iter().enumerate() {
@@ -86,21 +96,38 @@ proptest! {
                     prop_assert_eq!(theirs as usize % 32, 0);
                     let expected = pattern(seed, n);
                     // SAFETY: both blocks hold `n` bytes.
-                    unsafe { fill(ours, &expected); fill(theirs, &expected); }
-                    slots.push(Slot { ours, theirs, expected });
+                    unsafe {
+                        fill(ours, &expected);
+                        fill(theirs, &expected);
+                    }
+                    slots.push(Slot {
+                        ours,
+                        theirs,
+                        expected,
+                    });
                 }
                 Op::ReallocNull(n) => {
                     // SAFETY: NULL with `n >= 1` is an allocation.
                     let (ours, theirs) = unsafe {
-                        (rs::brealloc(core::ptr::null_mut(), n), c::oracle_brealloc(core::ptr::null_mut(), n))
+                        (
+                            rs::brealloc(core::ptr::null_mut(), n),
+                            c::oracle_brealloc(core::ptr::null_mut(), n),
+                        )
                     };
                     prop_assert!(!ours.is_null() && !theirs.is_null());
                     prop_assert_eq!(ours as usize % 32, 0);
                     prop_assert_eq!(theirs as usize % 32, 0);
                     let expected = pattern(seed, n);
                     // SAFETY: both blocks hold `n` bytes.
-                    unsafe { fill(ours, &expected); fill(theirs, &expected); }
-                    slots.push(Slot { ours, theirs, expected });
+                    unsafe {
+                        fill(ours, &expected);
+                        fill(theirs, &expected);
+                    }
+                    slots.push(Slot {
+                        ours,
+                        theirs,
+                        expected,
+                    });
                 }
                 Op::Realloc(i, n) => {
                     if !slots.is_empty() {
@@ -108,7 +135,10 @@ proptest! {
                         let slot = &mut slots[idx];
                         // SAFETY: the slot's blocks are live; `n >= 1`.
                         let (ours, theirs) = unsafe {
-                            (rs::brealloc(slot.ours, n), c::oracle_brealloc(slot.theirs, n))
+                            (
+                                rs::brealloc(slot.ours, n),
+                                c::oracle_brealloc(slot.theirs, n),
+                            )
                         };
                         prop_assert!(!ours.is_null() && !theirs.is_null());
                         let keep = slot.expected.len().min(n);
@@ -120,26 +150,42 @@ proptest! {
                         let mut expected = slot.expected[..keep].to_vec();
                         expected.extend(pattern(seed, n - keep));
                         // SAFETY: both blocks hold `n` bytes.
-                        unsafe { fill(ours, &expected); fill(theirs, &expected); }
-                        *slot = Slot { ours, theirs, expected };
+                        unsafe {
+                            fill(ours, &expected);
+                            fill(theirs, &expected);
+                        }
+                        *slot = Slot {
+                            ours,
+                            theirs,
+                            expected,
+                        };
                     }
                 }
                 Op::Free(i) => {
                     if !slots.is_empty() {
                         let slot = slots.swap_remove(i.index(slots.len()));
                         // SAFETY: the slot's blocks are live.
-                        unsafe { rs::bfree(slot.ours); c::oracle_bfree(slot.theirs); }
+                        unsafe {
+                            rs::bfree(slot.ours);
+                            c::oracle_bfree(slot.theirs);
+                        }
                     }
                     let (n_rs, n_c) = counts();
                     // SAFETY: freeing NULL is allowed and must not change the counters.
-                    unsafe { rs::bfree(core::ptr::null_mut()); c::oracle_bfree(core::ptr::null_mut()); }
+                    unsafe {
+                        rs::bfree(core::ptr::null_mut());
+                        c::oracle_bfree(core::ptr::null_mut());
+                    }
                     prop_assert_eq!(counts(), (n_rs, n_c));
                 }
                 Op::Memdup(n) => {
                     let src = pattern(seed, n);
                     // SAFETY: `src` has `n >= 1` readable bytes.
                     let (ours, theirs) = unsafe {
-                        (rs::bmemdup(src.as_ptr().cast(), n), c::oracle_bmemdup(src.as_ptr().cast(), n))
+                        (
+                            rs::bmemdup(src.as_ptr().cast(), n),
+                            c::oracle_bmemdup(src.as_ptr().cast(), n),
+                        )
                     };
                     prop_assert!(!ours.is_null() && !theirs.is_null());
                     prop_assert_eq!(ours as usize % 32, 0);
@@ -149,7 +195,11 @@ proptest! {
                         prop_assert_eq!(read(ours, n), &src[..]);
                         prop_assert_eq!(read(theirs, n), &src[..]);
                     }
-                    slots.push(Slot { ours, theirs, expected: src });
+                    slots.push(Slot {
+                        ours,
+                        theirs,
+                        expected: src,
+                    });
                 }
             }
 
@@ -159,7 +209,11 @@ proptest! {
 
         for slot in slots {
             // SAFETY: the blocks are live.
-            unsafe { rs::bfree(slot.ours); c::oracle_bfree(slot.theirs); }
+            unsafe {
+                rs::bfree(slot.ours);
+                c::oracle_bfree(slot.theirs);
+            }
         }
     }
+    Ok(())
 }

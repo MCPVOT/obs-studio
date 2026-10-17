@@ -3,3 +3,5 @@
 
 mod bmem;
 mod bmem_parity;
+#[path = "../common/mod.rs"]
+mod common;
