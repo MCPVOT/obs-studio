@@ -17,8 +17,11 @@ One name per thing, so releases, crates and tags can't be confused (#320).
 
 - **The upstream tree stays where upstream has it:** `libobs/`, `libobs-*/`,
   `frontend/`, `plugins/`, `shared/`, `deps/`, `cmake/`, `test/`. We still
-  merge `upstream/master`, so C/C++ files are never moved or renamed to
-  restructure; fixes and ports edit them in place. A path whose OS its name
+  merge `upstream/master`, so C/C++ files are never moved to restructure;
+  fixes and ports edit them in place. The only rename is in place, to the
+  build-role names in [BUILD.md](../../BUILD.md) (`foo.c` to `foo.c.h`,
+  same directory and stem, in a `git mv`-only commit), which merges and
+  `git log --follow` still track. A path whose OS its name
   doesn't say gets an entry in `ci/platform_paths.py`, not a rename.
 - **All Rust lives in the `rust/` Cargo workspace**, one crate per ported
   component (`rust/tools/` is excluded). The table below is where a port goes.

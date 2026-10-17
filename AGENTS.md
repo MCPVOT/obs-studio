@@ -27,6 +27,9 @@ Before picking up or filing an issue, or opening a PR, read
 [docs/rust-port/coordination.md](docs/rust-port/coordination.md): claim
 before coding, search open PRs first, target master, RED then GREEN commits.
 
+Before adding, renaming or building C/C++/Objective-C sources, or touching
+`cmake/common/`, `cmake/pch/` or a `build/` group, read [BUILD.md](BUILD.md).
+
 Before building, testing or pushing, read
 [docs/ci-tooling.md](docs/ci-tooling.md): soldr, setup-soldr, bosn, act2,
 zackees/ci.yml, the local gate and CI attestation, and how to use them so
@@ -63,10 +66,15 @@ errors (soldr permissions, disk, Docker, host FFmpeg): see
 - Name crates, binaries and tags per
   [docs/rust-port/naming.md](docs/rust-port/naming.md) (`ci/test_naming.py`
   checks crates): `obs-<area>` ports, product slug `obs-studio-rust`.
-- Don't move or rename upstream C/C++ files to restructure: the upstream tree
+- Don't move upstream C/C++ files to restructure: the upstream tree
   stays in place, Rust goes in the `rust/` workspace, and a fully ported C
   component is deleted, not moved. See the layout section of
-  [docs/rust-port/naming.md](docs/rust-port/naming.md) (#1051).
+  [docs/rust-port/naming.md](docs/rust-port/naming.md) (#1051). The one
+  rename allowed is in place, to the build-role names of
+  [BUILD.md](BUILD.md) (`foo.c` to `foo.c.h`).
+- Native C/C++/Objective-C builds follow [BUILD.md](BUILD.md): explicit unity
+  groups in each component's `build/`, one precompiled header per group,
+  unity and PCH as switches over the same code.
 - C/C++ host code stays in OS-named files (`obs-nix.c`, `platform-windows.cpp`,
   `win-capture/`, ...). `ci/platform_ifdef_ratchet.py` (in `./lint`) fails a
   new host conditional or OS header in a shared file, and a platform file that
