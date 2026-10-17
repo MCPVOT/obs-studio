@@ -3,7 +3,10 @@ cmake_minimum_required(VERSION 3.28...3.30)
 add_library(obs-frontend-api SHARED)
 add_library(OBS::frontend-api ALIAS obs-frontend-api)
 
-target_sources(obs-frontend-api PRIVATE obs-frontend-api.h obs-frontend-api.cpp obs-frontend-internal.hpp)
+target_sources(
+  obs-frontend-api
+  PRIVATE build/obs-frontend-api.core+.hpp.cpp obs-frontend-api.h obs-frontend-internal.hpp
+)
 
 target_link_libraries(obs-frontend-api PRIVATE OBS::libobs)
 

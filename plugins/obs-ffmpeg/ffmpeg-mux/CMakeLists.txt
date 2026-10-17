@@ -7,7 +7,7 @@ find_package(FFmpeg 8.0 REQUIRED COMPONENTS avcodec avutil avformat)
 add_executable(obs-ffmpeg-mux)
 add_executable(OBS::ffmpeg-mux ALIAS obs-ffmpeg-mux)
 
-target_sources(obs-ffmpeg-mux PRIVATE ffmpeg-mux.c ffmpeg-mux.h)
+target_sources(obs-ffmpeg-mux PRIVATE build/ffmpeg-mux.core+.h.c ffmpeg-mux.h)
 
 target_link_libraries(
   obs-ffmpeg-mux

@@ -1,12 +1,4 @@
-#include <string_view>
-#include <unordered_map>
-#include <vector>
-#include <chrono>
-#include <future>
-#include <cstring>
-
-#include <ffnvcodec/nvEncodeAPI.h>
-#include <ffnvcodec/dynlink_loader.h>
+#include "plugins/obs-nvenc/obs-nvenc-test/build/obs-nvenc-test.pch.hpp"
 
 /*
  * Utility to check for NVENC support and capabilities.
@@ -574,3 +566,9 @@ int main(int, char **)
 
 	return f.get();
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef NVML_SUCCESS
+#undef NVML_DEVICE_UUID_V2_BUFFER_SIZE
+#undef NVML_DEVICE_NAME_V2_BUFFER_SIZE
+#undef NVML_SYSTEM_DRIVER_VERSION_BUFFER_SIZE

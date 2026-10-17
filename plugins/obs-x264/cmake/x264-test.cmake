@@ -1,6 +1,6 @@
 add_executable(obs-x264-test)
 
-target_sources(obs-x264-test PRIVATE obs-x264-test.c)
+target_sources(obs-x264-test PRIVATE build/obs-x264-test.core+.h.c)
 
 target_compile_options(obs-x264-test PRIVATE $<$<COMPILE_LANG_AND_ID:C,AppleClang,Clang>:-Wno-strict-prototypes>)
 

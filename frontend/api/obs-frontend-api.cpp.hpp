@@ -1,5 +1,4 @@
-#include "obs-frontend-internal.hpp"
-#include <memory>
+#include "frontend/api/build/obs-frontend-api.pch.hpp"
 
 using namespace std;
 
@@ -691,3 +690,6 @@ bool obs_frontend_is_safe_mode_enabled(void)
 {
 	return !!callbacks_valid() ? c->obs_frontend_is_safe_mode_enabled() : false;
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef callbacks_valid

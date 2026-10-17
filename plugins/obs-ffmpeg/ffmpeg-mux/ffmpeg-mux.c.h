@@ -14,26 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifdef _WIN32
-#include <io.h>
-#include <fcntl.h>
-#include <windows.h>
-#define inline __inline
-
-#endif
-
-#include <stdio.h>
-#include <stdlib.h>
-#include "ffmpeg-mux.h"
-
-#include <util/threading.h>
-#include <util/platform.h>
-#include <util/deque.h>
-#include <util/dstr.h>
-#include <libavcodec/avcodec.h>
-#include <libavformat/avformat.h>
-#include <libavutil/channel_layout.h>
-#include <libavutil/mastering_display_metadata.h>
+#include "plugins/obs-ffmpeg/ffmpeg-mux/build/ffmpeg-mux.pch.h"
 
 #define ANSI_COLOR_RED "\x1b[0;91m"
 #define ANSI_COLOR_MAGENTA "\x1b[0;95m"
@@ -1199,3 +1180,15 @@ int main(int argc, char *argv[])
 #endif
 	return 0;
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef ANSI_COLOR_RED
+#undef ANSI_COLOR_MAGENTA
+#undef ANSI_COLOR_RESET
+#undef AVIO_BUFFER_SIZE
+#undef SRT_PROTO
+#undef UDP_PROTO
+#undef TCP_PROTO
+#undef HTTP_PROTO
+#undef RIST_PROTO
+#undef CHUNK_SIZE

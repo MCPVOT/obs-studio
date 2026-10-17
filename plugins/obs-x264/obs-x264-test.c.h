@@ -1,7 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <opts-parser.h>
+#include "plugins/obs-x264/build/obs-x264-test.pch.h"
 
 #define CHECK(condition)                                                                                     \
 	do {                                                                                                 \
@@ -69,3 +66,6 @@ int main()
 	test_obs_parse_options();
 	return 0;
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef CHECK
