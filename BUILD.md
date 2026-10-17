@@ -127,7 +127,7 @@ converted.
 
 A target that compiles one implementation file directly (a C test pinning a
 single libobs file) gets that file in its language, with the owning target's
-include directories and definitions, since its header comes from there.
+include directories, since its header comes from there.
 
 ### 4. Every implementation file is in exactly one group
 

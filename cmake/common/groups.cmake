@@ -15,9 +15,8 @@
 # header per target, so there only the language with the most groups gets one.
 #
 # A target that compiles an implementation file directly (a C test building
-# one libobs file) gets it in its language, with the owning target's include
-# directories and definitions for that file, since its header comes from
-# there.
+# one libobs file) gets it in its language, and the owning target's include
+# directories, since its header comes from there.
 #
 # _obs_groups_all runs before the deferred pass in pch.cmake.
 
@@ -157,11 +156,14 @@ function(_obs_target_groups target)
 endfunction()
 
 # _obs_target_impl_languages: implementation files <target> compiles
-# directly compile in their language, with their owner's include directories
-# and definitions.
+# directly compile in their language. Their header comes from the owning
+# target, so <target> gets the owner's include directories: on the target, not
+# per source, since Xcode supports no generator expressions in per-source
+# settings.
 function(_obs_target_impl_languages target)
   get_target_property(_sources ${target} SOURCES)
   get_target_property(_source_dir ${target} SOURCE_DIR)
+  set(_owners "")
   foreach(_source IN LISTS _sources)
     if(NOT _source MATCHES "${_OBS_IMPL_REGEX}" OR _source MATCHES "[<>$]")
       continue()
@@ -171,17 +173,12 @@ function(_obs_target_impl_languages target)
     set_source_files_properties("${_absolute}" TARGET_DIRECTORY ${target} PROPERTIES LANGUAGE ${_language})
     get_property(_owner GLOBAL PROPERTY "_OBS_IMPL_OWNER:${_absolute}")
     if(_owner AND NOT _owner STREQUAL target)
-      set_property(
-        SOURCE "${_absolute}" TARGET_DIRECTORY ${target}
-        APPEND
-        PROPERTY INCLUDE_DIRECTORIES "$<TARGET_PROPERTY:${_owner},INCLUDE_DIRECTORIES>"
-      )
-      set_property(
-        SOURCE "${_absolute}" TARGET_DIRECTORY ${target}
-        APPEND
-        PROPERTY COMPILE_DEFINITIONS "$<TARGET_PROPERTY:${_owner},COMPILE_DEFINITIONS>"
-      )
+      list(APPEND _owners ${_owner})
     endif()
+  endforeach()
+  list(REMOVE_DUPLICATES _owners)
+  foreach(_owner IN LISTS _owners)
+    target_include_directories(${target} PRIVATE "$<TARGET_PROPERTY:${_owner},INCLUDE_DIRECTORIES>")
   endforeach()
 endfunction()
 
