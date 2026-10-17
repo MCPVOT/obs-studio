@@ -39,6 +39,17 @@ def setup_soldr_steps(job: str) -> list[str]:
 
 
 class SoldrToolchainCacheTest(unittest.TestCase):
+    def test_remote_saves_only_warm_default_branch(self):
+        found = 0
+        for workflow in (ROOT / ".github/workflows").glob("*.y*ml"):
+            for name, job in jobs(workflow.read_text()).items():
+                for step in setup_soldr_steps(job):
+                    found += 1
+                    with self.subTest(workflow=workflow.name, job=name):
+                        self.assertIn("save-cache-remote: ${{ github.ref == 'refs/heads/master' }}", step)
+                        self.assertNotRegex(step, r"\n\s+save-cache: false\b")
+        self.assertGreaterEqual(found, 7)
+
     def test_target_adding_jobs_disable_the_toolchain_cache(self):
         found = 0
         for name, job in jobs(WORKFLOW.read_text()).items():

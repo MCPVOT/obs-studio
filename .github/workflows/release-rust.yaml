@@ -197,6 +197,7 @@ jobs:
         uses: zackees/setup-soldr@b782f606a2f3beadc35b9e3bf5b4565e005f52ed # v0.9.86
         with:
           version: 0.9.35
+          save-cache-remote: ${{ github.ref == 'refs/heads/master' }}
           shims: true
 
       # The x86_64 leg is cross-built on an arm64 runner: Corrosion builds

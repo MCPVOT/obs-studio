@@ -125,8 +125,13 @@ cache layers:
   release and the soldr version;
 - the zccache compiler cache, which lets a branch reuse its parent's artifacts.
 
-On pull requests the caches are restored but not saved; default-branch pushes
-save them. So a PR's first build is only fast if master's cache is warm.
+Remote caches are saved only when the run ref is `refs/heads/master`,
+including master pushes and nightly/manual runs on master. PRs, merge groups
+and feature-branch release verification restore but do not save. Every
+setup-soldr call sets `save-cache-remote` explicitly: its upstream `auto`
+default excludes PRs but still permits queue and feature-branch uploads.
+Local act/act2 cache saves stay enabled. A PR's first build depends on
+master's cache being warm.
 
 What to do: keep the pinned action SHA and the `version:` input in
 `.github/workflows/build-project.yaml` in step with your local soldr and

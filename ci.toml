@@ -45,7 +45,7 @@ janitor = true
 ci-full = { add = { platforms = "all" } }
 
 # -- Caches -------------------------------------------------------------------
-# Only master pushes save (write-on); PRs restore and never save, so there is
+# Only default-branch runs save (write-on); PRs and merge groups restore, so there is
 # no PR delta layer. Sizes: the largest live entry of each family
 # (gh api repos/obs-rust/obs-studio/actions/caches, 2026-10-15), rounded up.
 [cache]

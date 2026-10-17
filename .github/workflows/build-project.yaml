@@ -840,13 +840,14 @@ jobs:
       # Same soldr-wrapped commands as docs/rust-port/testing-policy.md.
       # setup-soldr provisions the toolchain (with the clippy/rustfmt
       # components) from rust-toolchain.toml and restores its zccache build
-      # cache and cargo registry; it saves them only outside pull_request
-      # (save-cache: auto), i.e. from master pushes.
+      # cache and cargo registry. Remote saves only warm master; PR and
+      # merge-group runs restore. Local act/act2 saves stay enabled.
       - name: Set Up soldr 🦀
         uses: zackees/setup-soldr@b782f606a2f3beadc35b9e3bf5b4565e005f52ed # v0.9.86
         with:
           # soldr 0.9.35 embeds zccache 1.15.4 (has zackees/zccache#1937).
           version: 0.9.35
+          save-cache-remote: ${{ github.ref == 'refs/heads/master' }}
           # The lanes add x86_64-pc-windows-gnu mid-job; the toolchain cache
           # would save it without its std (zackees/setup-soldr#507, #969).
           solo-toolchain-cache: false
@@ -946,6 +947,7 @@ jobs:
         uses: zackees/setup-soldr@b782f606a2f3beadc35b9e3bf5b4565e005f52ed # v0.9.86
         with:
           version: 0.9.35
+          save-cache-remote: ${{ github.ref == 'refs/heads/master' }}
           # The cross lane adds targets mid-job (see the Rust Tests job, #969).
           solo-toolchain-cache: false
 
@@ -986,6 +988,7 @@ jobs:
         uses: zackees/setup-soldr@b782f606a2f3beadc35b9e3bf5b4565e005f52ed # v0.9.86
         with:
           version: 0.9.35
+          save-cache-remote: ${{ github.ref == 'refs/heads/master' }}
 
       - name: Set Up uv 🐍
         uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
@@ -1012,13 +1015,14 @@ jobs:
       # Same soldr-wrapped commands as docs/rust-port/testing-policy.md.
       # setup-soldr provisions the toolchain (with the clippy/rustfmt
       # components) from rust-toolchain.toml and restores its zccache build
-      # cache and cargo registry; it saves them only outside pull_request
-      # (save-cache: auto), i.e. from master pushes.
+      # cache and cargo registry. Remote saves only warm master; PR and
+      # merge-group runs restore. Local act/act2 saves stay enabled.
       - name: Set Up soldr 🦀
         uses: zackees/setup-soldr@b782f606a2f3beadc35b9e3bf5b4565e005f52ed # v0.9.86
         with:
           # soldr 0.9.35 embeds zccache 1.15.4 (has zackees/zccache#1937).
           version: 0.9.35
+          save-cache-remote: ${{ github.ref == 'refs/heads/master' }}
 
       - name: Set Up uv 🐍
         uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
@@ -1134,6 +1138,7 @@ jobs:
         uses: zackees/setup-soldr@b782f606a2f3beadc35b9e3bf5b4565e005f52ed # v0.9.86
         with:
           version: 0.9.35
+          save-cache-remote: ${{ github.ref == 'refs/heads/master' }}
           shims: true
 
       # The shard plan uses the test timings the last master run's shards
@@ -1437,6 +1442,7 @@ jobs:
           # soldr 0.9.35 embeds zccache 1.15.4, which names MSVC staticlib
           # outputs <crate>-<hash>.lib (zackees/zccache#1937).
           version: 0.9.35
+          save-cache-remote: ${{ github.ref == 'refs/heads/master' }}
           shims: true
 
       # validate.sh builds through the macos-ci preset's Xcode compilation
