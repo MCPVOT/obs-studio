@@ -341,7 +341,7 @@ static void *nvvfx_filter_create(obs_data_t *settings, obs_source_t *context, en
 	obs_leave_graphics();
 
 	/* 4. Allocate state for the AIGS & background blur */
-	if (get_lib_version() >= MIN_VFX_LOGGER_VERSION && id != S_FX_BLUR) {
+	if (get_vfx_lib_version() >= MIN_VFX_LOGGER_VERSION && id != S_FX_BLUR) {
 		vfxErr = NvVFX_AllocateState(filter->handle, &filter->stateObjectHandle);
 		if (NVCV_SUCCESS != vfxErr)
 			return log_nverror_destroy(filter, vfxErr);
@@ -358,7 +358,7 @@ static void *nvvfx_filter_create(obs_data_t *settings, obs_source_t *context, en
 	nvvfx_filter_update(filter, settings);
 
 	/* Setup NVIDIA logger */
-	if (get_lib_version() >= MIN_VFX_LOGGER_VERSION)
+	if (get_vfx_lib_version() >= MIN_VFX_LOGGER_VERSION)
 		vfxErr = NvVFX_ConfigureLogger(NVCV_LOG_ERROR, NULL, &nvvfx_logger_callback, filter);
 
 	return filter;
@@ -1065,7 +1065,7 @@ static obs_properties_t *nvvfx_filter_properties(void *data)
 		obs_property_t *partial = obs_properties_add_int_slider(props, S_PROCESSING, TEXT_PROCESSING, 1, 4, 1);
 		obs_property_set_long_description(partial, TEXT_PROCESSING_HINT);
 	}
-	unsigned int version = get_lib_version();
+	unsigned int version = get_vfx_lib_version();
 	if (version && version < MIN_VFX_SDK_VERSION) {
 		obs_property_t *warning = obs_properties_add_text(props, "deprecation", NULL, OBS_TEXT_INFO);
 		obs_property_text_set_info_type(warning, OBS_TEXT_INFO_WARNING);
@@ -1085,7 +1085,7 @@ static void nvvfx_filter_defaults(obs_data_t *settings)
 
 bool load_nvidia_vfx(void)
 {
-	unsigned int version = get_lib_version();
+	unsigned int version = get_vfx_lib_version();
 	uint8_t major = (version >> 24) & 0xff;
 	uint8_t minor = (version >> 16) & 0x00ff;
 	uint8_t build = (version >> 8) & 0x0000ff;

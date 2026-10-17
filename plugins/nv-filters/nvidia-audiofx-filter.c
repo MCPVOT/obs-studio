@@ -182,7 +182,7 @@ bool nvidia_afx_loaded = false;
 
 bool load_nvidia_afx(void)
 {
-	unsigned int version = get_lib_version();
+	unsigned int version = get_afx_lib_version();
 	uint8_t major = (version >> 24) & 0xff;
 	uint8_t minor = (version >> 16) & 0x00ff;
 	uint8_t build = (version >> 8) & 0x0000ff;
@@ -303,7 +303,8 @@ static bool nvidia_audio_initialize_internal(void *data)
 			}
 
 			// Set VAD (Voice Audio Data)
-			if (get_lib_version() >= MIN_AFX_LOGGER_VERSION && strcmp(ng->fx, NVAFX_EFFECT_DEREVERB) != 0) {
+			if (get_afx_lib_version() >= MIN_AFX_LOGGER_VERSION &&
+			    strcmp(ng->fx, NVAFX_EFFECT_DEREVERB) != 0) {
 				err = NvAFX_SetU32(ng->handle[i], NVAFX_PARAM_ENABLE_VAD, ng->vad);
 
 				if (err != NVAFX_STATUS_SUCCESS) {
@@ -554,7 +555,7 @@ static void *nvidia_audio_create(obs_data_t *settings, obs_source_t *filter)
 		ng->nvafx_initialized = false;
 		ng->nvafx_loading = false;
 		ng->fx = NULL;
-		ng->sdk_version = get_lib_version();
+		ng->sdk_version = get_afx_lib_version();
 		pthread_mutex_init(&ng->nvafx_mutex, NULL);
 
 		info("NVAFX SDK redist path was found here %s", sdk_path);
@@ -808,7 +809,7 @@ static void nvidia_audio_defaults(obs_data_t *s)
 {
 	obs_data_set_default_double(s, S_NVAFX_INTENSITY, 1.0);
 	obs_data_set_default_string(s, S_METHOD, S_METHOD_NVAFX_DENOISER);
-	if (get_lib_version() >= MIN_AFX_LOGGER_VERSION)
+	if (get_afx_lib_version() >= MIN_AFX_LOGGER_VERSION)
 		obs_data_set_default_bool(s, S_NVAFX_VAD, 1);
 }
 
@@ -841,7 +842,7 @@ static obs_properties_t *nvidia_audio_properties(void *data)
 		obs_properties_add_bool(ppts, S_NVAFX_VAD, TEXT_NVAFX_VAD);
 		obs_property_set_modified_callback2(method, nvidia_audio_method_modified, ng);
 
-		unsigned int version = get_lib_version();
+		unsigned int version = get_afx_lib_version();
 		obs_property_t *warning = obs_properties_add_text(ppts, "deprecation", NULL, OBS_TEXT_INFO);
 		if (version && version < MIN_AFX_SDK_VERSION) {
 			obs_property_text_set_info_type(warning, OBS_TEXT_INFO_WARNING);

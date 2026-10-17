@@ -9,9 +9,6 @@
 #include <shellapi.h>
 #include <shlobj.h>
 
-extern DARRAY(struct font_path_info) font_list;
-extern void save_font_list(void);
-
 struct mac_font_mapping {
 	unsigned short encoding_id;
 	unsigned short language_id;

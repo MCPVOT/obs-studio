@@ -6,7 +6,7 @@
 #include "find-font.h"
 #include "text-freetype2.h"
 
-DARRAY(struct font_path_info) font_list;
+font_path_info_array_t font_list;
 
 static inline bool read_data(struct serializer *s, void *data, size_t size)
 {

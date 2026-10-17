@@ -409,7 +409,7 @@ void SavedRasterState::Rebuild(ID3D11Device *dev)
 	}
 }
 
-const static D3D_FEATURE_LEVEL featureLevels[] = {
+const static D3D_FEATURE_LEVEL rebuildFeatureLevels[] = {
 	D3D_FEATURE_LEVEL_11_0,
 	D3D_FEATURE_LEVEL_10_1,
 	D3D_FEATURE_LEVEL_10_0,
@@ -500,9 +500,9 @@ try {
 	InitAdapter(adpIdx);
 
 	uint32_t createFlags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
-	hr = D3D11CreateDevice(adapter, D3D_DRIVER_TYPE_UNKNOWN, nullptr, createFlags, featureLevels,
-			       sizeof(featureLevels) / sizeof(D3D_FEATURE_LEVEL), D3D11_SDK_VERSION, &device, nullptr,
-			       &context);
+	hr = D3D11CreateDevice(adapter, D3D_DRIVER_TYPE_UNKNOWN, nullptr, createFlags, rebuildFeatureLevels,
+			       sizeof(rebuildFeatureLevels) / sizeof(D3D_FEATURE_LEVEL), D3D11_SDK_VERSION, &device,
+			       nullptr, &context);
 	if (FAILED(hr)) {
 		throw HRError("Failed to create device", hr);
 	}

@@ -234,7 +234,7 @@ static inline void required_extension_error(const char *extension)
 	blog(LOG_ERROR, "OpenGL extension %s is required", extension);
 }
 
-static bool gl_init_extensions(HDC hdc)
+static bool gl_init_wgl_extensions(HDC hdc)
 {
 	if (!gladLoadWGL(hdc)) {
 		blog(LOG_ERROR, "Failed to load WGL entry functions.");
@@ -426,7 +426,7 @@ struct gl_platform *gl_platform_create(gs_device_t *device, uint32_t adapter)
 
 	if (!gl_dummy_context_init(&dummy))
 		goto fail;
-	if (!gl_init_extensions(dummy.hdc))
+	if (!gl_init_wgl_extensions(dummy.hdc))
 		goto fail;
 	if (!register_dummy_class())
 		return false;

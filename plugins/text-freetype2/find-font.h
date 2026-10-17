@@ -32,6 +32,10 @@ static inline void font_path_info_free(struct font_path_info *info)
 	bfree(info->path);
 }
 
+typedef DARRAY(struct font_path_info) font_path_info_array_t;
+extern font_path_info_array_t font_list;
+extern void save_font_list(void);
+
 extern void build_font_path_info(FT_Face face, FT_Long idx, const char *path);
 extern char *sfnt_name_to_utf8(FT_SfntName *sfnt_name);
 
