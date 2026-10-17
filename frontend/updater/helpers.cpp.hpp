@@ -1,4 +1,4 @@
-#include "helpers.hpp"
+#include "frontend/updater/build/updater.pch.hpp"
 
 void FreeProvider(HCRYPTPROV prov)
 {

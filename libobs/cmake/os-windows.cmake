@@ -1,7 +1,7 @@
 if(NOT TARGET OBS::obfuscate)
   add_library(obs-obfuscate INTERFACE)
   add_library(OBS::obfuscate ALIAS obs-obfuscate)
-  target_sources(obs-obfuscate INTERFACE util/windows/obfuscate.c util/windows/obfuscate.h)
+  target_sources(obs-obfuscate INTERFACE build/libobs.obfuscate-windows+.h.c util/windows/obfuscate.h)
   target_include_directories(obs-obfuscate INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}")
 endif()
 
@@ -54,7 +54,7 @@ set_source_files_properties(
 )
 
 # PRIVATE: libobs and libobs-with-rust get these as link-only items, so
-# OBS::obfuscate's interface source (util/windows/obfuscate.c) is compiled
+# OBS::obfuscate's interface group (build/libobs.obfuscate-windows+.h.c) is compiled
 # once, into libobs-objects, not again into each DLL.
 target_link_libraries(
   libobs-objects

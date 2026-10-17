@@ -14,22 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "manifest.hpp"
-#include "updater.hpp"
-
-#include <psapi.h>
-#include <SoftPub.h>
-#include <WinTrust.h>
-
-#include <util/windows/CoTaskMemPtr.hpp>
-
-#include <exception>
-#include <future>
-#include <mutex>
-#include <queue>
-#include <string>
-#include <string_view>
-#include <unordered_set>
+#include "frontend/updater/build/updater.pch.hpp"
 
 using namespace std;
 using namespace updater;
@@ -2171,3 +2156,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR lpCmdLine, int)
 		return (int)msg.wParam;
 	}
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef UTF8ToWideBuf
+#undef WideToUTF8Buf

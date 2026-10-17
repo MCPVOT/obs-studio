@@ -141,10 +141,8 @@ set(_c_sources ${LIBOBS_SOURCES} ${LIBOBS_PORTED_SOURCES} ${LIBOBS_${_host}_SOUR
 # libobs's lists are unity groups (BUILD.md), which bring their own PCH variants.
 _obs_cross_object_library(libobs-cross ${_c_sources})
 if(_host STREQUAL WINDOWS)
-  # OBS::obfuscate's interface source, compiled into libobs on Windows. Its own
-  # target: as one of libobs-cross's own sources it would make that target a
-  # mixed one (cmake/common/groups.cmake), unlike the real libobs.
-  _obs_cross_object_library(libobs-cross-obfuscate util/windows/obfuscate.c)
+  # OBS::obfuscate's interface group, compiled into libobs on Windows.
+  _obs_cross_object_library(libobs-cross-obfuscate build/libobs.obfuscate-windows+.h.c)
 endif()
 # The C halves only the Rust build adds; the Rust itself is checked by the
 # cross lane (ci/local_gate.py, `soldr cargo clippy --target`).
@@ -304,6 +302,50 @@ if(_host STREQUAL WINDOWS)
   )
   # obs-text's unity group (BUILD.md).
   _obs_cross_plugin(obs-text-cross DIR plugins/obs-text SOURCES build/obs-text.windows+.hpp.cpp)
+  # The Windows helpers' unity groups (BUILD.md): the updater, the virtual
+  # camera DLL, the AMF and QSV probes and obs-ffmpeg's AMF encoders.
+  _obs_cross_plugin(
+    updater-cross
+    DIR frontend/updater
+    SOURCES build/updater.windows+.hpp.cpp build/updater.windows-c+.h.c
+    INCLUDES deps/blake2/src
+  )
+  _obs_cross_plugin(
+    virtualcam-module-cross
+    DIR plugins/win-dshow/virtualcam-module
+    SOURCES build/virtualcam-module.windows+.hpp.cpp build/virtualcam-module.windows-c+.h.c
+    INCLUDES
+      plugins/win-dshow
+      shared/obs-shared-memory-queue
+      shared/obs-tiny-nv12-scale
+      deps/libdshowcapture/src
+      deps/libdshowcapture/src/external/capture-device-support/Library
+    DEFINES VIRTUALCAM_AVAILABLE
+  )
+  # libdshowcapture includes Windows SDK headers by mixed-case names, which
+  # Windows' filesystem finds and the cross check's lowercase SDK doesn't.
+  foreach(_header IN ITEMS Amaudio Dvdmedia SetupAPI)
+    string(TOLOWER "${_header}" _lower)
+    file(WRITE "${CMAKE_BINARY_DIR}/dshow-case/${_header}.h" "#include <${_lower}.h>\n")
+  endforeach()
+  target_include_directories(virtualcam-module-cross PRIVATE "${CMAKE_BINARY_DIR}/dshow-case")
+  # Its GUID header, configured as the real build does (any GUID compiles).
+  foreach(_n RANGE 1 11)
+    string(REGEX REPLACE "^([0-9])$" "0\\1" _n "${_n}")
+    set(GUID_VAL${_n} 1)
+  endforeach()
+  configure_file(
+    "${OBS_SOURCE_ROOT}/plugins/win-dshow/virtualcam-module/virtualcam-guid.h.in"
+    "${CMAKE_BINARY_DIR}/virtualcam-module-cross/virtualcam-guid.h"
+  )
+  _obs_cross_plugin(obs-amf-test-cross DIR plugins/obs-ffmpeg/obs-amf-test SOURCES build/obs-amf-test.windows+.hpp.cpp)
+  _obs_cross_plugin(obs-qsv-test-cross DIR plugins/obs-qsv11/obs-qsv-test SOURCES build/obs-qsv-test.windows+.hpp.cpp)
+  _obs_cross_plugin(
+    obs-ffmpeg-amf-cross
+    DIR plugins/obs-ffmpeg
+    SOURCES build/obs-ffmpeg.amf-windows+.hpp.cpp
+    INCLUDES shared/opts-parser
+  )
   # libobs-d3d11's unity group (BUILD.md).
   _obs_cross_plugin(libobs-d3d11-cross DIR libobs-d3d11 SOURCES build/d3d11.core+.hpp.cpp DEFINES GPU_PRIORITY_VAL=0)
   # libobs-opengl's unity groups (BUILD.md): the shared renderer and WGL.

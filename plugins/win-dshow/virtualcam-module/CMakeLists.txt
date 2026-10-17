@@ -79,12 +79,10 @@ target_sources(
   obs-virtualcam-module
   PRIVATE
     ${CMAKE_CURRENT_BINARY_DIR}/virtualcam-module.rc
-    placeholder.cpp
-    sleepto.c
+    build/virtualcam-module.windows+.hpp.cpp
+    build/virtualcam-module.windows-c+.h.c
     sleepto.h
-    virtualcam-filter.cpp
     virtualcam-filter.hpp
-    virtualcam-module.cpp
 )
 
 target_include_directories(obs-virtualcam-module PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")

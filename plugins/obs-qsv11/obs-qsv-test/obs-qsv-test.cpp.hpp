@@ -1,18 +1,4 @@
-#define ONEVPL_EXPERIMENTAL
-#include <vpl/mfxstructures.h>
-#include <vpl/mfxadapter.h>
-#include <vpl/mfxvideo++.h>
-#include "../common_utils.h"
-
-#include <util/windows/ComPtr.hpp>
-
-#include <dxgi.h>
-#include <d3d11.h>
-#include <d3d11_1.h>
-
-#include <vector>
-#include <string>
-#include <map>
+#include "plugins/obs-qsv11/obs-qsv-test/build/obs-qsv-test.pch.hpp"
 
 #ifdef _MSC_VER
 extern "C" __declspec(dllexport) DWORD NvOptimusEnablement = 1;
@@ -207,3 +193,6 @@ try {
 	printf("[error]\nstring=%s\n", text);
 	return 0;
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef CHECK_TIMEOUT_MS

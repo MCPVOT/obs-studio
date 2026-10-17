@@ -1,5 +1,4 @@
-#include "virtualcam-filter.hpp"
-#include "virtualcam-guid.h"
+#include "plugins/win-dshow/virtualcam-module/build/virtualcam-module.pch.hpp"
 
 /* ========================================================================= */
 

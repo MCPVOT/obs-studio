@@ -14,9 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "Updater.hpp"
-
-#include <algorithm>
+#include "frontend/updater/build/updater.pch.hpp"
 
 using namespace std;
 
@@ -453,3 +451,7 @@ bool HTTPGetBuffer(HINTERNET hConnect, const wchar_t *url, const wchar_t *extraH
 
 	return true;
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef MAX_BUF_SIZE
+#undef READ_BUF_SIZE

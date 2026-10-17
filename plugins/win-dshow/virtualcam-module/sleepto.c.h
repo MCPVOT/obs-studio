@@ -1,6 +1,4 @@
-#include <windows.h>
-#include <stdbool.h>
-#include "sleepto.h"
+#include "plugins/win-dshow/virtualcam-module/build/virtualcam-module-c.pch.h"
 
 static bool have_clockfreq = false;
 static LARGE_INTEGER clock_freq;

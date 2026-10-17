@@ -1,18 +1,4 @@
-#include <AMF/core/Factory.h>
-#include <AMF/core/Trace.h>
-#include <AMF/components/VideoEncoderVCE.h>
-#include <AMF/components/VideoEncoderHEVC.h>
-#include <AMF/components/VideoEncoderAV1.h>
-
-#include <util/windows/ComPtr.hpp>
-
-#include <dxgi.h>
-#include <d3d11.h>
-#include <d3d11_1.h>
-
-#include <vector>
-#include <string>
-#include <map>
+#include "plugins/obs-ffmpeg/obs-amf-test/build/obs-amf-test.pch.hpp"
 
 using namespace amf;
 
@@ -178,3 +164,6 @@ try {
 	printf("[error]\nstring=%s\n", text);
 	return 0;
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef AMD_VENDOR_ID

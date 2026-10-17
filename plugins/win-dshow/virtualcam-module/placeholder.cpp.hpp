@@ -1,8 +1,4 @@
-#include <windows.h>
-#include <strsafe.h>
-#include <gdiplus.h>
-#include <stdint.h>
-#include <vector>
+#include "plugins/win-dshow/virtualcam-module/build/virtualcam-module.pch.hpp"
 
 using namespace Gdiplus;
 

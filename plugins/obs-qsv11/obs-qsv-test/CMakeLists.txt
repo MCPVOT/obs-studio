@@ -4,7 +4,7 @@ add_executable(obs-qsv-test)
 
 find_package(VPL 2.9 REQUIRED)
 
-target_sources(obs-qsv-test PRIVATE obs-qsv-test.cpp)
+target_sources(obs-qsv-test PRIVATE build/obs-qsv-test.windows+.hpp.cpp)
 
 target_compile_definitions(obs-qsv-test PRIVATE "$<$<BOOL:${ENABLE_HEVC}>:ENABLE_HEVC>")
 

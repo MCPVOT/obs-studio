@@ -1,9 +1,4 @@
-#include "virtualcam-filter.hpp"
-#include "sleepto.h"
-
-#include <shlobj_core.h>
-#include <strsafe.h>
-#include <inttypes.h>
+#include "plugins/win-dshow/virtualcam-module/build/virtualcam-module.pch.hpp"
 
 using namespace DShow;
 

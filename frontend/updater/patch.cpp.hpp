@@ -14,9 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "updater.hpp"
-
-#include <vector>
+#include "frontend/updater/build/updater.pch.hpp"
 
 using namespace std;
 

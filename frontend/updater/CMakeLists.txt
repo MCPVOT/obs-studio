@@ -8,15 +8,11 @@ add_executable(updater WIN32)
 target_sources(
   updater
   PRIVATE
-    hash.cpp
-    helpers.cpp
+    build/updater.windows+.hpp.cpp
+    build/updater.windows-c+.h.c
     helpers.hpp
-    http.cpp
-    init-hook-files.c
     manifest.hpp
-    patch.cpp
     resource.h
-    updater.cpp
     updater.hpp
     updater.manifest
     updater.rc

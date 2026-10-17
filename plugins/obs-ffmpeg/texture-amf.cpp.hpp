@@ -1,34 +1,4 @@
-#include <util/threading.h>
-#include <opts-parser.h>
-#include <obs-module.h>
-#include <obs-avc.h>
-
-#include <unordered_map>
-#include <cstdlib>
-#include <memory>
-#include <sstream>
-#include <vector>
-#include <mutex>
-#include <deque>
-#include <map>
-
-#include <AMF/components/VideoEncoderHEVC.h>
-#include <AMF/components/VideoEncoderVCE.h>
-#include <AMF/components/VideoEncoderAV1.h>
-#include <AMF/core/Factory.h>
-#include <AMF/core/Trace.h>
-
-#include <dxgi.h>
-#include <d3d11.h>
-#include <d3d11_1.h>
-
-#include <util/windows/device-enum.h>
-#include <util/windows/HRError.hpp>
-#include <util/windows/ComPtr.hpp>
-#include <util/platform.h>
-#include <util/util.hpp>
-#include <util/pipe.h>
-#include <util/dstr.h>
+#include "plugins/obs-ffmpeg/build/obs-ffmpeg-amf.pch.hpp"
 
 using namespace amf;
 
@@ -1217,7 +1187,7 @@ static void check_texture_encode_capability(obs_encoder_t *encoder, amf_codec_ty
 	}
 }
 
-#include "texture-amf-opts.hpp"
+#include "plugins/obs-ffmpeg/texture-amf-opts.hpp"
 
 /* These are initial recommended settings that may be lowered later once we know more info such as the resolution and
  * frame rate. */
@@ -2824,3 +2794,26 @@ extern "C" void amf_unload(void)
 /* File-local macros: keep them out of the next source of a unity build. */
 #undef SEC_TO_NSEC
 #undef do_log
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef error
+#undef warn
+#undef info
+#undef debug
+#undef set_avc_property
+#undef set_hevc_property
+#undef set_av1_property
+#undef get_avc_property
+#undef get_hevc_property
+#undef get_av1_property
+#undef get_opt_name
+#undef set_opt
+#undef get_opt
+#undef set_avc_opt
+#undef set_hevc_opt
+#undef set_av1_opt
+#undef set_enum_opt
+#undef set_avc_enum
+#undef set_hevc_enum
+#undef set_av1_enum
+#undef AMD_VENDOR_ID

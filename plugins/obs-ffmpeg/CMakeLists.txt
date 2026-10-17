@@ -74,7 +74,7 @@ target_link_libraries(
 
 if(OS_WINDOWS)
   if(CMAKE_VS_PLATFORM_NAME STREQUAL x64)
-    target_sources(obs-ffmpeg PRIVATE texture-amf-opts.hpp texture-amf.cpp)
+    target_sources(obs-ffmpeg PRIVATE build/obs-ffmpeg.amf-windows+.hpp.cpp texture-amf-opts.hpp)
     target_link_libraries(obs-ffmpeg PRIVATE AMF::AMF)
   endif()
 

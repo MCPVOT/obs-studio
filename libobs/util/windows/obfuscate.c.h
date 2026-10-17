@@ -1,10 +1,4 @@
-#ifdef _MSC_VER
-#pragma warning(disable : 4152) /* casting func ptr to void */
-#endif
-
-#include <stdbool.h>
-#include <windows.h>
-#include "obfuscate.h"
+#include "libobs/build/libobs-obfuscate.pch.h"
 
 #define LOWER_HALFBYTE(x) ((x) & 0xF)
 #define UPPER_HALFBYTE(x) (((x) >> 4) & 0xF)
@@ -36,3 +30,7 @@ void *ms_get_obfuscated_func(HMODULE module, const char *str, uint64_t val)
 	deobfuscate_str(new_name, val);
 	return GetProcAddress(module, new_name);
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef LOWER_HALFBYTE
+#undef UPPER_HALFBYTE

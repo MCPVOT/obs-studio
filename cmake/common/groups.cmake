@@ -114,7 +114,7 @@ function(_obs_target_groups target)
     endif()
   endforeach()
   # Only the target's own plain sources make it mixed: one an INTERFACE
-  # library hands a grouped target (OBS::obfuscate's obfuscate.c in libobs)
+  # library hands a grouped target (libdshowcapture's sources in win-dshow)
   # just compiles on its own, without the groups' precompiled header.
   set(_groups "")
   set(_others "")
