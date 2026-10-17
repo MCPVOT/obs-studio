@@ -3,6 +3,258 @@
 Implementation and measurement tracker:
 [obs-studio#1286](https://github.com/obs-rust/obs-studio/issues/1286).
 
+## Executive assessment
+
+The janitor failed because a fork PR received a read-only Actions token:
+all 32 deletion requests returned HTTP 403. Maintenance also delayed useful
+work through its dependency graph. The merged fix keeps `ci-pre.yml` as the
+common pre-work entry point, runs only its janitor on trusted queue/master
+events, and keeps maintenance outside build, required-gate and cancellation
+dependencies. A maintenance failure remains visible without blocking a merge.
+
+Compiler caching is effective. The remaining speed work is reducing needless
+transfers, matching dependency snapshots to consumers, and shortening the test
+critical path. Preserve useful caches and required integrity coverage; judge
+changes by total gate time and runner cost rather than archive HIT messages.
+
+### Verified rollout results
+
+Master [39061960882](https://github.com/obs-rust/obs-studio/actions/runs/39061960882)
+completed successfully with the following results:
+
+| Area | Observation | Decision |
+| --- | --- | --- |
+| Linux Tier 2 | 774/775 compilations cached; build step 53 s; complete build job 162 s | Keep the working compiler cache |
+| Qt frontend | 295/297 cacheable hits; restore 10 s, build/tests 55 s, save 6 s | Keep the 1.2 GB cache bound and realistic retention allowance |
+| OFF/ON tests | 286 registered per mode: 283 passed, 3 skipped, 0 failed; concurrent phase 327 s wall / 642 runner-seconds | Keep both implementations and parallelize independent modes |
+| Scheduling | Fast Gate 234 s; 3 s to build start; build 162 s; 3 s to test runners | Continue measuring runner waits as well as commands |
+| Rust compiler correctness | Pinned soldr 0.9.35 still returns a stale success in the nested-source probe | Retain the wrapper bypass pending the upstream fix |
+
+The earlier serial test job took 578 s for 283 tests per implementation; the
+first parallel trial spanned 366 s and consumed 715 runner-seconds. The newer
+327-second phase above registered 286 tests per mode (283 passed, three
+PulseAudio device tests skipped). These are **unmatched phase
+observations**, not proof of overall queue throughput improvement. Source,
+runner placement and compiler-cache rollout conditions differ.
+
+[Machine-readable rollout results](ci-evidence/2026-10-17-master-cache-rollout.json)
+include job IDs, phase times and independent compiler counters. The isolated
+libobs results below remain separate from whole-app and CI build timings.
+
+### Native Rust profile verification
+
+Master [39063249804](https://github.com/obs-rust/obs-studio/actions/runs/39063249804)
+passed native Rust test jobs on both platforms with `--profile dev`:
+
+| Platform | Setup | Cook inside setup | Rust tests | Post-job setup-soldr save |
+| --- | --- | --- | --- | --- |
+| macOS arm64 | 34 s | 23.1 s | 89 s | 13 s |
+| Windows x64 | 53 s | 30.0 s | 125 s | 15 s |
+
+[Raw job observations](ci-evidence/2026-10-17-native-rust-cook-rollout.json)
+verify profile use and successful consumers. Compiler-wrapper session counters
+were zero in both jobs; these are separate from dependency-cook reuse. The
+parent master run was later canceled after its native jobs and cache writers
+finished; this is not a full-workflow pass or a matched speed comparison.
+
+Windows native Tier 2 also passed in this master run, using `--release` for
+the static-library consumer and recording **304/305 cacheable ccache hits**,
+one miss. It saved `windows-tier2-ccache-6d7b7f7a...`. These C/C++ counters
+are independent of the zero embedded zccache session counters printed by
+setup-soldr. [Job timings and counters](ci-evidence/2026-10-17-windows-tier2-cache-rollout.json)
+confirm that useful native compiler reuse survived the changes.
+
+macOS native Tier 2 passed both implementation runs too: 161 registered,
+160 passed and one `test_svt_av1` skip each, with CTest times 96.45/101.15 s.
+Its release-profile consumer succeeded and saved `macos-tier2-xcas-6d7b7f7a...`.
+The embedded compiler session recorded 22 hits and zero misses; this does not
+establish an Xcode compilation-cache hit rate.
+[Native macOS observations](ci-evidence/2026-10-17-macos-tier2-cache-rollout.json)
+keep these independent scopes explicit. The obsolete master workflow was
+canceled after its native jobs and cache writers completed; it is not claimed
+as a full-workflow success. Full nightly verification remains separate.
+
+### What still dominates test time
+
+The [serial-test profile](ci-evidence/2026-10-17-tier2-serial-profile.json)
+identifies eight `RUN_SERIAL` tests totaling 174.47 s OFF and 165.17 s ON,
+against CTest wall times of 257.61 s and 248.03 s. The longest are async audio
+delay (~59 s), PipeWire resume (~39 s), VLC pacing (~35 s), and audio clock
+drift (23.52 s OFF / 14.55 s ON). The independent mode runners are balanced
+within 12 s of job wall time; dividing tests evenly by count would not balance
+these durations. No test sharding or removal of serial isolation was shipped.
+A future experiment can isolate long suites in separate environments, measuring
+extra runner/setup cost and timing stability before changing their scheduling.
+
+Both modes skipped `test_pulse_monitor_device`, `test_pulse_stream_restart`
+and `test_pulse_two_sources`; a green workflow is not evidence those device
+scenarios executed. Their environmental coverage remains a stated limitation.
+
+### Queue admission and operating strategy
+
+1. Queue admission covers compilation and integrity: selected builds, lint,
+   tests, ABI/behavior and differential checks. Security scans and release
+   packaging validation run nightly or through explicit manual/release runs.
+   Automatic GitHub CodeQL setup is disabled; merged #1327 puts the same four
+   languages in the existing Scheduled workflow and reports nightly failures.
+2. Queue/master janitors own retention. PRs restore useful snapshots; remote
+   setup-soldr saves are master-only. Local development saves remain enabled.
+3. Protect correctness first: retain the Rust wrapper bypass and cross-lane
+   toolchain safeguards. Do not trade stale-output protection for headline hits.
+4. Preserve one active master warming build and the latest pending snapshot.
+   Catch-up scope must retain paths from superseded pushes; #1328 implements
+   that after the plugin seed exposed a lost-path case. Follow-up #1330
+   protects the rollout baseline from older coalesced successes that did not
+   cover replaced pending pushes.
+5. Keep independent OFF/ON test runners and publish the extra runner cost.
+   Keep all applicable test coverage; no test sharding was introduced.
+
+Nightly security migration is live-verified: manual Scheduled run
+[39064183327](https://github.com/obs-rust/obs-studio/actions/runs/39064183327)
+passed CodeQL for Actions, C/C++, Python and Rust. Automatic default setup
+remains disabled. [Per-language results](ci-evidence/2026-10-17-nightly-codeql-verification.json)
+record durations and job IDs. This proves nightly/manual scanning works; the
+full nightly run subsequently finished with the macOS integrity failure described below.
+
+Trusted scoped-plugin warming is now observed: master run
+[39064132902](https://github.com/obs-rust/obs-studio/actions/runs/39064132902)
+saved `targets-ccache-linux-713ceb3b...`, a 25,761,103-byte archive on master.
+The touched-target build and save steps succeeded. The prepared measurement
+PR selects only `linux-v4l2`; its tracked compiler-input fingerprint matches
+the seed revision, excluding Markdown and generated version metadata.
+[Experiment records](ci-evidence/2026-10-17-plugin-cache-experiment.json)
+retain the cold sample and trusted save. Subsequent PR compiler reuse is verified below; archive creation alone was
+not used as proof of reuse.
+
+### Scoped plugin follow-up measurements
+
+| Condition | Compiler hits | Target step | Full job | Apt fetched |
+| --- | --- | --- | --- | --- |
+| Original cold PR | 0/41 | 57 s | 153 s | 147 MB / 13 s |
+| Warm compiler archive | 41/41 | 70 s | 169 s | 147 MB / 30 s |
+| Shared apt archive, wrong layout | 41/41 | 70 s | 190 s | 147 MB / 28 s |
+| Shared apt archive, layout normalized | 41/41 | 46 s | 145 s | 142 MB / 13 s |
+| Host-specific apt, cold | 41/41 | 57 s | 165 s | 147 MB / 21 s |
+| Host-specific apt, warm | 41/41 | 39 s | 148 s | 0 bytes |
+
+Compiler work fell from about 12 s to half a second, but this alone did not
+make the first warm job faster. Package download/install overhead dominated.
+The container archive supplied only about 5 MB of the host's package needs,
+even after 563 archives were relocated correctly. The large shared restore
+is therefore rejected. Merged #1335 instead uses a host-specific archive, with image rotation and
+an enforced 200 MiB producer cap from #1339. Trusted master has now saved
+147,542,391 bytes for image `20261012.163.1`. Its tracked compiler-input
+fingerprint matches the prepared report PR. The cold host run retained 323
+packages and took 165 s (57 s target step, 41/41 compiler hits). The subsequent
+PR restored all 323 packages in 2 s and downloaded zero package bytes, with
+41/41 compiler hits. Its target step took 39 s and full job 148 s: observed
+reductions of 18 s (31.6%) and 17 s (10.3%) respectively versus the host cold
+sample. Both used runner image `20261012.163.1` and the compiler inputs match
+the trusted seed. This is one cold/warm pair, with network/runner variance;
+it is not the representative-day queue-throughput result.
+These are individual unmatched runs, with network and runner variation;
+145 versus 153 s is not claimed as a robust causal improvement.
+
+### Full nightly outcome
+
+[Final job results](ci-evidence/2026-10-17-nightly-final-results.json) show
+successful Ubuntu OFF/ON app builds, macOS Intel/Apple Silicon, Windows
+x64/arm64, Flatpak, security analysis, Linux OFF/ON Tier 2 and Windows Tier 2.
+The **overall run failed** at macOS `test_ingest_refresh_wait` /
+`failed_refresh_ends_wait`: its elapsed time exceeded 150 ms. The first
+implementation run failed, so the second implementation was not validated.
+[Failure evidence](ci-evidence/2026-10-17-nightly-macos-failure.json) and
+[#1334](https://github.com/obs-rust/obs-studio/issues/1334) preserve the failure
+and required diagnostics. Scheduling sensitivity is a hypothesis; no cache
+cause is established. The existing C test was neither weakened nor skipped,
+and no speculative whole-workflow retry was performed. This native build
+matrix is distinct from the AppImage nightly release pipeline.
+
+The full Ubuntu app cache has a separate confirmed defect: 13 baseline
+restore events unpacked 5–6 GiB and then deleted the directory at a 2 GiB
+pre-build threshold. [#1337](https://github.com/obs-rust/obs-studio/pull/1337)
+consumes the cache first and bounds the subsequent save instead. Its shell
+regression covers 6 GiB, 8 GiB and over-limit snapshots; actual warm app reuse
+still needs live verification. The 8 GiB guard is uncompressed per-run disk
+state, not additional Actions storage allocation.
+
+### Measurement status and limits
+
+The before window is 2026-10-16 17:00 through 2026-10-17 17:00 UTC: 473 listed
+runs and 117 detailed samples. Successful code PRs (n=9) had median gate wall
+1,016 s; code merge groups (n=8) had median 954 s. Sampled canceled code PRs
+used 211.57 runner-minutes and sampled canceled code merge groups 194.45.
+These cancellation costs describe the sample, not an extrapolated population.
+Docs/configuration cohorts are kept separate.
+
+[Baseline log observations](ci-evidence/2026-10-16_17-ci-baseline-log-observations.json)
+preserve the observed compiler counters, archive sizes, saved keys and test
+counts. Logs were unavailable for 33 of 117 sampled attempts, all canceled;
+missing counters are unknown. Repeated archive messages and independent
+compiler scopes must not be summed into fictitious transfer/hit totals.
+
+The [per-lane baseline](ci-evidence/2026-10-16_17-ci-baseline-lane-timings.json)
+separates code/docs/configuration cohorts and records each literal step's
+sample count. Selected **code-cohort successful jobs** were:
+
+| Lane | PR n / median job | Queue n / median job | PR / queue median soldr setup |
+| --- | --- | --- | --- |
+| Fast Gate | 27 / 128 s | 19 / 139 s | 23 / 32 s |
+| Tier 2 build | 8 / 196.5 s | 7 / 179 s | 25 / 17 s |
+| Serial Tier 2 tests | 7 / 597 s | 3 / 598 s | Not applicable |
+| Qt frontend | 5 / 256 s | 10 / 161 s | Not applicable |
+
+These include successful jobs in workflows that later failed or were canceled;
+the JSON discloses parent outcomes. They are not the successful-gate sample
+counts above. Step medians are not additive totals, and historical lane/shard
+names remain separate. Missing/skipped step times do not become zero samples.
+The collector now emits `lane_cohorts` so the same method applies after rollout.
+
+A [post-nightly inventory snapshot](ci-evidence/2026-10-17-post-nightly-cache-inventory.json)
+records both cache APIs with collection timestamps. The itemized listing
+contained 41 entries / 8,951,159,430 bytes; the usage endpoint reported 49 /
+10,617,481,983 bytes. The pinned contract interprets `10GB` as 10 GiB
+(10,737,418,240 bytes). These endpoints were asynchronous during concurrent
+writers and janitor cleanup; their totals are not combined, and neither is
+presented as steady-state headroom. An earlier listing peaked near 10.70 GB.
+Nightly app archives dominate the transient footprint; useful queue caches
+must remain warm through the full representative-day comparison.
+
+The final after window must cover at least a full day of representative code
+PR and queue traffic following rollout. It has not elapsed. The first host
+cold/warm pair is complete. Repeatability over real traffic, Ubuntu app reuse
+after the purge fix, the nightly integrity failure (#1334), stable cache
+headroom and the representative-day comparison remain acceptance work under
+#1286. This report does not claim those requirements are complete.
+
+## Recommendation and acceptance checkpoint
+
+Keep the merged queue policy, Rust correctness safeguard, bounded useful
+compiler caches and parallel OFF/ON runners. Validate the observed host-package
+benefit over real traffic; an archive HIT alone is not a throughput result.
+Validate Ubuntu app reuse after removing the pre-build purge, and compare a
+full day of code PR/queue traffic after the final cache rollout. Track the
+macOS integrity failure separately through #1334 (proposed fix #1338).
+
+| #1286 requirement | Evidence/status at this checkpoint |
+| --- | --- |
+| 1. Match cook profiles and measure consumers | Explicit profiles landed in #1318; local dev/release/no-cook experiment and native consumers recorded. Representative post-rollout comparison remains pending. |
+| 2. Rust cache correctness | Reproduction still fails on pinned soldr; safeguard retained in #1290, upstream zccache#1943 linked. |
+| 3. Remove unused overhead | Deferred Fast Gate layer removed in #1315; 13 Ubuntu restore/purge events fixed by #1337. Live Ubuntu reuse and budget behavior remain to verify. |
+| 4. Warm scoped plugin builds | Trusted compiler and host-package seeds consumed by a PR: 41/41 compiler hits, 323 packages, zero package bytes downloaded; job 165 → 148 s in the first host cold/warm pair. Day-scale validation remains. |
+| 5. Persist test timing | Nonempty OFF/ON producer, save, later restore and CTest consumption verified across master runs (#1288/#1311). |
+| 6. Match remote save policy | All seven setup-soldr consumers use master-only remote saves; PR/queue/local-save behavior verified (#1291). |
+| 7. Bound Qt cache | 1.2 GB compiler bound, 1.3 GB family, actual high hit rates and restore/save times verified (#1309). Overall repository headroom still needs the full-day view. |
+| 8. Unify nightly cleanup | Competing purge removed; original startup permission failure fixed (#1289). Real full dispatch completed; separate macOS test failure remains #1334. |
+| 9. Isolated libobs measurements | Three trials per condition and raw wall/CPU/cache evidence published in #1306. Wall-time ranges overlap. |
+| 10. Shorten critical path | Independent OFF/ON runners landed (#1314); phase times, runner cost, skips and serial-test bottlenecks recorded. Overall queue gain remains unproven. |
+| 11. Durable before/after comparison | Full-day baseline and cohort-separated per-step collector ready. At least one full representative post-rollout day remains outstanding. |
+
+This checkpoint preserves the original scope. #1286 remains open while the
+Ubuntu app reuse, stable budget behavior and representative-day
+comparison are unverified. A green isolated job is not substituted for a
+full workflow, and configuration/docs traffic is not substituted for code PRs.
+
 ## Isolated C libobs build
 
 Measured the `libobs` target alone, with Rust libobs, frontend, scripting,
@@ -117,8 +369,11 @@ specific failure mode rather than checking only an ordinary append.
 
 [#1288](https://github.com/obs-rust/obs-studio/pull/1288) enables hidden-file
 uploads for `.tier2-cost` and rejects missing or unmeasured OFF/ON timing
-files before writing a cache. Master artifact production and subsequent
-consumption must be observed before declaring the timing pipeline repaired.
+files before writing a cache. #1311 subsequently fixed the singleton-artifact
+download layout. Master run 39059448618 produced 282 measured records per
+mode and saved a 5,920-byte timing cache. Later run 39060831338 restored the
+newer nonempty timing entry and completed both CTest modes. Producer,
+persistence and consumer evidence are recorded in #1286.
 
 The [failed scheduled run](https://github.com/obs-rust/obs-studio/actions/runs/39002695404)
 was rejected before job execution: its annotation says the nested `ci-mode`
@@ -127,7 +382,10 @@ permission error, not a cache script failure.
 [#1289](https://github.com/obs-rust/obs-studio/pull/1289) grants that permission
 and removes the independent nightly compiler-cache purge. Cache retention
 belongs to the existing merge-group/master janitor and `ci.toml`; scheduled
-builds reuse its warm entries. A live full dispatch remains the startup check.
+builds reuse its warm entries. Dispatch 39064183327 subsequently started every
+job and completed the full native app matrix and security scans. Its separate
+macOS ingest-refresh assertion failure (#1334) remains visible; it is not a
+startup or cleanup failure.
 
 ## A day of baseline CI traffic
 
@@ -182,7 +440,7 @@ hits, misses and compilations; post-job save skipped the zero-compile
 delta. The local gate explicitly bypasses this Rust compiler cache for
 lint, tests and cross checks because of the verified correctness blocker.
 
-Disable this layer only for deferred PR/merge-group Fast Gate runs,
+Merged #1315 disables this layer only for deferred PR/merge-group Fast Gate runs,
 retaining cook and registry snapshots. The full-day sample contains 26
 PR and 18 merge-group Fast Gate session reports with no positive compiler
 hits (26 and 16 respectively had zero compilations). In contrast, 5/24
@@ -204,25 +462,27 @@ times must not be summed as sequential wall time.
 The cache API snapshot at 2026-10-17 18:39 UTC contained 43 entries totaling
 4,389,323,635 bytes (below the 10 GB repository budget). This is a live
 snapshot, not historical baseline occupancy. Qt's newest entry was
-1,114,881,014 bytes, reinforcing the pending sizing correction.
+1,114,881,014 bytes; #1309 subsequently corrected its bound and allowance.
 
-GitHub's default CodeQL setup writes `codeql-overlay-base-database-*`
-entries outside the repository's explicit workflows. The snapshot included
-a 131,294,279-byte C++ base and Python bases around 11 MB. These keys have
-no matching declared family, so the janitor treats them as unknown after
-the grace window. They are consumed: PR run 39057119695, C++ job
-117467259478, restored the master overlay in about 3.7 s (18:13:17.924 to
-18:13:21.606). Master run 39057995138 saved a new base in about 5.1 s.
+At that initial snapshot, GitHub's default CodeQL setup wrote
+`codeql-overlay-base-database-*` entries outside the explicit workflow files.
+The snapshot included a 131,294,279-byte C++ base and Python bases around
+11 MB. They were undeclared then. PR run 39057119695, C++ job 117467259478,
+restored the master overlay in about 3.7 s; master run 39057995138 saved a
+new base in about 5.1 s. This demonstrated consumption, not a measured
+analysis speedup against a cold run.
 
-A bounded retention family merits evaluation; blanket deletion discards
-observed reuse, but these logs alone do not measure the analysis speedup
-against a cold run. Keep this separate from compiler-cache hit rates and
-from the required merge gate, which does not wait for CodeQL.
+#1316 subsequently declared a bounded 200 MB LRU overlay family. #1327 then
+disabled automatic default setup and moved all four languages to the existing
+nightly workflow. The explicit nightly C++ job 117488229574 still uploaded
+an overlay base, so the bounded family remains relevant after that migration.
+Security analysis stays outside PR/merge-group admission. Its cache behavior
+is independent of the compiler-cache hit rates used to assess build speed.
 
 ## Post-job cook-profile comparison
 
 The pinned action saves its cook archive **after** the job's consumers, so
-a release-keyed archive can contain dev/test artifacts. A pre-consumer
+an archive initially cooked with `--release` can contain dev/test artifacts. A pre-consumer
 snapshot is not an adequate model for disabling this cache.
 
 The isolated local experiment used soldr 0.9.35, four Cargo jobs, identical

@@ -14,7 +14,7 @@ import json
 import re
 import statistics
 import subprocess
-from collections import defaultdict
+from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -40,6 +40,36 @@ def cohort(files: list[str]) -> str:
            or name in {"ci.toml", "local-gate.toml"} for name in files):
         return "ci-config"
     return "code"
+
+
+def lane_summaries(records: list[dict]) -> dict:
+    """Successful jobs by event/source cohort, with literal step timings.
+
+    Parent workflow outcomes are disclosed; an already successful job may
+    belong to a workflow that later failed or was canceled. Missing/unused
+    steps never become zero-duration samples.
+    """
+    buckets = defaultdict(list)
+    for record in records:
+        for job in record['jobs']:
+            if job['conclusion'] == 'success' and job.get('started_at') and job.get('completed_at'):
+                key = f"{record['event']}/{record['cohort']}/{job['name']}"
+                buckets[key].append((record, job))
+    result = {}
+    for key, samples in buckets.items():
+        steps = defaultdict(list)
+        for _, job in samples:
+            for step in job.get('steps', []):
+                if step.get('conclusion') == 'success' and step.get('started_at') and step.get('completed_at'):
+                    steps[step['name']].append(seconds(step['started_at'], step['completed_at']))
+        result[key] = {
+            'successful_job_samples': len(samples),
+            'parent_run_outcomes': dict(Counter(record['conclusion'] for record, _ in samples)),
+            'median_job_seconds': statistics.median(seconds(job['started_at'], job['completed_at']) for _, job in samples),
+            'steps': {name: {'samples': len(values), 'median_seconds': statistics.median(values)}
+                      for name, values in sorted(steps.items())},
+        }
+    return result
 
 
 def parse_cache_logs(text: str) -> dict:
@@ -223,6 +253,7 @@ def collect(repo: str, start: str, end: str, output: Path, per_group: int, inclu
             f"median_{key}": statistics.median(sample[key] for sample in samples)
             for key in ("job_seconds", "soldr_setup_seconds")
         }}
+    summary["lane_cohorts"] = lane_summaries(records)
     if include_logs:
         summary["log_evidence"] = [{"run_id": r["databaseId"], "event": r["event"], "cohort": r["cohort"],
                                     **r["log_evidence"]} for r in records]

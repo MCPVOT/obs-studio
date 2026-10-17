@@ -28,3 +28,10 @@ The scoped build restores a host-specific apt package archive before
 installing its distro dependencies. It refreshes apt metadata normally and
 downloads missing package versions as needed. Trusted master builds save
 this bounded archive; PRs and merge groups only restore it.
+
+The host apt namespace includes the runner image and package-list hash.
+Master uploads only snapshots within the 200 MiB family bound; an oversized
+snapshot leaves the previous remote entry available. For performance audits,
+record the usable package count and full job time alongside compiler hits:
+the measured compiler-only warm trial had 41/41 hits while package download
+variance still made the full job slower.
