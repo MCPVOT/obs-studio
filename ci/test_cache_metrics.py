@@ -41,6 +41,13 @@ class CacheMetricsTest(unittest.TestCase):
         self.assertEqual(metrics.cohort(["ci/test_a.py", ".github/workflows/ci.yml"]), "ci-config")
         self.assertEqual(metrics.cohort(["docs/a.md", "libobs/obs.c"]), "code")
 
+    def test_structured_report_evidence_is_not_product_code(self):
+        evidence = "docs/ci-evidence/2026-10-17-results.json"
+        self.assertEqual(metrics.cohort(["docs/report.md", evidence]), "docs")
+        self.assertEqual(metrics.cohort(["ci/cache_metrics.py", evidence]), "ci-config")
+        self.assertEqual(metrics.cohort(["libobs/obs.c", evidence]), "code")
+        self.assertEqual(metrics.cohort(["plugins/service/data/config.json"]), "code")
+
     def collect(self, missing_compare=False):
         run = {"databaseId": 1, "status": "completed", "conclusion": "success", "event": "pull_request",
                "headSha": "b" * 40, "headBranch": "docs/one", "createdAt": "2026-01-01T08:00:00Z",

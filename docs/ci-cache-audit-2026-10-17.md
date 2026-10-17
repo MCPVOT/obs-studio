@@ -243,6 +243,17 @@ families and producer limits. Confirm that retained nightly seeds survive long
 enough for a later consumer. Neither successful upload nor current headroom
 proves that requirement.
 
+A transitional sample from 20:38–21:45 UTC listed 32 runs and inspected 12.
+The collector previously treated JSON evidence reports as product code when
+they accompanied CI changes. The corrected classifier treats only JSON under
+`docs/ci-evidence/` as documentation; product JSON remains code. Reclassifying
+the saved actual diffs leaves the full-day baseline unchanged and moves four
+transitional runs into CI/config. Its two successful queue samples (167.5 s
+median) are CI/config, leaving **zero successful product-code queue samples**.
+There is only one successful product-code PR sample (772 s). These sparse,
+unmatched observations establish no queue speedup. See the
+[cohort correction and preserved old/new counts](ci-evidence/2026-10-17-ci-cohort-correction.json).
+
 The final after window must cover at least a full day of representative code
 PR and queue traffic following rollout. It has not elapsed. The first host
 cold/warm pair is complete. Repeatability over real traffic, Ubuntu app reuse

@@ -34,9 +34,12 @@ def seconds(start: str | None, end: str | None) -> float:
 def cohort(files: list[str]) -> str:
     if not files:
         return "unknown"
-    if all(name.endswith(".md") for name in files):
+    def documentation(name: str) -> bool:
+        return name.endswith(".md") or (name.startswith("docs/ci-evidence/") and name.endswith(".json"))
+
+    if all(documentation(name) for name in files):
         return "docs"
-    if all(name.endswith(".md") or name.startswith(("ci/", ".github/", ".claude/"))
+    if all(documentation(name) or name.startswith(("ci/", ".github/", ".claude/"))
            or name in {"ci.toml", "local-gate.toml"} for name in files):
         return "ci-config"
     return "code"
@@ -220,6 +223,7 @@ def collect(repo: str, start: str, end: str, output: Path, per_group: int, inclu
                "listing_coverage": coverage, "outcomes": {}, "lanes": {},
                "cache_bytes": sum(c["size_in_bytes"] for c in entries), "cache_entries": len(entries),
                "limitations": ["Latest run attempt only; overwritten attempts are not reconstructed.",
+                               "Markdown and docs/ci-evidence JSON are documentation; other JSON can be product code.",
                                "Unknown changed-file comparisons are not classified as docs.",
                                "Master pushes without PR metadata have an unknown source cohort.",
                                "Per-workflow listing limit is 2000; inspect coverage for larger windows."]}
