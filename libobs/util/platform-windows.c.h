@@ -14,24 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <windows.h>
-#include <mmsystem.h>
-#include <shellapi.h>
-#include <shlobj.h>
-#include <intrin.h>
-#include <psapi.h>
-#include <math.h>
-#include <rpc.h>
-
-#include "base.h"
-#include "platform.h"
-#include "darray.h"
-#include "dstr.h"
-#include "util_uint64.h"
-#include "windows/win-registry.h"
-#include "windows/win-version.h"
-
-#include "../../deps/w32-pthreads/pthread.h"
+#include "build/libobs-ported-windows-platform.pch.h"
 
 #define MAX_SZ_LEN 256
 

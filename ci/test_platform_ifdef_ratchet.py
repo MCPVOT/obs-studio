@@ -88,11 +88,11 @@ class CountTest(unittest.TestCase):
 class PathTest(unittest.TestCase):
     def test_platform_named_paths(self):
         for path in [
-            "libobs/obs-nix.c",
-            "libobs/obs-windows.c",
-            "libobs/obs-cocoa.m",
-            "libobs/util/platform-nix.c",
-            "libobs/util/threading-windows.c",
+            "libobs/obs-nix.c.h",
+            "libobs/obs-windows.c.h",
+            "libobs/obs-cocoa.m.h",
+            "libobs/util/platform-nix.c.h",
+            "libobs/util/threading-windows.c.h",
             "frontend/utility/platform-x11.cpp",
             "frontend/utility/platform-osx.mm",
             "frontend/utility/platform-windows.cpp",
@@ -103,9 +103,9 @@ class PathTest(unittest.TestCase):
             "plugins/linux-pipewire/pipewire.c",
             "plugins/linux-pulseaudio/pulse-input.c",
             "plugins/linux-alsa/alsa-input.c",
-            "libobs/util/pipe-posix.c",
-            "libobs/audio-monitoring/osx/coreaudio-output.c",
-            "libobs/audio-monitoring/pulse/pulseaudio-output.c",
+            "libobs/util/pipe-posix.c.h",
+            "libobs/audio-monitoring/osx/coreaudio-output.c.h",
+            "libobs/audio-monitoring/pulse/pulseaudio-output.c.h",
             "libobs/graphics/Foo.mm",
             "libobs-opengl/gl-wayland-egl.c",
             "libobs-opengl/gl-x11-glx.c",
@@ -118,23 +118,23 @@ class PathTest(unittest.TestCase):
 
     def test_shared_paths(self):
         for path in [
-            "libobs/obs.c",
-            "libobs/obs-video.c",
+            "libobs/obs.c.h",
+            "libobs/obs-video.c.h",
             "frontend/OBSApp.cpp",
             "frontend/utility/platform.hpp",
             "plugins/obs-ffmpeg/obs-ffmpeg-output.c",
             "plugins/obs-filters/macro-helpers.c",
             "shared/bpm/bpm.c",
-            "libobs/util/platform.c",
+            "libobs/util/platform.c.h",
             # platform- names a shared facade, not an OS (#1051).
-            "libobs/util/platform-number.c",
+            "libobs/util/platform-number.c.h",
             "shared/ipc-util/ipc-util/platform-pipe.h",
         ]:
             with self.subTest(path=path):
                 self.assertFalse(r.is_platform_path(path))
 
     def test_scope(self):
-        for path in ["libobs/obs.c", "frontend/OBSApp.cpp", "shared/a/b.hpp", "plugins/obs-x264/obs-x264.c", "libobs/a.h", "frontend/x.mm"]:
+        for path in ["libobs/obs.c.h", "frontend/OBSApp.cpp", "shared/a/b.hpp", "plugins/obs-x264/obs-x264.c", "libobs/a.h", "frontend/x.mm"]:
             with self.subTest(path=path):
                 self.assertTrue(r.in_scope(path))
         for path in [
@@ -192,53 +192,53 @@ class FindingsTest(unittest.TestCase):
         return [f[0] for f in r.findings(path, text)]
 
     def test_shared_file_conditionals_count(self):
-        self.assertEqual(self.lines("libobs/obs.c", "#ifdef __APPLE__\n#endif\n"), [1])
+        self.assertEqual(self.lines("libobs/obs.c.h", "#ifdef __APPLE__\n#endif\n"), [1])
 
     def test_own_os_macro_in_a_host_file_is_fine(self):
-        self.assertEqual(self.lines("libobs/obs-cocoa.m", "#ifdef __APPLE__\n#endif\n"), [])
+        self.assertEqual(self.lines("libobs/obs-cocoa.m.h", "#ifdef __APPLE__\n#endif\n"), [])
         self.assertEqual(self.lines("plugins/win-capture/a.c", "#if defined(_WIN64)\n#endif\n"), [])
-        self.assertEqual(self.lines("libobs/obs-nix.c", "#if defined(__linux__) || defined(__FreeBSD__)\n"), [])
+        self.assertEqual(self.lines("libobs/obs-nix.c.h", "#if defined(__linux__) || defined(__FreeBSD__)\n"), [])
 
     def test_other_os_macro_in_a_host_file_fails(self):
-        self.assertEqual(self.lines("libobs/obs-cocoa.m", "#ifdef _WIN32\n#endif\n"), [1])
+        self.assertEqual(self.lines("libobs/obs-cocoa.m.h", "#ifdef _WIN32\n#endif\n"), [1])
         self.assertEqual(self.lines("libobs/x.m", "int a;\n#ifndef _MSC_VER\n"), [2])
-        self.assertEqual(self.lines("libobs/obs-nix.c", "#ifdef __APPLE__\n"), [1])
-        self.assertEqual(self.lines("libobs/obs-windows.c", "#ifdef __linux__\n"), [1])
+        self.assertEqual(self.lines("libobs/obs-nix.c.h", "#ifdef __APPLE__\n"), [1])
+        self.assertEqual(self.lines("libobs/obs-windows.c.h", "#ifdef __linux__\n"), [1])
 
     def test_posix_file_may_split_its_two_oses_one_at_a_time(self):
-        self.assertEqual(self.lines("libobs/util/threading-posix.c", "#ifdef __APPLE__\n#elif defined(__linux__)\n"), [])
-        self.assertEqual(self.lines("libobs/util/threading-posix.c", "#ifdef __unix__\n"), [])
-        self.assertEqual(self.lines("libobs/obs-nix.c", "#ifdef __unix__\n"), [])
+        self.assertEqual(self.lines("libobs/util/threading-posix.c.h", "#ifdef __APPLE__\n#elif defined(__linux__)\n"), [])
+        self.assertEqual(self.lines("libobs/util/threading-posix.c.h", "#ifdef __unix__\n"), [])
+        self.assertEqual(self.lines("libobs/obs-nix.c.h", "#ifdef __unix__\n"), [])
 
     def test_conditional_naming_two_oses_in_a_host_file_fails(self):
-        self.assertEqual(self.lines("libobs/obs-nix.c", "#if defined(_WIN32) || defined(__APPLE__)\n"), [1])
-        self.assertEqual(self.lines("libobs/util/threading-posix.c", "#if defined(__APPLE__) || defined(__linux__)\n"), [1])
+        self.assertEqual(self.lines("libobs/obs-nix.c.h", "#if defined(_WIN32) || defined(__APPLE__)\n"), [1])
+        self.assertEqual(self.lines("libobs/util/threading-posix.c.h", "#if defined(__APPLE__) || defined(__linux__)\n"), [1])
 
     def test_os_header_in_a_shared_file_counts(self):
-        self.assertEqual(self.lines("libobs/obs.c", "#include <windows.h>\n"), [1])
-        self.assertEqual(self.lines("libobs/obs.c", "#include <Windows.h>\n"), [1])
-        self.assertEqual(self.lines("libobs/obs.c", "#include <d3d11.h>\n#include <dxgi1_2.h>\n"), [1, 2])
+        self.assertEqual(self.lines("libobs/obs.c.h", "#include <windows.h>\n"), [1])
+        self.assertEqual(self.lines("libobs/obs.c.h", "#include <Windows.h>\n"), [1])
+        self.assertEqual(self.lines("libobs/obs.c.h", "#include <d3d11.h>\n#include <dxgi1_2.h>\n"), [1, 2])
         self.assertEqual(self.lines("frontend/a.mm", "#import <AppKit/AppKit.h>\n"), [])
         self.assertEqual(self.lines("frontend/a.cpp", "#import <AppKit/AppKit.h>\n"), [1])
-        self.assertEqual(self.lines("libobs/obs.c", "#include <X11/Xlib.h>\n#include <wayland-client.h>\n"), [1, 2])
-        self.assertEqual(self.lines("libobs/obs.c", "#include <unistd.h>\n#include <sys/mman.h>\n"), [1, 2])
+        self.assertEqual(self.lines("libobs/obs.c.h", "#include <X11/Xlib.h>\n#include <wayland-client.h>\n"), [1, 2])
+        self.assertEqual(self.lines("libobs/obs.c.h", "#include <unistd.h>\n#include <sys/mman.h>\n"), [1, 2])
 
     def test_portable_or_quoted_headers_are_not_os_headers(self):
         text = '#include <stdio.h>\n#include <pthread.h>\n#include <fcntl.h>\n#include "linux/decklink.h"\n#include "util/platform.h"\n'
-        self.assertEqual(self.lines("libobs/obs.c", text), [])
+        self.assertEqual(self.lines("libobs/obs.c.h", text), [])
 
     def test_os_header_in_the_right_host_file_is_fine(self):
-        self.assertEqual(self.lines("libobs/util/threading-posix.c", "#include <unistd.h>\n"), [])
-        self.assertEqual(self.lines("libobs/obs-nix.c", "#include <unistd.h>\n#include <X11/Xlib.h>\n"), [])
-        self.assertEqual(self.lines("libobs/obs-windows.c", "#include <windows.h>\n"), [])
+        self.assertEqual(self.lines("libobs/util/threading-posix.c.h", "#include <unistd.h>\n"), [])
+        self.assertEqual(self.lines("libobs/obs-nix.c.h", "#include <unistd.h>\n#include <X11/Xlib.h>\n"), [])
+        self.assertEqual(self.lines("libobs/obs-windows.c.h", "#include <windows.h>\n"), [])
 
     def test_os_header_in_the_wrong_host_file_fails(self):
-        self.assertEqual(self.lines("libobs/obs-nix.c", "#include <windows.h>\n"), [1])
-        self.assertEqual(self.lines("libobs/obs-windows.c", "#include <unistd.h>\n"), [1])
-        self.assertEqual(self.lines("libobs/util/threading-posix.c", "#include <windows.h>\n"), [1])
+        self.assertEqual(self.lines("libobs/obs-nix.c.h", "#include <windows.h>\n"), [1])
+        self.assertEqual(self.lines("libobs/obs-windows.c.h", "#include <unistd.h>\n"), [1])
+        self.assertEqual(self.lines("libobs/util/threading-posix.c.h", "#include <windows.h>\n"), [1])
 
     def test_finding_says_why(self):
-        (_, text, why), = r.findings("libobs/obs-cocoa.m", "#ifdef _WIN32\n")
+        (_, text, why), = r.findings("libobs/obs-cocoa.m.h", "#ifdef _WIN32\n")
         self.assertEqual(text, "#ifdef _WIN32")
         self.assertIn("windows", why)
         self.assertIn("macos", why)
@@ -341,13 +341,13 @@ class MainTest(unittest.TestCase):
 
 # libobs core files whose host code moved behind libobs/obs-host.h (#1051).
 FACADED = (
-    "libobs/obs.c",
-    "libobs/obs-display.c",
+    "libobs/obs.c.h",
+    "libobs/obs-display.c.h",
     "libobs/obs-internal.h",
-    "libobs/obs-module.c",
-    "libobs/obs-source.c",
-    "libobs/obs-video.c",
-    "libobs/obs-video-gpu-encode.c",
+    "libobs/obs-module.c.h",
+    "libobs/obs-source.c.h",
+    "libobs/obs-video.c.h",
+    "libobs/obs-video-gpu-encode.c.h",
 )
 
 
@@ -359,7 +359,7 @@ class FacadeTest(unittest.TestCase):
                 self.assertEqual(r.findings(path, text), [])
 
     def test_facade_and_noop_files_name_no_host(self):
-        files = sorted((r.ROOT / "libobs/obs-host").rglob("*.[ch]"))
+        files = sorted(p for p in (r.ROOT / "libobs/obs-host").rglob("*") if p.name.endswith((".h", ".hpp")))
         self.assertGreater(len(files), 10)
         for file in files:
             path = file.relative_to(r.ROOT).as_posix()
@@ -368,20 +368,16 @@ class FacadeTest(unittest.TestCase):
                 self.assertEqual(r.findings(path, file.read_text(encoding="utf-8")), [])
 
     def test_every_capability_has_a_noop_and_every_host_builds_one_of_each(self):
-        """obs-host/<cap>.h has obs-host/noop/<cap>.c, and each host's
-        LIBOBS_<HOST>_NOOP_SOURCES (libobs/cmake/sources.cmake) either lists
-        that no-op or its host file defines the capability's functions."""
+        """obs-host/<cap>.h has obs-host/noop/<cap>.hpp, and each host file
+        either includes that no-op header or defines the capability's
+        functions itself (BUILD.md: no-ops are headers the host includes)."""
         import re
 
         caps = sorted(p.stem for p in (r.ROOT / "libobs/obs-host").glob("*.h") if p.stem != "defs")
-        noops = sorted(p.stem for p in (r.ROOT / "libobs/obs-host/noop").glob("*.c"))
+        noops = sorted(p.stem for p in (r.ROOT / "libobs/obs-host/noop").glob("*.hpp"))
         self.assertEqual(caps, noops)
-        sources = (r.ROOT / "libobs/cmake/sources.cmake").read_text()
-        host_file = {"WINDOWS": "obs-windows.c", "MACOS": "obs-cocoa.m", "LINUX": "obs-nix.c"}
+        host_file = {"WINDOWS": "obs-windows.c.h", "MACOS": "obs-cocoa.m.h", "LINUX": "obs-nix.c.h"}
         for os_name, source in host_file.items():
-            block = re.search(rf"set\(\s*LIBOBS_{os_name}_NOOP_SOURCES\b(.*?)\)", sources, re.S)
-            self.assertIsNotNone(block, os_name)
-            cmake = block.group(1)
             impl = (r.ROOT / "libobs" / source).read_text()
             for cap in caps:
                 header = (r.ROOT / f"libobs/obs-host/{cap}.h").read_text()
@@ -389,7 +385,7 @@ class FacadeTest(unittest.TestCase):
                 self.assertTrue(funcs, cap)
                 defined = [f for f in funcs if re.search(rf"^[^\s].*\b{f}\(", impl, re.M)]
                 with self.subTest(os=os_name, capability=cap):
-                    if f"obs-host/noop/{cap}.c" in cmake:
+                    if f'#include "obs-host/noop/{cap}.hpp"' in impl:
                         self.assertEqual(defined, [], "both the no-op and the host file define it")
                     else:
                         self.assertEqual(defined, funcs, "neither the no-op nor the host file defines it")

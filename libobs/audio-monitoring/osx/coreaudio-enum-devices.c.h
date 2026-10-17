@@ -1,11 +1,4 @@
-#include <CoreFoundation/CFString.h>
-#include <CoreAudio/CoreAudio.h>
-
-#include "../../obs-internal.h"
-#include "../../util/dstr.h"
-#include "../../util/apple/cfstring-utils.h"
-
-#include "mac-helpers.h"
+#include "build/libobs-macos.pch.h"
 
 static bool obs_enum_audio_monitoring_device(obs_enum_audio_device_cb cb, void *data, AudioDeviceID id,
 					     bool allow_inputs)

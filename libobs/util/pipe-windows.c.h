@@ -14,13 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-
-#include "platform.h"
-#include "bmem.h"
-#include "dstr.h"
-#include "pipe.h"
+#include "build/libobs-ported-windows.pch.h"
 
 struct os_process_pipe {
 	bool read_pipe;

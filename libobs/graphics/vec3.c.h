@@ -15,13 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "vec3.h"
-#include "vec4.h"
-#include "quat.h"
-#include "axisang.h"
-#include "plane.h"
-#include "matrix3.h"
-#include "math-extra.h"
+#include "build/libobs-ported-graphics.pch.h"
 
 void vec3_from_vec4(struct vec3 *dst, const struct vec4 *v)
 {

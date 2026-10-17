@@ -14,23 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <stddef.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <assert.h>
-#include <ctype.h>
-#include <wchar.h>
-#include <wctype.h>
-#include <limits.h>
-
-#include "c99defs.h"
-#include "dstr.h"
-#include "darray.h"
-#include "bmem.h"
-#include "utf8.h"
-#include "lexer.h"
-#include "platform.h"
+#include "build/libobs-util.pch.h"
 
 static const char *astrblank = "";
 

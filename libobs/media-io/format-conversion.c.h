@@ -15,9 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "format-conversion.h"
-
-#include "../util/sse-intrin.h"
+#include "build/libobs-ported-media.pch.h"
 
 /* ...surprisingly, if I don't use a macro to force inlining, it causes the
  * CPU usage to boost by a tremendous amount in debug builds. */

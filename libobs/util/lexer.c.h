@@ -14,8 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <ctype.h>
-#include "lexer.h"
+#include "build/libobs-util.pch.h"
 
 static const char *lexer_astrblank = "";
 

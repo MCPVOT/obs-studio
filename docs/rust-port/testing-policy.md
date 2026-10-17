@@ -72,8 +72,10 @@ cannot prove both, so every ported unit carries the four tiers below.
   (#1065): `libobs`, with the C of each ported unit, which everything links,
   installs and packages; and `libobs-with-rust`, with the Rust implementation
   in place of that C, same file name and SONAME, in its own directory, never
-  installed or linked. Each port moves its C file into `LIBOBS_PORTED_SOURCES`
-  (or `LIBOBS_<HOST>_PORTED_SOURCES`) in `libobs/cmake/sources.cmake`. The
+  installed or linked. Each port moves its C file's `#include` line from a
+  libobs unity group into a ported one (`libobs/build/libobs.ported-*+.h.c`,
+  listed in `LIBOBS_PORTED_SOURCES` or `LIBOBS_<HOST>_PORTED_SOURCES` in
+  `libobs/cmake/sources.cmake`; see [BUILD.md](../../BUILD.md)). The
   unchanged C test MUST pass against **both** (mode `OFF`: `libobs`; mode
   `ON`: `libobs-with-rust`, loaded in its place).
 - `libobs-with-rust` MUST export exactly the same dynamic symbols as `libobs`:
@@ -155,8 +157,8 @@ cannot prove both, so every ported unit carries the four tiers below.
    failing.
 2. **GREEN:** implement the safe Rust core until Tier 1 passes.
 3. Add the C shim, the layout test, and the Tier 3 differential test.
-4. Move the C file into the ported list in `libobs/cmake/sources.cmake` and
-   run `rust/tools/linux-validate/run.sh`: the unchanged C tests pass against
+4. Move the C file's `#include` into a ported group (`libobs/build/libobs.ported-*+.h.c`,
+   [BUILD.md](../../BUILD.md)) and run `rust/tools/linux-validate/run.sh`: the unchanged C tests pass against
    `libobs` and `libobs-with-rust`, and the exported symbol sets are identical.
 5. Record every intentional behavior difference in the tracking issue.
 
@@ -178,10 +180,10 @@ If the unit to port is one function inside a larger C file,
    directory.
 2. Use a separate, behavior-neutral commit/PR that contains no Rust and changes
    no signature, header, or behavior.
-3. Add the new file to `libobs/CMakeLists.txt`.
+3. Add the new file to a libobs unity group (`libobs/build/`, [BUILD.md](../../BUILD.md)).
 4. The unchanged C tests must pass.
-5. Only then port the new file with the normal workflow, and move it into the
-   ported list in `libobs/cmake/sources.cmake`.
+5. Only then port the new file with the normal workflow, and move its
+   `#include` into a ported group.
 
 Example: `os_get_path_extension` moves from `util/platform.c` to
 `util/path-extension.c`.

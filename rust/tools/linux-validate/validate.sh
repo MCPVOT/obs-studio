@@ -117,16 +117,18 @@ export CCACHE_BASEDIR="$SRC" CCACHE_COMPRESS=1 CCACHE_MAXSIZE="${CCACHE_MAXSIZE:
 export CCACHE_SLOPPINESS=time_macros,include_file_mtime,include_file_ctime
 ccache -z >/dev/null
 
-# Every libobs C file the Rust build replaces: LIBOBS_PORTED_SOURCES and
+# Every libobs C file the Rust build replaces: the implementation files of
+# the unity groups (BUILD.md) in LIBOBS_PORTED_SOURCES and
 # LIBOBS_LINUX_PORTED_SOURCES in libobs/cmake/sources.cmake, instead of a
 # hand-kept list (obs-rust/obs-studio#137). Paths stay relative to libobs/ and
 # are matched under libobs.dir/, because libobs also links same-named files
 # from deps (deps/libcaption/src/utf8.c).
-ported_objs=$(awk '/^set\($/ { getline name; inlist = (name ~ /^ *LIBOBS_(LINUX_)?PORTED_SOURCES$/); next }
+ported_groups=$(awk '/^set\($/ { getline name; inlist = (name ~ /^ *LIBOBS_(LINUX_)?PORTED_SOURCES$/); next }
   /^set\(LIBOBS_(LINUX_)?PORTED_SOURCES / { for (i = 2; i <= NF; i++) print $i; next }
   inlist && /^\)/ { inlist = 0 } inlist { print $1 }
   /list\(APPEND LIBOBS_PORTED_SOURCES / { print $3 }' "$SRC"/libobs/cmake/sources.cmake |
-  tr -d ')' | grep -E '\.c$' | sed 's|$|.o|' | sort -u)
+  tr -d ')' | grep -E '^build/.*\+\.h\.c$' | sort -u)
+ported_objs=$(cd "$SRC/libobs" && sed -n 's|^#include "\.\./\(.*\.c\.h\)"$|\1.o|p' $ported_groups | sort -u)
 if [ "$(wc -w <<<"$ported_objs")" -lt 20 ]; then
   echo "FAIL: derived only $(wc -w <<<"$ported_objs") ported objects from libobs/cmake/sources.cmake"
   exit 1
@@ -205,9 +207,15 @@ else
   # inside one of the target's unity batches (<target>.dir/Unity/unity_N_c.c
   # includes it). Queries the current Ninja graph and generated batches, not
   # stale objects on the persistent /build volume.
+  # A unity group (BUILD.md) counts when <target> compiles a group whose file
+  # includes <source>.
   compiles() {
-    local target=$1 src=$2 object=$3 unity
+    local target=$1 src=$2 object=$3 unity group
     ninja -C "$build" -t inputs "$target" 2>/dev/null | grep -qF "$target.dir/$object" && return 0
+    for group in $(ninja -C "$build" -t inputs "$target" 2>/dev/null |
+      sed -n "s|.*CMakeFiles/$target\.dir/\(build/.*+\.h\.[cm]\)\.o\$|\1|p"); do
+      grep -qF "\"../${src#libobs/}\"" "$SRC/libobs/$group" 2>/dev/null && return 0
+    done
     unity=$(find "$build" -type d -path "*/CMakeFiles/$target.dir/Unity" | head -1)
     [ -n "$unity" ] && sed -n 's/^#include "\(.*\)"$/\1/p' "$unity"/*.c 2>/dev/null | grep -q "/$src\$"
   }

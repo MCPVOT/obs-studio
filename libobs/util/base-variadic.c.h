@@ -23,10 +23,7 @@
  * the default handlers, and calls back into that core.
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-
-#include "base.h"
+#include "build/libobs-util.pch.h"
 
 /* printf-style checking at the callers of the va_list forwarders below
  * (obs-rust/obs-studio#516). */

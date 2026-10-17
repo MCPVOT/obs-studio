@@ -5,10 +5,7 @@
  * the way profiler.c did and hands the buffer to the Rust name store.
  */
 
-#include <stdarg.h>
-
-#include "dstr.h"
-#include "profiler.h"
+#include "build/libobs-util.pch.h"
 
 extern const char *profiler_name_store_push(profiler_name_store_t *store, char *owned);
 

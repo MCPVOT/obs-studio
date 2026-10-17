@@ -135,26 +135,26 @@ include(compiler_common)
 set(ENABLE_UNITY_BUILD ON CACHE BOOL "Compile each target as batches of concatenated sources")
 include(pch)
 include(unity)
+include(groups)
 
 set(_c_sources ${LIBOBS_SOURCES} ${LIBOBS_PORTED_SOURCES} ${LIBOBS_${_host}_SOURCES} ${LIBOBS_${_host}_PORTED_SOURCES})
-list(APPEND _c_sources ${LIBOBS_${_host}_NOOP_SOURCES})
 if(_host STREQUAL WINDOWS)
   # OBS::obfuscate's interface source, compiled into libobs on Windows.
   list(APPEND _c_sources util/windows/obfuscate.c)
 endif()
+# libobs's lists are unity groups (BUILD.md), which bring their own PCH variants.
 _obs_cross_object_library(libobs-cross ${_c_sources})
-set_target_properties(libobs-cross PROPERTIES OBS_PCH_PROFILE libobs)
 # The C halves only the Rust build adds; the Rust itself is checked by the
 # cross lane (ci/local_gate.py, `soldr cargo clippy --target`).
 _obs_cross_object_library(libobs-cross-rust-shims ${LIBOBS_RUST_SOURCES})
 
 set_source_files_properties(
-  "${OBS_SOURCE_ROOT}/libobs/obs-cocoa.m"
-  "${OBS_SOURCE_ROOT}/libobs/util/platform-cocoa.m"
+  "${OBS_SOURCE_ROOT}/libobs/build/libobs.macos-cocoa+.h.m"
+  "${OBS_SOURCE_ROOT}/libobs/build/libobs.ported-macos-cocoa+.h.m"
   PROPERTIES COMPILE_OPTIONS -fobjc-arc
 )
 set_source_files_properties(
-  "${OBS_SOURCE_ROOT}/libobs/obs-win-crash-handler.c"
+  "${OBS_SOURCE_ROOT}/libobs/build/libobs.windows-crash-handler+.h.c"
   PROPERTIES COMPILE_DEFINITIONS OBS_VERSION="cross-check"
 )
 

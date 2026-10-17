@@ -15,10 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "util/bmem.h"
-#include "util/darray.h"
-#include "obs-internal.h"
-#include "obs-properties.h"
+#include "build/libobs-ported-media.pch.h"
 
 static inline void *get_property_data(struct obs_property *prop);
 

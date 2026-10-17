@@ -14,8 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "darray.h"
-#include "array-serializer.h"
+#include "build/libobs-util.pch.h"
 
 static size_t array_output_write(void *param, const void *data, size_t size)
 {

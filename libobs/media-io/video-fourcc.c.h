@@ -15,8 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "../util/c99defs.h"
-#include "video-io.h"
+#include "build/libobs-ported-media.pch.h"
 
 #define MAKE_FOURCC(a, b, c, d) ((uint32_t)(((d) << 24) | ((c) << 16) | ((b) << 8) | (a)))
 

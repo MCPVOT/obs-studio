@@ -25,10 +25,6 @@ set(_OBS_PCH_DIR "${CMAKE_CURRENT_LIST_DIR}/../pch")
 # include a no-op.
 set(
   _OBS_PCH_SKIP_SOURCES
-  libobs/obs-nix.c
-  libobs/util/pipe-windows.c
-  libobs/util/platform.c
-  libobs/util/threading-posix.c
   plugins/linux-v4l2/v4l2-output.c
   plugins/obs-outputs/librtmp/rtmp.c
   plugins/obs-outputs/net-if.c
@@ -242,10 +238,18 @@ function(_obs_target_build_speed target)
   if(_imported OR NOT _source_dir)
     return()
   endif()
+  # Implementation files (BUILD.md) compile in their language wherever a
+  # target lists them directly, the C tests included.
+  _obs_target_impl_languages(${target})
   # Third-party code (deps/), the unchanged C tests (test/) and Corrosion's
   # Cargo targets keep their own build.
   cmake_path(RELATIVE_PATH _source_dir BASE_DIRECTORY "${CMAKE_SOURCE_DIR}" OUTPUT_VARIABLE _relative)
   if(_relative MATCHES "^(deps|test|rust)(/|$)" OR target MATCHES "^(_cargo|cargo-|corrosion)")
+    return()
+  endif()
+  # Converted components (BUILD.md) bring their own groups and headers.
+  get_target_property(_grouped ${target} OBS_GROUPED)
+  if(_grouped)
     return()
   endif()
   obs_target_pch(${target})
@@ -266,7 +270,14 @@ function(_obs_build_speed_all directory)
   endforeach()
 endfunction()
 
+# _obs_build_speed_run: unity groups first (BUILD.md; they record which
+# target owns each implementation file), then the per-target settings.
+function(_obs_build_speed_run directory)
+  _obs_groups_all("${directory}")
+  _obs_build_speed_all("${directory}")
+endfunction()
+
 if(NOT _OBS_BUILD_SPEED_DEFERRED)
   set(_OBS_BUILD_SPEED_DEFERRED TRUE)
-  cmake_language(DEFER DIRECTORY "${CMAKE_SOURCE_DIR}" CALL _obs_build_speed_all "${CMAKE_SOURCE_DIR}")
+  cmake_language(DEFER DIRECTORY "${CMAKE_SOURCE_DIR}" CALL _obs_build_speed_run "${CMAKE_SOURCE_DIR}")
 endif()

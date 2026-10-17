@@ -14,10 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <ctype.h>
-#include <stdlib.h>
-#include <string.h>
-#include "cf-lexer.h"
+#include "build/libobs-util.pch.h"
 
 static inline void cf_convert_from_escape_literal(char **p_dst, const char **p_src)
 {

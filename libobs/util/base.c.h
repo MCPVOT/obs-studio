@@ -14,12 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-
-#include "c99defs.h"
-#include "base.h"
-#include "threading.h"
+#include "build/libobs-util.pch.h"
 
 /* printf-style checking at the callers of the va_list forwarders below
  * (obs-rust/obs-studio#516). */

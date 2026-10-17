@@ -15,11 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "obs-hevc.h"
-
-#include "obs.h"
-#include "obs-nal.h"
-#include "util/array-serializer.h"
+#include "build/libobs-ported-media.pch.h"
 
 bool obs_hevc_keyframe(const uint8_t *data, size_t size)
 {

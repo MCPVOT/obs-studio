@@ -171,7 +171,7 @@
 #pragma GCC diagnostic ignored "-Wsign-conversion"
 #pragma GCC diagnostic ignored "-Wdouble-promotion"
 #endif
-#include "obs-data.c"
+#include "obs-data.c.h"
 #if defined(__GNUC__)
 #pragma GCC diagnostic pop
 #endif

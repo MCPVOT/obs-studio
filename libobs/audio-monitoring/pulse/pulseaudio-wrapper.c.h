@@ -16,14 +16,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <pthread.h>
-
-#include <pulse/thread-mainloop.h>
-
-#include <util/base.h>
-#include <obs.h>
-
-#include "pulseaudio-wrapper.h"
+#include "build/libobs-pulse.pch.h"
 
 /* global data */
 static uint_fast32_t pulseaudio_refs = 0;

@@ -15,24 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include <math.h>
-#include <inttypes.h>
-
-#include "../util/threading.h"
-#include "../util/darray.h"
-#include "../util/deque.h"
-#include "../util/platform.h"
-#include "../util/profiler.h"
-#include "../util/util_uint64.h"
-
-#include "audio-io.h"
-#include "audio-resampler.h"
-
-#ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
-#include <avrt.h>
-#endif
+#include "build/libobs-ported-media.pch.h"
 
 extern profiler_name_store_t *obs_get_profiler_name_store(void);
 

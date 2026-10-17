@@ -16,15 +16,11 @@ set(OBS_UNITY_BUILD_BATCH_SIZE 8 CACHE STRING "Sources per unity translation uni
 
 # Sources that duplicate another source of the same target wholesale (an
 # alternative backend, a kept legacy version, a fork: window-capture.c next to
-# duplicator-monitor-capture.c, obs-nix-wayland.c next to obs-nix-x11.c,
-# obs-ffmpeg-mpegts.c next to obs-ffmpeg-output.c, media-playback cache.c next to
-# media.c): they compile on their own
-# rather than being renamed symbol by symbol.
-#
-# platform-windows.c needs the full <windows.h> (NTSTATUS, ...): in a batch
-# an earlier source may have included it with WIN32_LEAN_AND_MEAN (on Windows
-# arm64, util/sse-intrin.h leaves that defined), making its own include a
-# no-op.
+# duplicator-monitor-capture.c, obs-ffmpeg-mpegts.c next to
+# obs-ffmpeg-output.c, media-playback cache.c next to media.c): they compile on
+# their own rather than being renamed symbol by symbol. Transitional: a
+# component converted to unity groups (BUILD.md) gives such a file a group of
+# its own instead, and its entries leave this list.
 #
 # The SAPI caption sources include <sapi.h>, and the frontend sources below
 # the full <windows.h> (COM's objidl.h): their `byte` is ambiguous next to an
@@ -34,10 +30,8 @@ set(
   libobs-opengl/gl-wayland-egl.c
   plugins/image-source/obs-slideshow.c
   plugins/win-capture/window-capture.c
-  libobs/obs-nix-wayland.c
   plugins/obs-ffmpeg/obs-ffmpeg-mpegts.c
   shared/media-playback/media-playback/cache.c
-  libobs/util/platform-windows.c
   plugins/frontend-tools/captions.cpp
   plugins/frontend-tools/captions-mssapi.cpp
   plugins/frontend-tools/captions-mssapi-stream.cpp

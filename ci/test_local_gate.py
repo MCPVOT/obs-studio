@@ -171,7 +171,7 @@ class ClangFormatScopeTest(unittest.TestCase):
         files = [
             "rust/obs-util/src/platform/windows/plugin_seh.c",
             "rust/obs-c-oracle/oracle/platform_windows.c",
-            "libobs/obs.c",
+            "libobs/obs.c.h",
         ]
         checked = [
             f
@@ -186,7 +186,7 @@ class ClangFormatScopeTest(unittest.TestCase):
 class FormatScopeTest(unittest.TestCase):
     """./lint formats only changed files locally; CI checks every file (#1050)."""
 
-    FILES = ["libobs/obs.c", "frontend/a.cpp", "frontend/b.cpp", "CMakeLists.txt"]
+    FILES = ["libobs/obs.c.h", "frontend/a.cpp", "frontend/b.cpp", "CMakeLists.txt"]
 
     def test_ci_checks_every_file(self):
         self.assertEqual(local_gate.format_scope(self.FILES, ["frontend/a.cpp"], ci=True), self.FILES)

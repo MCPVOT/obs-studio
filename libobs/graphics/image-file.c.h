@@ -15,12 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "image-file.h"
-#include "../util/base.h"
-#include "../util/platform.h"
-#include "../util/dstr.h"
-#include "vec4.h"
-#include "libnsgif/nsgif.h"
+#include "build/libobs-media.pch.h"
 
 #define blog(level, format, ...) blog(level, "%s: " format, __FUNCTION__, __VA_ARGS__)
 

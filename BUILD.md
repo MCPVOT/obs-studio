@@ -28,14 +28,15 @@ in list order. Each OS has a different source list, so each OS gets different
 batches, and a name clash between two files appears only on the platform
 where they happen to share a batch: Linux built clean while Windows failed
 in `libobs-d3d11`, `nv-filters`, `text-freetype2` and `win-dshow` (#1128,
-#1139). Xcode also allows one precompiled header per target, so mixed
-C++/Objective-C targets lost theirs, and a header that only compiled thanks
-to the PCH broke on macOS alone. Per-file skip lists in CMake piled up to
-work around both.
+#1139). A precompiled header force-included in front of files that also
+include their own headers hides what each file really depends on: a header
+that only compiled thanks to the PCH broke on macOS alone, and a lean
+`<windows.h>` from the PCH broke files that needed the full one on Windows
+arm64. Per-file skip lists in CMake piled up to work around both.
 
-The fix is to make the grouping part of the source tree instead of a
-build-system heuristic: the same files share a translation unit on every
-compiler, OS and generator.
+The fix is to make the grouping and the headers part of the source tree
+instead of build-system heuristics: the same files share a translation unit,
+behind the same single header, on every compiler, OS and generator.
 
 ## The rules
 
@@ -44,71 +45,97 @@ compiler, OS and generator.
 | Role | C | C++ | Objective-C | Objective-C++ |
 |---|---|---|---|---|
 | Implementation (the code) | `foo.c.h` | `foo.cpp.hpp` | `foo.m.h` | `foo.mm.hpp` |
-| Group (what the unity build compiles) | `name+.h.c` | `name+.hpp.cpp` | `name+.h.m` | `name+.hpp.mm` |
+| Group (what the build compiles) | `name+.h.c` | `name+.hpp.cpp` | `name+.h.m` | `name+.hpp.mm` |
+| Precompiled header | `family.pch.h` | `family.pch.hpp` | `family.pch.h` | `family.pch.hpp` |
 | Header (declarations) | `foo.h` | `foo.hpp` | `foo.h` | `foo.h` |
 
-An implementation file is an ordinary source file: it compiles on its own
-with `clang -x c foo.c.h` (or `-x c++ foo.cpp.hpp`). The double extension
-only says that the default build reaches it through a group.
-
-A group file contains nothing but includes of implementation files from
-the same component, in alphabetical order:
+An implementation file is ordinary source; the build reaches it only through
+a group. C-family files end in `.h` and C++-family files in `.hpp` because
+tools pick the language from the last extension: clang-format formats a
+`.hpp` as C++, where names C code uses (`private`, `new`) are keywords. Group files and precompiled headers live in a `build/` directory
+next to the component's `CMakeLists.txt` (`libobs/build/`). A group contains
+its precompiled header, then its implementation files in alphabetical order:
 
 ```c
-/* libobs/build/libobs.util+.h.c: PCH libobs */
-#include "../util/bmem.c.h"
-#include "../util/darray.c.h"
-#include "../util/dstr.c.h"
+/* libobs/build/libobs.util+.h.c */
+/* Unity group (BUILD.md): util/ and callback/. */
+
+#include "libobs.pch.h"
+
+#include "../callback/calldata.c.h"
+#include "../callback/decl.c.h"
+#include "../util/cf-lexer.c.h"
 ```
 
-Group files live in a `build/` directory next to the component's
-`CMakeLists.txt` (`libobs/build/`, `plugins/obs-filters/build/`).
+### 2. One header per group, and it is the only include
 
-### 2. A group is one precompiled header
+Every implementation file includes exactly one header: its group's
+precompiled header, as its first line.
 
-Every group names exactly one PCH variant on its first line
-(`/* <path>: PCH <variant> */`), and every file in the group compiles with
-that header first. Files are grouped by the header they need, not by
-directory:
+```c
+/* libobs/util/cf-lexer.c.h */
+#include "build/libobs.pch.h"
 
-- A file that needs a feature macro defined before any system header
-  (`_GNU_SOURCE`, `_FILE_OFFSET_BITS`) or the full `<windows.h>` (winsock's
-  `u_long`) goes in a group whose PCH variant does exactly that
-  (`libobs-gnu`, `libobs-win-full`). It never `#define`s the macro itself
-  ahead of its includes: in a group, an earlier file has already included
-  those headers.
-- One language per group. C, C++, Objective-C and Objective-C++ files never
-  share a group, which is what lets Xcode give each its own PCH.
-- Platform-only files form platform groups (`libobs.windows+.h.c`), listed
-  in the component's `cmake/os-<os>.cmake` like any platform source, with no
-  `#ifdef` choosing between groups (see the platform rules in
-  [AGENTS.md](AGENTS.md)).
+static inline void cf_convert_from_escape_literal(...)
+```
 
-PCH variants live in `cmake/pch/`. A variant is a header that includes the
-headers its files share, and nothing project-specific beyond that. Add a
-variant when files need a different set or a different first include; don't
-exempt a file from the PCH.
+Everything a file needs (system headers, the component's own headers, the
+feature macros that must precede them such as `_FILE_OFFSET_BITS` or
+`WIN32_LEAN_AND_MEAN`, and the platform conditionals around them) lives in
+that header, in the order the files need it. So the precompiled header is
+exactly what its files depend on, every member of a group sees the same
+thing whether it is compiled in the group or alone, and nothing is
+force-included in front of anything.
 
-CMake builds each group as its own `OBJECT` library carrying its PCH, and
-the component's target links those libraries.
+Groups share a header when their files need the same things (all of
+libobs's core groups use `libobs.pch.h`), which is what makes precompiling it
+pay. A group gets a header of its own where its dependencies differ:
 
-### 3. Unity and PCH are switches; the code is the same either way
+- third-party headers some files must not pull in (FFmpeg for
+  `libobs-media.pch.h`; the Rust-ported files, which the C oracle and the C
+  tests compile on their own, have `libobs-ported-*.pch.h` without them),
+- a platform (`libobs-windows.pch.h`, `libobs-nix.pch.h`), named so
+  `ci/platform_ifdef_ratchet.py` sees its host,
+- an optional feature (`libobs-pulse.pch.h`, `libobs-wayland.pch.h`),
+- a feature macro that must come first (`libobs-platform.pch.h` for
+  `_FILE_OFFSET_BITS`, `libobs-ported-posix-threading.pch.h` for
+  `_GNU_SOURCE`),
+- a different `<windows.h>` (lean or full).
 
-| Option | Default | Off means |
-|---|---|---|
-| `ENABLE_UNITY_BUILD` | `ON` | Compile every implementation file as its own TU (`LANGUAGE` set from its extension); ignore group files |
-| `ENABLE_PCH` | `ON` | Include the group's PCH variant as an ordinary header instead of precompiling it |
+One language per group: C, C++, Objective-C and Objective-C++ files never
+share one. Platform-only groups are listed in the component's
+`cmake/os-<os>.cmake` like any platform source, with no `#ifdef` choosing
+between groups.
 
-All four combinations must build. Unity off with PCH off is the check that
-each implementation file includes what it uses, and the mode to use when
-bisecting a miscompile or merging upstream changes.
+Two exceptions, both after the code starts:
+
+- **No-op host capabilities** (`libobs/obs-host/noop/<capability>.hpp`,
+  #1051) are headers, not group members: each host file
+  (`obs-nix.c.h`, `obs-windows.c.h`, `obs-cocoa.m.h`) includes the
+  ones for the capabilities it lacks, at its end.
+- **X-macro tables** (a header without `#pragma once` or an include guard,
+  such as `obs-hotkeys.h`) included as data.
+
+### 3. Unity and precompiled headers are always on
+
+Converted components build one way: each group is one translation unit, and
+the header most of a target's groups share is precompiled (per language; on
+Xcode, which allows one prefix header per target, for the language with the
+most groups). A group of another family includes its header textually.
+`ENABLE_UNITY_BUILD` and `ENABLE_PCH` only steer components not yet
+converted.
+
+A target that compiles one implementation file directly (a C test pinning a
+single libobs file) gets that file in its language, with the owning target's
+include directories and definitions, since its header comes from there.
 
 ### 4. Every implementation file is in exactly one group
 
-A file in no group silently drops out of the unity build; a file in two
-defines its symbols twice. A `./lint` check enforces exactly-one membership
-and the one-PCH-line header of every group file. New code is added to a
-group in the same commit that adds the file.
+A file in no group silently drops out of the build; a file in two defines
+its symbols twice. It may be in several groups only when each is for a
+different host. `ci/test_build_groups.py` (part of `./lint`) checks this,
+the shape of every group, and rule 2. New code joins a group in the same
+commit that adds the file.
 
 ### 5. Names that are file-local must be unique within a group
 
@@ -122,17 +149,15 @@ Inside a group, every implementation file shares one translation unit, so:
   shadows a system name (`near`, `far`) is saved and restored with
   `push_macro`/`pop_macro`.
 - Default arguments are declared once, in the header.
-- Headers have `#pragma once`, are self-contained (they include or
-  forward-declare everything they use, without relying on the PCH), and
-  are never duplicated under two paths (a copy forwards to the original).
-- No `using namespace std;` in a file that shares a group with headers
-  that declare global names `std` also declares (`byte` from `<sapi.h>`):
-  qualify instead, or move the file to its own group.
+- Headers have `#pragma once` and are never duplicated under two paths (a
+  copy forwards to the original).
+- No `using namespace std;` in a group whose header brings in global names
+  `std` also declares (`byte` from the Windows SDK): qualify instead.
 
 When a clash is cheaper to isolate than to rename (two backends that
 deliberately define the same functions, a vendored fork), the file gets its
-own group of one. That is the only exemption, and it lives in the source
-tree, not in CMake.
+own group. That is the only exemption, and it lives in the source tree, not
+in CMake.
 
 ### 6. Renames are mechanical and in place
 
@@ -142,32 +167,33 @@ the file. Each component converts in its own PR with this order of commits:
 
 1. Only `git mv` of the implementation files (no content change), so rename
    detection is exact.
-2. The group files, the CMake change, and path updates in `ci/`, the
-   platform-ifdef baseline and `rust/` (oracle comments, READMEs).
+2. The groups, their precompiled headers (each file's includes moved into
+   its group's header), the CMake change, and path updates in `ci/`, the
+   platform-ifdef baseline, the C tests' CMake and `rust/` (oracle includes).
 3. Any clash fixes.
 
 When an upstream merge adds a new `foo.c` to a converted component, rename
-it and add it to a group in the merge PR.
+it, move its includes into its group's header and add it to a group in the
+merge PR.
 
 ## Verifying a change
 
-- Linux: `./unittest` and the local gate as usual.
+- Linux: `./unittest` and the local gate as usual; `./lint` runs
+  `ci/test_build_groups.py`.
 - Windows and macOS from Linux: `cmake/cross` (soldr's clang with the
   Windows SDK and the Apple SDK) builds libobs and the platform plugins
   through the same groups. Extend it when a component converts.
-- A change to `cmake/common/`, `cmake/pch/` or any group file must pass a
-  full Windows and macOS build (`gh workflow run pr-pull.yaml --ref
-  <branch>`) before it merges: PR CI is path-scoped and does not build
-  those apps.
-- Check the off modes of a component you converted:
-  `-DENABLE_UNITY_BUILD=OFF` and `-DENABLE_PCH=OFF`.
+- A change to `cmake/common/`, `cmake/pch/` or any group or precompiled
+  header must pass a full Windows and macOS build
+  (`gh workflow run pr-pull.yaml --ref <branch>`) before it merges: PR CI is
+  path-scoped and does not build those apps.
 
 ## Transition
 
 Components not yet converted still build with CMake's `UNITY_BUILD`
-batching and the skip lists in `cmake/common/unity.cmake` and
-`cmake/common/pch.cmake`. Those lists only shrink: a new entry means the
-file's component should be converted instead. When the last component
-converts, the batching and the skip lists are deleted. Order: `libobs/`
-first (most variants), then `libobs-*/`, `shared/`, `plugins/`,
-`frontend/`.
+batching, the shared headers in `cmake/pch/` and the skip lists in
+`cmake/common/unity.cmake` and `cmake/common/pch.cmake`. Those lists only
+shrink: a new entry means the file's component should be converted instead.
+When the last component converts, the batching, `cmake/pch/` and the skip
+lists are deleted. Order: `libobs/` (done), then `libobs-*/`, `shared/`,
+`plugins/`, `frontend/`.

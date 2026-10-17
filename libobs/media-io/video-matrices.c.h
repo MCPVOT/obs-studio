@@ -15,12 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "video-io.h"
-
-#include "../util/bmem.h"
-#include "../graphics/matrix3.h"
-
-#include <assert.h>
+#include "build/libobs-ported-media.pch.h"
 
 //#define LOG_MATRICES
 

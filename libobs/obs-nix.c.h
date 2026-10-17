@@ -16,32 +16,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "obs-internal.h"
-#include "obs-nix.h"
-#include "obs-nix-platform.h"
-#include "obs-nix-x11.h"
-
-#include "util/config-file.h"
-#include "obs-nix-os-release.h"
-
-#ifdef ENABLE_WAYLAND
-#include "obs-nix-wayland.h"
-#endif
-
-#if defined(__FreeBSD__)
-#define _GNU_SOURCE
-#endif
-#include <stdlib.h>
-#include <stdio.h>
-#include <unistd.h>
-#if defined(__FreeBSD__) || defined(__OpenBSD__)
-#include <sys/sysctl.h>
-#endif
-#if !defined(__OpenBSD__)
-#include <sys/sysinfo.h>
-#endif
-#include <sys/utsname.h>
-#include <inttypes.h>
+#include "build/libobs-nix.pch.h"
 
 const char *get_module_extension(void)
 {
@@ -435,3 +410,15 @@ void obs_key_combination_to_str(obs_key_combination_t combination, struct dstr *
 		add_combo_key(combination.key, str);
 	}
 }
+
+/* The obs-host capabilities this host lacks (#1051): no-op headers, built
+ * here rather than as unity group members (BUILD.md). */
+#include "obs-host/noop/com.hpp"
+#include "obs-host/noop/default-monitoring-device.hpp"
+#include "obs-host/noop/display-clear-workaround.hpp"
+#include "obs-host/noop/display-srgb-clear.hpp"
+#include "obs-host/noop/graphics-thread-hooks.hpp"
+#include "obs-host/noop/graphics-thread.hpp"
+#include "obs-host/noop/module-paths.hpp"
+#include "obs-host/noop/module-symbols.hpp"
+#include "obs-host/noop/shared-texture.hpp"

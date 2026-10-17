@@ -14,11 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "../util/darray.h"
-#include "../util/threading.h"
-
-#include "decl.h"
-#include "proc.h"
+#include "build/libobs.pch.h"
 
 struct proc_info {
 	struct decl_info func;

@@ -4,6 +4,7 @@ include_guard(GLOBAL)
 
 include(pch)
 include(unity)
+include(groups)
 
 # message_configuration: Function to print configuration outcome
 function(message_configuration)

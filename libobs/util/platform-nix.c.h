@@ -14,50 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <stdio.h>
-#include <errno.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/statvfs.h>
-#include <dirent.h>
-#include <stdlib.h>
-#include <limits.h>
-#include <dlfcn.h>
-#include <unistd.h>
-#include <glob.h>
-#include <time.h>
-#include <signal.h>
-#include <uuid/uuid.h>
-
-#include "obsconfig.h"
-
-#if !defined(__APPLE__)
-#include <sys/times.h>
-#include <sys/wait.h>
-#include <libgen.h>
-#if defined(__FreeBSD__) || defined(__OpenBSD__)
-#include <sys/param.h>
-#include <sys/queue.h>
-#include <sys/socket.h>
-#include <sys/sysctl.h>
-#include <sys/user.h>
-#include <unistd.h>
-#if defined(__FreeBSD__)
-#include <libprocstat.h>
-#endif
-#else
-#include <sys/resource.h>
-#endif
-#if !defined(__OpenBSD__)
-#include <sys/sysinfo.h>
-#endif
-#include <spawn.h>
-#endif
-
-#include "darray.h"
-#include "dstr.h"
-#include "platform.h"
-#include "threading.h"
+#include "build/libobs-ported-posix.pch.h"
 
 void *os_dlopen(const char *path)
 {

@@ -42,13 +42,12 @@ libobs_add_host_sources(WINDOWS)
 target_compile_options(libobs-objects PUBLIC $<$<COMPILE_LANGUAGE:C,CXX>:/EHc->)
 
 set_source_files_properties(
-  obs-win-crash-handler.c
+  build/libobs.windows-crash-handler+.h.c
   PROPERTIES COMPILE_DEFINITIONS OBS_VERSION="${OBS_VERSION_CANONICAL}"
 )
 
 set_source_files_properties(
-  graphics/libnsgif/gif.c
-  graphics/libnsgif/lzw.c
+  build/libobs.nsgif+.h.c
   graphics/libnsgif/lzw.h
   graphics/libnsgif/nsgif.h
   PROPERTIES COMPILE_OPTIONS "/wd4244;/wd4267"

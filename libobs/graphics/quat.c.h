@@ -15,11 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "quat.h"
-#include "vec3.h"
-#include "matrix3.h"
-#include "matrix4.h"
-#include "axisang.h"
+#include "build/libobs-ported-graphics.pch.h"
 
 static inline void quat_vec3(struct vec3 *v, const struct quat *q)
 {

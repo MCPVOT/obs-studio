@@ -15,11 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "effect.h"
-#include "graphics-internal.h"
-#include "vec2.h"
-#include "vec3.h"
-#include "vec4.h"
+#include "build/libobs.pch.h"
 
 void gs_effect_actually_destroy(gs_effect_t *effect)
 {

@@ -15,11 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include <string.h>
-#include "bounds.h"
-#include "matrix3.h"
-#include "matrix4.h"
-#include "plane.h"
+#include "build/libobs-ported-graphics.pch.h"
 
 void bounds_move(struct bounds *dst, const struct bounds *b, const struct vec3 *v)
 {

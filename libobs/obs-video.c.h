@@ -15,17 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include <time.h>
-#include <stdlib.h>
-
-#include "obs.h"
-#include "obs-internal.h"
-#include "graphics/vec4.h"
-#include "media-io/format-conversion.h"
-#include "media-io/video-frame.h"
-#include "obs-host/graphics-thread.h"
-#include "obs-host/graphics-thread-hooks.h"
-#include "obs-host/shared-texture.h"
+#include "build/libobs.pch.h"
 
 static uint64_t tick_sources(uint64_t cur_time, uint64_t last_time)
 {

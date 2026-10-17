@@ -15,11 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include <assert.h>
-#include <limits.h>
-#include "../util/platform.h"
-#include "effect-parser.h"
-#include "effect.h"
+#include "build/libobs.pch.h"
 
 typedef DARRAY(struct dstr) dstr_array_t;
 

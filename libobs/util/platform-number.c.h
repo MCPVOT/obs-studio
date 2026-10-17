@@ -14,11 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <locale.h>
-#include "platform.h"
+#include "build/libobs-util.pch.h"
 
 /* locale independent double conversion from jansson, credit goes to them */
 

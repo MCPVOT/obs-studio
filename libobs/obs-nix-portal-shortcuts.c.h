@@ -18,11 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
  * thread one shortcut per key combination follows the xx-hotkey-v1 client by
  * Aurelle (obsproject/obs-studio#13661). */
 
-#include "obs-nix-portal-shortcuts.h"
-#include "util/threading.h"
-
-#include <gio/gio.h>
-#include <unistd.h>
+#include "build/libobs-nix-portal-shortcuts.pch.h"
 
 #define PORTAL_NAME "org.freedesktop.portal.Desktop"
 #define PORTAL_PATH "/org/freedesktop/portal/desktop"

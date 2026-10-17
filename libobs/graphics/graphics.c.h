@@ -15,18 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include <assert.h>
-
-#include "../util/base.h"
-#include "../util/bmem.h"
-#include "../util/platform.h"
-#include "graphics-internal.h"
-#include "vec2.h"
-#include "vec3.h"
-#include "quat.h"
-#include "axisang.h"
-#include "effect-parser.h"
-#include "effect.h"
+#include "build/libobs.pch.h"
 
 /* <windows.h> defines near and far (NEAR and FAR expand to them); this file
  * uses them as names. Save them and restore them at the end of the file, so

@@ -19,7 +19,7 @@
 #pragma GCC diagnostic ignored "-Wsign-conversion"
 #endif
 
-#include "obs-hotkey-name-map.c"
+#include "obs-hotkey-name-map.c.h"
 
 struct obs_core *oracle_hotkey_obs = NULL;
 

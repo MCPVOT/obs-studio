@@ -14,12 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <string.h>
-
-#include "../util/bmem.h"
-#include "../util/base.h"
-
-#include "calldata.h"
+#include "build/libobs.pch.h"
 
 /*
  *   Uses a data stack.  Probably more complex than it should be, but reduces

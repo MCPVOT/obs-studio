@@ -15,12 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "obs-avc.h"
-
-#include "obs.h"
-#include "obs-nal.h"
-#include "util/array-serializer.h"
-#include "util/bitstream.h"
+#include "build/libobs-ported-media.pch.h"
 
 bool obs_avc_keyframe(const uint8_t *data, size_t size)
 {

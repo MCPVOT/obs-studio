@@ -14,10 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <ctype.h>
-#include <stdio.h>
-#include "platform.h"
-#include "cf-lexer.h"
+#include "build/libobs.pch.h"
 
 /* ------------------------------------------------------------------------- */
 

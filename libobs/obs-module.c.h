@@ -15,15 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "obs-core-modules-loader.h"
-#include "obs-core-modules.h"
-#include "obs-defs.h"
-#include "obs-internal.h"
-#include "obs-module.h"
-#include "obs-host/module-paths.h"
-#include "obs-host/module-symbols.h"
-#include "util/dstr.h"
-#include "util/platform.h"
+#include "build/libobs.pch.h"
 
 extern const char *get_module_extension(void);
 

@@ -17,20 +17,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "obs-internal.h"
-#include "obs-nix-platform.h"
-#include "obs-nix-x11.h"
-#include "obs-nix-x11-keymap.h"
-
-#include <xcb/xcb.h>
-#if defined(XCB_XINPUT_FOUND)
-#include <xcb/xinput.h>
-#endif
-#include <X11/Xlib.h>
-#include <X11/Xutil.h>
-#include <X11/Xlib-xcb.h>
-#include <X11/XF86keysym.h>
-#include <X11/Sunkeysym.h>
+#include "build/libobs-nix.pch.h"
 
 void obs_nix_x11_log_info(void)
 {

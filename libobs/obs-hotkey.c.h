@@ -15,9 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include <inttypes.h>
-
-#include "obs-internal.h"
+#include "build/libobs.pch.h"
 
 /* Since ids are just sequential size_t integers, we don't really need a
  * hash function to get an even distribution across buckets.

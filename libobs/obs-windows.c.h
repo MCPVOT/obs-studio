@@ -15,21 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "util/windows/win-registry.h"
-#include "util/windows/win-version.h"
-#include "util/platform.h"
-#include "util/dstr.h"
-#include "obs.h"
-#include "obs-internal.h"
-#include "obs-host/com.h"
-#include "obs-host/display-clear-workaround.h"
-#include "obs-host/graphics-thread-hooks.h"
-#include "obs-host/module-symbols.h"
-#include "obs-host/shared-texture.h"
-
-#include <windows.h>
-#include <wscapi.h>
-#include <iwscapi.h>
+#include "build/libobs-windows.pch.h"
 
 static uint32_t win_ver = 0;
 static uint32_t win_build = 0;
@@ -1397,3 +1383,10 @@ void obs_host_pump_messages(void)
 		DispatchMessage(&msg);
 	}
 }
+
+/* The obs-host capabilities this host lacks (#1051): no-op headers, built
+ * here rather than as unity group members (BUILD.md). */
+#include "obs-host/noop/default-monitoring-device.hpp"
+#include "obs-host/noop/display-srgb-clear.hpp"
+#include "obs-host/noop/graphics-thread.hpp"
+#include "obs-host/noop/module-paths.hpp"

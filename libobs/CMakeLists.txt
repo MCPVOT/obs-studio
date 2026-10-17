@@ -57,13 +57,13 @@ endforeach()
 
 # Temporarily disables deprecation warnings while obs_data_autoselect_* is deprecated.
 if(CMAKE_C_COMPILER_ID STREQUAL "MSVC")
-  set_source_files_properties(obs-data.c PROPERTIES COMPILE_OPTIONS "/wd4996")
+  set_source_files_properties(build/libobs.ported-data+.h.c PROPERTIES COMPILE_OPTIONS "/wd4996")
 elseif(
   CMAKE_C_COMPILER_ID STREQUAL "GNU"
   OR CMAKE_C_COMPILER_ID STREQUAL "Clang"
   OR CMAKE_C_COMPILER_ID STREQUAL "AppleClang"
 )
-  set_source_files_properties(obs-data.c PROPERTIES COMPILE_OPTIONS "-Wno-deprecated-declarations")
+  set_source_files_properties(build/libobs.ported-data+.h.c PROPERTIES COMPILE_OPTIONS "-Wno-deprecated-declarations")
 endif()
 
 # Usage requirements on libobs-objects are PUBLIC so they reach both shared

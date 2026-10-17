@@ -15,10 +15,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <assert.h>
-#include <gio/gio.h>
-#include "bmem.h"
-#include "dstr.h"
+#include "build/libobs-nix-dbus.pch.h"
 
 #define PORTAL_NAME "org.freedesktop.portal.Desktop"
 #define PORTAL_PATH "/org/freedesktop/portal/desktop"

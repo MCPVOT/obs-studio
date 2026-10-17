@@ -15,13 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include <string.h>
-#include <assert.h>
-
-#include <util/bmem.h>
-#include <util/c99defs.h>
-
-#include "obs-internal.h"
+#include "build/libobs-ported-media.pch.h"
 
 struct obs_hotkey_name_map;
 

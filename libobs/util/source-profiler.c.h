@@ -15,13 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "source-profiler.h"
-
-#include "darray.h"
-#include "obs-internal.h"
-#include "platform.h"
-#include "threading.h"
-#include "uthash.h"
+#include "build/libobs.pch.h"
 
 struct frame_sample {
 	uint64_t tick;

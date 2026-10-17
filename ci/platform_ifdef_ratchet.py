@@ -86,6 +86,8 @@ RAW_STRING = re.compile(r'(?:u8|u|U|L)?R"([^()\\\s]{0,16})\(')
 SCOPE_DIRS = ("libobs", "frontend", "shared", "plugins")
 SOURCE_SUFFIXES = (".c", ".h", ".cpp", ".hpp", ".cc", ".hh", ".cxx", ".hxx", ".m", ".mm", ".inl")
 HEADER_SUFFIXES = (".h", ".hpp", ".hh", ".hxx", ".inl")
+# Implementation files (BUILD.md): sources, though they end in .h/.hpp.
+IMPL_SUFFIXES = (".c.h", ".cpp.hpp", ".m.h", ".mm.hpp")
 # Not ours to rewrite: submodules and vendored trees.
 # shared/obs-d3d8-api/ is a vendored Microsoft header (#886); decklink-sdk/ is
 # the vendored Blackmagic SDK.
@@ -251,7 +253,7 @@ def load_exceptions(root: Path, file: Path) -> tuple[set[str], list[str]]:
     paths, errors = set(), []
     for entry in tomllib.loads(file.read_text()).get("exception", []):
         path = entry.get("path", "")
-        if not path.endswith(HEADER_SUFFIXES):
+        if not path.endswith(HEADER_SUFFIXES) or path.endswith(IMPL_SUFFIXES):
             errors.append(f"{path}: not a header; only public headers get exceptions, move the code behind the facade")
         elif not str(entry.get("reason", "")).strip():
             errors.append(f"{path}: an exception needs a reason")

@@ -29,10 +29,11 @@ _POSIX = re.compile(_TOKEN.format("posix|unix"), re.I)
 _LINUX = re.compile(
     _TOKEN.format("linux|nix|x11|wayland|pipewire|pulse|pulseaudio|alsa|v4l2|freebsd|vaapi|jack|sndio|xshm"), re.I
 )
-_MACOS_SUFFIXES = (".m", ".mm", ".plist", ".xcconfig", ".entitlements")
+# Objective-C implementation files and unity groups (BUILD.md) included.
+_MACOS_SUFFIXES = (".m", ".mm", ".m.h", ".mm.hpp", ".h.m", ".hpp.mm", ".plist", ".xcconfig", ".entitlements")
 _WINDOWS_SUFFIXES = (".rc", ".manifest", ".ps1")
 # nix-named files macOS also builds (libobs/cmake/os-macos.cmake).
-_MACOS_TOO = {"libobs/util/platform-nix.c"}
+_MACOS_TOO = {"libobs/util/platform-nix.c.h"}
 
 
 # Modules whose name doesn't say their OSes: PLATFORMS in plugins/CMakeLists.txt

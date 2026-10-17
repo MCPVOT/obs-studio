@@ -7,11 +7,7 @@
  * util/base-variadic.c does for `blog`.
  */
 
-#include <stdarg.h>
-#include <stdio.h>
-
-#include "bmem.h"
-#include "pipe.h"
+#include "build/libobs-util.pch.h"
 
 void os_process_args_add_argf(struct os_process_args *args, const char *format, ...)
 {

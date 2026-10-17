@@ -14,15 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <stdio.h>
-#include <sys/wait.h>
-#include <unistd.h>
-#include <errno.h>
-#include <spawn.h>
-#include <fcntl.h>
-
-#include "bmem.h"
-#include "pipe.h"
+#include "build/libobs-ported-posix.pch.h"
 
 extern char **environ;
 

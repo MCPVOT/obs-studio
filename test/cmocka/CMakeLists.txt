@@ -86,7 +86,7 @@ add_dependencies(cmocka-tests test_product_name)
 add_test(test_product_name ${CMAKE_CURRENT_BINARY_DIR}/test_product_name)
 
 # Exercise hotkey loading with an isolated core and no platform input thread.
-add_executable(test_hotkey_load test_hotkey_load.c "${CMAKE_SOURCE_DIR}/libobs/obs-hotkey.c")
+add_executable(test_hotkey_load test_hotkey_load.c "${CMAKE_SOURCE_DIR}/libobs/obs-hotkey.c.h")
 target_compile_definitions(test_hotkey_load PRIVATE obs=hotkey_test_obs)
 target_include_directories(test_hotkey_load PRIVATE ${CMOCKA_INCLUDE_DIR})
 target_link_libraries(test_hotkey_load PRIVATE OBS::libobs OBS::caption ${CMOCKA_LIBRARIES})
@@ -170,7 +170,7 @@ add_executable(test_avc test_avc.c)
 target_include_directories(test_avc PRIVATE ${CMOCKA_INCLUDE_DIR})
 target_link_libraries(test_avc PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
 if(NOT MSVC)
-  target_sources(test_avc PRIVATE "${CMAKE_SOURCE_DIR}/libobs/obs-avc.c")
+  target_sources(test_avc PRIVATE "${CMAKE_SOURCE_DIR}/libobs/obs-avc.c.h")
   obs_test_sanitize(test_avc undefined)
 endif()
 
@@ -204,8 +204,8 @@ if(NOT MSVC)
   add_executable(
     test_formatted_filename
     test_formatted_filename.c
-    "${CMAKE_SOURCE_DIR}/libobs/util/platform.c"
-    "${CMAKE_SOURCE_DIR}/libobs/util/utf8.c"
+    "${CMAKE_SOURCE_DIR}/libobs/util/platform.c.h"
+    "${CMAKE_SOURCE_DIR}/libobs/util/utf8.c.h"
   )
   target_include_directories(test_formatted_filename PRIVATE ${CMOCKA_INCLUDE_DIR})
   target_link_libraries(test_formatted_filename PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
@@ -226,7 +226,7 @@ add_test(test_crc32 ${CMAKE_CURRENT_BINARY_DIR}/test_crc32)
 # UTF-8 test. utf8.c is not exported by libobs, so it is compiled into the test
 # (non-Windows only: the Windows implementation wraps the Win32 API).
 if(NOT MSVC)
-  add_executable(test_utf8 test_utf8.c "${CMAKE_SOURCE_DIR}/libobs/util/utf8.c")
+  add_executable(test_utf8 test_utf8.c "${CMAKE_SOURCE_DIR}/libobs/util/utf8.c.h")
   target_include_directories(test_utf8 PRIVATE ${CMOCKA_INCLUDE_DIR})
   target_link_libraries(test_utf8 PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
   obs_test_sanitize(test_utf8 address,undefined)
@@ -606,7 +606,7 @@ if(TARGET OBS::pulseaudio)
   add_executable(
     test_pulse_default_id
     test_pulse_default_id.c
-    "${CMAKE_SOURCE_DIR}/libobs/audio-monitoring/pulse/pulseaudio-wrapper.c"
+    "${CMAKE_SOURCE_DIR}/libobs/audio-monitoring/pulse/pulseaudio-wrapper.c.h"
   )
   target_include_directories(
     test_pulse_default_id

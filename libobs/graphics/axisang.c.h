@@ -15,8 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "axisang.h"
-#include "quat.h"
+#include "build/libobs-ported-graphics.pch.h"
 
 void axisang_from_quat(struct axisang *dst, const struct quat *q)
 {

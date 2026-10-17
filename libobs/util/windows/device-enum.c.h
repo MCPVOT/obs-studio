@@ -1,7 +1,4 @@
-#include "device-enum.h"
-#include "../dstr.h"
-
-#include <dxgi.h>
+#include "build/libobs-windows.pch.h"
 
 void enum_graphics_device_luids(device_luid_cb device_luid, void *param)
 {

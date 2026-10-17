@@ -15,17 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include <windows.h>
-#include <time.h>
-#include <dbghelp.h>
-#include <shellapi.h>
-#include <tlhelp32.h>
-#include <inttypes.h>
-
-#include "obs-config.h"
-#include "util/dstr.h"
-#include "util/platform.h"
-#include "util/windows/win-version.h"
+#include "build/libobs-windows-crash-handler.pch.h"
 
 typedef BOOL(WINAPI *ENUMERATELOADEDMODULES64)(HANDLE process,
 					       PENUMLOADED_MODULES_CALLBACK64 enum_loaded_modules_callback,

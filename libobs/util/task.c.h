@@ -1,7 +1,4 @@
-#include "task.h"
-#include "bmem.h"
-#include "threading.h"
-#include "deque.h"
+#include "build/libobs-util.pch.h"
 
 struct os_task_queue {
 	pthread_t thread;

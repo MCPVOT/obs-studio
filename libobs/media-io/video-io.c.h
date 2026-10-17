@@ -15,19 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include <assert.h>
-#include <inttypes.h>
-#include "../util/bmem.h"
-#include "../util/platform.h"
-#include "../util/profiler.h"
-#include "../util/threading.h"
-#include "../util/darray.h"
-#include "../util/util_uint64.h"
-
-#include "format-conversion.h"
-#include "video-io.h"
-#include "video-frame.h"
-#include "video-scaler.h"
+#include "build/libobs-ported-media.pch.h"
 
 extern profiler_name_store_t *obs_get_profiler_name_store(void);
 

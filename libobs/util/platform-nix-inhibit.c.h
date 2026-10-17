@@ -20,20 +20,7 @@
  * the portal (platform-nix-portal.c) and session D-Bus (platform-nix-dbus.c)
  * inhibitors. macOS uses platform-cocoa.m and Windows platform-windows.c. */
 
-#include <errno.h>
-#include <signal.h>
-#include <spawn.h>
-#include <stdbool.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <unistd.h>
-
-#include "obsconfig.h"
-
-#include "base.h"
-#include "bmem.h"
-#include "platform.h"
-#include "threading.h"
+#include "build/libobs-nix.pch.h"
 
 #if defined(GIO_FOUND)
 struct dbus_sleep_info;

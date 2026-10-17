@@ -16,12 +16,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "util/threading.h"
-#include "util/util_uint64.h"
-#include "graphics/math-defs.h"
-#include "obs-scene.h"
-#include "obs-scene-bounds.h"
-#include "obs-internal.h"
+#include "build/libobs.pch.h"
 
 const struct obs_source_info group_info;
 

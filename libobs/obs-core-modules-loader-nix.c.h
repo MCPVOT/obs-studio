@@ -15,12 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "obs-core-modules.h"
-
-#include <obs-internal.h>
-#include <obs.h>
-#include <util/dstr.h>
-#include <util/platform.h>
+#include "build/libobs-nix.pch.h"
 
 const char *core_module_bin = "../" OBS_PLUGIN_PATH "/%module%";
 const char *core_module_data = "../" OBS_DATA_PATH "/obs-modules/core/%module%";

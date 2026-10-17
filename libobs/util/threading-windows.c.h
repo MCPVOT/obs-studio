@@ -14,27 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "bmem.h"
-#include "threading.h"
-#include "util/platform.h"
-
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-
-#ifdef __MINGW32__
-#include <excpt.h>
-#ifndef TRYLEVEL_NONE
-#ifndef __MINGW64__
-#define NO_SEH_MINGW
-#endif
-#ifndef __try
-#define __try
-#endif
-#ifndef __except
-#define __except (x) if (0)
-#endif
-#endif
-#endif
+#include "build/libobs-ported-windows.pch.h"
 
 int os_event_init(os_event_t **event, enum os_event_type type)
 {

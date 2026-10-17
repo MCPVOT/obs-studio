@@ -13,16 +13,9 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#include <wchar.h>
-
-#include "utf8.h"
-
-#include <string.h>
+#include "build/libobs-util.pch.h"
 
 #ifdef _WIN32
-
-#include <windows.h>
-#include "c99defs.h"
 
 static inline bool has_utf8_bom(const char *in_char)
 {

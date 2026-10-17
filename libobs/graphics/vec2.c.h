@@ -15,10 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include <math.h>
-#include "math-extra.h"
-#include "math-defs.h"
-#include "vec2.h"
+#include "build/libobs-ported-graphics.pch.h"
 
 void vec2_abs(struct vec2 *dst, const struct vec2 *v)
 {

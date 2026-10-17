@@ -367,8 +367,6 @@ fn main() {
             oracle.define(from, Some(to));
         }
     }
-    // base.c's variadic entry points stay C in libobs; the oracle needs them too.
-    oracle.file(libobs.join("util/base-variadic.c"));
     // plugins/obs-nvenc loader parity (obs-rust/obs-studio#520): the
     // original load_cuda_lib(), cuda_functions[] and load_nvenc_lib(),
     // extracted verbatim for oracle/obs_nvenc_loader.c.
@@ -414,6 +412,14 @@ fn main() {
         // <caption/caption.h> from deps/libcaption (headers only).
         .include(libobs.with_file_name("deps").join("libcaption"))
         .std("c11");
+    // The real build is gnu17, whose glibc headers see _DEFAULT_SOURCE (POSIX
+    // 2008: PTHREAD_MUTEX_RECURSIVE for util/threading.h). Strict c11 hides
+    // it, and a unity group's precompiled header (BUILD.md) brings
+    // threading.h to every oracle file of its family, not only the ones that
+    // used to include it.
+    if unix {
+        oracle.define("_DEFAULT_SOURCE", None);
+    }
     // task.c calls pthread_mutex_*/pthread_create plus os_event/os_sem helpers.
     // Those helpers come from oracle/threading_posix.c or
     // oracle/threading_windows.c, included under private names. MSVC has no

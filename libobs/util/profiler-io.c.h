@@ -6,16 +6,7 @@
  * stays a non-static C symbol, as it was in profiler.c.
  */
 
-#include <inttypes.h>
-#include <math.h>
-#include <stdio.h>
-
-#include "dstr.h"
-#include "platform.h"
-#include "profiler.h"
-#include "profiler-snapshot.h"
-
-#include <zlib.h>
+#include "build/libobs.pch.h"
 
 typedef void (*profile_entry_print_func)(profiler_snapshot_entry_t *entry, struct dstr *indent_buffer,
 					 struct dstr *output_buffer, unsigned indent, uint64_t active,

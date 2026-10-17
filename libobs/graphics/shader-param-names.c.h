@@ -15,8 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "../util/platform.h"
-#include "shader-parser.h"
+#include "build/libobs-ported-graphics.pch.h"
 
 enum gs_shader_param_type get_shader_param_type(const char *type)
 {

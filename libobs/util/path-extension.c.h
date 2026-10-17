@@ -14,8 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <string.h>
-#include "platform.h"
+#include "build/libobs-util.pch.h"
 
 const char *os_get_path_extension(const char *path)
 {

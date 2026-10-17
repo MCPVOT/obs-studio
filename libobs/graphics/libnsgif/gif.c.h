@@ -8,14 +8,7 @@
  *                http://www.opensource.org/licenses/mit-license.php
  */
 
-#include <assert.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdbool.h>
-
-#include "lzw.h"
-#include "nsgif.h"
+#include "build/libobs-nsgif.pch.h"
 
 /** Default minimum allowable frame delay in cs. */
 #define NSGIF_FRAME_DELAY_MIN 2

@@ -15,16 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "media-remux.h"
-
-#include "../util/base.h"
-#include "../util/bmem.h"
-#include "../util/platform.h"
-
-#include <libavformat/avformat.h>
-#include <libavcodec/version.h>
-#include <sys/types.h>
-#include <sys/stat.h>
+#include "build/libobs-media.pch.h"
 
 struct media_remux_job {
 	int64_t in_size;

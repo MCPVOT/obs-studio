@@ -14,8 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "../util/cf-parser.h"
-#include "decl.h"
+#include "build/libobs.pch.h"
 
 static inline void err_specifier_exists(struct cf_parser *cfp, const char *storage)
 {

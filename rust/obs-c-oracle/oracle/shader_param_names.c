@@ -8,4 +8,4 @@
 #define astrcmpi oracle_astrcmpi
 #define astrcmp_n oracle_astrcmp_n
 
-#include "graphics/shader-param-names.c"
+#include "graphics/shader-param-names.c.h"

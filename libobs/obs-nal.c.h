@@ -15,7 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "obs-nal.h"
+#include "build/libobs-ported-media.pch.h"
 
 /* NOTE: I noticed that FFmpeg does some unusual special handling of certain
  * scenarios that I was unaware of, so instead of just searching for {0, 0, 1}

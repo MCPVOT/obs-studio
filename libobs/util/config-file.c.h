@@ -14,18 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <inttypes.h>
-#include <stdio.h>
-#include <wchar.h>
-
-#include "config-file.h"
-#include "threading.h"
-#include "platform.h"
-#include "base.h"
-#include "bmem.h"
-#include "lexer.h"
-#include "dstr.h"
-#include "uthash.h"
+#include "build/libobs-util.pch.h"
 
 struct config_item {
 	char *name;

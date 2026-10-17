@@ -14,9 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "dstr.h"
-#include "file-serializer.h"
-#include "platform.h"
+#include "build/libobs-util.pch.h"
 
 static size_t file_input_read(void *file, void *data, size_t size)
 {

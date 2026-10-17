@@ -15,9 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "vec4.h"
-#include "vec3.h"
-#include "matrix4.h"
+#include "build/libobs-ported-graphics.pch.h"
 
 void vec4_from_vec3(struct vec4 *dst, const struct vec3 *v)
 {

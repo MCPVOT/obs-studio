@@ -15,9 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "obs.h"
-#include "obs-internal.h"
-#include "obs-scene.h"
+#include "build/libobs.pch.h"
 
 /* The primary canvas has static name/uuid. */
 static const char *MAIN_CANVAS_NAME = "Main";

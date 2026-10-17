@@ -15,10 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "util/threading.h"
-#include "util/dstr.h"
-#include "obs-missing-files.h"
-#include "obs.h"
+#include "build/libobs.pch.h"
 
 struct obs_missing_file {
 	volatile long ref;

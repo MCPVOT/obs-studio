@@ -15,19 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "util/bmem.h"
-#include "util/threading.h"
-#include "util/dstr.h"
-#include "util/darray.h"
-#include "util/platform.h"
-#include "util/uthash.h"
-#include "graphics/vec2.h"
-#include "graphics/vec3.h"
-#include "graphics/vec4.h"
-#include "graphics/quat.h"
-#include "obs-data.h"
-
-#include <jansson.h>
+#include "build/libobs-ported-media.pch.h"
 
 struct obs_data_item {
 	volatile long ref;

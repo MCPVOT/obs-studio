@@ -15,17 +15,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <math.h>
-
-#include "util/sse-intrin.h"
-
-#include "util/threading.h"
-#include "util/bmem.h"
-#include "media-io/audio-math.h"
-#include "obs.h"
-#include "obs-internal.h"
-
-#include "obs-audio-controls.h"
+#include "build/libobs.pch.h"
 
 /* These are pointless warnings generated not by our code, but by a standard
  * library macro, INFINITY */

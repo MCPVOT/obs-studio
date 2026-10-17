@@ -15,12 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "obs-core-modules.h"
-
-#include <obs-internal.h>
-#include <obs.h>
-#include <util/dstr.h>
-#include <util/platform.h>
+#include "build/libobs-windows.pch.h"
 
 const char *core_module_bin = "../../core/%module%/%module%";
 const char *core_module_data = "../../core/%module%/data";

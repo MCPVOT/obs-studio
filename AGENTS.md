@@ -73,8 +73,9 @@ errors (soldr permissions, disk, Docker, host FFmpeg): see
   rename allowed is in place, to the build-role names of
   [BUILD.md](BUILD.md) (`foo.c` to `foo.c.h`).
 - Native C/C++/Objective-C builds follow [BUILD.md](BUILD.md): explicit unity
-  groups in each component's `build/`, one precompiled header per group,
-  unity and PCH as switches over the same code.
+  groups in each component's `build/`, one precompiled header per group
+  that is each implementation file's only include, unity and PCH always on
+  (`ci/test_build_groups.py`).
 - C/C++ host code stays in OS-named files (`obs-nix.c`, `platform-windows.cpp`,
   `win-capture/`, ...). `ci/platform_ifdef_ratchet.py` (in `./lint`) fails a
   new host conditional or OS header in a shared file, and a platform file that

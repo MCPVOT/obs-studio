@@ -1,9 +1,4 @@
-#include "obs-internal.h"
-#include "util/util_uint64.h"
-#include "pulseaudio-wrapper.h"
-#include "pulseaudio-stream-flags.h"
-
-#include <pulse/timeval.h>
+#include "build/libobs-pulse.pch.h"
 
 #define PULSE_DATA(voidptr) struct audio_monitor *data = voidptr;
 #define blog(level, msg, ...) blog(level, "pulse-am: " msg, ##__VA_ARGS__)

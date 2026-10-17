@@ -14,9 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <assert.h>
-#include <gio/gio.h>
-#include "bmem.h"
+#include "build/libobs-nix-dbus.pch.h"
 
 /* NOTE: This is basically just the VLC implementation from its d-bus power
  * management inhibition code.  Credit is theirs for this. */

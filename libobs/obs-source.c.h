@@ -15,22 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include <inttypes.h>
-#include <math.h>
-
-#include "media-io/format-conversion.h"
-#include "media-io/video-frame.h"
-#include "media-io/audio-io.h"
-#include "util/threading.h"
-#include "util/platform.h"
-#include "util/util_uint64.h"
-#include "obs-host/default-monitoring-device.h"
-#include "callback/calldata.h"
-#include "graphics/matrix3.h"
-#include "graphics/vec3.h"
-
-#include "obs.h"
-#include "obs-internal.h"
+#include "build/libobs.pch.h"
 
 #define get_weak(source) ((obs_weak_source_t *)source->context.control)
 

@@ -15,11 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include <stdlib.h>
-#include "vec2.h"
-#include "vec3.h"
-#include "math-defs.h"
-#include "math-extra.h"
+#include "build/libobs-ported-graphics.pch.h"
 
 void polar_to_cart(struct vec3 *dst, const struct vec3 *v)
 {

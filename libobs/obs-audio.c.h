@@ -15,9 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include <inttypes.h>
-#include "obs-internal.h"
-#include "util/util_uint64.h"
+#include "build/libobs.pch.h"
 
 struct ts_info {
 	uint64_t start;

@@ -1,4 +1,4 @@
-#include "profiler-snapshot.h"
+#include "build/libobs-util.pch.h"
 
 static void free_snapshot_entry(profiler_snapshot_entry_t *entry)
 {

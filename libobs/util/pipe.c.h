@@ -14,9 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "pipe.h"
-#include "darray.h"
-#include "dstr.h"
+#include "build/libobs-util.pch.h"
 
 struct os_process_args {
 	DARRAY(char *) arguments;

@@ -15,11 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "graphics/vec4.h"
-#include "obs.h"
-#include "obs-internal.h"
-#include "obs-host/display-clear-workaround.h"
-#include "obs-host/display-srgb-clear.h"
+#include "build/libobs.pch.h"
 
 bool obs_display_init(struct obs_display *display, const struct gs_init_data *graphics_data)
 {

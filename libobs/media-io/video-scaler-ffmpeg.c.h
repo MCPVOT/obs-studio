@@ -15,12 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "../util/bmem.h"
-#include "video-scaler.h"
-
-#include <libavutil/imgutils.h>
-#include <libavutil/opt.h>
-#include <libswscale/swscale.h>
+#include "build/libobs-media.pch.h"
 
 struct video_scaler {
 	struct SwsContext *swscale;

@@ -46,24 +46,20 @@ if(ENABLE_PULSEAUDIO)
   target_sources(
     libobs-objects
     PRIVATE
-      audio-monitoring/pulse/pulseaudio-enum-devices.c
-      audio-monitoring/pulse/pulseaudio-monitoring-available.c
-      audio-monitoring/pulse/pulseaudio-output.c
-      audio-monitoring/pulse/pulseaudio-stream-flags.c
+      build/libobs.pulse+.h.c
       audio-monitoring/pulse/pulseaudio-stream-flags.h
-      audio-monitoring/pulse/pulseaudio-wrapper.c
       audio-monitoring/pulse/pulseaudio-wrapper.h
   )
 
   target_link_libraries(libobs-objects PUBLIC PulseAudio::PulseAudio)
   target_enable_feature(libobs "PulseAudio audio monitoring (FreeBSD)")
 else()
-  target_sources(libobs-objects PRIVATE audio-monitoring/null/null-audio-monitoring.c)
+  target_sources(libobs-objects PRIVATE build/libobs.null-audio+.h.c)
   target_disable_feature(libobs "PulseAudio audio monitoring (FreeBSD)")
 endif()
 
 if(TARGET gio::gio)
-  target_sources(libobs-objects PRIVATE util/platform-nix-dbus.c util/platform-nix-portal.c)
+  target_sources(libobs-objects PRIVATE build/libobs.nix-dbus+.h.c)
   target_link_libraries(libobs-objects PUBLIC gio::gio)
 endif()
 
@@ -71,11 +67,11 @@ if(ENABLE_WAYLAND)
   find_package(Wayland REQUIRED Client)
   find_package(Xkbcommon REQUIRED)
 
-  target_sources(libobs-objects PRIVATE obs-nix-hotkey-state.c obs-nix-hotkey-state.h obs-nix-wayland.c)
+  target_sources(libobs-objects PRIVATE build/libobs.nix-wayland+.h.c obs-nix-hotkey-state.h)
   target_link_libraries(libobs-objects PUBLIC Wayland::Client xkbcommon::xkbcommon)
 
   if(TARGET gio::gio)
-    target_sources(libobs-objects PRIVATE obs-nix-portal-shortcuts.c obs-nix-portal-shortcuts.h)
+    target_sources(libobs-objects PRIVATE build/libobs.nix-portal-shortcuts+.h.c obs-nix-portal-shortcuts.h)
     target_compile_definitions(libobs-objects PUBLIC HAVE_GLOBAL_SHORTCUTS_PORTAL)
   endif()
   target_enable_feature(libobs "Wayland compositor support (FreeBSD)")

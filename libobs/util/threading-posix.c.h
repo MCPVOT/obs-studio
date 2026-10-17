@@ -14,24 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#if defined(__APPLE__) || defined(__MINGW32__)
-#include <sys/time.h>
-#endif
-#ifdef __APPLE__
-#include <mach/semaphore.h>
-#include <mach/task.h>
-#include <mach/mach_init.h>
-#else
-#define _GNU_SOURCE
-#include <semaphore.h>
-#endif
-
-#if defined(__FreeBSD__)
-#include <pthread_np.h>
-#endif
-
-#include "bmem.h"
-#include "threading.h"
+#include "build/libobs-ported-posix-threading.pch.h"
 
 struct os_event_data {
 	pthread_mutex_t mutex;

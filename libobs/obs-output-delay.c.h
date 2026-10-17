@@ -15,8 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include <inttypes.h>
-#include "obs-internal.h"
+#include "build/libobs.pch.h"
 
 static inline bool od_delay_active(const struct obs_output *output)
 {

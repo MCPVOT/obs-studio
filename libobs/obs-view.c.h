@@ -15,8 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "obs.h"
-#include "obs-internal.h"
+#include "build/libobs.pch.h"
 
 bool obs_view_init(struct obs_view *view, enum view_type type)
 {

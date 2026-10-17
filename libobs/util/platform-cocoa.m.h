@@ -16,27 +16,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "base.h"
-#include "platform.h"
-#include "dstr.h"
-
-#include <dlfcn.h>
-#include <time.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/param.h>
-#include <sys/sysctl.h>
-
-#include <CoreServices/CoreServices.h>
-#include <mach/mach.h>
-#include <mach/mach_time.h>
-#include <mach-o/dyld.h>
-
-#include <IOKit/pwr_mgt/IOPMLib.h>
-
-#import <Cocoa/Cocoa.h>
-
-#include "apple/cfstring-utils.h"
+#include "build/libobs-ported-cocoa.pch.h"
 
 uint64_t os_gettime_ns(void)
 {

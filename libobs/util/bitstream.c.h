@@ -1,7 +1,4 @@
-#include "bitstream.h"
-
-#include <stdlib.h>
-#include <string.h>
+#include "build/libobs-util.pch.h"
 
 void bitstream_reader_init(struct bitstream_reader *r, uint8_t *data, size_t len)
 {

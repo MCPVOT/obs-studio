@@ -1,9 +1,4 @@
-#include "window-helpers.h"
-
-#include <util/windows/obfuscate.h>
-
-#include <dwmapi.h>
-#include <psapi.h>
+#include "build/libobs-windows.pch.h"
 
 static inline void encode_dstr(struct dstr *str)
 {

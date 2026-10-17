@@ -15,17 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include <inttypes.h>
-#include "util/platform.h"
-#include "util/util_uint64.h"
-#include "util/array-serializer.h"
-#include "graphics/math-extra.h"
-#include "obs.h"
-#include "obs-internal.h"
-#include "obs-av1.h"
-
-#include <caption/caption.h>
-#include <caption/mpeg.h>
+#include "build/libobs.pch.h"
 
 #define get_weak(output) ((obs_weak_output_t *)output->context.control)
 

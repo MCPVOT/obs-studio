@@ -122,4 +122,4 @@
 #pragma GCC diagnostic ignored "-Wmissing-prototypes"
 #endif
 
-#include "obs-properties.c"
+#include "obs-properties.c.h"

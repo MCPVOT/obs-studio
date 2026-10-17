@@ -1,5 +1,4 @@
-#include <obs-internal.h>
-#include "pulseaudio-wrapper.h"
+#include "build/libobs-pulse.pch.h"
 
 static void pulseaudio_output_info(pa_context *c, const pa_sink_info *i, int eol, void *userdata)
 {

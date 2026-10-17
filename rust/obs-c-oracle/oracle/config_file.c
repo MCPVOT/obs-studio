@@ -50,4 +50,4 @@
  * oracle keeps the C copy under a private name. */
 #define os_safe_replace oracle_host_os_safe_replace
 
-#include "util/config-file.c"
+#include "util/config-file.c.h"

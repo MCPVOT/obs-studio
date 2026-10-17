@@ -14,20 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#define _FILE_OFFSET_BITS 64
-
-#include <time.h>
-#include <errno.h>
-#include <stdlib.h>
-#include <inttypes.h>
-#include <locale.h>
-#include "c99defs.h"
-#include "platform.h"
-#include "bmem.h"
-#include "utf8.h"
-#include "dstr.h"
-#include "obs.h"
-#include "threading.h"
+#include "build/libobs-platform.pch.h"
 
 FILE *os_wfopen(const wchar_t *path, const char *mode)
 {

@@ -1,20 +1,4 @@
-#include "graphics.h"
-
-#include "half.h"
-#include "srgb.h"
-#include <obs-ffmpeg-compat.h>
-#include <util/dstr.h>
-#include <util/platform.h>
-
-#include <libavcodec/avcodec.h>
-#include <libavformat/avformat.h>
-#include <libavutil/imgutils.h>
-#include <libswscale/swscale.h>
-
-#ifdef _WIN32
-#include <wincodec.h>
-#pragma comment(lib, "windowscodecs.lib")
-#endif
+#include "build/libobs-media.pch.h"
 
 struct ffmpeg_image {
 	const char *file;
@@ -340,11 +324,7 @@ static void *ffmpeg_image_orient(struct ffmpeg_image *info, void *in_data, int o
  * metadata, where FFmpeg 8.0 and earlier put it (JPEG and WebP only).
  * Once the minimum FFmpeg is 8.1, the metadata tag and the sign table below
  * can go. */
-#define FFMPEG_HAS_EXIF_API (LIBAVCODEC_VERSION_INT >= AV_VERSION_INT(62, 13, 100))
-
-#if FFMPEG_HAS_EXIF_API
-#include <libavcodec/exif.h>
-#else
+#if !FFMPEG_HAS_EXIF_API
 static inline int matrix_sign(int32_t v)
 {
 	return (v > 0) - (v < 0);

@@ -14,19 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <stddef.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdarg.h>
-#include <string.h>
-#include <wchar.h>
-#include <wctype.h>
-
-#include "c99defs.h"
-#include "dstr.h"
-#include "bmem.h"
-#include "utf8.h"
-#include "platform.h"
+#include "build/libobs-util.pch.h"
 
 static const wchar_t *wstrblank = L"";
 

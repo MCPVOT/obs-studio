@@ -19,5 +19,8 @@ foreach(target libobs-objects libobs)
   )
 endforeach()
 
-set_property(SOURCE obs-cocoa.m util/platform-cocoa.m PROPERTY COMPILE_OPTIONS -fobjc-arc)
+set_property(
+  SOURCE build/libobs.macos-cocoa+.h.m build/libobs.ported-macos-cocoa+.h.m
+  PROPERTY COMPILE_OPTIONS -fobjc-arc
+)
 set_property(TARGET ${LIBOBS_SHARED_TARGETS} PROPERTY FRAMEWORK TRUE)

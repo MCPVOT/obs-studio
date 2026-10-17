@@ -4,4 +4,4 @@
 #define os_strtod oracle_os_strtod
 #define os_dtostr oracle_os_dtostr
 
-#include "util/platform-number.c"
+#include "util/platform-number.c.h"

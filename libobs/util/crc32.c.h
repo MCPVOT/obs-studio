@@ -15,7 +15,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "crc32.h"
+#include "build/libobs-util.pch.h"
 
 /* CRC32 code derived from work by Gary S. Brown. */
 

@@ -15,8 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "../util/platform.h"
-#include "shader-parser.h"
+#include "build/libobs.pch.h"
 
 void shader_sampler_convert(struct shader_sampler *ss, struct gs_sampler_info *info)
 {

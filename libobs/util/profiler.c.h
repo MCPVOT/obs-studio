@@ -1,10 +1,4 @@
-#include "profiler.h"
-#include "profiler-snapshot.h"
-
-#include "darray.h"
-#include "dstr.h"
-#include "platform.h"
-#include "threading.h"
+#include "build/libobs-util.pch.h"
 
 //#define TRACK_OVERHEAD
 

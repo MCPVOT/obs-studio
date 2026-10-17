@@ -15,9 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "../util/c99defs.h"
-#include "matrix3.h"
-#include "plane.h"
+#include "build/libobs-ported-graphics.pch.h"
 
 void plane_from_tri(struct plane *dst, const struct vec3 *v1, const struct vec3 *v2, const struct vec3 *v3)
 {

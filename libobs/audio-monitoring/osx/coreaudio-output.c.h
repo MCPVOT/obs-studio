@@ -1,16 +1,4 @@
-#include <AudioUnit/AudioUnit.h>
-#include <AudioToolbox/AudioQueue.h>
-#include <CoreFoundation/CFString.h>
-#include <CoreAudio/CoreAudio.h>
-
-#include "../../media-io/audio-resampler.h"
-#include "../../util/deque.h"
-#include "../../util/threading.h"
-#include "../../util/platform.h"
-#include "../../obs-internal.h"
-#include "../../util/darray.h"
-
-#include "mac-helpers.h"
+#include "build/libobs-macos.pch.h"
 
 struct audio_monitor {
 	obs_source_t *source;

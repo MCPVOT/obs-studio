@@ -15,14 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#import "obs-core-modules.h"
-
-#import <obs-internal.h>
-#import <obs.h>
-#import <util/dstr.h>
-#import <util/platform.h>
-
-#import <Foundation/Foundation.h>
+#include "build/libobs-cocoa.pch.h"
 
 extern bool find_core_module(struct obs_runtime_module_info *info, obs_find_module_callback2_t callback, void *data);
 

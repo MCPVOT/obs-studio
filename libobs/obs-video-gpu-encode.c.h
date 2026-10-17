@@ -15,8 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "obs-internal.h"
-#include "obs-host/shared-texture.h"
+#include "build/libobs.pch.h"
 
 void handle_encoder_group_reconfigure_request(obs_encoder_t *encoder);
 

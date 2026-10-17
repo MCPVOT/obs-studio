@@ -15,10 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "../util/base.h"
-#include "../util/dstr.h"
-#include "../util/platform.h"
-#include "graphics-internal.h"
+#include "build/libobs.pch.h"
 
 #define GRAPHICS_IMPORT(func)                                     \
 	do {                                                      \

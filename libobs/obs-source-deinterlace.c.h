@@ -15,7 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "obs-internal.h"
+#include "build/libobs.pch.h"
 
 /* A frame is due once the source clock is this far past its timestamp. */
 #define FRAME_TOLERANCE 2000000ULL

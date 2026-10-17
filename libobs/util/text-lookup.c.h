@@ -14,13 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <ctype.h>
-
-#include "dstr.h"
-#include "text-lookup.h"
-#include "lexer.h"
-#include "platform.h"
-#include "uthash.h"
+#include "build/libobs-util.pch.h"
 
 /* ------------------------------------------------------------------------- */
 

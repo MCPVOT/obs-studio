@@ -14,14 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "buffered-file-serializer.h"
-
-#include <inttypes.h>
-
-#include "platform.h"
-#include "threading.h"
-#include "deque.h"
-#include "dstr.h"
+#include "build/libobs-util.pch.h"
 
 static const size_t DEFAULT_BUF_SIZE = 256ULL * 1048576ULL; // 256 MiB
 static const size_t DEFAULT_CHUNK_SIZE = 1048576;           // 1 MiB

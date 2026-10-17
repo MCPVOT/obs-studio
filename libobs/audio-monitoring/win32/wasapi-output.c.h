@@ -1,11 +1,4 @@
-#include "../../media-io/audio-resampler.h"
-#include "../../util/deque.h"
-#include "../../util/platform.h"
-#include "../../util/darray.h"
-#include "../../util/util_uint64.h"
-#include "../../obs-internal.h"
-
-#include "wasapi-output.h"
+#include "build/libobs-windows.pch.h"
 
 #define ACTUALLY_DEFINE_GUID(name, l, w1, w2, b1, b2, b3, b4, b5, b6, b7, b8) \
 	EXTERN_C const GUID DECLSPEC_SELECTANY name = {l, w1, w2, {b1, b2, b3, b4, b5, b6, b7, b8}}

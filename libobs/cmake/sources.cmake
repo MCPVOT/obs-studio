@@ -2,34 +2,32 @@
 # and cmake/os-<os>.cmake) and the cross-compile check (cmake/cross/) both read
 # them, so a cross check compiles exactly the files that host's build would.
 #
+# Sources are unity groups (BUILD.md): build/<name>+.h.c (.h.m for
+# Objective-C) #includes the implementation files (foo.c.h) it compiles. A
+# file moves between lists by moving its #include line between groups.
+#
 # Per list:
 # - LIBOBS_SOURCES: built on every host, no Rust port.
 # - LIBOBS_PORTED_SOURCES: C with a Rust port in rust/libobs-rust. libobs
 #   compiles them; libobs-with-rust links the staticlib instead (#1065).
 # - LIBOBS_RUST_SOURCES: the C halves only libobs-with-rust adds (C variadics).
 # - LIBOBS_<HOST>_SOURCES / _PORTED_SOURCES: the same split, per host.
-# - LIBOBS_<HOST>_NOOP_SOURCES: obs-host/noop/<capability>.c for each libobs
-#   core host capability that host's own file doesn't implement (#1051).
+# - No-op host capabilities (#1051) are not listed: each host file includes
+#   the obs-host/noop/<capability>.hpp headers for what it lacks.
 # <HOST> is WINDOWS, MACOS or LINUX; LINUX also covers FreeBSD and OpenBSD,
 # which build obs-nix.c the same way.
 
 set(
   LIBOBS_SOURCES
-  obs-audio-controls.c
   obs-audio-controls.h
-  obs-audio.c
   obs-av1.h
   obs-avc.h
-  obs-canvas.c
   obs-config.h
   obs-core-modules-loader.h
   obs-data.h
   obs-defs.h
-  obs-display.c
-  obs-encoder.c
   obs-encoder.h
   obs-ffmpeg-compat.h
-  obs-hotkey.c
   obs-hotkey.h
   obs-hotkeys.h
   obs-host/com.h
@@ -44,29 +42,15 @@ set(
   obs-host/shared-texture.h
   obs-interaction.h
   obs-internal.h
-  obs-missing-files.c
   obs-missing-files.h
-  obs-module.c
   obs-module.h
   obs-nal.h
-  obs-output-delay.c
-  obs-output.c
   obs-output.h
   obs-properties.h
-  obs-scene-bounds.c
   obs-scene-bounds.h
-  obs-scene.c
   obs-scene.h
-  obs-service.c
   obs-service.h
-  obs-source-deinterlace.c
-  obs-source-transition.c
-  obs-source.c
   obs-source.h
-  obs-video-gpu-encode.c
-  obs-video.c
-  obs-view.c
-  obs.c
   obs.h
   obs.hpp
   util/array-serializer.h
@@ -75,28 +59,22 @@ set(
   util/bmem.h
   util/buffered-file-serializer.h
   util/c99defs.h
-  util/cf-lexer.c
   util/cf-lexer.h
-  util/cf-parser.c
   util/cf-parser.h
   util/config-file.h
   util/crc32.h
   util/curl/curl-helper.h
   util/darray.h
   util/deque.h
-  util/dstr-libc.c
   util/dstr.h
   util/file-serializer.h
   util/lexer.h
   util/pipe.h
-  util/platform.c
   util/platform.h
   util/profiler-snapshot.h
-  util/profiler-io.c
   util/profiler.h
   util/profiler.hpp
   util/serializer.h
-  util/source-profiler.c
   util/source-profiler.h
   util/sse-intrin.h
   util/task.h
@@ -107,45 +85,30 @@ set(
   util/util.hpp
   util/util_uint128.h
   util/util_uint64.h
-  callback/calldata.c
   callback/calldata.h
-  callback/decl.c
   callback/decl.h
-  callback/proc.c
   callback/proc.h
-  callback/signal.c
   callback/signal.h
   media-io/audio-io.h
   media-io/audio-math.h
-  media-io/audio-resampler-ffmpeg.c
   media-io/audio-resampler.h
   media-io/format-conversion.h
   media-io/frame-rate.h
   media-io/media-io-defs.h
-  media-io/media-remux.c
   media-io/media-remux.h
   media-io/video-frame.h
   media-io/video-io.h
-  media-io/video-scaler-ffmpeg.c
   media-io/video-scaler.h
   graphics/axisang.h
   graphics/bounds.h
   graphics/device-exports.h
-  graphics/effect-parser.c
   graphics/effect-parser.h
-  graphics/effect.c
   graphics/effect.h
-  graphics/graphics-ffmpeg.c
-  graphics/graphics-imports.c
   graphics/graphics-internal.h
-  graphics/graphics.c
   graphics/graphics.h
   graphics/half.h
-  graphics/image-file.c
   graphics/image-file.h
   graphics/input.h
-  graphics/libnsgif/gif.c
-  graphics/libnsgif/lzw.c
   graphics/libnsgif/lzw.h
   graphics/libnsgif/nsgif.h
   graphics/math-defs.h
@@ -154,148 +117,90 @@ set(
   graphics/matrix4.h
   graphics/plane.h
   graphics/quat.h
-  graphics/shader-parser.c
   graphics/shader-parser.h
   graphics/srgb.h
-  graphics/texture-render.c
   graphics/vec2.h
   graphics/vec3.h
   graphics/vec4.h
+  build/libobs.core+.h.c
+  build/libobs.core-output+.h.c
+  build/libobs.core-source+.h.c
+  build/libobs.util+.h.c
+  build/libobs.util-libc+.h.c
+  build/libobs.graphics+.h.c
+  build/libobs.media+.h.c
+  build/libobs.nsgif+.h.c
+  build/libobs.platform+.h.c
 )
 
 set(
   LIBOBS_PORTED_SOURCES
-  obs-av1.c
-  obs-avc.c
-  obs-data.c
-  obs-hotkey-name-map.c
-  obs-nal.c
-  obs-properties.c
-  util/array-serializer.c
-  util/base.c
-  util/bitstream.c
-  util/bmem.c
-  util/buffered-file-serializer.c
-  util/cf-tokenizer.c
-  util/config-file.c
-  util/crc32.c
-  util/dstr.c
-  util/file-serializer.c
-  util/lexer.c
-  util/path-extension.c
-  util/pipe.c
-  util/platform-number.c
-  util/profiler-snapshot.c
-  util/profiler.c
-  util/task.c
-  util/text-lookup.c
-  util/utf8.c
-  media-io/audio-io.c
-  media-io/format-conversion.c
-  media-io/video-fourcc.c
-  media-io/video-frame.c
-  media-io/video-io.c
-  media-io/video-matrices.c
-  graphics/axisang.c
-  graphics/bounds.c
-  graphics/math-extra.c
-  graphics/matrix3.c
-  graphics/matrix4.c
-  graphics/plane.c
-  graphics/quat.c
-  graphics/shader-param-names.c
-  graphics/vec2.c
-  graphics/vec3.c
-  graphics/vec4.c
+  build/libobs.ported-util+.h.c
+  build/libobs.ported-util-io+.h.c
+  build/libobs.ported-media+.h.c
+  build/libobs.ported-data+.h.c
+  build/libobs.ported-graphics+.h.c
 )
 
-set(LIBOBS_RUST_SOURCES util/base-variadic.c util/pipe-variadic.c util/profiler-variadic.c)
+set(LIBOBS_RUST_SOURCES build/libobs.rust-variadic+.h.c)
 
 if(ENABLE_HEVC)
   list(APPEND LIBOBS_SOURCES obs-hevc.h)
-  list(APPEND LIBOBS_PORTED_SOURCES obs-hevc.c)
+  list(APPEND LIBOBS_PORTED_SOURCES build/libobs.ported-hevc+.h.c)
 endif()
 
 set(
   LIBOBS_WINDOWS_SOURCES
-  audio-monitoring/win32/wasapi-enum-devices.c
-  audio-monitoring/win32/wasapi-monitoring-available.c
-  audio-monitoring/win32/wasapi-output.c
   audio-monitoring/win32/wasapi-output.h
-  obs-core-modules-loader-win.c
-  obs-win-crash-handler.c
-  obs-windows.c
   util/threading-windows.h
   util/windows/CoTaskMemPtr.hpp
-  util/windows/device-enum.c
   util/windows/device-enum.h
   util/windows/HRError.hpp
   util/windows/win-registry.h
   util/windows/win-version.h
-  util/windows/window-helpers.c
   util/windows/window-helpers.h
+  build/libobs.windows+.h.c
+  build/libobs.windows-crash-handler+.h.c
 )
-set(LIBOBS_WINDOWS_PORTED_SOURCES util/pipe-windows.c util/platform-windows.c util/threading-windows.c)
 set(
-  LIBOBS_WINDOWS_NOOP_SOURCES
-  obs-host/noop/default-monitoring-device.c
-  obs-host/noop/display-srgb-clear.c
-  obs-host/noop/graphics-thread.c
-  obs-host/noop/module-paths.c
+  LIBOBS_WINDOWS_PORTED_SOURCES
+  build/libobs.ported-windows+.h.c
+  build/libobs.ported-windows-pipe+.h.c
+  build/libobs.ported-windows-platform+.h.c
 )
 
 set(
   LIBOBS_MACOS_SOURCES
-  audio-monitoring/osx/coreaudio-enum-devices.c
-  audio-monitoring/osx/coreaudio-monitoring-available.c
-  audio-monitoring/osx/coreaudio-output.c
   audio-monitoring/osx/mac-helpers.h
-  obs-cocoa.m
-  obs-core-modules-loader-mac.m
   util/apple/cfstring-utils.h
   util/threading-posix.h
+  build/libobs.macos+.h.c
+  build/libobs.macos-cocoa+.h.m
+  build/libobs.macos-loader+.h.m
 )
-set(LIBOBS_MACOS_PORTED_SOURCES util/pipe-posix.c util/platform-cocoa.m util/platform-nix.c util/threading-posix.c)
 set(
-  LIBOBS_MACOS_NOOP_SOURCES
-  obs-host/noop/com.c
-  obs-host/noop/display-clear-workaround.c
-  obs-host/noop/graphics-thread-hooks.c
-  obs-host/noop/module-symbols.c
-  obs-host/noop/shared-texture.c
+  LIBOBS_MACOS_PORTED_SOURCES
+  build/libobs.ported-posix+.h.c
+  build/libobs.ported-posix-threading+.h.c
+  build/libobs.ported-macos-cocoa+.h.m
 )
 
 # Linux and the BSDs. Optional parts (PulseAudio, GIO, Wayland) stay in
 # cmake/os-linux.cmake and cmake/os-freebsd.cmake, next to their find_package.
 set(
   LIBOBS_LINUX_SOURCES
-  obs-core-modules-loader-nix.c
-  obs-nix-platform.c
   obs-nix-platform.h
   obs-nix-x11-keymap.h
-  obs-nix-x11.c
-  obs-nix.c
-  util/platform-nix-inhibit.c
   util/threading-posix.h
+  build/libobs.nix+.h.c
+  build/libobs.nix-main+.h.c
 )
-set(LIBOBS_LINUX_PORTED_SOURCES util/pipe-posix.c util/platform-nix.c util/threading-posix.c)
-set(
-  LIBOBS_LINUX_NOOP_SOURCES
-  obs-host/noop/com.c
-  obs-host/noop/default-monitoring-device.c
-  obs-host/noop/display-clear-workaround.c
-  obs-host/noop/display-srgb-clear.c
-  obs-host/noop/graphics-thread.c
-  obs-host/noop/graphics-thread-hooks.c
-  obs-host/noop/module-paths.c
-  obs-host/noop/module-symbols.c
-  obs-host/noop/shared-texture.c
-)
+set(LIBOBS_LINUX_PORTED_SOURCES build/libobs.ported-posix+.h.c build/libobs.ported-posix-threading+.h.c)
 
-# Adds a host's lists (libobs/CMakeLists.txt): its sources and no-ops to the
+# Adds a host's lists (libobs/CMakeLists.txt): its sources to the
 # objects both libobs binaries share, its ported C to libobs only
 # (libobs-with-rust gets the staticlib instead).
 macro(libobs_add_host_sources host)
-  target_sources(libobs-objects PRIVATE ${LIBOBS_${host}_SOURCES} ${LIBOBS_${host}_NOOP_SOURCES})
+  target_sources(libobs-objects PRIVATE ${LIBOBS_${host}_SOURCES})
   target_sources(libobs PRIVATE ${LIBOBS_${host}_PORTED_SOURCES})
 endmacro()

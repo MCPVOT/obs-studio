@@ -15,10 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "math-defs.h"
-#include "matrix4.h"
-#include "matrix3.h"
-#include "quat.h"
+#include "build/libobs-ported-graphics.pch.h"
 
 void matrix4_from_matrix3(struct matrix4 *dst, const struct matrix3 *m)
 {

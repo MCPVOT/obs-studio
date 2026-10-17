@@ -15,16 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include <inttypes.h>
-
-#include "graphics/matrix4.h"
-#include "callback/calldata.h"
-
-#include "obs.h"
-#include "obs-internal.h"
-#include "obs-host/com.h"
-#include "obs-host/graphics-thread.h"
-#include "obs-host/shared-texture.h"
+#include "build/libobs.pch.h"
 
 struct obs_core *obs = NULL;
 

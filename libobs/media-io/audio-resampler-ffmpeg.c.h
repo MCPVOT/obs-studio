@@ -15,14 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "../util/bmem.h"
-#include "audio-resampler.h"
-#include "audio-io.h"
-#include <libavutil/avutil.h>
-#include <libavformat/avformat.h>
-#include <libswresample/swresample.h>
-#include <inttypes.h>
-#include <math.h>
+#include "build/libobs-media.pch.h"
 
 /* Asynchronous sample rate compensation, after Norihiro Kamae's
  * obsproject/obs-studio#6351.

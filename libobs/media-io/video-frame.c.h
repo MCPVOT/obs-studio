@@ -14,8 +14,7 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
-#include <assert.h>
-#include "video-frame.h"
+#include "build/libobs-ported-media.pch.h"
 
 #define HALF(size) ((size + 1) / 2)
 #define ALIGN(size, alignment) *size = (*size + alignment - 1) & (~(alignment - 1));

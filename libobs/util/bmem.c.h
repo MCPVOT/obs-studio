@@ -14,12 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <stdlib.h>
-#include <string.h>
-#include "base.h"
-#include "bmem.h"
-#include "platform.h"
-#include "threading.h"
+#include "build/libobs-util.pch.h"
 
 /*
  * NOTE: totally jacked the mem alignment trick from ffmpeg, credit to them:
