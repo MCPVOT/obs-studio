@@ -1,4 +1,4 @@
-#include <obs-module.h>
+#include "build/obs-filters.pch.h"
 
 enum hdr_tonemap_transform {
 	TRANSFORM_SDR_REINHARD,

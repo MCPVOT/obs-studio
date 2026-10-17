@@ -1,10 +1,4 @@
-#include <obs-module.h>
-#include <graphics/half.h>
-#include <graphics/image-file.h>
-#include <util/dstr.h>
-#include <util/platform.h>
-
-#include "cube-lut.h"
+#include "build/obs-filters.pch.h"
 
 /* clang-format off */
 

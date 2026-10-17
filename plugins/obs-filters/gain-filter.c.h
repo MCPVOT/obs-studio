@@ -1,6 +1,4 @@
-#include <obs-module.h>
-#include <media-io/audio-math.h>
-#include <math.h>
+#include "build/obs-filters.pch.h"
 
 #define do_log(level, format, ...) \
 	blog(level, "[gain filter: '%s'] " format, obs_source_get_name(gf->context), ##__VA_ARGS__)

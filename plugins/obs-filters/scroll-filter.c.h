@@ -1,7 +1,4 @@
-#include <obs-module.h>
-#include <graphics/vec2.h>
-#include <graphics/vec4.h>
-#include <math.h>
+#include "build/obs-filters.pch.h"
 
 /* The largest texture Direct3D 11 and Metal can create, and that most OpenGL
  * drivers allow. A source wider or taller than this cannot be drawn into one

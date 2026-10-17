@@ -1,19 +1,4 @@
-#include <stdint.h>
-#include <inttypes.h>
-
-#include <util/deque.h>
-#include <util/threading.h>
-#include <obs-module.h>
-
-#ifdef LIBSPEEXDSP_ENABLED
-#include <speex/speex_preprocess.h>
-#endif
-
-#ifdef LIBRNNOISE_ENABLED
-/* MSVC lacks ssize_t; CMake defines it for this file (cmake/rnnoise.cmake). */
-#include <rnnoise.h>
-#include <media-io/audio-resampler.h>
-#endif
+#include "build/obs-filters-noise-suppress.pch.h"
 
 /* -------------------------------------------------------- */
 

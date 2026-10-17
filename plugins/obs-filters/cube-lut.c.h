@@ -1,13 +1,4 @@
-#include <stdio.h>
-#include <string.h>
-
-#include <graphics/half.h>
-#include <graphics/srgb.h>
-#include <util/base.h>
-#include <util/bmem.h>
-#include <util/platform.h>
-
-#include "cube-lut.h"
+#include "build/obs-filters.pch.h"
 
 /* Adobe Cube LUT Specification 1.0 */
 #define LUT_1D_SIZE_MAX 65536

@@ -1,4 +1,4 @@
-#include <obs-module.h>
+#include "build/obs-filters.pch.h"
 
 static const char *invert_polarity_name(void *unused)
 {

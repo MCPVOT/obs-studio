@@ -1,9 +1,4 @@
-#include <media-io/audio-math.h>
-#include <util/deque.h>
-#include <util/darray.h>
-#include <obs-module.h>
-
-#include <math.h>
+#include "build/obs-filters.pch.h"
 
 #define LOW_FREQ 800.0f
 #define HIGH_FREQ 5000.0f

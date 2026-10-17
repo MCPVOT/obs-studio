@@ -1,12 +1,4 @@
-#include <stdint.h>
-#include <inttypes.h>
-#include <math.h>
-
-#include <obs-module.h>
-#include <media-io/audio-math.h>
-#include <util/platform.h>
-#include <util/deque.h>
-#include <util/threading.h>
+#include "build/obs-filters.pch.h"
 
 /* -------------------------------------------------------- */
 

@@ -1,7 +1,4 @@
-#include <obs-module.h>
-#include <graphics/matrix4.h>
-#include <graphics/vec2.h>
-#include <graphics/vec4.h>
+#include "build/obs-filters.pch.h"
 
 /* clang-format off */
 

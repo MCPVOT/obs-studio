@@ -1,4 +1,4 @@
-#include <obs-module.h>
+#include "build/obs-filters.pch.h"
 
 enum sdr_on_hdr_gamma {
 	GAMMA_INVALID,

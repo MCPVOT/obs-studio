@@ -1,10 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <util/dstr.h>
-#include <obs-module.h>
-#include <util/platform.h>
-#include <graphics/vec2.h>
-#include <graphics/math-defs.h>
+#include "build/obs-filters.pch.h"
 
 /* clang-format off */
 

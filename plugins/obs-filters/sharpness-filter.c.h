@@ -1,7 +1,4 @@
-#include <obs-module.h>
-#include <obs-source.h>
-#include <obs.h>
-#include <util/platform.h>
+#include "build/obs-filters.pch.h"
 
 struct sharpness_data {
 	obs_source_t *context;

@@ -14,9 +14,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 *****************************************************************************/
-#include <obs-module.h>
-#include <graphics/matrix4.h>
-#include <graphics/quat.h>
+#include "build/obs-filters.pch.h"
 
 /* clang-format off */
 

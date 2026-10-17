@@ -1,6 +1,4 @@
-#include <obs-module.h>
-#include <util/deque.h>
-#include <util/util_uint64.h>
+#include "build/obs-filters.pch.h"
 
 #define S_DELAY_MS "delay_ms"
 #define T_DELAY_MS obs_module_text("DelayMs")

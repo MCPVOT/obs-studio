@@ -7,7 +7,7 @@ if(OS_LINUX AND TARGET OBS::libobs-opengl)
   add_executable(
     test_async_delay_audio
     test_async_delay_audio.c
-    "${CMAKE_SOURCE_DIR}/plugins/obs-filters/async-delay-filter.c"
+    "${CMAKE_SOURCE_DIR}/plugins/obs-filters/async-delay-filter.c.h"
   )
   target_compile_definitions(test_async_delay_audio PRIVATE GRAPHICS_MODULE_PATH="$<TARGET_FILE:OBS::libobs-opengl>")
   target_include_directories(test_async_delay_audio PRIVATE ${CMOCKA_INCLUDE_DIR})

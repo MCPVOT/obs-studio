@@ -580,7 +580,7 @@ endif()
 
 # Load .cube LUTs through the Color Grade filter's loader.
 if(TARGET OBS::filters)
-  add_executable(test_cube_lut test_cube_lut.c "${CMAKE_SOURCE_DIR}/plugins/obs-filters/cube-lut.c")
+  add_executable(test_cube_lut test_cube_lut.c "${CMAKE_SOURCE_DIR}/plugins/obs-filters/cube-lut.c.h")
   target_include_directories(test_cube_lut PRIVATE ${CMOCKA_INCLUDE_DIR} "${CMAKE_SOURCE_DIR}/plugins/obs-filters")
   target_link_libraries(test_cube_lut PRIVATE OBS::libobs ${CMOCKA_LIBRARIES} $<$<NOT:$<PLATFORM_ID:Windows>>:m>)
   add_dependencies(cmocka-tests test_cube_lut)
