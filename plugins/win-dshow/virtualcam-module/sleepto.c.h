@@ -31,17 +31,20 @@ bool sleepto_100ns(uint64_t time_target)
 	uint64_t t = gettime_100ns();
 	uint32_t milliseconds;
 
-	if (t >= time_target)
+	if (t >= time_target) {
 		return false;
+	}
 
 	milliseconds = (uint32_t)((time_target - t) / 10000);
-	if (milliseconds > 1)
+	if (milliseconds > 1) {
 		Sleep(milliseconds - 1);
+	}
 
 	for (;;) {
 		t = gettime_100ns();
-		if (t >= time_target)
+		if (t >= time_target) {
 			return true;
+		}
 
 		Sleep(0);
 	}
