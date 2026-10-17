@@ -129,11 +129,15 @@ image_hash() {
   } | if command -v sha256sum >/dev/null 2>&1; then sha256sum; else shasum -a 256; fi | cut -c1-16
 }
 
-prune_images() { # IMAGE KEEP APPLY
+# IN_USE, a full tag, is never removed and not counted: images built from the
+# same inputs share one CreatedAt, so the tie falls to the tag string and the
+# image just built could sort past KEEP (#1218).
+prune_images() { # IMAGE KEEP APPLY [IN_USE]
   local tags
   tags=$(quiet docker image ls "$1" --format '{{.CreatedAt}}\t{{.Tag}}' | LC_ALL=C sort -r | cut -f2 | grep -v '^<none>$' || true)
   local n=0 tag
   for tag in $tags; do
+    [ "$1:$tag" = "${4:-}" ] && continue
     n=$((n + 1))
     [ "$n" -le "$2" ] && continue
     if [ "$3" = 1 ]; then
@@ -220,7 +224,7 @@ cmd_run() {
       for a in ${build_args[@]+"${build_args[@]}"}; do ba+=(--build-arg "$a"); done
       docker build -q ${ba[@]+"${ba[@]}"} -t "$tag" -f "$dockerfile" "$context" >/dev/null
     fi
-    prune_images "$image" "$keep_images" 1 >/dev/null
+    prune_images "$image" "$keep_images" 1 "$tag" >/dev/null
   fi
 
   # The singleton: one container per task and checkout.
