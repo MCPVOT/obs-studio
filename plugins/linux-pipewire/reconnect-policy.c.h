@@ -16,11 +16,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#include "reconnect-policy.h"
-
-#include <errno.h>
-
-#include <pipewire/core.h>
+#include "build/linux-pipewire-nix.pch.h"
 
 bool obs_pipewire_core_error_is_lost(bool *disconnected, uint32_t id, int res)
 {

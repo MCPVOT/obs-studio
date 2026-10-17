@@ -13,20 +13,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <ctype.h>
-#include <dirent.h>
-#include <errno.h>
-#include <limits.h>
-#include <signal.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/stat.h>
-#include <unistd.h>
-
-#include <util/platform.h>
-
-#include "v4l2-busy.h"
+#include "build/linux-v4l2-nix.pch.h"
 
 #define FORCE_POLL_MS 50
 #define RETRY_FIRST_MS 2000

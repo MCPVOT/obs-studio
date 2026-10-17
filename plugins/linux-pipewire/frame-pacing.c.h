@@ -16,9 +16,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#include "frame-pacing.h"
-
-#include <string.h>
+#include "build/linux-pipewire-nix.pch.h"
 
 /* Frames wait in arrival order and each video tick moves on by at most one,
  * so two frames landing in one tick interval are drawn on consecutive ticks

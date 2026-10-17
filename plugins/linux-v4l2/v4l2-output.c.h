@@ -1,17 +1,4 @@
-#define _GNU_SOURCE
-
-#include <obs-module.h>
-#include <util/dstr.h>
-#include <util/platform.h>
-#include <linux/videodev2.h>
-#include <sys/ioctl.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <dirent.h>
-#include <errno.h>
-#include <string.h>
-
-#include "vcam-format.h"
+#include "build/linux-v4l2-nix-output.pch.h"
 
 struct virtualcam_data {
 	obs_output_t *output;

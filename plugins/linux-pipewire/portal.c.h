@@ -18,10 +18,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#include "portal.h"
-#include "pipewire.h"
-
-#include <util/dstr.h>
+#include "build/linux-pipewire-nix.pch.h"
 
 struct portal_signal_call {
 	GCancellable *cancellable;

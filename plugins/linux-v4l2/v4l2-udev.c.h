@@ -15,16 +15,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <sys/eventfd.h>
-#include <poll.h>
-#include <unistd.h>
-#include <libudev.h>
-
-#include <util/threading.h>
-#include <util/darray.h>
-#include <obs.h>
-
-#include "v4l2-udev.h"
+#include "build/linux-v4l2-nix-udev.pch.h"
 
 /** udev action enum */
 enum udev_action { UDEV_ACTION_ADDED, UDEV_ACTION_REMOVED, UDEV_ACTION_UNKNOWN };

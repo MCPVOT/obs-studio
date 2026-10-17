@@ -18,24 +18,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#include "pipewire.h"
-
-#include "formats.h"
-#include "portal.h"
-
-#include <util/dstr.h>
-
-#include <fcntl.h>
-#include <unistd.h>
-#include <gio/gio.h>
-#include <gio/gunixfdlist.h>
-#include <spa/node/keys.h>
-#include <spa/pod/iter.h>
-#include <spa/pod/parser.h>
-#include <spa/param/props.h>
-#include <spa/utils/defs.h>
-#include <spa/utils/keys.h>
-#include <spa/utils/result.h>
+#include "build/linux-pipewire-nix-camera.pch.h"
 
 struct camera_portal_source {
 	obs_source_t *source;

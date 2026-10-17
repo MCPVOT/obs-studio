@@ -13,9 +13,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <linux/videodev2.h>
-
-#include "v4l2-input-caps.h"
+#include "build/linux-v4l2-nix.pch.h"
 
 int v4l2_open_input_caps(const struct v4l2_input_caps_ops *ops, const char *device, int input, uint32_t *caps)
 {

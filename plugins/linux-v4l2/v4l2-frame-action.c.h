@@ -13,9 +13,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <libavutil/error.h>
-
-#include "v4l2-frame-action.h"
+#include "build/linux-v4l2-nix.pch.h"
 
 enum v4l2_frame_action v4l2_frame_action(struct obs_source_frame *out, int pixfmt, const struct v4l2_buffer *buf,
 					 uint8_t *start, const size_t *plane_offsets, struct v4l2_decoder *decoder)

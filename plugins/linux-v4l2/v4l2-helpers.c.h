@@ -15,13 +15,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <inttypes.h>
-
-#include <sys/mman.h>
-
-#include <util/bmem.h>
-
-#include "v4l2-helpers.h"
+#include "build/linux-v4l2-nix.pch.h"
 
 #define blog(level, msg, ...) blog(level, "v4l2-helpers: " msg, ##__VA_ARGS__)
 

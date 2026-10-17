@@ -18,29 +18,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#include "pipewire.h"
-
-#include "formats.h"
-#include "frame-layout.h"
-#include "frame-pacing.h"
-#include "reconnect-policy.h"
-
-#include <util/darray.h>
-
-#include <gio/gio.h>
-#include <gio/gunixfdlist.h>
-#include <glib/gstdio.h>
-
-#include <fcntl.h>
-#include <glad/glad.h>
-#include <libdrm/drm_fourcc.h>
-#include <pipewire/pipewire.h>
-#include <spa/param/video/format-utils.h>
-#include <spa/buffer/meta.h>
-#include <spa/debug/format.h>
-#include <spa/debug/types.h>
-#include <spa/param/video/type-info.h>
-#include <spa/utils/result.h>
+#include "build/linux-pipewire-nix.pch.h"
 
 //#define DEBUG_PIPEWIRE
 

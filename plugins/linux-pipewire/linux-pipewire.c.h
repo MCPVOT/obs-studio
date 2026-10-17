@@ -19,16 +19,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#include <obs-module.h>
-#include <obs-nix-platform.h>
-#include <glad/glad.h>
-
-#include <pipewire/pipewire.h>
-#include "screencast-portal.h"
-
-#if PW_CHECK_VERSION(0, 3, 60)
-#include "camera-portal.h"
-#endif
+#include "build/linux-pipewire-nix.pch.h"
 
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE("linux-pipewire", "en-US")

@@ -14,40 +14,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
-#include <inttypes.h>
-#include <fcntl.h>
-#include <dirent.h>
-#include <sys/time.h>
-#include <sys/types.h>
-#include <sys/ioctl.h>
-#include <sys/select.h>
-
-#include <linux/videodev2.h>
-#include <libv4l2.h>
-
-#include <util/threading.h>
-#include <util/bmem.h>
-#include <util/dstr.h>
-#include <util/platform.h>
-#include <obs-module.h>
-
-#include "v4l2-busy.h"
-#include "v4l2-controls.h"
-#include "v4l2-framerate.h"
-#include "v4l2-helpers.h"
-#include "v4l2-input-caps.h"
-#include "v4l2-decoder.h"
-#include "v4l2-frame-action.h"
-
-#define FALLBACK_FRAMERATE 30
-
-#ifdef HAVE_UDEV
-#include "v4l2-udev.h"
-#endif
+#include "build/linux-v4l2-nix.pch.h"
 
 /* The new dv timing api was introduced in Linux 3.4
  * Currently we simply disable dv timings when this is not defined */

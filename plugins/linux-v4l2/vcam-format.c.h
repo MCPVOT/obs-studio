@@ -13,7 +13,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "vcam-format.h"
+#include "build/linux-v4l2-nix.pch.h"
 
 bool vcam_format_negotiate(uint32_t requested_width, uint32_t requested_height,
 			   const struct v4l2_pix_format *negotiated, struct vcam_format *out)

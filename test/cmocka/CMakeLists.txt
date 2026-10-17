@@ -594,7 +594,7 @@ if(TARGET OBS::pipewire)
   add_executable(
     test_pipewire_reconnect
     test_pipewire_reconnect.c
-    "${CMAKE_SOURCE_DIR}/plugins/linux-pipewire/reconnect-policy.c"
+    "${CMAKE_SOURCE_DIR}/plugins/linux-pipewire/reconnect-policy.c.h"
   )
   target_include_directories(
     test_pipewire_reconnect

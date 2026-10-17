@@ -19,10 +19,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#include "formats.h"
-
-#include <libdrm/drm_fourcc.h>
-#include <pipewire/pipewire.h>
+#include "build/linux-pipewire-nix.pch.h"
 
 static const struct obs_pw_video_format supported_formats[] = {
 	{

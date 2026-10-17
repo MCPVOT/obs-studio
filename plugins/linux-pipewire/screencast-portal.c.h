@@ -18,13 +18,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#include "pipewire.h"
-#include "portal.h"
-#include "reconnect-policy.h"
-
-#include <gio/gunixfdlist.h>
-#include <pthread.h>
-#include <util/platform.h>
+#include "build/linux-pipewire-nix.pch.h"
 
 /* How long one reconnection attempt may take before it is abandoned and
  * retried. */
