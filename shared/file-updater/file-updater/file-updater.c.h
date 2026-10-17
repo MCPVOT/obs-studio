@@ -1,10 +1,4 @@
-#include <util/curl/curl-helper.h>
-#include <util/threading.h>
-#include <util/platform.h>
-#include <util/darray.h>
-#include <util/dstr.h>
-#include <obs-data.h>
-#include "file-updater.h"
+#include "build/file-updater.pch.h"
 
 #define warn(msg, ...) blog(LOG_WARNING, "%s" msg, info->log_prefix, ##__VA_ARGS__)
 #define info(msg, ...) blog(LOG_INFO, "%s" msg, info->log_prefix, ##__VA_ARGS__)

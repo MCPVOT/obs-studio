@@ -1,7 +1,4 @@
-#include <windows.h>
-#include <stdbool.h>
-#include <util/windows/obfuscate.h>
-#include "inject-library.h"
+#include "build/inject-library-windows.pch.h"
 
 typedef HANDLE(WINAPI *create_remote_thread_t)(HANDLE, LPSECURITY_ATTRIBUTES, SIZE_T, LPTHREAD_START_ROUTINE, LPVOID,
 					       DWORD, LPDWORD);

@@ -6,7 +6,7 @@ add_library(OBS::happy-eyeballs ALIAS happy-eyeballs)
 target_sources(
   happy-eyeballs
   PRIVATE
-    happy-eyeballs.c
+    build/happy-eyeballs.core+.h.c
     $<$<PLATFORM_ID:Windows>:${CMAKE_CURRENT_SOURCE_DIR}/hosts/windows/happy-eyeballs-platform.h>
     $<$<NOT:$<PLATFORM_ID:Windows>>:${CMAKE_CURRENT_SOURCE_DIR}/hosts/posix/happy-eyeballs-platform.h>
   PUBLIC

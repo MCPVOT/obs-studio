@@ -19,17 +19,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#include "happy-eyeballs.h"
-#include "util/darray.h"
-#include "util/dstr.h"
-#include "util/platform.h"
-#include "util/threading.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-/* Winsock or BSD sockets: hosts/<os>/, picked by CMake. */
-#include "happy-eyeballs-platform.h"
+#include "build/happy-eyeballs.pch.h"
 
 /* ------------------------------------------------------------------------- */
 /* happy eyeballs coefficients                                               */

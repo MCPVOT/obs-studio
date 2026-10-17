@@ -298,6 +298,17 @@ if(_host STREQUAL WINDOWS)
     INCLUDES shared/opts-parser
   )
   _obs_cross_plugin(coreaudio-encoder-cross DIR plugins/coreaudio-encoder SOURCES encoder.cpp)
+  # The Windows-only shared libraries' unity groups (BUILD.md), which the
+  # Windows plugins compile through their INTERFACE libraries.
+  _obs_cross_plugin(
+    shared-windows-cross
+    DIR shared
+    SOURCES
+      ipc-util/build/ipc-util.windows+.h.c
+      obs-inject-library/build/inject-library.windows+.h.c
+      obs-shared-memory-queue/build/shared-memory-queue.windows+.h.c
+    INCLUDES shared/ipc-util shared/obs-inject-library shared/obs-shared-memory-queue shared/obs-tiny-nv12-scale libobs/util/windows
+  )
   # libobs-d3d11's unity group (BUILD.md).
   _obs_cross_plugin(libobs-d3d11-cross DIR libobs-d3d11 SOURCES build/d3d11.core+.hpp.cpp DEFINES GPU_PRIORITY_VAL=0)
   # libobs-opengl's unity groups (BUILD.md): the shared renderer and WGL.

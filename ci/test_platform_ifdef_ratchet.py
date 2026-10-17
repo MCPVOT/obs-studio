@@ -124,7 +124,7 @@ class PathTest(unittest.TestCase):
             "frontend/utility/platform.hpp",
             "plugins/obs-ffmpeg/obs-ffmpeg-output.c",
             "plugins/obs-filters/macro-helpers.c",
-            "shared/bpm/bpm.c",
+            "shared/bpm/bpm.c.h",
             "libobs/util/platform.c.h",
             # platform- names a shared facade, not an OS (#1051).
             "libobs/util/platform-number.c.h",

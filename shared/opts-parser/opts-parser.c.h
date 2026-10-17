@@ -1,10 +1,4 @@
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdlib.h>
-#include <string.h>
-#include <util/bmem.h>
-#include <util/dstr.h>
-#include "opts-parser.h"
+#include "build/opts-parser.pch.h"
 
 static bool getparam(const char *param, char **name, const char **value)
 {

@@ -1,5 +1,4 @@
-#include "obs.h"
-#include "bpm-internal.h"
+#include "build/bpm.pch.h"
 
 static void render_metrics_time(struct metrics_time *m_time)
 {

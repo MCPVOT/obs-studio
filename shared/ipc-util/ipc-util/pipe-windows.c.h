@@ -14,7 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "pipe.h"
+#include "build/ipc-util-windows.pch.h"
 
 #define IPC_PIPE_BUF_SIZE 1024
 
