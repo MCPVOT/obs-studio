@@ -119,36 +119,9 @@ jobs:
       - uses: ./.github/actions/generate-docs
         if: fromJSON(steps.checks.outputs.hasChangedFiles)
 
-  # The AppImage build and portability test for PRs that touch it.
-  # pull_request lives only in this file (zackees/ci.yml GEN-008), so this
-  # replaces appimage.yaml's own path-filtered pull_request trigger. Both jobs
-  # are skipped (and so pass CI Gate) unless the PR touches those files.
-  appimage-changes:
-    name: AppImage Changes 🔎
-    if: ${{ !cancelled() && github.event_name == 'pull_request' }}
-    runs-on: ubuntu-26.04
-    timeout-minutes: 5
-    outputs:
-      changed: ${{ steps.diff.outputs.changed }}
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - name: Diff AppImage Files 🔎
-        id: diff
-        # git diff --quiet exits 1 when the files differ: changed=1.
-        run: echo "changed=$(git diff --quiet "origin/${GITHUB_BASE_REF}" HEAD -- build-aux/appimage .github/workflows/appimage.yaml; echo $?)" >> "$GITHUB_OUTPUT"
-
-  appimage:
-    name: AppImage 📦
-    needs: appimage-changes
-    if: ${{ !cancelled() && needs.appimage-changes.outputs.changed == '1' }}
-    uses: ./.github/workflows/appimage.yaml
-    # appimage.yaml's release job asks for contents: write; it only runs for
-    # a tag push, so on a PR it is skipped (release-rust.yaml grants the same).
-    permissions:
-      contents: write
+  # Packaged-app portability and release validation run in the scheduled
+  # release-rust workflow, with manual/tag runs available outside PR CI.
+  # PR/merge-group admission covers compilation and integrity (#1286).
 
   # The one required check (master ruleset, #692): fails when any job above
   # failed or was cancelled; skipped jobs (out of scope, or attested by the
@@ -156,7 +129,7 @@ jobs:
   ci-gate:
     name: CI Gate ✅
     if: always()
-    needs: [cancel-superseded, check-format, build-project, validate-data, update-documentation, appimage-changes, appimage]
+    needs: [cancel-superseded, check-format, build-project, validate-data, update-documentation]
     runs-on: ubuntu-26.04
     permissions:
       actions: read
