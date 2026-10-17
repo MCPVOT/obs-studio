@@ -35,5 +35,6 @@ if(OS_LINUX AND TARGET OBS::libobs-opengl AND TARGET OBS::media-playback)
     COMMAND test_media_gif_last_frame
     WORKING_DIRECTORY "${OBS_OUTPUT_DIR}/$<CONFIG>"
   )
-  set_tests_properties(test_media_gif_last_frame PROPERTIES TIMEOUT 60)
+  # Timing-sensitive under load: reserve half the -j8 CI slots (#938).
+  set_tests_properties(test_media_gif_last_frame PROPERTIES TIMEOUT 60 PROCESSORS 4)
 endif()

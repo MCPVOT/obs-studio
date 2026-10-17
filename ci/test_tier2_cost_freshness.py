@@ -65,10 +65,11 @@ class WorkflowTest(unittest.TestCase):
         text = VALIDATE.read_text(encoding="utf-8")
         self.assertIn("OBS_TIER2_COST_DIR", text)
 
-    def test_shards_upload_their_costs(self):
+    def test_test_job_uploads_its_costs(self):
         j = job("rust-linux-tier2")
         self.assertIn("OBS_TIER2_COST_DIR", j)
-        self.assertIn("name: tier2-cost-${{ matrix.mode }}-${{ matrix.shard }}", j)
+        self.assertIn("name: tier2-cost\n", j)
+        self.assertIn("path: .tier2-cost/ctest-cost-*.txt", j)
 
     def test_shards_start_from_the_merged_costs(self):
         # ctest starts the longest tests first only with cost data; shards
@@ -82,7 +83,7 @@ class WorkflowTest(unittest.TestCase):
 
     def test_done_job_merges_and_caches_on_master(self):
         j = job("rust-linux-tier2-done")
-        self.assertIn("pattern: tier2-cost-*", j)
+        self.assertIn("pattern: tier2-cost*", j)
         self.assertIn("merge-costs.sh", j)
         self.assertIn("actions/cache/save@", j)
         self.assertIn("key: tier2-ctest-cost-${{ github.sha }}", j)

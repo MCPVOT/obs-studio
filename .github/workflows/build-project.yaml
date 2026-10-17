@@ -1169,8 +1169,6 @@ jobs:
           OBS_TIER2_COST_DIR: ${{ github.workspace }}/.tier2-cost
           OBS_TIER2_MODES: "OFF ON"
           OBS_TIER2_STAGE: build
-          # Must match the shard matrix below (#1048).
-          OBS_TIER2_SHARDS: 3
         run: bash rust/tools/linux-validate/validate.sh
 
       - name: Upload Tier 2 Tree 🧾
@@ -1191,7 +1189,7 @@ jobs:
           key: zccache-tier2-linux-both-${{ github.sha }}
 
   rust-linux-tier2:
-    name: Rust Tier 2 Linux 🐧 (${{ matrix.mode }} ${{ matrix.shard }}/3)
+    name: Rust Tier 2 Linux 🐧 (tests)
     runs-on: ubuntu-26.04
     # A stock image, no Dockerfile or image build (#966): run directly on the
     # runner, two group tests failed while passing in a container with the
@@ -1200,11 +1198,9 @@ jobs:
       image: ubuntu:26.04@sha256:f144425ff09be612d6d9ad965196e9cdc23dae1f42110a8a11a3e9a8198759f7
     timeout-minutes: 30
     needs: [check-event, ci-mode, rust-linux-tier2-build]
-    strategy:
-      fail-fast: false
-      matrix:
-        mode: [OFF, ON]
-        shard: [1, 2, 3]
+    # One runner tests both libobs builds, at most 8 test binaries at a time:
+    # six mode x shard runners each repeated the checkout, the package
+    # install and the tree download for about a minute of ctest.
     defaults:
       run:
         shell: bash
@@ -1260,27 +1256,26 @@ jobs:
           key: tier2-ctest-cost-${{ github.sha }}
           restore-keys: tier2-ctest-cost-
 
-      - name: Test Tier 2 (libobs ${{ matrix.mode == 'ON' && 'with Rust' || 'C' }}, shard ${{ matrix.shard }}/3) ✅
+      - name: Test Tier 2 (libobs C, then with Rust) ✅
         env:
           OBS_TIER2_SRC: ${{ github.workspace }}
           OBS_TIER2_BUILD: ${{ runner.temp }}/tier2
-          OBS_TIER2_MODES: ${{ matrix.mode }}
+          OBS_TIER2_MODES: "OFF ON"
           OBS_TIER2_STAGE: test
-          OBS_CTEST_SHARD: ${{ matrix.shard }}/3
-          # More than 4 jobs is not free: CPU-heavy timing tests
+          # At most 8 test binaries at once. #938 saw CPU-heavy timing tests
           # (test_encoder_join_keyframe's AV1 encode, test_media_gif_last_frame)
-          # failed under -j8 while passing alone (#938).
-          OBS_CTEST_JOBS: 4
-          # Read before ctest, rewritten after: this shard's timings, merged
-          # per mode by rust-linux-tier2-done.
+          # fail under -j8; if they flake again, those tests need RUN_SERIAL.
+          OBS_CTEST_JOBS: 8
+          # Read before ctest (longest first), rewritten after; cached by
+          # rust-linux-tier2-done on master.
           OBS_TIER2_COST_DIR: ${{ github.workspace }}/.tier2-cost
         run: bash rust/tools/linux-validate/validate.sh
       - name: Upload Test Timings ⏱️
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always() && github.event_name == 'push' && github.ref == 'refs/heads/master'
         with:
-          name: tier2-cost-${{ matrix.mode }}-${{ matrix.shard }}
-          path: .tier2-cost/ctest-cost-${{ matrix.mode }}.txt
+          name: tier2-cost
+          path: .tier2-cost/ctest-cost-*.txt
           retention-days: 1
           if-no-files-found: ignore
 
@@ -1305,8 +1300,8 @@ jobs:
           retention-days: 3
           if-no-files-found: error
 
-      # Merge the shards' test timings per mode and cache them for the next
-      # build job's shard plan (#930). Master only, like the ccache.
+      # Cache the test run's timings per mode for the next run's ctest
+      # ordering (#930). Master only, like the compiler cache.
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         with:
@@ -1314,14 +1309,14 @@ jobs:
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         with:
-          pattern: tier2-cost-*
+          pattern: tier2-cost*
           path: ${{ runner.temp }}/tier2-cost-shards
       - name: Merge Test Timings ⏱️
         if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         run: |
           mkdir -p .tier2-cost
           for mode in OFF ON; do
-            set -- "$RUNNER_TEMP"/tier2-cost-shards/tier2-cost-"$mode"-*/ctest-cost-"$mode".txt
+            set -- "$RUNNER_TEMP"/tier2-cost-shards/tier2-cost*/ctest-cost-"$mode".txt
             [ -e "$1" ] || continue
             bash rust/tools/linux-validate/merge-costs.sh "$@" >".tier2-cost/ctest-cost-$mode.txt"
             echo "$mode: $(grep -c -v -e '^---$' ".tier2-cost/ctest-cost-$mode.txt") lines"

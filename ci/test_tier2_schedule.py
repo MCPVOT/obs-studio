@@ -49,10 +49,18 @@ class CostDataTest(unittest.TestCase):
 
 
 class JobsTest(unittest.TestCase):
-    def test_ci_keeps_four_jobs_until_heavy_tests_reserve_processors(self):
+    def test_ci_runs_at_most_eight_jobs_with_heavy_tests_reserving_processors(self):
+        """One runner, at most 8 test binaries at once; the CPU-heavy timing
+        tests that failed under -j8 (#938) reserve half the slots."""
         m = re.search(r"OBS_CTEST_JOBS:\s*(\d+)", WORKFLOW.read_text(encoding="utf-8"))
         self.assertIsNotNone(m)
-        self.assertEqual(int(m.group(1)), 4)
+        jobs = int(m.group(1))
+        self.assertLessEqual(jobs, 8)
+        if jobs > 4:
+            for name in ("test_encoder_join_keyframe", "test_media_gif_last_frame"):
+                text = (ROOT / "test" / "cmocka" / "tests.d" / f"{name}.cmake").read_text(encoding="utf-8")
+                with self.subTest(test=name):
+                    self.assertRegex(text, rf"set_tests_properties\({name} PROPERTIES[^)]*PROCESSORS {jobs // 2}\b")
 
 
 if __name__ == "__main__":

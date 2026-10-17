@@ -70,15 +70,17 @@ class WorkflowTest(unittest.TestCase):
         self.assertIn("name: tier2-tree\n", b)
         self.assertNotIn("tier2-tree-OFF", b)
 
-    def test_test_jobs_are_a_mode_by_shard_matrix(self):
+    def test_one_test_job_runs_both_modes(self):
+        """One runner tests both libobs builds (no mode x shard matrix): six
+        runners each repeated the setup for about a minute of ctest."""
         t = job("rust-linux-tier2")
         self.assertIn("needs: [check-event, ci-mode, rust-linux-tier2-build]", t)
-        self.assertRegex(t, r"mode:\s*\[\s*OFF,\s*ON\s*\]")
-        self.assertRegex(t, r"shard:\s*\[\s*1,\s*2,\s*3\s*\]")
+        self.assertNotIn("matrix", t)
+        self.assertNotIn("OBS_CTEST_SHARD", t)
         self.assertIn("OBS_TIER2_STAGE: test", t)
-        self.assertIn("OBS_CTEST_SHARD: ${{ matrix.shard }}/3", t)
         self.assertIn("name: tier2-tree\n", t)
-        self.assertIn("OBS_TIER2_MODES: ${{ matrix.mode }}", t)
+        self.assertIn('OBS_TIER2_MODES: "OFF ON"', t)
+        self.assertNotIn("OBS_TIER2_SHARDS", job("rust-linux-tier2-build"))
 
     def test_lane_proof_waits_for_every_shard(self):
         d = job("rust-linux-tier2-done")
