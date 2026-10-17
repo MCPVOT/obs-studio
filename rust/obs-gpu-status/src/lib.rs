@@ -381,14 +381,31 @@ impl DeviceCache {
     /// The devices, probed with `probe` unless they already were (or a
     /// prefetch is probing them now: then this waits for it).
     pub fn get(&self, probe: impl FnOnce() -> Vec<GpuDevice>) -> Vec<GpuDevice> {
-        let _ = probe;
-        todo!("RED")
+        let pending = self
+            .prefetch
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .take();
+        if let Some(thread) = pending {
+            // A panicking probe leaves the cell empty; `probe` fills it below.
+            let _ = thread.join();
+        }
+        self.cell.get_or_init(probe).clone()
     }
 
     /// Start probing with `probe` on a new thread and return at once.
     pub fn prefetch(&'static self, probe: fn() -> Vec<GpuDevice>) {
-        let _ = probe;
-        todo!("RED")
+        let mut pending = self.prefetch.lock().unwrap_or_else(|e| e.into_inner());
+        if pending.is_some() || self.cell.get().is_some() {
+            return;
+        }
+        let spawned = std::thread::Builder::new()
+            .name("gpu-status probe".into())
+            .spawn(move || {
+                self.cell.get_or_init(probe);
+            });
+        // Without a thread the first report probes, as before.
+        *pending = spawned.ok();
     }
 }
 
