@@ -109,6 +109,8 @@ pub fn dxgi_adapters() -> Vec<AdapterDesc> {
                     vendor_id: desc.vendor_id,
                     device_id: desc.device_id,
                     flags: desc.flags,
+                    luid: (u64::from(desc.adapter_luid_high as u32) << 32)
+                        | u64::from(desc.adapter_luid_low),
                 });
             }
             release(adapter);

@@ -424,10 +424,24 @@ pub enum RenderAdapter {
     /// macOS: IORegistry entry ID of the GPU's `IOAccelerator`, which is
     /// also `MTLDevice.registryID` (e.g. `0x100000b5b`).
     RegistryId(u64),
+    /// Windows: the DXGI adapter LUID (`HighPart` in the upper 32 bits).
+    Luid(u64),
     /// More than one GPU can be the render adapter, so none is picked.
     Ambiguous,
     /// No GPU found: software rendering, no sysfs, or a non-PCI device.
     Unknown,
+}
+
+/// What libobs tells the frontend about the adapter it renders on
+/// (obs-rust/obs-studio#1020). Each platform reads the field it has; macOS
+/// needs neither.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct RenderHint<'a> {
+    /// Linux: the EGL render node, the name of adapter 0 in
+    /// `gs_enum_adapters` (`/dev/dri/renderD128`, or `/Software`).
+    pub render_node: Option<&'a str>,
+    /// Windows: `obs_video_info.adapter`, the `EnumAdapters1` index.
+    pub adapter_index: Option<u32>,
 }
 
 /// macOS: pick the render adapter from the registry ID of the GPU that
