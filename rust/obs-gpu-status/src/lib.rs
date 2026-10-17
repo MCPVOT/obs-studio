@@ -12,6 +12,7 @@ use std::path::Path;
 use std::process::Command;
 
 pub mod dxgi;
+pub mod fdinfo;
 #[allow(unsafe_code)]
 pub mod ffi;
 pub mod platform;

@@ -4,6 +4,7 @@ mod busy_percent;
 mod classify;
 mod device_cache;
 mod dxgi;
+mod fdinfo;
 mod ffi;
 mod frame_window;
 mod frames;
