@@ -335,19 +335,9 @@ jobs:
             zccache-ubuntu-${{ matrix.os }}-x86_64-rust${{ matrix.rust }}-${{ needs.check-event.outputs.config }}-
             zccache-ubuntu-${{ matrix.os }}-x86_64-rust${{ matrix.rust }}-
 
-      # zccache has no age-based eviction (ccache --evict-older-than), so a
-      # master push drops a restored cache over 2 GiB and rebuilds it cold:
-      # the saved cache stays about the size of one build.
-      - name: Bound zccache 🧹
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
-        run: |
-          : Bound zccache 🧹
-          dir="${{ github.workspace }}/.zccache"
-          if [ -d "$dir" ] && [ "$(du -sm "$dir" | cut -f1)" -gt 2048 ]; then
-            echo "zccache dir is $(du -sh "$dir" | cut -f1); starting cold"
-            rm -rf "$dir"
-          fi
-
+      # Consume restored objects before sizing the next snapshot. A normal
+      # PCH build occupies 5-6 GiB uncompressed; purging at 2 GiB discarded
+      # useful restored archives before every build (#1286).
       - name: Build OBS Studio 🧱
         uses: ./.github/actions/build-obs
         env:
@@ -431,8 +421,29 @@ jobs:
         run: uv run --with websockets==13.1 test/websocket-tier4/run_tier4.py --obs /usr/bin/obs-studio-rust-gui
 
       # build-obs's summary step stopped the zccache daemon, flushing its index.
-      - uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      # If accumulated objects exceed a normal build plus margin, keep the
+      # previous remote snapshot rather than deleting the cache we just used.
+      - name: Check Ubuntu Compiler Snapshot Size
+        id: cache-size
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+        env:
+          CACHE_DIR: ${{ github.workspace }}/.zccache
+        run: |
+          dir="$CACHE_DIR"
+          if [ ! -d "$dir" ]; then
+            echo 'save=false' >> "$GITHUB_OUTPUT"
+          else
+            size_mib=$(du -sm "$dir" | cut -f1)
+            echo "Ubuntu compiler snapshot: ${size_mib} MiB (8192 MiB save limit)"
+            if [ "$size_mib" -gt 8192 ]; then
+              echo '::warning::Compiler snapshot exceeds save limit; retaining previous remote entry'
+              echo 'save=false' >> "$GITHUB_OUTPUT"
+            else
+              echo 'save=true' >> "$GITHUB_OUTPUT"
+            fi
+          fi
+      - uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master' && steps.cache-size.outputs.save == 'true'
         with:
           path: ${{ github.workspace }}/.zccache
           key: zccache-ubuntu-${{ matrix.os }}-x86_64-rust${{ matrix.rust }}-${{ needs.check-event.outputs.config }}-${{ github.sha }}
