@@ -9,3 +9,4 @@
 #include <windows.h>
 #include <util/platform.h>
 #include "plugins/frontend-tools/auto-scene-switcher.hpp"
+#include "plugins/frontend-tools/frontend-tools-host.h"

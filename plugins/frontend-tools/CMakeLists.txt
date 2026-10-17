@@ -29,6 +29,9 @@ endif()
 target_sources(
   frontend-tools
   PRIVATE
+    $<$<PLATFORM_ID:Darwin>:build/frontend-tools.host-macos+.h.c>
+    $<$<PLATFORM_ID:Linux,FreeBSD,OpenBSD>:build/frontend-tools.host-posix+.h.c>
+    $<$<PLATFORM_ID:Windows>:build/frontend-tools.host-windows+.h.c>
     $<$<PLATFORM_ID:Darwin>:build/frontend-tools.macos+.hpp.mm>
     $<$<PLATFORM_ID:Linux,FreeBSD,OpenBSD>:build/frontend-tools.linux+.hpp.cpp>
     $<$<PLATFORM_ID:Windows>:build/frontend-tools.windows+.hpp.cpp>
@@ -40,9 +43,11 @@ target_sources(
     $<$<PLATFORM_ID:Windows>:captions-mssapi.hpp>
     $<$<PLATFORM_ID:Windows>:build/frontend-tools.captions-windows+.hpp.cpp>
     $<$<PLATFORM_ID:Windows>:captions.hpp>
+    $<$<PLATFORM_ID:Windows>:captions-host-windows.hpp>
     build/frontend-tools.core+.hpp.cpp
     auto-scene-switcher.hpp
     build/frontend-tools.c+.h.c
+    frontend-tools-host.h
     build/frontend-tools.output-timer+.hpp.cpp
     output-timer.hpp
     tool-helpers.hpp

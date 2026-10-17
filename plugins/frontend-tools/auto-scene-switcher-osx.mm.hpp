@@ -44,4 +44,9 @@ void GetCurrentWindowTitle(string &title)
 	}
 }
 
+bool frontend_tools_host_scene_switcher_supported(void)
+{
+	return true;
+}
+
 void CleanupSceneSwitcher() {}

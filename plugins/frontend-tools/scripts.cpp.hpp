@@ -1,6 +1,6 @@
 #include "plugins/frontend-tools/build/frontend-tools-scripts.pch.hpp"
 
-#if defined(Python_FOUND) && (defined(_WIN32) || defined(__APPLE__))
+#if defined(Python_FOUND)
 #define PYTHON_UI 1
 #else
 #define PYTHON_UI 0
@@ -153,17 +153,17 @@ ScriptsTool::ScriptsTool() : QDialog(nullptr), ui(new Ui_ScriptsTool)
 	ui->setupUi(this);
 	RefreshLists();
 
-#if PYTHON_UI
-	config_t *config = obs_frontend_get_user_config();
-	const char *path = config_get_string(config, "Python", "Path" ARCH_NAME);
-	ui->pythonPath->setText(path);
-	ui->pythonPathLabel->setText(obs_module_text(PYTHONPATH_LABEL_TEXT));
-	updatePythonVersionLabel();
-#else
-	delete ui->pythonSettingsTab;
-	ui->pythonSettingsTab = nullptr;
-	ui->tabWidget->setStyleSheet("QTabWidget::pane {border: 0;}");
-#endif
+	if (PYTHON_UI && frontend_tools_host_python_ui()) {
+		config_t *config = obs_frontend_get_user_config();
+		const char *path = config_get_string(config, "Python", "Path" ARCH_NAME);
+		ui->pythonPath->setText(path);
+		ui->pythonPathLabel->setText(obs_module_text(PYTHONPATH_LABEL_TEXT));
+		updatePythonVersionLabel();
+	} else {
+		delete ui->pythonSettingsTab;
+		ui->pythonSettingsTab = nullptr;
+		ui->tabWidget->setStyleSheet("QTabWidget::pane {border: 0;}");
+	}
 
 	delete propertiesView;
 	propertiesView = new QWidget();
@@ -615,28 +615,28 @@ extern "C" void InitScripts()
 
 	QAction *action = (QAction *)obs_frontend_add_tools_menu_qaction(obs_module_text("Scripts"));
 
-#if PYTHON_UI
-	config_t *config = obs_frontend_get_user_config();
-	const char *python_path = config_get_string(config, "Python", "Path" ARCH_NAME);
+	if (PYTHON_UI && frontend_tools_host_python_ui()) {
+		config_t *config = obs_frontend_get_user_config();
+		const char *python_path = config_get_string(config, "Python", "Path" ARCH_NAME);
+		/* Outlives the block below: python_path may point into it. */
+		std::string _temp;
 
-#ifdef __APPLE__
-	if (python_path && *python_path) {
-		std::string _python_path(python_path);
-		std::size_t pos = _python_path.find("/Python.framework/Versions");
+		if (python_path && *python_path) {
+			std::string _python_path(python_path);
+			std::size_t pos = frontend_tools_host_python_path_len(python_path);
 
-		if (pos != std::string::npos) {
-			std::string _temp = _python_path.substr(0, pos);
-			config_set_string(config, "Python", "Path" ARCH_NAME, _temp.c_str());
-			config_save(config);
-			python_path = _temp.c_str();
+			if (pos != _python_path.size()) {
+				_temp = _python_path.substr(0, pos);
+				config_set_string(config, "Python", "Path" ARCH_NAME, _temp.c_str());
+				config_save(config);
+				python_path = _temp.c_str();
+			}
+		}
+
+		if (!obs_scripting_python_loaded() && python_path && *python_path) {
+			obs_scripting_load_python(python_path);
 		}
 	}
-#endif
-
-	if (!obs_scripting_python_loaded() && python_path && *python_path) {
-		obs_scripting_load_python(python_path);
-	}
-#endif
 
 	scriptData = new ScriptData;
 

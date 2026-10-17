@@ -13,6 +13,11 @@ Display *disp()
 	return xdisplay;
 }
 
+bool frontend_tools_host_scene_switcher_supported(void)
+{
+	return !QGuiApplication::platformName().contains("wayland");
+}
+
 void CleanupSceneSwitcher()
 {
 	if (!xdisplay) {

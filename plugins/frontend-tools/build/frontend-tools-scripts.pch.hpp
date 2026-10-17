@@ -8,6 +8,7 @@
 /* scripts.cpp */
 #include "obs-module.h"
 #include "plugins/frontend-tools/scripts.hpp"
+#include "plugins/frontend-tools/frontend-tools-host.h"
 
 #include <QFileDialog>
 #include <QHBoxLayout>

@@ -6,11 +6,6 @@ OBS_MODULE_USE_DEFAULT_LOCALE("frontend-tools", "en-US")
 void InitSceneSwitcher();
 void FreeSceneSwitcher();
 
-#if defined(_WIN32)
-void InitCaptions();
-void FreeCaptions();
-#endif
-
 void InitOutputTimer();
 void FreeOutputTimer();
 
@@ -21,9 +16,7 @@ void FreeScripts();
 
 bool obs_module_load(void)
 {
-#if defined(_WIN32)
-	InitCaptions();
-#endif
+	frontend_tools_host_load();
 	InitSceneSwitcher();
 	InitOutputTimer();
 #if defined(ENABLE_SCRIPTING)
@@ -38,9 +31,7 @@ bool obs_module_load(void)
 
 void obs_module_unload(void)
 {
-#if defined(_WIN32)
-	FreeCaptions();
-#endif
+	frontend_tools_host_unload();
 	FreeSceneSwitcher();
 	FreeOutputTimer();
 #if defined(ENABLE_SCRIPTING)

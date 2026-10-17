@@ -8,3 +8,4 @@
 /* frontend-tools.c */
 #include <obs-module.h>
 #include <obs-frontend-api.h>
+#include "plugins/frontend-tools/frontend-tools-host.h"

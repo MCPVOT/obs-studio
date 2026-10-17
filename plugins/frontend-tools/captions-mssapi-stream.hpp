@@ -1,6 +1,6 @@
 #pragma once
 
-#include <windows.h>
+#include "captions-host-windows.hpp"
 #include <sapi.h>
 #include <condition_variable>
 #include <mutex>

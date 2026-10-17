@@ -301,6 +301,9 @@ if(_host STREQUAL WINDOWS)
     SOURCES build/obs-qsv11.c+.h.c build/obs-qsv11.core+.hpp.cpp build/obs-qsv11.windows-c+.h.c
     DEFINES OBS_QSV_HOST_DEFS="plugins/obs-qsv11/bits/windows_defs.h"
   )
+  # frontend-tools' Windows host group (BUILD.md, #855); its Qt groups need
+  # Qt, which the cross check does not have.
+  _obs_cross_plugin(frontend-tools-host-cross DIR plugins/frontend-tools SOURCES build/frontend-tools.host-windows+.h.c)
   # obs-text's unity group (BUILD.md).
   _obs_cross_plugin(obs-text-cross DIR plugins/obs-text SOURCES build/obs-text.windows+.hpp.cpp)
   # The Windows helpers' unity groups (BUILD.md): the updater, the virtual
@@ -362,6 +365,9 @@ if(_host STREQUAL WINDOWS)
     INCLUDES deps/glad/include
   )
 elseif(_host STREQUAL MACOS)
+  # frontend-tools' macOS host group (BUILD.md, #855); its Qt groups need
+  # Qt, which the cross check does not have.
+  _obs_cross_plugin(frontend-tools-host-cross DIR plugins/frontend-tools SOURCES build/frontend-tools.host-macos+.h.c)
   _obs_cross_plugin(
     mac-capture-cross
     DIR plugins/mac-capture

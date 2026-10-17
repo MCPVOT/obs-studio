@@ -15,6 +15,7 @@
 #include <QAction>
 #include "plugins/frontend-tools/auto-scene-switcher.hpp"
 #include "plugins/frontend-tools/tool-helpers.hpp"
+#include "plugins/frontend-tools/frontend-tools-host.h"
 
 #include <condition_variable>
 #include <chrono>
