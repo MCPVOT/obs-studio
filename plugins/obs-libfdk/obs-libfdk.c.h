@@ -1,13 +1,4 @@
-#include <obs-module.h>
-
-#ifdef DEBUG
-#ifndef _DEBUG
-#define _DEBUG
-#endif
-#undef DEBUG
-#endif
-
-#include <fdk-aac/aacenc_lib.h>
+#include "plugins/obs-libfdk/build/obs-libfdk.pch.h"
 
 static const char *libfdk_get_error(AACENC_ERROR err)
 {
@@ -325,3 +316,6 @@ bool obs_module_load(void)
 
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE("obs-libfdk", "en-US")
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef CHECK_LIBFDK

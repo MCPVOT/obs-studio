@@ -10,7 +10,7 @@ find_package(Libfdk REQUIRED)
 add_library(obs-libfdk MODULE)
 add_library(OBS::libfdk ALIAS obs-libfdk)
 
-target_sources(obs-libfdk PRIVATE obs-libfdk.c)
+target_sources(obs-libfdk PRIVATE build/obs-libfdk.core+.h.c)
 
 target_link_libraries(obs-libfdk PRIVATE OBS::libobs Libfdk::Libfdk)
 
