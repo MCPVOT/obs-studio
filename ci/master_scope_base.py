@@ -4,6 +4,19 @@ import json
 import subprocess
 
 
+def baseline_covers_coalesced_pushes(sha, run):
+    """Old coalesced runs can be green while omitting superseded paths."""
+    push = run(['git', 'show', f'{sha}:.github/workflows/push.yaml'],
+               capture_output=True, text=True)
+    if push.returncode != 0:
+        return False
+    if 'group: push-build-' not in push.stdout:
+        return True  # Before coalescing, successful pushes did not skip predecessors.
+    helper = run(['git', 'show', f'{sha}:ci/master_scope_base.py'],
+                 capture_output=True, text=True)
+    return helper.returncode == 0 and 'def baseline_covers_coalesced_pushes(' in helper.stdout
+
+
 def scope_base(run=subprocess.run):
     try:
         result = run(
@@ -16,7 +29,7 @@ def scope_base(run=subprocess.run):
             if len(sha) != 40 or any(c not in '0123456789abcdef' for c in sha):
                 continue
             if run(['git', 'merge-base', '--is-ancestor', sha, 'HEAD'],
-                   capture_output=True).returncode == 0:
+                   capture_output=True).returncode == 0 and baseline_covers_coalesced_pushes(sha, run):
                 return sha
     except (subprocess.CalledProcessError, ValueError, KeyError):
         pass

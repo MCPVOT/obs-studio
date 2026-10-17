@@ -7,10 +7,32 @@ from master_scope_base import scope_base
 class MasterScopeBaseTest(unittest.TestCase):
     def test_uses_successful_ancestor_instead_of_immediate_push_parent(self):
         sha = 'a' * 40
-        run = Mock(side_effect=[subprocess.CompletedProcess([], 0, '[{"headSha":"'+sha+'"}]'), subprocess.CompletedProcess([], 0)])
+        run = Mock(side_effect=[subprocess.CompletedProcess([], 0, '[{"headSha":"'+sha+'"}]'), subprocess.CompletedProcess([], 0), subprocess.CompletedProcess([], 0, '# before coalescing')])
         self.assertEqual(scope_base(run), sha)
         self.assertIn('--status', run.call_args_list[0].args[0])
         self.assertIn('success', run.call_args_list[0].args[0])
+
+    def test_legacy_coalesced_success_does_not_advance_baseline(self):
+        legacy, safe = 'b' * 40, 'a' * 40
+        run = Mock(side_effect=[
+            subprocess.CompletedProcess([], 0, '[{"headSha":"'+legacy+'"},{"headSha":"'+safe+'"}]'),
+            subprocess.CompletedProcess([], 0),
+            subprocess.CompletedProcess([], 0, 'group: push-build-master'),
+            subprocess.CompletedProcess([], 0, '# legacy helper without bootstrap protection'),
+            subprocess.CompletedProcess([], 0),
+            subprocess.CompletedProcess([], 0, '# before master coalescing'),
+        ])
+        self.assertEqual(scope_base(run), safe)
+
+    def test_current_catchup_run_is_a_valid_baseline(self):
+        from master_scope_base import baseline_covers_coalesced_pushes
+        run = Mock(side_effect=[subprocess.CompletedProcess([], 0, 'group: push-build-master'), subprocess.CompletedProcess([], 0, 'def baseline_covers_coalesced_pushes(sha, run):')])
+        self.assertTrue(baseline_covers_coalesced_pushes('a' * 40, run))
+
+    def test_unreadable_historical_workflow_is_not_trusted(self):
+        from master_scope_base import baseline_covers_coalesced_pushes
+        run = Mock(return_value=subprocess.CompletedProcess([], 128, ''))
+        self.assertFalse(baseline_covers_coalesced_pushes('a' * 40, run))
 
     def test_nonancestor_is_ignored_and_empty_tree_is_safe_fallback(self):
         run = Mock(side_effect=[subprocess.CompletedProcess([], 0, '[{"headSha":"'+'b'*40+'"}]'), subprocess.CompletedProcess([], 1)])
