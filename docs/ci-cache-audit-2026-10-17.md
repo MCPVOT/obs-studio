@@ -83,6 +83,52 @@ cost even though its cause remains unresolved.
 keep the successful native builds, failed test setup, cold cache production
 and unresolved cache loss separate. The full-day comparison remains open.
 
+### Subsequent consumers and availability failures
+
+[Consumer and capacity observations](ci-evidence/2026-10-17-cache-consumer-followup.json)
+record actual reuse after the host/container namespace split (#1354):
+
+| Consumer | Cook result | Observed timing / outcome |
+| --- | --- | --- |
+| #1360 queue Fast Gate, documentation cohort | Exact host dev hit; 16,213 restored files | Setup 24 s, lint 53 s, job 97 s; successful |
+| #1362 initial PR Tier 2 build | Exact container release hit; 542 restored files | Setup 12 s; later standalone compiler-cache daemon failure |
+
+Both new namespaces have observed master producers and later consumers.
+These runs do not establish a product-code speedup or resolve the Rust
+stale-source blocker. A cook archive hit and a standalone compiler-cache
+daemon failure describe different layers.
+
+The latter failure preserved the first build's lost daemon connection and
+subsequent connection-refused/cooldown messages. #1362 adds original-log and
+daemon diagnostics, plus uncached real compilation during the existing single
+recovery attempt when daemon status confirms unavailability. Local testing
+with checksum-verified zccache 1.15.5 confirms unavailable status exits 1,
+valid C compiles with `ZCCACHE_DISABLE=1`, and deliberate invalid C still
+fails with its current diagnostic. Live CI verification remains pending;
+the daemon-death cause is unknown.
+
+The full dispatch's native Windows Tier 2 compiler cache hit 308/308
+cacheable calls, with 27 noncacheable calls. macOS Tier 2 passed 163
+registered tests per mode in 112.59/100.78 seconds. The accompanying eight
+soldr consumer observations preserve literal cook and embedded compiler
+summaries separately: zero embedded session hits do not negate the Windows
+C/C++ cache's independently observed hits.
+
+Capacity pressure is now quantified without claiming a deletion actor.
+The starting inventory contained 8,380,452,969 bytes. Known new archives
+written before the 22:33 Tier 2 miss, and still present in the later
+inventory, added at least 3,777,435,796 bytes. Retaining both sets would
+require 12,157,888,765 bytes, exceeding the 10 GiB budget by 1,420,470,525
+bytes. This is a lower bound on required removals, not an observed peak.
+The oldest accessed survivor was newer than the lost Tier 2 seed, and no
+known janitor ran during the relevant interval. Global LRU eviction is a
+supported inference; manual/external deletion remains unexcluded.
+
+The impact reached the queue: #1353's subsequent merge-group build missed
+the compiler archive and compiled all 783 units cold (290-second build step,
+395-second job). Source and runner differences prevent a matched timing
+attribution. Family isolation alone has not established durable retention.
+
 ### Native Rust profile verification
 
 Master [39063249804](https://github.com/obs-rust/obs-studio/actions/runs/39063249804)
@@ -310,7 +356,7 @@ unmatched observations establish no queue speedup. See the
 The final after window must cover at least a full day of representative code
 PR and queue traffic following rollout. It has not elapsed. The first host
 cold/warm pair is complete. Repeatability over real traffic, Ubuntu app reuse
-after the purge fix, the nightly integrity failure (#1334), stable cache
+after the purge fix, the unresolved startup failure (#1355), stable cache
 headroom and the representative-day comparison remain acceptance work under
 #1286. This report does not claim those requirements are complete.
 
@@ -321,7 +367,8 @@ compiler caches and parallel OFF/ON runners. Validate the observed host-package
 benefit over real traffic; an archive HIT alone is not a throughput result.
 Validate Ubuntu app reuse after removing the pre-build purge, and compare a
 full day of code PR/queue traffic after the final cache rollout. Track the
-macOS integrity failure separately through #1334 (proposed fix #1338).
+macOS integrity failure was resolved by #1338; track the separate, unresolved
+startup failure through #1355.
 
 | #1286 requirement | Evidence/status at this checkpoint |
 | --- | --- |
