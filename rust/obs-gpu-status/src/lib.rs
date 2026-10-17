@@ -360,3 +360,40 @@ pub fn merge_devices(devices: &mut Vec<GpuDevice>, extra: Vec<GpuDevice>) {
         }
     }
 }
+
+/// The system's GPUs, probed once per process. Probing runs `nvidia-smi`
+/// (tens of milliseconds), so the frontend starts it on a thread at launch
+/// ([`DeviceCache::prefetch`]) and the first report, half a second later,
+/// finds it done instead of waiting for it.
+pub struct DeviceCache {
+    cell: std::sync::OnceLock<Vec<GpuDevice>>,
+    prefetch: std::sync::Mutex<Option<std::thread::JoinHandle<()>>>,
+}
+
+impl DeviceCache {
+    pub const fn new() -> Self {
+        Self {
+            cell: std::sync::OnceLock::new(),
+            prefetch: std::sync::Mutex::new(None),
+        }
+    }
+
+    /// The devices, probed with `probe` unless they already were (or a
+    /// prefetch is probing them now: then this waits for it).
+    pub fn get(&self, probe: impl FnOnce() -> Vec<GpuDevice>) -> Vec<GpuDevice> {
+        let _ = probe;
+        todo!("RED")
+    }
+
+    /// Start probing with `probe` on a new thread and return at once.
+    pub fn prefetch(&'static self, probe: fn() -> Vec<GpuDevice>) {
+        let _ = probe;
+        todo!("RED")
+    }
+}
+
+impl Default for DeviceCache {
+    fn default() -> Self {
+        Self::new()
+    }
+}
