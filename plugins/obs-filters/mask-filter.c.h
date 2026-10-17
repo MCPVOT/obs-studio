@@ -399,3 +399,20 @@ struct obs_source_info mask_filter_v2 = {
 	.video_get_color_space = mask_filter_get_color_space,
 	.missing_files = mask_filter_missing_files,
 };
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef SETTING_SDR_ONLY_INFO
+#undef SETTING_TYPE
+#undef SETTING_IMAGE_PATH
+#undef SETTING_COLOR
+#undef SETTING_OPACITY
+#undef SETTING_STRETCH
+#undef TEXT_SDR_ONLY_INFO
+#undef TEXT_TYPE
+#undef TEXT_IMAGE_PATH
+#undef TEXT_COLOR
+#undef TEXT_OPACITY
+#undef TEXT_STRETCH
+#undef TEXT_PATH_IMAGES
+#undef TEXT_PATH_ALL_FILES
+#undef IMAGE_FILTER_EXTENSIONS

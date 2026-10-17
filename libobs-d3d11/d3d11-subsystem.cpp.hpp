@@ -3420,3 +3420,11 @@ extern "C" EXPORT bool device_can_adapter_fast_clear(gs_device_t *device)
 {
 	return device->fastClearSupported;
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef VERT_IN_OUT
+#undef NV12_Y_PS
+#undef NV12_UV_PS
+#undef NV12_VS
+#undef NV12_CX
+#undef NV12_CY

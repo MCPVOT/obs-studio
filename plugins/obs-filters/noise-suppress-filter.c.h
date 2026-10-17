@@ -537,3 +537,24 @@ struct obs_source_info noise_suppress_filter_v2 = {
 
 /* File-local macros: keep them out of the next source of a unity build. */
 #undef do_log
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef warn
+#undef info
+#undef debug
+#undef S_SUPPRESS_LEVEL
+#undef S_METHOD
+#undef S_METHOD_SPEEX
+#undef S_METHOD_RNN
+#undef MT_
+#undef TEXT_SUPPRESS_LEVEL
+#undef TEXT_NVAFX_INTENSITY
+#undef TEXT_METHOD
+#undef TEXT_METHOD_SPEEX
+#undef TEXT_METHOD_RNN
+#undef MAX_PREPROC_CHANNELS
+#undef RNNOISE_SAMPLE_RATE
+#undef RNNOISE_FRAME_SIZE
+#undef BUFFER_SIZE_MSEC
+#undef SUP_MIN
+#undef SUP_MAX

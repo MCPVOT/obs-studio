@@ -1250,3 +1250,14 @@ void obs_register_service_s(const struct obs_service_info *info, size_t size)
 error:
 	HANDLE_ERROR(size, obs_service_info, info);
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef REGISTER_OBS_DEF
+#undef HAS_VAL
+#undef CHECK_REQUIRED_VAL
+#undef CHECK_REQUIRED_VAL_EITHER
+#undef HANDLE_ERROR
+#undef source_warn
+#undef output_warn
+#undef encoder_warn
+#undef service_warn

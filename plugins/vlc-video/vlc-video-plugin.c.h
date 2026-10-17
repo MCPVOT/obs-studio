@@ -237,3 +237,9 @@ void obs_module_unload(void)
 	if (libvlc_module)
 		os_dlclose(libvlc_module);
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef LOAD_VLC_FUNC
+#undef LIBVLC_DIR
+#undef LIBVLC_CORE_FILE
+#undef LIBVLC_FILE

@@ -164,3 +164,6 @@ bool devices_match(const char *id1, const char *id2)
 
 	return match;
 }
+#ifdef __MINGW32__
+#undef DEFINE_PROPERTYKEY
+#endif

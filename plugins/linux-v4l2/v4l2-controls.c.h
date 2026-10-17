@@ -359,3 +359,8 @@ bool v4l2_controls_use_device(int_fast32_t dev, obs_data_t *settings, const char
 
 /* File-local macros: keep them out of the next source of a unity build. */
 #undef blog
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef UINT_TO_POINTER
+#undef POINTER_TO_UINT
+#undef INVALID_CONTROL_FLAGS

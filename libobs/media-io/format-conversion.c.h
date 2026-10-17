@@ -284,3 +284,11 @@ void decompress_422(const uint8_t *input, uint32_t in_linesize, uint32_t start_y
 		}
 	}
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef get_m128_32_0
+#undef get_m128_32_1
+#undef pack_shift
+#undef pack_val
+#undef pack_ch_1plane
+#undef pack_ch_2plane

@@ -1355,3 +1355,7 @@ char *os_generate_uuid(void)
 
 	return uuid_str.array;
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef MAX_SZ_LEN
+#undef WINVER_REG_KEY

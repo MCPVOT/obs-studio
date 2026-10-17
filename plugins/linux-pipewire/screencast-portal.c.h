@@ -1313,3 +1313,6 @@ void screencast_portal_unload(void)
 
 	g_clear_object(&screencast_proxy);
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef RECONNECT_ATTEMPT_TIMEOUT_MS

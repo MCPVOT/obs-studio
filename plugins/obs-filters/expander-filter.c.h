@@ -499,3 +499,32 @@ struct obs_source_info upward_compressor_filter = {
 #undef TEXT_RELEASE_TIME
 #undef TEXT_THRESHOLD
 #undef do_log
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef warn
+#undef info
+#undef debug
+#undef S_RATIO
+#undef S_FILTER_THRESHOLD
+#undef S_ATTACK_TIME
+#undef S_RELEASE_TIME
+#undef S_OUTPUT_GAIN
+#undef S_DETECTOR
+#undef S_PRESETS
+#undef S_KNEE
+#undef MT_
+#undef TEXT_DETECTOR
+#undef TEXT_PEAK
+#undef TEXT_RMS
+#undef TEXT_PRESETS
+#undef TEXT_PRESETS_EXP
+#undef TEXT_PRESETS_GATE
+#undef TEXT_KNEE
+#undef MIN_RATIO_UPW
+#undef MAX_RATIO_UPW
+#undef MAX_THRESHOLD_DB
+#undef MIN_ATK_RLS_MS
+#undef MAX_RLS_MS
+#undef DEFAULT_AUDIO_BUF_MS
+#undef MS_IN_S
+#undef MS_IN_S_F

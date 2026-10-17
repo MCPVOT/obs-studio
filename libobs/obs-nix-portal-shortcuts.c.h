@@ -1458,3 +1458,16 @@ void obs_nix_portal_shortcuts_stop(struct obs_nix_portal_shortcuts *portal)
 
 	free_portal(portal);
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef PORTAL_NAME
+#undef PORTAL_PATH
+#undef SHORTCUTS_IFACE
+#undef REQUEST_IFACE
+#undef SESSION_IFACE
+#undef REGISTRY_IFACE
+#undef APP_ID
+#undef SYNC_DELAY_MS
+#undef FLUSH_INTERVAL_MS
+#undef MAX_DESCRIBED_ACTIONS
+#undef NUM_MODIFIERS

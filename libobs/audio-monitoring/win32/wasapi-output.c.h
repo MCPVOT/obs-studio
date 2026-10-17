@@ -454,3 +454,10 @@ void audio_monitor_destroy(struct audio_monitor *monitor)
 		bfree(monitor);
 	}
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef ACTUALLY_DEFINE_GUID
+#undef do_log
+#undef warn
+#undef info
+#undef debug

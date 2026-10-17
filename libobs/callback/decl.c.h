@@ -228,3 +228,6 @@ fail:
 	cf_parser_free(&cfp);
 	return success;
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef TYPE_OR_STORAGE

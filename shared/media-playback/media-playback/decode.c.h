@@ -445,3 +445,6 @@ void mp_decode_flush(struct mp_decode *d)
 	d->frame_ready = false;
 	d->next_pts = 0;
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef KEY_PACKET

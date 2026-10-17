@@ -943,3 +943,6 @@ void cf_preprocessor_remove_def(struct cf_preprocessor *pp, const char *def_name
 	ref.len = strlen(def_name);
 	cf_preprocess_remove_def_strref(pp, &ref);
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef INVALID_INDEX

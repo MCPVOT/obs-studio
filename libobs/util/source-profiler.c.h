@@ -622,3 +622,6 @@ profiler_result_t *source_profiler_get_result(obs_source_t *source)
 	}
 	return ret;
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef FRAME_BUFFER_SIZE

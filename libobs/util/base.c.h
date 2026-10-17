@@ -135,3 +135,6 @@ void blog(int log_level, const char *format, ...)
 	blogva(log_level, format, args);
 	va_end(args);
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef VPRINTFATTR

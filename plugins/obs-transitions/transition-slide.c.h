@@ -168,3 +168,6 @@ struct obs_source_info slide_transition = {
 	.get_properties = slide_properties,
 	.video_get_color_space = slide_video_get_color_space,
 };
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef S_DIRECTION

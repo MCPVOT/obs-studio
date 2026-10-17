@@ -355,3 +355,7 @@ struct obs_source_info gpu_delay_filter = {
 	.video_render = gpu_delay_filter_render,
 	.video_get_color_space = gpu_delay_filter_get_color_space,
 };
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef S_DELAY_MS
+#undef T_DELAY_MS

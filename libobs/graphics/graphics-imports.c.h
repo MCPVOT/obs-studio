@@ -254,3 +254,7 @@ bool load_graphics_imports(struct gs_exports *exports, void *module, const char 
 
 	return success;
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef GRAPHICS_IMPORT
+#undef GRAPHICS_IMPORT_OPTIONAL

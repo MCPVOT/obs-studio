@@ -4274,3 +4274,10 @@ void obs_scene_prune_sources(obs_scene_t *scene)
 
 	da_free(remove_items);
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef audio_lock
+#undef video_lock
+#undef audio_unlock
+#undef video_unlock
+#undef do_update_transform

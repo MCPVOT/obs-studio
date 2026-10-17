@@ -596,3 +596,8 @@ struct obs_source_info xshm_input_v2 = {
 	.get_height = xshm_getheight,
 	.icon_type = OBS_ICON_TYPE_DESKTOP_CAPTURE,
 };
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef XSHM_DATA
+#undef blog
+#undef INVALID_DISPLAY

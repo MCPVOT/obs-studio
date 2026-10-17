@@ -133,3 +133,7 @@ void *load_cube_file(const char *const path, uint32_t *const width, struct vec3 
 
 	return data;
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef LUT_1D_SIZE_MAX
+#undef LUT_3D_SIZE_MAX

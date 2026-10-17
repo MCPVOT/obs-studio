@@ -849,3 +849,9 @@ struct obs_source_info pulse_output_capture = {
 	.get_properties = pulse_output_properties,
 	.icon_type = OBS_ICON_TYPE_AUDIO_OUTPUT,
 };
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef NSEC_PER_MSEC
+#undef PULSE_DATA
+#undef blog
+#undef STARTUP_TIMEOUT_NS

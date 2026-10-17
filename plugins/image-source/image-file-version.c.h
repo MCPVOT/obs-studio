@@ -38,3 +38,6 @@ void image_file_version_from_filetime(struct image_file_version *version, uint64
 	version->mtime_nsec = (int64_t)(filetime % 10000000ULL) * 100;
 	version->size = (int64_t)size;
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef FILETIME_UNIX_EPOCH

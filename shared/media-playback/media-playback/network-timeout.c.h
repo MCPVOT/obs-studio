@@ -34,3 +34,6 @@ void mp_media_set_network_timeouts(AVDictionary **opts, const char *path)
 	if (is_rtsp(path))
 		av_dict_set(opts, "timeout", RTSP_IO_TIMEOUT_USEC, AV_DICT_DONT_OVERWRITE);
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef RTSP_IO_TIMEOUT_USEC

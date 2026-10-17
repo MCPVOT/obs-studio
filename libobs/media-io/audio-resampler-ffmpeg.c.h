@@ -324,3 +324,11 @@ bool audio_resampler_resample(audio_resampler_t *rs, uint8_t *output[], uint32_t
 	*out_frames = (uint32_t)ret;
 	return true;
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef COMP_DEAD_BAND_NS
+#undef COMP_MAX_PPM
+#undef COMP_DISTANCE
+#undef COMP_GAIN
+#undef COMP_C1
+#undef COMP_C2

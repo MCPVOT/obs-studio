@@ -1239,3 +1239,33 @@ struct obs_source_info vlc_source_info = {
 	.media_set_time = vlcs_set_time,
 	.media_get_state = vlcs_get_state,
 };
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef do_log
+#undef warn
+#undef S_PLAYLIST
+#undef S_LOOP
+#undef S_SHUFFLE
+#undef S_BEHAVIOR
+#undef S_BEHAVIOR_STOP_RESTART
+#undef S_BEHAVIOR_PAUSE_UNPAUSE
+#undef S_BEHAVIOR_ALWAYS_PLAY
+#undef S_NETWORK_CACHING
+#undef S_TRACK
+#undef S_SUBTITLE_ENABLE
+#undef S_SUBTITLE_TRACK
+#undef T_
+#undef T_PLAYLIST
+#undef T_LOOP
+#undef T_SHUFFLE
+#undef T_BEHAVIOR
+#undef T_BEHAVIOR_STOP_RESTART
+#undef T_BEHAVIOR_PAUSE_UNPAUSE
+#undef T_BEHAVIOR_ALWAYS_PLAY
+#undef T_NETWORK_CACHING
+#undef T_TRACK
+#undef T_SUBTITLE_ENABLE
+#undef T_SUBTITLE_TRACK
+#undef MAKEFORMAT
+#undef AUDIO_LEAD_US
+#undef MAX_DRAIN_MS

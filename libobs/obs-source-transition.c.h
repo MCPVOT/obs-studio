@@ -1158,3 +1158,10 @@ void obs_transition_swap_end(obs_source_t *tr_dest, obs_source_t *tr_source)
 	unlock_textures(tr_dest);
 	unlock_textures(tr_source);
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef lock_transition
+#undef unlock_transition
+#undef trylock_textures
+#undef lock_textures
+#undef unlock_textures

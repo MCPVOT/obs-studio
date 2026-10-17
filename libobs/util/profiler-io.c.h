@@ -355,3 +355,9 @@ bool profiler_snapshot_dump_csv_gz(const profiler_snapshot_t *snap, const char *
 #endif
 	return true;
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef VPIPE_RIGHT
+#undef VPIPE
+#undef DOWN_RIGHT
+#undef G_MS

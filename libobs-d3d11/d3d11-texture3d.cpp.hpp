@@ -233,3 +233,6 @@ gs_texture_3d::gs_texture_3d(gs_device_t *device, uint32_t handle)
 
 	InitResourceView();
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef SHARED_FLAGS

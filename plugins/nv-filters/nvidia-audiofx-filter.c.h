@@ -864,3 +864,27 @@ struct obs_source_info nvidia_audiofx_filter = {
 /* File-local macros: keep them out of the next source of a unity build. */
 #undef LOAD_SYM_FROM_LIB
 #undef do_log
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef warn
+#undef info
+#undef debug
+#undef S_NVAFX_INTENSITY
+#undef S_METHOD
+#undef S_METHOD_NVAFX_DENOISER
+#undef S_METHOD_NVAFX_DEREVERB
+#undef S_METHOD_NVAFX_DEREVERB_DENOISER
+#undef S_NVAFX_VAD
+#undef MT_
+#undef TEXT_NVAFX_INTENSITY
+#undef TEXT_METHOD
+#undef TEXT_METHOD_NVAFX_DENOISER
+#undef TEXT_METHOD_NVAFX_DEREVERB
+#undef TEXT_METHOD_NVAFX_DEREVERB_DENOISER
+#undef TEXT_METHOD_NVAFX_DEPRECATION
+#undef TEXT_NVAFX_VAD
+#undef MAX_PREPROC_CHANNELS
+#undef BUFFER_SIZE_MSEC
+#undef NVAFX_SAMPLE_RATE
+#undef NVAFX_FRAME_SIZE
+#undef ssize_t

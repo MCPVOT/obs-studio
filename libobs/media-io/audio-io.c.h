@@ -436,3 +436,6 @@ uint32_t audio_output_get_sample_rate(const audio_t *audio)
 {
 	return audio->info.samples_per_sec;
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef nop

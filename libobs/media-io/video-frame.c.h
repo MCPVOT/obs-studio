@@ -264,3 +264,7 @@ void video_frame_copy(struct video_frame *dst, const struct video_frame *src, en
 		}
 	}
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef HALF
+#undef ALIGN

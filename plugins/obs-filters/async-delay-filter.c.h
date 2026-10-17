@@ -235,3 +235,9 @@ struct obs_source_info async_delay_filter = {
 #endif
 	.filter_remove = async_delay_filter_remove,
 };
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef SEC_TO_NSEC
+#undef MSEC_TO_NSEC
+#undef SETTING_DELAY_MS
+#undef TEXT_DELAY_MS

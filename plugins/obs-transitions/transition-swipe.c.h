@@ -164,3 +164,7 @@ struct obs_source_info swipe_transition = {
 	.get_properties = swipe_properties,
 	.video_get_color_space = swipe_video_get_color_space,
 };
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef S_DIRECTION
+#undef S_SWIPE_IN

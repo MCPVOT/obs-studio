@@ -135,3 +135,6 @@ bool obs_pw_video_format_from_spa_format(uint32_t spa_format, struct obs_pw_vide
 	}
 	return false;
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef N_SUPPORTED_FORMATS

@@ -3847,3 +3847,10 @@ obs_canvas_t *obs_get_main_canvas(void)
 {
 	return obs_canvas_get_ref(obs->data.main_canvas);
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef FREE_OBS_HASH_TABLE
+#undef FREE_OBS_LINKED_LIST
+#undef OBS_SIZE_MIN
+#undef OBS_SIZE_MAX
+#undef SEC_TO_MSEC

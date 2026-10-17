@@ -3580,3 +3580,8 @@ void obs_output_set_reconnect_callback(obs_output_t *output,
 
 /* File-local macros: keep them out of the next source of a unity build. */
 #undef get_weak
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef RECONNECT_RETRY_MAX_MSEC
+#undef RECONNECT_RETRY_BASE_EXP
+#undef DEBUG_STARTING_PACKETS

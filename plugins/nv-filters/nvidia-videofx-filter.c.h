@@ -1232,3 +1232,30 @@ struct obs_source_info nvidia_background_blur_filter_info = {
 /* File-local macros: keep them out of the next source of a unity build. */
 #undef LOAD_SYM_FROM_LIB
 #undef do_log
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef warn
+#undef info
+#undef error
+#undef debug
+#undef S_MODE
+#undef S_MODE_QUALITY
+#undef S_MODE_PERF
+#undef S_MODE_QUALITY_CHAIR
+#undef S_MODE_PERF_CHAIR
+#undef S_THRESHOLDFX
+#undef S_THRESHOLDFX_DEFAULT
+#undef S_PROCESSING
+#undef MT_
+#undef TEXT_MODE
+#undef TEXT_MODE_QUALITY
+#undef TEXT_MODE_PERF
+#undef TEXT_MODE_QUALITY_CHAIR
+#undef TEXT_MODE_PERF_CHAIR
+#undef TEXT_MODE_THRESHOLD
+#undef TEXT_DEPRECATION
+#undef TEXT_PROCESSING
+#undef TEXT_PROCESSING_HINT
+#undef S_STRENGTH
+#undef S_STRENGTH_DEFAULT
+#undef TEXT_MODE_BLUR_STRENGTH

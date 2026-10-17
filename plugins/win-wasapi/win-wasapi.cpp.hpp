@@ -1624,3 +1624,12 @@ void RegisterWASAPIProcessOutput()
 	info.icon_type = OBS_ICON_TYPE_PROCESS_AUDIO_OUTPUT;
 	obs_register_source(&info);
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef OPT_DEVICE_ID
+#undef OPT_USE_DEVICE_TIMING
+#undef OPT_WINDOW
+#undef OPT_PRIORITY
+#undef OBS_KSAUDIO_SPEAKER_4POINT1
+#undef BUFFER_TIME_100NS
+#undef RECONNECT_INTERVAL

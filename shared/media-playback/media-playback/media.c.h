@@ -1255,3 +1255,10 @@ void mp_media_seek(mp_media_t *m, int64_t pos)
 
 	os_sem_post(m->sem);
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef FIXED_1_0
+#undef MAX_TS_VAR
+#undef MAX_HOLD_NS
+#undef RIST_PROTO
+#undef MAX_MEASURE_BYTES

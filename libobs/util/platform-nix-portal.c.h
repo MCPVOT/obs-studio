@@ -238,3 +238,8 @@ void portal_inhibit(struct portal_inhibit_info *info, const char *reason, bool a
 	else
 		do_uninhibit(info);
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef PORTAL_NAME
+#undef PORTAL_PATH
+#undef INHIBIT_PORTAL_IFACE

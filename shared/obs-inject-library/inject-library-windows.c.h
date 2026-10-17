@@ -129,3 +129,8 @@ int inject_library_safe_obf(DWORD thread_id, const wchar_t *dll, const char *set
 	}
 	return 0;
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef RETRY_INTERVAL_MS
+#undef TOTAL_RETRY_TIME_MS
+#undef RETRY_COUNT

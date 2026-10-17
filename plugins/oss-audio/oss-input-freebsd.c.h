@@ -125,3 +125,10 @@ void oss_platform_add_devices(obs_property_t *p)
 {
 	oss_sndstat_add_devices(p, OSS_SNDSTAT_PATH);
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef blog
+#undef OSS_SNDSTAT_PATH
+#undef OSS_DEVICE_BEGIN
+#undef OSS_USERDEVICE_BEGIN
+#undef OSS_FV_BEGIN

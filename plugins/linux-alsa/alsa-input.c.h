@@ -680,3 +680,11 @@ enum speaker_layout _alsa_channels_to_obs_speakers(unsigned int channels)
 
 	return SPEAKERS_UNKNOWN;
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef blog
+#undef NSEC_PER_SEC
+#undef NSEC_PER_MSEC
+#undef STARTUP_TIMEOUT_NS
+#undef REOPEN_TIMEOUT
+#undef SHUTDOWN_ON_DEACTIVATE

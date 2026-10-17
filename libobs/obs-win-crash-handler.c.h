@@ -522,3 +522,11 @@ void initialize_crash_handler(void)
 		initialized = true;
 	}
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef GET_DBGHELP_IMPORT
+#undef PROCESSOR_REG_KEY
+#undef CPU_ERROR
+#undef SUCCESS_FORMAT
+#undef FAIL_FORMAT
+#undef TRACE_TOP

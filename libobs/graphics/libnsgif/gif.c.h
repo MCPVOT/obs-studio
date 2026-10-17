@@ -2067,3 +2067,16 @@ const char *nsgif_str_disposal(enum nsgif_disposal disposal)
 
 	return str[disposal];
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef NSGIF_FRAME_DELAY_MIN
+#undef NSGIF_FRAME_DELAY_DEFAULT
+#undef NSGIF_ARRAY_LEN
+#undef NSGIF_PROCESS_COLOURS
+#undef NSGIF_FRAME_INVALID
+#undef NSGIF_TRANSPARENT_COLOUR
+#undef NSGIF_NO_TRANSPARENCY
+#undef NSGIF_COLOUR_TABLE_MASK
+#undef NSGIF_COLOUR_TABLE_SIZE_MASK
+#undef NSGIF_BLOCK_TERMINATOR
+#undef NSGIF_TRAILER

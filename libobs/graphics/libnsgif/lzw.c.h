@@ -606,3 +606,6 @@ lzw_result lzw_decode_map(struct lzw_ctx *ctx,
 
 	return LZW_OK;
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef LZW_TABLE_ENTRY_MAX

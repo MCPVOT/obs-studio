@@ -820,3 +820,8 @@ struct obs_source_info stinger_transition = {
 	.transition_stop = stinger_transition_stop,
 	.video_get_color_space = stinger_get_color_space,
 };
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef TIMING_TIME
+#undef TIMING_FRAME
+#undef FILE_FILTER

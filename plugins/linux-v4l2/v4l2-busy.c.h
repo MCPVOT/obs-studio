@@ -168,3 +168,8 @@ uint32_t v4l2_busy_retry_delay_ms(uint32_t attempt)
 	uint32_t delay = RETRY_FIRST_MS << attempt;
 	return delay < RETRY_MAX_MS ? delay : RETRY_MAX_MS;
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef FORCE_POLL_MS
+#undef RETRY_FIRST_MS
+#undef RETRY_MAX_MS

@@ -48,3 +48,6 @@ enum video_format video_format_from_fourcc(uint32_t fourcc)
 	}
 	return VIDEO_FORMAT_NONE;
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef MAKE_FOURCC

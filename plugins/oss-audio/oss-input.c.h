@@ -584,3 +584,17 @@ struct obs_source_info oss_input_capture = {
 	.get_properties = oss_properties,
 	.icon_type = OBS_ICON_TYPE_AUDIO_INPUT,
 };
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef blog
+#undef NSEC_PER_SEC
+#undef OSS_MAX_CHANNELS
+#undef OSS_DSP_DEFAULT
+#undef OSS_RATE_DEFAULT
+#undef OSS_CHANNELS_DEFAULT
+#undef OBS_PROPS_DSP
+#undef OBS_PROPS_CUSTOM_DSP
+#undef OBS_PATH_DSP_CUSTOM
+#undef OBS_PROPS_CHANNELS
+#undef OBS_PROPS_RATE
+#undef OBS_PROPS_SAMPLE_FMT

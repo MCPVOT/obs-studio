@@ -665,3 +665,7 @@ void video_output_free_frame_rate_divisor(video_t *video)
 	if (video && video->parent)
 		bfree(video);
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef MAX_CONVERT_BUFFERS
+#undef MAX_CACHE_SIZE

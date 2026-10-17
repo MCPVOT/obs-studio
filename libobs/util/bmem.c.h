@@ -157,3 +157,8 @@ void *bmemdup(const void *ptr, size_t size)
 
 	return out;
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef ALIGNMENT
+#undef ALIGNED_MALLOC
+#undef ALIGNMENT_HACK

@@ -227,3 +227,11 @@ struct obs_source_info luma_wipe_transition = {
 	.get_defaults = luma_wipe_defaults,
 	.video_get_color_space = luma_wipe_video_get_color_space,
 };
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef S_LUMA_IMG
+#undef S_LUMA_INV
+#undef S_LUMA_SOFT
+#undef T_LUMA_IMG
+#undef T_LUMA_INV
+#undef T_LUMA_SOFT

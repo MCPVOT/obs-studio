@@ -150,3 +150,8 @@ struct obs_source_info eq_filter = {
 	.get_defaults = eq_defaults,
 	.get_properties = eq_properties,
 };
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef LOW_FREQ
+#undef HIGH_FREQ
+#undef EQ_EPSILON

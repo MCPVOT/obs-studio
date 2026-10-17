@@ -598,3 +598,6 @@ EXPORT bool device_shared_texture_available(void)
 {
 	return false;
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef DUMMY_WNDCLASS

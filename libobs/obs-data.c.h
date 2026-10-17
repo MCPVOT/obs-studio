@@ -2167,3 +2167,6 @@ bool obs_data_item_get_autoselect_frames_per_second(obs_data_item_t *item, struc
 {
 	return get_frames_per_second(obs_data_item_get_autoselect_obj(item), fps, option);
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef CLAMP

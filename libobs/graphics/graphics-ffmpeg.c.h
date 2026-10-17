@@ -816,3 +816,8 @@ uint8_t *gs_create_texture_file_data3(const char *file, enum gs_image_alpha_mode
 
 	return data;
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef obs_bswap16
+#undef TILE_SIZE
+#undef MIN

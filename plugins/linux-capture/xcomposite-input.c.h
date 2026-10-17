@@ -962,3 +962,7 @@ void xcomposite_unload(void)
 	xcomp_conn = NULL;
 	watcher_unload();
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef WIN_STRING_DIV
+#undef FIND_WINDOW_INTERVAL

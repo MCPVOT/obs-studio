@@ -1390,3 +1390,10 @@ void obs_host_pump_messages(void)
 #include "obs-host/noop/display-srgb-clear.hpp"
 #include "obs-host/noop/graphics-thread.hpp"
 #include "obs-host/noop/module-paths.hpp"
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef WIN10_GAME_BAR_REG_KEY
+#undef WIN10_GAME_DVR_POLICY_REG_KEY
+#undef WIN10_GAME_DVR_REG_KEY
+#undef WIN10_GAME_MODE_REG_KEY
+#undef WINRT_IMPORT

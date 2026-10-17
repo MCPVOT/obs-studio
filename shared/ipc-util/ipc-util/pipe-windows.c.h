@@ -269,3 +269,6 @@ bool ipc_pipe_client_write(ipc_pipe_client_t *pipe, const void *data, size_t siz
 
 	return !!WriteFile(pipe->handle, data, (DWORD)size, &bytes, NULL);
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef IPC_PIPE_BUF_SIZE

@@ -687,3 +687,6 @@ void audio_monitor_destroy(struct audio_monitor *monitor)
 
 /* File-local macros: keep them out of the next source of a unity build. */
 #undef blog
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef PULSE_DATA

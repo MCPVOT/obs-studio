@@ -6139,3 +6139,11 @@ obs_canvas_t *obs_source_get_canvas(const obs_source_t *source)
 
 /* File-local macros: keep them out of the next source of a unity build. */
 #undef get_weak
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef MAX_BUF_SIZE
+#undef TS_SMOOTHING_THRESHOLD
+#undef OBS_SOURCE_AV
+#undef MAX_UNUSED_FRAME_DURATION
+#undef MAX_ASYNC_FRAMES
+#undef DEBUG_ASYNC_FRAMES

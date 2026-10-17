@@ -152,7 +152,9 @@ Inside a group, every implementation file shares one translation unit, so:
   anonymous-namespace names get a prefix from their file
   (`od_` for `obs-output-delay`, `compressor_` for the compressor filter).
   An anonymous namespace does not help: the files share it.
-- A file-scope `#define` is `#undef`ed at the end of the file. A macro that
+- A file-scope `#define` is `#undef`ed at the end of the file
+  (`ci/test_build_groups.py` checks it; a macro a header provides may be
+  restored there instead). A macro that
   shadows a system name (`near`, `far`) is saved and restored with
   `push_macro`/`pop_macro`.
 - Default arguments are declared once, in the header.

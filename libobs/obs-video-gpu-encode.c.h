@@ -309,3 +309,6 @@ void free_gpu_encoding(struct obs_core_video_mix *video)
 	free_deque(video->gpu_encoder_avail_queue);
 #undef free_deque
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef NBSP

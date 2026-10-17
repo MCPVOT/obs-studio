@@ -187,3 +187,9 @@ struct obs_source_info fade_to_color_transition = {
 	.get_defaults = fade_to_color_defaults,
 	.video_get_color_space = fade_to_color_video_get_color_space,
 };
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef S_COLOR
+#undef S_SWITCH_POINT
+#undef S_COLOR_TEXT
+#undef S_SWITCH_POINT_TEXT

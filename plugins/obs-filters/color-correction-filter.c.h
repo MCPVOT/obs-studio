@@ -729,3 +729,25 @@ struct obs_source_info color_filter_v2 = {
 	.get_defaults = color_correction_filter_defaults_v2,
 	.video_get_color_space = color_correction_filter_get_color_space,
 };
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef SETTING_SDR_ONLY_INFO
+#undef SETTING_GAMMA
+#undef SETTING_CONTRAST
+#undef SETTING_BRIGHTNESS
+#undef SETTING_SATURATION
+#undef SETTING_HUESHIFT
+#undef SETTING_OPACITY
+#undef SETTING_COLOR
+#undef SETTING_COLOR_MULTIPLY
+#undef SETTING_COLOR_ADD
+#undef TEXT_SDR_ONLY_INFO
+#undef TEXT_GAMMA
+#undef TEXT_CONTRAST
+#undef TEXT_BRIGHTNESS
+#undef TEXT_SATURATION
+#undef TEXT_HUESHIFT
+#undef TEXT_OPACITY
+#undef TEXT_COLOR
+#undef TEXT_COLOR_MULTIPLY
+#undef TEXT_COLOR_ADD

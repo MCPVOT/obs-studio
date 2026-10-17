@@ -400,3 +400,8 @@ bool obs_module_load(void)
 
 /* File-local macros: keep them out of the next source of a unity build. */
 #undef warn
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef blog
+#undef debug
+#undef info

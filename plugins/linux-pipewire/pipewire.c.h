@@ -1772,3 +1772,10 @@ void obs_pipewire_stream_set_resolution(obs_pipewire_stream *obs_pw_stream, cons
 	/* Signal to renegotiate */
 	pw_loop_signal_event(pw_thread_loop_get_loop(obs_pw->thread_loop), obs_pw_stream->reneg);
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef SPA_META_VideoTransform
+#undef CURSOR_META_SIZE
+#undef OBS_PW_FRAME_SLOTS
+#undef N_SUPPORTED_FORMATS_ASYNC
+#undef N_SUPPORTED_FORMATS_SYNC

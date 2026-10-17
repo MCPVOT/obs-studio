@@ -16,6 +16,8 @@
   code starts: a host file including the no-op capability headers it builds
   (obs-host/noop/*.hpp, #1051), and an X-macro table (a header without
   #pragma once or an include guard) included as data.
+- Every macro an implementation file #defines is #undef'd later in the same
+  file (BUILD.md rule 5), so it can't leak into the next file of its group.
 """
 
 from __future__ import annotations
@@ -164,6 +166,32 @@ class BuildGroupsTest(unittest.TestCase):
             for member in members:
                 with self.subTest(file=member):
                     self.assertEqual(member_errors(member, pch, component), [])
+
+    def test_file_local_macros_are_undefined_at_the_end(self):
+        for _, members, _ in self.parsed.values():
+            for member in members:
+                text = (ROOT / member).read_text(errors="replace")
+                undefined = set()
+                leaked = []
+                lines = [l for l in text.splitlines() if l.strip()]
+                code_after = False
+                for i in range(len(lines) - 1, -1, -1):
+                    line = lines[i]
+                    u = re.match(r"\s*#\s*undef\s+(\w+)", line)
+                    if u:
+                        undefined.add(u.group(1))
+                        continue
+                    d = re.match(r"\s*#\s*define\s+(\w+)", line)
+                    if d and d.group(1) not in undefined:
+                        # Restoring a header's macro at the very end (#undef X,
+                        # then #define X as the header has it) is not a leak.
+                        restore = not code_after and i > 0 and re.match(rf"\s*#\s*undef\s+{d.group(1)}\b", lines[i - 1])
+                        if not restore:
+                            leaked.append(d.group(1))
+                    if not re.match(r"\s*(#|/\*|\*|//)", line):
+                        code_after = True
+                with self.subTest(file=member):
+                    self.assertEqual(sorted(set(leaked)), [], "#undef these at the end of the file (BUILD.md rule 5)")
 
     def test_every_implementation_file_is_in_a_group(self):
         grouped = {m for _, members, _ in self.parsed.values() for m in members}

@@ -492,3 +492,8 @@ enum obs_deinterlace_field_order obs_source_get_deinterlace_field_order(const ob
 
 	return source->deinterlace_top_first ? OBS_DEINTERLACE_FIELD_ORDER_TOP : OBS_DEINTERLACE_FIELD_ORDER_BOTTOM;
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef FRAME_TOLERANCE
+#undef TWOX_TOLERANCE
+#undef TS_JUMP_THRESHOLD

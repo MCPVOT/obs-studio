@@ -159,3 +159,6 @@ void deactivate_jack(struct jack_data *data)
 	}
 	pthread_mutex_unlock(&data->jack_mutex);
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef blog

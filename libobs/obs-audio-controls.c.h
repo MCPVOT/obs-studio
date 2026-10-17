@@ -866,3 +866,14 @@ obs_fader_conversion_t obs_fader_db_to_def(obs_fader_t *fader)
 {
 	return fader->db_to_def;
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef CLAMP
+#undef LOG_OFFSET_DB
+#undef LOG_RANGE_DB
+#undef LOG_OFFSET_VAL
+#undef LOG_RANGE_VAL
+#undef SHIFT_RIGHT_2PS
+#undef abs_ps
+#undef VECTOR_MATRIX_CROSS_PS
+#undef hmax_ps

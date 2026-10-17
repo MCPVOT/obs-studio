@@ -154,3 +154,7 @@ OBS_NORETURN void bcrash(const char *format, ...)
 	va_end(args);
 	exit(0);
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef VPRINTFATTR
+#undef BASE_HIDDEN

@@ -3307,3 +3307,10 @@ void gs_unregister_loss_callbacks(void *data)
 
 #pragma pop_macro("far")
 #pragma pop_macro("near")
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef ptr_valid
+#undef gs_valid_p
+#undef gs_valid_p2
+#undef gs_valid_p3
+#undef IMMEDIATE_COUNT

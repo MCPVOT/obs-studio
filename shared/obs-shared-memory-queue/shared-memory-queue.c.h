@@ -214,3 +214,9 @@ bool video_queue_read(video_queue_t *vq, nv12_scale_t *scale, void *dst, uint64_
 	nv12_do_scale(scale, dst, vq->frame[idx]);
 	return true;
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef VIDEO_NAME
+#undef ALIGN_SIZE
+#undef FRAME_HEADER_SIZE
+#undef get_idx

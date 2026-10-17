@@ -378,3 +378,6 @@ gs_texture_2d::gs_texture_2d(gs_device_t *device, ID3D11Texture2D *obj)
 
 	InitResourceView();
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef SHARED_FLAGS

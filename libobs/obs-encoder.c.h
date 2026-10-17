@@ -2413,3 +2413,7 @@ uint32_t obs_encoder_get_priming_samples(const obs_encoder_t *encoder)
 
 /* File-local macros: keep them out of the next source of a unity build. */
 #undef get_weak
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef encoder_active
+#undef set_encoder_active

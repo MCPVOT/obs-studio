@@ -1175,3 +1175,30 @@ struct obs_source_info slideshow_info_mk2 = {
 
 /* File-local macros: keep them out of the next source of a unity build. */
 #undef warn
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef do_log
+#undef T_
+#undef T_TR_SPEED
+#undef T_CUSTOM_SIZE
+#undef T_SLIDE_TIME
+#undef T_TRANSITION
+#undef T_HIDE
+#undef T_FILES
+#undef T_BEHAVIOR
+#undef T_BEHAVIOR_STOP_RESTART
+#undef T_BEHAVIOR_PAUSE_UNPAUSE
+#undef T_BEHAVIOR_ALWAYS_PLAY
+#undef T_MODE
+#undef T_MODE_AUTO
+#undef T_MODE_MANUAL
+#undef T_PLAYBACK_MODE
+#undef T_PLAYBACK_ONCE
+#undef T_PLAYBACK_LOOP
+#undef T_PLAYBACK_RANDOM
+#undef T_TR_
+#undef T_TR_CUT
+#undef T_TR_FADE
+#undef T_TR_SWIPE
+#undef T_TR_SLIDE
+#undef SLIDE_BUFFER_COUNT

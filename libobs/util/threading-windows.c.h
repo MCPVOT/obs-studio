@@ -191,3 +191,7 @@ void os_set_thread_name(const char *name)
 		FreeLibrary(hModule);
 	}
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef VC_EXCEPTION
+#undef THREADNAME_INFO_SIZE

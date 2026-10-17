@@ -451,3 +451,6 @@ struct obs_source_info scroll_filter = {
 	.show = scroll_filter_show,
 	.video_get_color_space = scroll_filter_get_color_space,
 };
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef MAX_TEXTURE_SIZE

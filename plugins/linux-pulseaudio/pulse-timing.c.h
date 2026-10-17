@@ -70,3 +70,8 @@ void pulse_timing_reset(struct pulse_timing *timing)
 	timing->next_ts = 0;
 	start_window(timing, 0);
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef NSEC_PER_SEC
+#undef PULSE_TIMING_RESYNC_NS
+#undef PULSE_TIMING_WINDOW_NS

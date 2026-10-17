@@ -185,3 +185,7 @@ void portal_signal_subscribe(const char *path, GCancellable *cancellable, portal
 		"Response", call->request_path, NULL, G_DBUS_SIGNAL_FLAGS_NO_MATCH_RULE, on_response_received_cb, call,
 		NULL);
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef REQUEST_PATH
+#undef SESSION_PATH

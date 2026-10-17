@@ -739,3 +739,6 @@ struct obs_source_info syphon_info = {
     .save = syphon_save,
     .icon_type = OBS_ICON_TYPE_GAME_CAPTURE,
 };
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef LOG

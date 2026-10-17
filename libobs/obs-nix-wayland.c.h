@@ -1761,3 +1761,8 @@ const struct obs_nix_hotkeys_vtable *obs_nix_wayland_get_hotkeys_vtable(void)
 {
 	return &wayland_hotkeys_vtable;
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef MAX_KEYCODES
+#undef MAX_SHIFT_LEVELS
+#undef translate_key

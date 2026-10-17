@@ -772,3 +772,9 @@ int64_t mp_cache_get_duration(mp_cache_t *c)
 	pthread_mutex_unlock(&c->mutex);
 	return duration;
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef v_eof
+#undef a_eof
+#undef MAX_TS_VAR
+#undef MAX_HOLD_NS

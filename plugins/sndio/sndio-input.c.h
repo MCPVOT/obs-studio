@@ -374,3 +374,8 @@ struct obs_source_info sndio_output_capture = {
 	.get_properties = sndio_input_properties,
 	.icon_type = OBS_ICON_TYPE_AUDIO_OUTPUT,
 };
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef blog
+#undef berr
+#undef NSEC_PER_SEC

@@ -263,3 +263,6 @@ bool video_scaler_scale(video_scaler_t *scaler, uint8_t *output[], const uint32_
 
 	return true;
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef FIXED_1_0

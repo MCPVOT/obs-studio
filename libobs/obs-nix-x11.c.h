@@ -1271,3 +1271,11 @@ const struct obs_nix_hotkeys_vtable *obs_nix_x11_get_hotkeys_vtable(void)
 {
 	return &x11_hotkeys_vtable;
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef MOUSE_1
+#undef MOUSE_2
+#undef MOUSE_3
+#undef MOUSE_4
+#undef MOUSE_5
+#undef translate_key

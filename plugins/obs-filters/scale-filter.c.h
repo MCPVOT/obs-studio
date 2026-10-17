@@ -583,3 +583,25 @@ struct obs_source_info scale_filter = {
 	.get_height = scale_filter_height,
 	.video_get_color_space = scale_filter_get_color_space,
 };
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef S_RESOLUTION
+#undef S_SAMPLING
+#undef S_UNDISTORT
+#undef T_RESOLUTION
+#undef T_NONE
+#undef T_SAMPLING
+#undef T_SAMPLING_POINT
+#undef T_SAMPLING_BILINEAR
+#undef T_SAMPLING_BICUBIC
+#undef T_SAMPLING_LANCZOS
+#undef T_SAMPLING_AREA
+#undef T_UNDISTORT
+#undef T_BASE
+#undef S_SAMPLING_POINT
+#undef S_SAMPLING_BILINEAR
+#undef S_SAMPLING_BICUBIC
+#undef S_SAMPLING_LANCZOS
+#undef S_SAMPLING_AREA
+#undef NUM_DOWNSCALES
+#undef NUM_ASPECTS

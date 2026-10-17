@@ -694,3 +694,12 @@ uint64_t happy_eyeballs_get_connection_time_ns(const struct happy_eyeballs_ctx *
 
 	return context->connection_time_end - context->connection_time_start;
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef HAPPY_EYEBALLS_DELAY_MS
+#undef HAPPY_EYEBALLS_MAX_ATTEMPTS
+#undef HAPPY_EYEBALLS_CONNECTION_TIMEOUT_MS
+#undef INVALID_SOCKET
+#undef STATUS_SUCCESS
+#undef STATUS_FAILURE
+#undef STATUS_INVALID_ARGUMENT

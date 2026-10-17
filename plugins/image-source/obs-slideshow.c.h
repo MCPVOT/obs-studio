@@ -1131,3 +1131,50 @@ struct obs_source_info slideshow_info = {
 
 /* File-local macros: keep them out of the next source of a unity build. */
 #undef warn
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef do_log
+#undef S_TR_SPEED
+#undef S_CUSTOM_SIZE
+#undef S_SLIDE_TIME
+#undef S_TRANSITION
+#undef S_RANDOMIZE
+#undef S_LOOP
+#undef S_HIDE
+#undef S_FILES
+#undef S_BEHAVIOR
+#undef S_BEHAVIOR_STOP_RESTART
+#undef S_BEHAVIOR_PAUSE_UNPAUSE
+#undef S_BEHAVIOR_ALWAYS_PLAY
+#undef S_MODE
+#undef S_MODE_AUTO
+#undef S_MODE_MANUAL
+#undef TR_CUT
+#undef TR_FADE
+#undef TR_SWIPE
+#undef TR_SLIDE
+#undef T_
+#undef T_TR_SPEED
+#undef T_CUSTOM_SIZE
+#undef T_CUSTOM_SIZE_AUTO
+#undef T_SLIDE_TIME
+#undef T_TRANSITION
+#undef T_RANDOMIZE
+#undef T_LOOP
+#undef T_HIDE
+#undef T_FILES
+#undef T_BEHAVIOR
+#undef T_BEHAVIOR_STOP_RESTART
+#undef T_BEHAVIOR_PAUSE_UNPAUSE
+#undef T_BEHAVIOR_ALWAYS_PLAY
+#undef T_MODE
+#undef T_MODE_AUTO
+#undef T_MODE_MANUAL
+#undef T_TR_
+#undef T_TR_CUT
+#undef T_TR_FADE
+#undef T_TR_SWIPE
+#undef T_TR_SLIDE
+#undef BYTES_TO_MBYTES
+#undef MAX_MEM_USAGE
+#undef NUM_ASPECTS

@@ -738,3 +738,8 @@ bool audio_callback(void *param, uint64_t start_ts_in, uint64_t end_ts_in, uint6
 	UNUSED_PARAMETER(param);
 	return true;
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef DEBUG_AUDIO
+#undef DEBUG_LAGGED_AUDIO
+#undef MAX_AUDIO_SIZE

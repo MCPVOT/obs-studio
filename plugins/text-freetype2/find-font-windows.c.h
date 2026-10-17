@@ -247,3 +247,6 @@ void load_os_font_list(void)
 free_string:
 	dstr_free(&path);
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef TT_MAC_LANGID_ANY

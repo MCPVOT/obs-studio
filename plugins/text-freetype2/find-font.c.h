@@ -434,3 +434,7 @@ const char *get_font_path(const char *family, uint16_t size, const char *style, 
 	dstr_free(&face_and_style);
 	return best_path;
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef read_var
+#undef write_var

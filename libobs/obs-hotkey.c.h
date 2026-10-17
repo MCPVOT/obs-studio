@@ -1578,3 +1578,11 @@ void obs_hotkeys_set_sceneitem_hotkeys_translations(const char *show, const char
  * default for the sources a unity build compiles after it. */
 #undef HASH_FUNCTION
 #define HASH_FUNCTION HASH_SFH
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef HASH_ADD_HKEY
+#undef HASH_FIND_HKEY
+#undef NBSP
+#undef ADD_TRANSLATION
+#undef ADD_NUMPAD_NUM
+#undef ADD_MOUSE_NUM

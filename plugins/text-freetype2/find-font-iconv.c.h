@@ -124,3 +124,6 @@ char *sfnt_name_to_utf8(FT_SfntName *sfnt_name)
 	*conv_out = 0;
 	return bstrdup(utf8);
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef TT_MAC_LANGID_ANY

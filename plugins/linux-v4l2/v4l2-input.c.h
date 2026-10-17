@@ -1491,3 +1491,11 @@ struct obs_source_info v4l2_input = {
 
 /* File-local macros: keep them out of the next source of a unity build. */
 #undef blog
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef V4L2_IN_CAP_DV_TIMINGS
+#undef V4L2_DATA
+#undef timeval2ns
+#undef V4L2_FOURCC_STR
+#undef BUSY_CHECK_NS
+#undef FORCE_TIMEOUT_MS

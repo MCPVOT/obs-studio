@@ -878,3 +878,6 @@ void obs_key_to_str(obs_key_t key, struct dstr *str)
 #include "obs-host/noop/graphics-thread-hooks.hpp"
 #include "obs-host/noop/module-symbols.hpp"
 #include "obs-host/noop/shared-texture.hpp"
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef OBS_COCOA_MODIFIER_SIZE

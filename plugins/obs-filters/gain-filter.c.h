@@ -94,3 +94,10 @@ struct obs_source_info gain_filter = {
 
 /* File-local macros: keep them out of the next source of a unity build. */
 #undef do_log
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef warn
+#undef info
+#undef S_GAIN_DB
+#undef MT_
+#undef TEXT_GAIN_DB

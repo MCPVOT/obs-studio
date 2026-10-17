@@ -225,3 +225,15 @@ struct obs_source_info luma_key_filter_v2 = {
 	.get_defaults = luma_key_defaults,
 	.video_get_color_space = luma_key_get_color_space,
 };
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef SETTING_SDR_ONLY_INFO
+#undef SETTING_LUMA_MAX
+#undef SETTING_LUMA_MIN
+#undef SETTING_LUMA_MAX_SMOOTH
+#undef SETTING_LUMA_MIN_SMOOTH
+#undef TEXT_SDR_ONLY_INFO
+#undef TEXT_LUMA_MAX
+#undef TEXT_LUMA_MIN
+#undef TEXT_LUMA_MAX_SMOOTH
+#undef TEXT_LUMA_MIN_SMOOTH

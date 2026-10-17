@@ -533,3 +533,7 @@ update_info_t *update_info_create_single(const char *log_prefix, const char *use
 
 	return info;
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef warn
+#undef info

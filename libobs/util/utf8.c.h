@@ -378,3 +378,12 @@ size_t wchar_to_utf8(const wchar_t *in, size_t insize, char *out, size_t outsize
 }
 
 #endif
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef _NXT
+#undef _SEQ2
+#undef _SEQ3
+#undef _SEQ4
+#undef _SEQ5
+#undef _SEQ6
+#undef _BOM

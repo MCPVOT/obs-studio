@@ -371,3 +371,13 @@ struct obs_source_info color_grade_filter = {
 	.video_get_color_space = color_grade_filter_get_color_space,
 	.missing_files = color_grade_filter_missing_files,
 };
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef SETTING_SDR_ONLY_INFO
+#undef SETTING_IMAGE_PATH
+#undef SETTING_CLUT_AMOUNT
+#undef SETTING_PASSTHROUGH_ALPHA
+#undef TEXT_SDR_ONLY_INFO
+#undef TEXT_IMAGE_PATH
+#undef TEXT_AMOUNT
+#undef TEXT_PASSTHROUGH_ALPHA

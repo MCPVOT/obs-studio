@@ -249,3 +249,6 @@ bool video_format_get_parameters_for_format(enum video_colorspace color_space, e
 
 	return video_format_get_parameters_for_bpc(color_space, range, matrix, range_min, range_max, bpc);
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef NUM_FORMATS

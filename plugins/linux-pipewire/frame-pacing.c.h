@@ -77,3 +77,6 @@ size_t obs_pw_frame_pacer_flush(struct obs_pw_frame_pacer *pacer, uint64_t *rele
 	obs_pw_frame_pacer_init(pacer);
 	return count;
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef MAX_QUEUED

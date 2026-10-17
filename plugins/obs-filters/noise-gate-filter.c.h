@@ -197,3 +197,18 @@ struct obs_source_info noise_gate_filter = {
 #undef TEXT_ATTACK_TIME
 #undef TEXT_RELEASE_TIME
 #undef do_log
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef warn
+#undef info
+#undef S_OPEN_THRESHOLD
+#undef S_CLOSE_THRESHOLD
+#undef S_ATTACK_TIME
+#undef S_HOLD_TIME
+#undef S_RELEASE_TIME
+#undef MT_
+#undef TEXT_OPEN_THRESHOLD
+#undef TEXT_CLOSE_THRESHOLD
+#undef TEXT_HOLD_TIME
+#undef VOL_MIN
+#undef VOL_MAX

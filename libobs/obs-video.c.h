@@ -1090,3 +1090,6 @@ void *obs_graphics_thread(void *param)
 	UNUSED_PARAMETER(param);
 	return NULL;
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef NBSP
