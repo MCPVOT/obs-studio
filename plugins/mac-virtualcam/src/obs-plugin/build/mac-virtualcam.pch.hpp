@@ -5,6 +5,12 @@
 
 #pragma once
 
+/* In the unity group the Objective-C++ files are included headers, where
+ * clang checks nullability completeness: a file that annotates one pointer
+ * (through an NS_ASSUME_NONNULL header) would have to annotate them all,
+ * which it never had to as its own main file. */
+#pragma clang diagnostic ignored "-Wnullability-completeness"
+
 /* plugin-main.mm (the target builds with -fmodules) */
 @import CoreMediaIO;
 @import SystemExtensions;

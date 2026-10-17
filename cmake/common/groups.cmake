@@ -139,11 +139,6 @@ function(_obs_target_groups target)
     return()
   endif()
   set_property(TARGET ${target} PROPERTY OBS_GROUPED TRUE)
-  # In a group an Objective-C file is an included header, not the main file,
-  # and clang checks nullability completeness only in headers: a file that
-  # annotates one pointer (NS_ASSUME_NONNULL in mac-virtualcam) would have to
-  # annotate all of them, which it never had to on its own.
-  target_compile_options(${target} PRIVATE "$<$<COMPILE_LANGUAGE:OBJC,OBJCXX>:-Wno-nullability-completeness>")
   # The groups' header is theirs, not the linked library's sources'
   # (libdshowcapture's in win-dshow, which need winsock2 before <windows.h>):
   # those compile without it, as in their own project.
