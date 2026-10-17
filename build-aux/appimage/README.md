@@ -109,6 +109,15 @@ checks that and that the workflow calls every step with every input.
   Ubuntu 26.04 they come from `libpipewire-0.3-modules`, `libspa-0.2-modules`
   and `pipewire-bin`; `assemble-appdir.sh` fails the build without them.
 
+- **HTTPS uses the host's CA bundle.** AlmaLinux 8's libcurl has the RHEL
+  path `/etc/pki/tls/certs/ca-bundle.crt` built in and hands it to OpenSSL on
+  every handle, so HTTPS failed on Debian, Ubuntu, Arch and openSUSE (#1085).
+  The manylinux image rebuilds AlmaLinux's own curl source package with
+  `--without-ca-bundle --without-ca-path --with-ca-fallback`: libcurl then uses
+  OpenSSL's default verify paths, which honour the `SSL_CERT_FILE` that
+  `AppRun` sets to the first bundle that exists. (libcurl ignores
+  `CURL_CA_BUNDLE`; only the `curl` tool reads it.)
+
 ## Tests
 
 `test-appimage.sh` runs in stock Debian 13, Ubuntu 22.04, Fedora and Arch Linux (glibc newer than the build host's) containers
@@ -123,6 +132,9 @@ with none of OBS's dependencies installed, and fails unless all of these pass:
 3. **Runtime probes:** in `AppRun`'s environment, with the bundled loader and
    libraries, the helper connects to PipeWire and to PulseAudio
    (`pipewire-pulse`), converts text through gconv and talks to the session bus.
+   It also fetches over HTTPS through the bundled libcurl, with OBS's default
+   CA settings and AppRun's `SSL_CERT_FILE`, from a local server whose test CA
+   was added to the host's bundle the distribution's way (#1085).
 4. **Saved profile:** OBS starts with a returning user's profile and scene: a
    PipeWire screen capture, a PipeWire camera and a PulseAudio microphone, and
    `--startrecording`. A private session stands in for the desktop (D-Bus,

@@ -734,6 +734,68 @@ if [ "$SCENARIO" = probes ]; then
         [ "$rc" -eq 0 ] || fail "$probe failed ($(describe_exit "$rc"))"
     done
     echo "::endgroup::"
+
+    # HTTPS through the bundled libcurl (update check, remote text, file
+    # updater, service plugins), trusting only what the host trusts: a test CA,
+    # added the distribution's own way, signs a local TLS server's certificate.
+    # Debian, Ubuntu and Arch keep the bundle at /etc/ssl/certs/ca-certificates.crt,
+    # RHEL 8 at /etc/pki/tls/certs/ca-bundle.crt, Fedora at
+    # /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem (Fedora 44 no longer has
+    # /etc/pki/tls/certs/ca-bundle.crt). A libcurl with the
+    # build host's CA path compiled in failed on every host that lacks that
+    # path (obs-rust/obs-studio#1085).
+    echo "::group::3b. HTTPS through the AppImage's libcurl, trusting the host's CA bundle"
+    case "$FAMILY" in
+    debian) apt-get install -y -qq --no-install-recommends openssl ca-certificates >/dev/null ;;
+    fedora) dnf install -y -q --setopt=install_weak_deps=False openssl ca-certificates >/dev/null ;;
+    arch) pacman -S --noconfirm --needed openssl ca-certificates >/dev/null ;;
+    esac
+    TLS="$PWD/tls"
+    mkdir -p "$TLS"
+    openssl req -x509 -newkey rsa:2048 -nodes -days 2 -subj "/CN=obs-appimage-test-ca" \
+        -keyout "$TLS/ca.key" -out "$TLS/ca.crt" 2>/dev/null
+    openssl req -newkey rsa:2048 -nodes -subj "/CN=localhost" \
+        -keyout "$TLS/server.key" -out "$TLS/server.csr" 2>/dev/null
+    printf 'subjectAltName=DNS:localhost,IP:127.0.0.1\nbasicConstraints=CA:FALSE\nextendedKeyUsage=serverAuth\n' >"$TLS/ext"
+    openssl x509 -req -in "$TLS/server.csr" -CA "$TLS/ca.crt" -CAkey "$TLS/ca.key" -CAcreateserial \
+        -days 2 -extfile "$TLS/ext" -out "$TLS/server.crt" 2>/dev/null
+    case "$FAMILY" in
+    debian)
+        cp "$TLS/ca.crt" /usr/local/share/ca-certificates/obs-appimage-test-ca.crt
+        update-ca-certificates >/dev/null 2>&1
+        HOST_BUNDLE=/etc/ssl/certs/ca-certificates.crt
+        # The host this models: no RHEL-style /etc/pki at all.
+        [ ! -e /etc/pki/tls/certs/ca-bundle.crt ] || fail "the Debian-family test host has /etc/pki/tls/certs/ca-bundle.crt"
+        ;;
+    fedora)
+        cp "$TLS/ca.crt" /etc/pki/ca-trust/source/anchors/obs-appimage-test-ca.crt
+        update-ca-trust extract
+        HOST_BUNDLE=/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
+        ;;
+    arch)
+        cp "$TLS/ca.crt" /etc/ca-certificates/trust-source/anchors/obs-appimage-test-ca.crt
+        update-ca-trust extract
+        HOST_BUNDLE=/etc/ssl/certs/ca-certificates.crt
+        ;;
+    esac
+    openssl verify -CAfile "$HOST_BUNDLE" "$TLS/server.crt" >/dev/null || fail "the test CA is not trusted through $HOST_BUNDLE"
+    openssl s_server -quiet -accept 127.0.0.1:18443 -cert "$TLS/server.crt" -key "$TLS/server.key" -www \
+        >"$OUT/tls-server.log" 2>&1 &
+    OWN_PIDS+=($!)
+    for _ in $(seq 1 50); do (exec 3<>/dev/tcp/127.0.0.1/18443) 2>/dev/null && break; sleep 0.1; done
+    # AppRun's certificate setup, as OBS gets it.
+    APPRUN_CERT_ENV="$(sed -n '/^# Host certificate bundles/,/^# Never let the host inject/p' "$APPDIR/AppRun" | sed '$d')"
+    set +e
+    (
+        set +u # AppRun is plain sh, without nounset
+        eval "$APPRUN_CERT_ENV"
+        set -u
+        in_appimage probe-https https://localhost:18443/
+    ) 2>&1
+    rc=$?
+    set -e
+    [ "$rc" -eq 0 ] || fail "probe-https failed against a server signed by a CA in $HOST_BUNDLE ($(describe_exit "$rc"))"
+    echo "::endgroup::"
     finish
 fi
 

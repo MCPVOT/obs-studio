@@ -24,6 +24,31 @@ RUN dnf install -y --setopt=install_weak_deps=False \
         libmount-devel libffi-devel \
  && dnf clean all
 
+# libcurl, rebuilt from AlmaLinux's own source package (same version and
+# patches) without the RHEL CA bundle path compiled in (obs-rust/obs-studio#1085).
+# The stock build passes /etc/pki/tls/certs/ca-bundle.crt to OpenSSL on every
+# handle, so HTTPS failed on hosts without that file (Debian, Ubuntu, Arch, ...).
+# Built --with-ca-fallback, libcurl uses OpenSSL's default verify paths, which
+# honour the SSL_CERT_FILE that AppRun points at the host's bundle. libcurl does
+# not read CURL_CA_BUNDLE (only the curl tool does). gcc-toolset's compiler has no
+# annobin plugin, hence --undefine _annotated_build.
+RUN dnf install -y -q --setopt=install_weak_deps=False dnf-plugins-core rpm-build \
+ && v="$(rpm -q --qf '%{VERSION}-%{RELEASE}' libcurl)" \
+ && mkdir /tmp/curl-srpm && cd /tmp/curl-srpm \
+ && dnf download -q --source "curl-$v" \
+ && dnf builddep -y -q --setopt=install_weak_deps=False "curl-$v.src.rpm" \
+ && rpm -i --nosignature "curl-$v.src.rpm" \
+ && sed -i 's|--with-ca-bundle=%{_sysconfdir}/pki/tls/certs/ca-bundle.crt|--without-ca-bundle --without-ca-path --with-ca-fallback|' \
+        ~/rpmbuild/SPECS/curl.spec \
+ && grep -q -- '--with-ca-fallback' ~/rpmbuild/SPECS/curl.spec \
+ && rpmbuild -bb --nocheck --undefine _annotated_build ~/rpmbuild/SPECS/curl.spec >/tmp/curl-srpm/build.log 2>&1 \
+    || { tail -50 /tmp/curl-srpm/build.log; exit 1; } \
+ && r=~/rpmbuild/RPMS/x86_64 \
+ && rpm -Uvh --force --nodeps "$r"/libcurl-[0-9]*.rpm "$r"/libcurl-devel-[0-9]*.rpm "$r"/curl-[0-9]*.rpm \
+ && ! grep -a -q '/etc/pki/tls/certs/ca-bundle.crt' /usr/lib64/libcurl.so.4 \
+ && cd / && rm -rf /tmp/curl-srpm ~/rpmbuild \
+ && dnf clean all
+
 # ninja from PyPI (AlmaLinux 8 has 1.8, older than the CMake presets need), and
 # SWIG 4 for the Lua scripting bindings (AlmaLinux 8 has 3.0); both build-time only.
 # The ubuntu-ci preset's compiler launcher (#957), pinned and checksum-verified;

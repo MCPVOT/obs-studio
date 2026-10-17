@@ -161,7 +161,7 @@ jobs:
         run: |
           build-aux/appimage/manylinux/run.sh sh -c '
             gcc -O2 -Wall -Wextra -Werror -fPIE -pie -o obs-appimage-testkit build-aux/appimage/testkit.c \
-              $(pkg-config --cflags --libs gio-unix-2.0 libpipewire-0.3 libpulse) -lm \
+              $(pkg-config --cflags --libs gio-unix-2.0 libpipewire-0.3 libpulse libcurl) -lm \
               -Wl,--disable-new-dtags -Wl,-rpath,"\$ORIGIN/../lib"
             gcc -O2 -Wall -Wextra -Werror -fPIE -pie -o obs-appimage-gpu-test build-aux/appimage/gpu-test.c \
               $(pkg-config --cflags --libs gbm egl glesv2 libavcodec libavformat libavutil) \

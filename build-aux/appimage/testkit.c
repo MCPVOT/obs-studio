@@ -6,6 +6,10 @@
  *   probe-pulse     connect to the PulseAudio server (pipewire-pulse)
  *   probe-gconv     convert text through a gconv module
  *   probe-dbus      talk to the session bus with GDBus
+ *   probe-https     fetch <url> through the bundled libcurl with its default
+ *                   certificate settings and verification on, as OBS's
+ *                   libcurl users (update check, remote text, file updater,
+ *                   service plugins) do
  *   write-tone      write <file.wav> holding <seconds> of a 440 Hz stereo tone
  *                   (the test microphone plays it)
  *   fake-portal     serve org.freedesktop.portal.{ScreenCast,Camera} on the
@@ -26,6 +30,7 @@
 #include <sys/un.h>
 #include <unistd.h>
 
+#include <curl/curl.h>
 #include <gio/gio.h>
 #include <gio/gunixfdlist.h>
 #include <glib-unix.h>
@@ -452,6 +457,49 @@ static int fake_portal(void)
 	return 0;
 }
 
+/* ------------------------------------------------------------------ */
+/* probe-https                                                          */
+
+static size_t https_sink(char *data, size_t size, size_t n, void *user)
+{
+	(void)data;
+	*(size_t *)user += size * n;
+	return size * n;
+}
+
+static int probe_https(const char *url)
+{
+	char error[CURL_ERROR_SIZE] = "";
+	size_t received = 0;
+	CURL *curl;
+	CURLcode res;
+
+	curl_global_init(CURL_GLOBAL_ALL);
+	curl = curl_easy_init();
+	if (!curl) {
+		fprintf(stderr, "probe-https: curl_easy_init failed\n");
+		return 1;
+	}
+	/* No CURLOPT_CAINFO/CAPATH: OBS sets neither, so this is what it gets. */
+	curl_easy_setopt(curl, CURLOPT_URL, url);
+	curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, error);
+	curl_easy_setopt(curl, CURLOPT_FAILONERROR, 1L);
+	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
+	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
+	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 20L);
+	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, https_sink);
+	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &received);
+	res = curl_easy_perform(curl);
+	curl_easy_cleanup(curl);
+	if (res != CURLE_OK) {
+		fprintf(stderr, "probe-https: %s: %s (%s; %s; SSL_CERT_FILE=%s)\n", url, curl_easy_strerror(res),
+			error, curl_version(), getenv("SSL_CERT_FILE") ?: "");
+		return 1;
+	}
+	printf("probe-https: fetched %zu bytes from %s with verification on (%s)\n", received, url, curl_version());
+	return 0;
+}
+
 int main(int argc, char **argv)
 {
 	const char *mode = argc > 1 ? argv[1] : "";
@@ -464,12 +512,14 @@ int main(int argc, char **argv)
 		return probe_gconv();
 	if (strcmp(mode, "probe-dbus") == 0)
 		return probe_dbus();
+	if (strcmp(mode, "probe-https") == 0 && argc > 2)
+		return probe_https(argv[2]);
 	if (strcmp(mode, "write-tone") == 0 && argc > 3)
 		return write_tone(argv[2], atoi(argv[3]));
 	if (strcmp(mode, "fake-portal") == 0)
 		return fake_portal();
 	fprintf(stderr,
-		"usage: %s probe-pipewire|probe-pulse|probe-gconv|probe-dbus|write-tone <file> <s>|fake-portal\n",
+		"usage: %s probe-pipewire|probe-pulse|probe-gconv|probe-dbus|probe-https <url>|write-tone <file> <s>|fake-portal\n",
 		argv[0]);
 	return 2;
 }
