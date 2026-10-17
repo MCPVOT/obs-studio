@@ -12,6 +12,9 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 
+#include <cstring>
+#include <mutex>
+
 namespace GpuStatus {
 
 bool Available()
@@ -81,6 +84,28 @@ struct AdapterSearch {
 	std::string name;
 };
 
+/* "Loading up D3D11 on adapter <name> (<index>)": the adapter libobs-d3d11
+ * opened. Its device_enum_adapters skips Microsoft's Basic Render Driver
+ * (WARP), so on a machine rendering with WARP only the log names it. */
+static std::mutex loggedD3DAdapterMutex;
+static std::string loggedD3DAdapter;
+
+static void RememberD3DAdapter(const char *line)
+{
+	static constexpr char prefix[] = "Loading up D3D11 on adapter ";
+	const char *start = strstr(line, prefix);
+	if (!start) {
+		return;
+	}
+	std::string name(start + sizeof(prefix) - 1);
+	size_t paren = name.rfind(" (");
+	if (paren != std::string::npos) {
+		name.resize(paren);
+	}
+	std::lock_guard<std::mutex> lock(loggedD3DAdapterMutex);
+	loggedD3DAdapter = name;
+}
+
 static bool FindAdapter(void *param, const char *name, uint32_t id)
 {
 	auto *search = static_cast<AdapterSearch *>(param);
@@ -114,6 +139,10 @@ static std::string ActiveAdapterName()
 				return search.name;
 			}
 		}
+		std::lock_guard<std::mutex> lock(loggedD3DAdapterMutex);
+		if (!loggedD3DAdapter.empty()) {
+			return loggedD3DAdapter;
+		}
 	}
 	const char *api = gs_get_device_name();
 	return api ? api : "";
@@ -123,6 +152,7 @@ static std::string ActiveAdapterName()
 void OnLogLine(const char *line)
 {
 #ifdef OBS_GPU_STATUS
+	RememberD3DAdapter(line);
 	obs_gpu_status_log_line(line);
 #else
 	(void)line;
