@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.28...3.30)
 add_library(mac-virtualcam MODULE)
 add_library(OBS::virtualcam ALIAS mac-virtualcam)
 
-target_sources(mac-virtualcam PRIVATE Defines.h plugin-main.mm OBSDALMachServer.mm OBSDALMachServer.h)
+target_sources(mac-virtualcam PRIVATE build/mac-virtualcam.macos+.hpp.mm Defines.h OBSDALMachServer.h)
 target_compile_options(mac-virtualcam PRIVATE -fmodules -fcxx-modules)
 
 target_link_libraries(mac-virtualcam PRIVATE OBS::mach-protocol OBS::libobs OBS::frontend-api)

@@ -6,23 +6,16 @@ add_library(OBS::dal-plugin ALIAS obs-dal-plugin)
 target_sources(
   obs-dal-plugin
   PRIVATE
+    build/dal-plugin.macos+.hpp.mm
     CMSampleBufferUtils.h
-    CMSampleBufferUtils.mm
     Defines.h
     Logging.h
     OBSDALDevice.h
-    OBSDALDevice.mm
     OBSDALMachClient.h
-    OBSDALMachClient.mm
     OBSDALObjectStore.h
-    OBSDALObjectStore.mm
     OBSDALPlugIn.h
-    OBSDALPlugIn.mm
     OBSDALPlugInInterface.h
-    OBSDALPlugInInterface.mm
-    OBSDALPlugInMain.mm
     OBSDALStream.h
-    OBSDALStream.mm
 )
 
 set(_placeholder_location "${CMAKE_CURRENT_SOURCE_DIR}/../common/data/placeholder.png")

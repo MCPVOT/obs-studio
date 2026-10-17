@@ -17,19 +17,17 @@
 //  You should have received a copy of the GNU General Public License
 //  along with obs-mac-virtualcam. If not, see <http://www.gnu.org/licenses/>.
 
-#import "OBSDALPlugInInterface.h"
-#import "Logging.h"
-#import "Defines.h"
+#include "build/dal-plugin.pch.hpp"
 
 //! PlugInMain is the entrypoint for the plugin
 extern "C" {
-    __exported void *PlugInMain(CFAllocatorRef, CFUUIDRef requestedTypeUUID)
-    {
-        DLogFunc(@"version=%@", PLUGIN_VERSION);
-        if (!CFEqual(requestedTypeUUID, kCMIOHardwarePlugInTypeID)) {
-            return 0;
-        }
+__exported void *PlugInMain(CFAllocatorRef, CFUUIDRef requestedTypeUUID)
+{
+	DLogFunc(@"version=%@", PLUGIN_VERSION);
+	if (!CFEqual(requestedTypeUUID, kCMIOHardwarePlugInTypeID)) {
+		return 0;
+	}
 
-        return OBSDALPlugInRef();
-    }
+	return OBSDALPlugInRef();
+}
 }

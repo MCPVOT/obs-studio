@@ -327,6 +327,28 @@ elseif(_host STREQUAL MACOS)
     SOURCES build/decklink.core+.hpp.cpp build/decklink.audio-repack+.h.c build/decklink.macos+.hpp.cpp
     INCLUDES plugins/decklink/mac/decklink-sdk deps/libcaption
   )
+  # mac-virtualcam's unity groups (BUILD.md): the DAL plug-in and the output.
+  _obs_cross_plugin(
+    obs-dal-plugin-cross
+    OBJC_ARC
+    DIR plugins/mac-virtualcam/src/dal-plugin
+    SOURCES build/dal-plugin.macos+.hpp.mm
+    INCLUDES plugins/mac-virtualcam/src/common
+  )
+  target_compile_options(
+    obs-dal-plugin-cross
+    PRIVATE "$<$<COMPILE_LANG_AND_ID:OBJCXX,AppleClang,Clang>:-Wno-deprecated-declarations>"
+  )
+  _obs_cross_plugin(
+    mac-virtualcam-cross
+    OBJC_ARC
+    OBJC_MODULES
+    DIR plugins/mac-virtualcam/src/obs-plugin
+    SOURCES build/mac-virtualcam.macos+.hpp.mm
+    INCLUDES plugins/mac-virtualcam/src/common frontend/api
+    DEFINES OBS_CAMERA_EXTENSION_ID="cross-check"
+  )
+  target_compile_options(mac-virtualcam-cross PRIVATE "$<$<COMPILE_LANGUAGE:OBJCXX>:-fcxx-modules>")
   _obs_cross_plugin(mac-videotoolbox-cross DIR plugins/mac-videotoolbox SOURCES build/mac-videotoolbox.macos+.h.c)
   # libobs-opengl's unity groups (BUILD.md): the shared renderer and CGL.
   _obs_cross_plugin(
