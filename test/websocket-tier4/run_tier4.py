@@ -208,6 +208,20 @@ class ObsServer:
         except OSError:
             pass
 
+    def report_failure(self):
+        """A test failed: say whether OBS is still running (a refused
+        connection mid-suite usually means it died) and show its log."""
+        if self.proc is None:
+            return
+        code = self.proc.poll()
+        if code is None:
+            print("--- obs is still running ---", flush=True)
+        elif code < 0:
+            print(f"--- obs died from signal {-code} ({signal.Signals(-code).name}) ---", flush=True)
+        else:
+            print(f"--- obs exited with code {code} ---", flush=True)
+        self.dump_log(200)
+
     def stop(self):
         if self.proc is not None:
             try:
@@ -1373,6 +1387,10 @@ async def run_all(obs_bin, skip_obs, skip_auth_phase):
 
         print("== request coverage ==", flush=True)
         covered, seen = await test_full_coverage()
+    except BaseException:
+        if server_a is not None:
+            server_a.report_failure()
+        raise
     finally:
         if server_a is not None:
             server_a.stop()
