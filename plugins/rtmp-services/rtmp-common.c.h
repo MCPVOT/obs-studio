@@ -1,15 +1,4 @@
-#include <util/platform.h>
-#include <util/dstr.h>
-#include <obs-module.h>
-#include <jansson.h>
-#include <obs-config.h>
-
-#include "rtmp-format-ver.h"
-#include "service-specific/twitch.h"
-#include "service-specific/nimotv.h"
-#include "service-specific/showroom.h"
-#include "service-specific/dacast.h"
-#include "service-specific/amazon-ivs.h"
+#include "build/rtmp-services.pch.h"
 
 struct rtmp_common {
 	char *service;
@@ -1178,3 +1167,7 @@ struct obs_service_info rtmp_common_service = {
 	.get_supported_audio_codecs = rtmp_common_get_supported_audio_codecs,
 	.can_try_to_connect = rtmp_common_can_try_to_connect,
 };
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef RTMP_PREFIX
+#undef RTMPS_PREFIX

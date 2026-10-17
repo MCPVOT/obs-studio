@@ -1,8 +1,4 @@
-#include <util/platform.h>
-#include <obs-module.h>
-#include <util/dstr.h>
-#include <jansson.h>
-#include "service-ingest.h"
+#include "../build/rtmp-services.pch.h"
 
 extern const char *get_module_name(void);
 

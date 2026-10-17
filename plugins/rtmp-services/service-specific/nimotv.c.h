@@ -1,11 +1,4 @@
-#include <util/curl/curl-helper.h>
-#include <stdlib.h>
-#include <string.h>
-#include <jansson.h>
-#include <util/dstr.h>
-#include "util/base.h"
-#include "nimotv.h"
-#include <time.h>
+#include "../build/rtmp-services.pch.h"
 
 struct nimotv_mem_struct {
 	char *memory;

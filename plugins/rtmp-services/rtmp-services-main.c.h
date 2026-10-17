@@ -1,14 +1,4 @@
-#include <util/text-lookup.h>
-#include <util/threading.h>
-#include <util/platform.h>
-#include <util/dstr.h>
-#include <obs-module.h>
-#include <file-updater/file-updater.h>
-
-#include "rtmp-format-ver.h"
-
-#include "service-specific/showroom.h"
-#include "service-specific/dacast.h"
+#include "build/rtmp-services.pch.h"
 
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE("rtmp-services", "en-US")

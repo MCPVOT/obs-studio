@@ -1,10 +1,4 @@
-#include <file-updater/file-updater.h>
-#include <util/threading.h>
-#include <util/platform.h>
-#include <util/dstr.h>
-#include <jansson.h>
-
-#include "dacast.h"
+#include "../build/rtmp-services.pch.h"
 
 #ifndef SEC_TO_NSEC
 #define SEC_TO_NSEC 1000000000ULL
@@ -172,3 +166,7 @@ void unload_dacast_data(void)
 	dacast_free_ingests();
 	pthread_mutex_destroy(&mutex);
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef SEC_TO_NSEC
+#undef TIMEOUT_SEC

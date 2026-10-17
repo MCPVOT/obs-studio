@@ -1,14 +1,4 @@
-#include <util/curl/curl-helper.h>
-#include <stdlib.h>
-#include <string.h>
-#include <jansson.h>
-#include <util/dstr.h>
-#include <util/darray.h>
-#include "util/base.h"
-#include <obs-module.h>
-#include <util/platform.h>
-#include "showroom.h"
-#include <util/threading.h>
+#include "../build/rtmp-services.pch.h"
 
 struct showroom_ingest_info {
 	char *access_key;
@@ -149,3 +139,6 @@ cleanup:
 	dstr_free(&json);
 	return info ? &info->ingest : &invalid_ingest;
 }
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef SEC_TO_NSEC

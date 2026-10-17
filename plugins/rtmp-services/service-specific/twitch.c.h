@@ -1,5 +1,4 @@
-#include "service-ingest.h"
-#include "twitch.h"
+#include "../build/rtmp-services.pch.h"
 
 static struct service_ingests twitch = {.update_info = NULL,
 					.mutex = PTHREAD_MUTEX_INITIALIZER,

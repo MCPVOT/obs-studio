@@ -1,5 +1,4 @@
-#include <obs-module.h>
-#include <util/dstr.h>
+#include "build/rtmp-services.pch.h"
 
 struct rtmp_custom {
 	char *server, *key;
@@ -192,3 +191,8 @@ struct obs_service_info rtmp_custom_service = {
 	.apply_encoder_settings = rtmp_custom_apply_settings,
 	.can_try_to_connect = rtmp_custom_can_try_to_connect,
 };
+
+/* File-local macros (BUILD.md): out of the next file in the unity group. */
+#undef RTMPS_PREFIX
+#undef SRT_PREFIX
+#undef RIST_PREFIX

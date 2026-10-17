@@ -379,3 +379,12 @@ _obs_cross_plugin(
   SOURCES build/obs-x264.core+.h.c
   INCLUDES shared/opts-parser
 )
+
+# rtmp-services' unity group (BUILD.md).
+_obs_cross_plugin(
+  rtmp-services-cross
+  DIR plugins/rtmp-services
+  SOURCES build/rtmp-services.core+.h.c
+  INCLUDES shared/file-updater
+  DEFINES SERVICES_URL="cross-check" ENABLE_SERVICE_UPDATES
+)
