@@ -10,5 +10,6 @@ mod frame_window;
 mod frames;
 mod locale;
 mod log_lines;
+mod pdh;
 mod render_adapter;
 mod report;

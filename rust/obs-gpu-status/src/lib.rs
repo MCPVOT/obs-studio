@@ -15,6 +15,7 @@ pub mod dxgi;
 pub mod fdinfo;
 #[allow(unsafe_code)]
 pub mod ffi;
+pub mod pdh;
 pub mod platform;
 pub mod report;
 

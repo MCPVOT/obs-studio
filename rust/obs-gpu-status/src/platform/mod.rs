@@ -17,6 +17,11 @@ cfg_select! {
         pub fn render_adapter(hint: crate::RenderHint<'_>) -> crate::RenderAdapter {
             crate::render_adapter(std::path::Path::new("/"), hint.render_node)
         }
+
+        /// PDH `GPU Engine` counters exist only on Windows.
+        pub fn gpu_engine_samples() -> Vec<(String, f64)> {
+            Vec::new()
+        }
     }
     windows => {
         #[allow(unsafe_code)] // DXGI COM calls; see the module docs
@@ -34,6 +39,13 @@ cfg_select! {
         /// (obs-rust/obs-studio#1020).
         pub fn render_adapter(hint: crate::RenderHint<'_>) -> crate::RenderAdapter {
             crate::dxgi::render_adapter_from_dxgi(hint.adapter_index, &windows::dxgi_adapters())
+        }
+
+        /// One sample of the PDH `GPU Engine` utilization counters
+        /// (obs-rust/obs-studio#1022), for [`crate::pdh::pdh_utilization`].
+        /// Blocks about 100 ms.
+        pub fn gpu_engine_samples() -> Vec<(String, f64)> {
+            windows::gpu_engine_samples()
         }
     }
     target_os = "macos" => {
@@ -55,6 +67,11 @@ cfg_select! {
                 &macos::accelerator_registry_ids(),
             )
         }
+
+        /// PDH `GPU Engine` counters exist only on Windows.
+        pub fn gpu_engine_samples() -> Vec<(String, f64)> {
+            Vec::new()
+        }
     }
     _ => {
         /// GPUs on this machine: only `nvidia-smi` is consulted.
@@ -65,6 +82,11 @@ cfg_select! {
         /// The render adapter is not known on this platform.
         pub fn render_adapter(_hint: crate::RenderHint<'_>) -> crate::RenderAdapter {
             crate::RenderAdapter::Unknown
+        }
+
+        /// PDH `GPU Engine` counters exist only on Windows.
+        pub fn gpu_engine_samples() -> Vec<(String, f64)> {
+            Vec::new()
         }
     }
 }

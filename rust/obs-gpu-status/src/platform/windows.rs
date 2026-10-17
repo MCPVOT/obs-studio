@@ -120,3 +120,146 @@ pub fn dxgi_adapters() -> Vec<AdapterDesc> {
     unsafe { release(factory) };
     adapters
 }
+
+// PDH: the `GPU Engine` counter set (obs-rust/obs-studio#1022). The parsing
+// and aggregation of the samples is [`crate::pdh::pdh_utilization`].
+
+/// `PDH_FMT_COUNTERVALUE`: a status and a union whose `double` member we read.
+#[repr(C)]
+struct PdhFmtCounterValue {
+    c_status: u32,
+    double_value: f64,
+}
+
+/// `PDH_FMT_COUNTERVALUE_ITEM_W`.
+#[repr(C)]
+struct PdhFmtCounterValueItemW {
+    name: *const u16,
+    value: PdhFmtCounterValue,
+}
+
+// `sizeof(PDH_FMT_COUNTERVALUE_ITEM_W)` from pdh.h (24 on both widths: the
+// union holds a double, so the value is 8-aligned).
+const _: () = assert!(std::mem::size_of::<PdhFmtCounterValueItemW>() == 24);
+
+const PDH_FMT_DOUBLE: u32 = 0x0000_0200;
+/// Per-process shares are summed afterwards, so PDH must not cap them.
+const PDH_FMT_NOCAP100: u32 = 0x0000_8000;
+const PDH_MORE_DATA: u32 = 0x8000_07D2;
+const PDH_CSTATUS_VALID_DATA: u32 = 0;
+const PDH_CSTATUS_NEW_DATA: u32 = 1;
+
+/// The rate counter needs two collections this far apart.
+const PDH_SAMPLE_INTERVAL: std::time::Duration = std::time::Duration::from_millis(100);
+
+#[link(name = "pdh")]
+unsafe extern "system" {
+    fn PdhOpenQueryW(data_source: *const u16, user_data: usize, query: *mut isize) -> u32;
+    fn PdhAddEnglishCounterW(
+        query: isize,
+        path: *const u16,
+        user_data: usize,
+        counter: *mut isize,
+    ) -> u32;
+    fn PdhCollectQueryData(query: isize) -> u32;
+    fn PdhGetFormattedCounterArrayW(
+        counter: isize,
+        format: u32,
+        buffer_size: *mut u32,
+        item_count: *mut u32,
+        items: *mut PdhFmtCounterValueItemW,
+    ) -> u32;
+    fn PdhCloseQuery(query: isize) -> u32;
+}
+
+/// Closes the query on every return path.
+struct Query(isize);
+
+impl Drop for Query {
+    fn drop(&mut self) {
+        // SAFETY: `self.0` came from a successful PdhOpenQueryW and is closed once.
+        unsafe { PdhCloseQuery(self.0) };
+    }
+}
+
+/// One sample of `\GPU Engine(*)\Utilization Percentage`: every instance
+/// name with its value. Empty when PDH fails (no GPU, counters disabled).
+/// Blocks for [`PDH_SAMPLE_INTERVAL`].
+pub fn gpu_engine_samples() -> Vec<(String, f64)> {
+    let mut handle: isize = 0;
+    // SAFETY: a null data source (live data) and a valid out-pointer.
+    if unsafe { PdhOpenQueryW(std::ptr::null(), 0, &mut handle) } != 0 {
+        return Vec::new();
+    }
+    let query = Query(handle);
+    let path: Vec<u16> = "\\GPU Engine(*)\\Utilization Percentage\0"
+        .encode_utf16()
+        .collect();
+    let mut counter: isize = 0;
+    // SAFETY: a live query, a NUL-terminated wide path and a valid out-pointer.
+    if unsafe { PdhAddEnglishCounterW(query.0, path.as_ptr(), 0, &mut counter) } != 0 {
+        return Vec::new();
+    }
+    // SAFETY: a live query with one counter.
+    if unsafe { PdhCollectQueryData(query.0) } != 0 {
+        return Vec::new();
+    }
+    std::thread::sleep(PDH_SAMPLE_INTERVAL);
+    // SAFETY: as above.
+    if unsafe { PdhCollectQueryData(query.0) } != 0 {
+        return Vec::new();
+    }
+    let format = PDH_FMT_DOUBLE | PDH_FMT_NOCAP100;
+    // Instances come and go between the sizing call and the read, so retry.
+    for _ in 0..3 {
+        let mut size: u32 = 0;
+        let mut count: u32 = 0;
+        // SAFETY: a null buffer with size 0 asks PDH for the size needed.
+        let status = unsafe {
+            PdhGetFormattedCounterArrayW(
+                counter,
+                format,
+                &mut size,
+                &mut count,
+                std::ptr::null_mut(),
+            )
+        };
+        if status != PDH_MORE_DATA || size == 0 {
+            return Vec::new();
+        }
+        // u64 storage keeps the items 8-aligned; PDH puts the names after them.
+        let mut buffer = vec![0u64; (size as usize).div_ceil(8)];
+        let items = buffer.as_mut_ptr().cast::<PdhFmtCounterValueItemW>();
+        // SAFETY: `buffer` holds at least `size` writable, 8-aligned bytes.
+        let status =
+            unsafe { PdhGetFormattedCounterArrayW(counter, format, &mut size, &mut count, items) };
+        if status == PDH_MORE_DATA {
+            continue;
+        }
+        if status != 0 {
+            return Vec::new();
+        }
+        let mut samples = Vec::with_capacity(count as usize);
+        for i in 0..count as usize {
+            // SAFETY: PDH wrote `count` items into `buffer`; each name is a
+            // NUL-terminated wide string inside `buffer`, alive until it drops.
+            unsafe {
+                let item = &*items.add(i);
+                let status = item.value.c_status;
+                if (status != PDH_CSTATUS_VALID_DATA && status != PDH_CSTATUS_NEW_DATA)
+                    || item.name.is_null()
+                {
+                    continue;
+                }
+                let mut len = 0;
+                while *item.name.add(len) != 0 {
+                    len += 1;
+                }
+                let name = String::from_utf16_lossy(std::slice::from_raw_parts(item.name, len));
+                samples.push((name, item.value.double_value));
+            }
+        }
+        return samples;
+    }
+    Vec::new()
+}
