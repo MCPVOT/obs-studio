@@ -31,6 +31,25 @@ impl From<Vec2> for vec2 {
     }
 }
 
+/// Writes `v` to `dst` as one 8-byte store, as GCC does for the C original.
+///
+/// Two 4-byte stores (what `ptr::write` of the struct lowers to after the
+/// branchy inline ceil/floor) cannot forward to a following 8-byte load of
+/// `*dst`, which stalls a caller that reads the whole struct back (#1298).
+///
+/// # Safety
+///
+/// `dst` must be valid for writes of a `vec2` (align 4 suffices).
+#[inline]
+unsafe fn write_packed(dst: *mut vec2, v: Vec2) {
+    let mut bytes = [0u8; 8];
+    bytes[..4].copy_from_slice(&v.x.to_ne_bytes());
+    bytes[4..].copy_from_slice(&v.y.to_ne_bytes());
+    // SAFETY: the caller guarantees `dst` is writable for 8 bytes; the
+    // unaligned write needs no 8-byte alignment.
+    unsafe { ptr::write_unaligned(dst.cast::<u64>(), u64::from_ne_bytes(bytes)) };
+}
+
 /// Writes the per-component absolute value of `*v` to `*dst`.
 ///
 /// # Safety
@@ -56,7 +75,7 @@ pub unsafe extern "C" fn vec2_floor(dst: *mut vec2, v: *const vec2) {
     // SAFETY: the caller guarantees `v` is readable; read before writing `dst`.
     let src = unsafe { ptr::read(v) };
     // SAFETY: the caller guarantees `dst` is writable.
-    unsafe { ptr::write(dst, Vec2::from(src).floor().into()) };
+    unsafe { write_packed(dst, Vec2::from(src).floor()) };
 }
 
 /// Writes the per-component ceiling of `*v` to `*dst`.
@@ -70,7 +89,7 @@ pub unsafe extern "C" fn vec2_ceil(dst: *mut vec2, v: *const vec2) {
     // SAFETY: the caller guarantees `v` is readable; read before writing `dst`.
     let src = unsafe { ptr::read(v) };
     // SAFETY: the caller guarantees `dst` is writable.
-    unsafe { ptr::write(dst, Vec2::from(src).ceil().into()) };
+    unsafe { write_packed(dst, Vec2::from(src).ceil()) };
 }
 
 /// Returns 1 when `*v1` and `*v2` differ by at most `epsilon` per

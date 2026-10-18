@@ -18,6 +18,7 @@ pub mod matrix3;
 pub mod matrix4;
 pub mod plane;
 pub mod quat;
+mod round;
 pub mod shader_param_names;
 pub mod vec2;
 pub mod vec3;

@@ -142,3 +142,60 @@ fn close_boundary_matches_c_oracle() {
         );
     }
 }
+
+/// Edge values for the inline ceil/floor (#1298): signed zeros, subnormals,
+/// halves, the 2^23 boundary, i32 limits, infinities and NaNs (quiet and
+/// signaling, both signs). NaN bits must match the C exactly.
+#[test]
+fn ceil_floor_edge_values_match_c_oracle() {
+    let bits: [u32; 22] = [
+        0x0000_0000,
+        0x8000_0000,
+        0x0000_0001,
+        0x8000_0001,
+        0x007f_ffff,
+        0x3f00_0000,
+        0xbf00_0000,
+        0x3f7f_ffff,
+        0xbf7f_ffff,
+        0x3fc0_0000,
+        0xbfc0_0000,
+        0x4aff_ffff,
+        0xcaff_ffff,
+        0x4b00_0000,
+        0xcb00_0000,
+        0x4f00_0000,
+        0xcf00_0000,
+        0x7f80_0000,
+        0xff80_0000,
+        0x7fc0_0000,
+        0x7f80_0001,
+        0xffa0_0123,
+    ];
+    for &b in &bits {
+        let x = f32::from_bits(b);
+        let v = vec2 { x, y: -x };
+        let cv = OracleVec2 { x, y: -x };
+        let (mut rd, mut cd) = (v, cv);
+        // SAFETY: all pointers refer to live, properly aligned locals.
+        unsafe {
+            rs::vec2_ceil(&mut rd, &v);
+            c::oracle_vec2_ceil(&mut cd, &cv);
+        }
+        assert_eq!(
+            (rd.x.to_bits(), rd.y.to_bits()),
+            (cd.x.to_bits(), cd.y.to_bits()),
+            "ceil {b:#010x}"
+        );
+        // SAFETY: as above.
+        unsafe {
+            rs::vec2_floor(&mut rd, &v);
+            c::oracle_vec2_floor(&mut cd, &cv);
+        }
+        assert_eq!(
+            (rd.x.to_bits(), rd.y.to_bits()),
+            (cd.x.to_bits(), cd.y.to_bits()),
+            "floor {b:#010x}"
+        );
+    }
+}
