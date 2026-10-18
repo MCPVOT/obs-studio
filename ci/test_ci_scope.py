@@ -302,5 +302,51 @@ class LaneTableTest(unittest.TestCase):
         self.assertEqual(vars(got), vars(scope([])))
 
 
+PR_1292_FILES = ["ci/platform-ifdef-baseline.json","cmake/cross/CMakeLists.txt","plugins/frontend-tools/CMakeLists.txt","plugins/frontend-tools/auto-scene-switcher-nix.cpp.hpp","plugins/frontend-tools/auto-scene-switcher-osx.mm.hpp","plugins/frontend-tools/auto-scene-switcher-win.cpp.hpp","plugins/frontend-tools/auto-scene-switcher.cpp.hpp","plugins/frontend-tools/build/frontend-tools-c.pch.h","plugins/frontend-tools/build/frontend-tools-captions-windows.pch.hpp","plugins/frontend-tools/build/frontend-tools-host-macos.pch.h","plugins/frontend-tools/build/frontend-tools-host-posix.pch.h","plugins/frontend-tools/build/frontend-tools-host-windows.pch.h","plugins/frontend-tools/build/frontend-tools-linux.pch.hpp","plugins/frontend-tools/build/frontend-tools-macos.pch.hpp","plugins/frontend-tools/build/frontend-tools-scripts.pch.hpp","plugins/frontend-tools/build/frontend-tools-windows.pch.hpp","plugins/frontend-tools/build/frontend-tools.captions-windows+.hpp.cpp","plugins/frontend-tools/build/frontend-tools.host-macos+.h.c","plugins/frontend-tools/build/frontend-tools.host-posix+.h.c","plugins/frontend-tools/build/frontend-tools.host-windows+.h.c","plugins/frontend-tools/build/frontend-tools.pch.hpp","plugins/frontend-tools/captions-host-windows.hpp","plugins/frontend-tools/captions-mssapi-stream.hpp","plugins/frontend-tools/captions-mssapi.hpp","plugins/frontend-tools/captions.cpp.hpp","plugins/frontend-tools/frontend-tools-host-macos.c.h","plugins/frontend-tools/frontend-tools-host-posix.c.h","plugins/frontend-tools/frontend-tools-host-windows.c.h","plugins/frontend-tools/frontend-tools-host.h","plugins/frontend-tools/frontend-tools.c.h","plugins/frontend-tools/scripts.cpp.hpp","test/cmocka/test_frontend_tools_host.c","test/cmocka/test_frontend_tools_host_macos.c","test/cmocka/tests.d/test_frontend_tools_host.cmake"]
+
+
+class HostNamedFilesTest(unittest.TestCase):
+    """Host-named files (docs/rust-port/naming.md: `-host-<os>`, `hosts/<os>/`,
+    `-<os>.pch.<ext>`) start their OS lane in any area, Qt areas included (#1294)."""
+
+    def test_pr_1292_selects_windows_and_macos(self):
+        got = scope(PR_1292_FILES)
+        self.assertTrue(got.windows)
+        self.assertTrue(got.macos)
+        self.assertTrue(got.qt)
+
+    def test_hosts_directory(self):
+        got = scope(["plugins/frontend-tools/hosts/windows/x.c"])
+        self.assertEqual((got.windows, got.macos, got.qt), (True, False, True))
+        got = scope(["frontend/hosts/macos/x.mm"])
+        self.assertEqual((got.windows, got.macos), (False, True))
+        self.assertTrue(scope(["plugins/obs-filters/hosts/windows/x.c"]).windows)
+
+    def test_qt_host_files_each_select_their_os(self):
+        for path, win, mac in (
+            ("plugins/frontend-tools/frontend-tools-host-windows.c.h", True, False),
+            ("plugins/frontend-tools/frontend-tools-host-macos.c.h", False, True),
+            ("plugins/frontend-tools/frontend-tools-host-posix.c.h", False, True),
+            ("plugins/frontend-tools/build/frontend-tools-windows.pch.hpp", True, False),
+            ("plugins/frontend-tools/build/frontend-tools.host-windows+.h.c", True, False),
+            ("plugins/frontend-tools/captions-host-windows.hpp", True, False),
+        ):
+            got = scope([path])
+            self.assertEqual((got.windows, got.macos), (win, mac), path)
+
+    def test_plain_qt_file_still_selects_no_os(self):
+        for path in ("plugins/frontend-tools/frontend-tools.c.h", "plugins/frontend-tools/scripts.cpp.hpp", "frontend/OBSApp.cpp"):
+            got = scope([path])
+            self.assertEqual((got.windows, got.macos), (False, False), path)
+        # Upstream platform tokens in a Qt area keep their old behaviour.
+        got = scope(["plugins/frontend-tools/auto-scene-switcher-win.cpp.hpp"])
+        self.assertEqual((got.windows, got.macos), (False, False))
+
+    def test_host_linux_selects_neither(self):
+        for path in ("plugins/frontend-tools/frontend-tools-host-linux.c.h", "frontend/hosts/linux/x.cpp", "plugins/frontend-tools/build/x-linux.pch.hpp"):
+            got = scope([path])
+            self.assertEqual((got.windows, got.macos), (False, False), path)
+
+
 if __name__ == "__main__":
     unittest.main()

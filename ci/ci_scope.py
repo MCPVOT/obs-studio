@@ -24,7 +24,8 @@ Lanes:
            .github/, whose edits run the ci/ self-tests and the changed jobs
            on master); Qt only for frontend/Qt-linked paths and the Qt job's
            own files. A frontend platform file starts no Windows/macOS Rust
-           or Tier 2 job (Windows/macOS Qt lanes are a follow-up).
+           or Tier 2 job (Windows/macOS Qt lanes are a follow-up), except a
+           host-named one (below).
 - docs/, ci/, .github/ and unported plugins start nothing but lint.
 Platform and Qt lanes:
 - macos:   macOS code (or shared build/CI config) changed -> macOS Rust
@@ -42,6 +43,12 @@ runs on Linux. `.github/`, `cmake/common/`, `cmake/finders/`, `libobs/cmake/`
 (except `os-<os>.cmake`, which starts its own OS),
 the root CMake files, `platform/mod.rs` and the C++ cmocka tests (with their
 tests.d registrations) stay shared: every platform consumes them.
+Host-named files (docs/rust-port/naming.md, #1294) start their OS lane in any
+area, Qt areas included: `foo-host-<os>.c.h` (unity group
+`foo.host-<os>+.h.c`), a `hosts/<os>/` directory, or a `foo-<os>.pch.<ext>`
+precompiled header, <os> in windows|macos|linux|posix (posix -> Linux and
+macOS); platform_paths.host_platforms decides it. A Qt-area path still also
+starts qt.
 Every OBS app build (Ubuntu, macOS, Windows, Flatpak) runs only in the
 release gate (`full`). A job that is skipped here can't hide a break: it
 runs at the release gate.
@@ -57,7 +64,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from platform_paths import LINUX, MACOS, WINDOWS, platforms as name_platforms
+from platform_paths import LINUX, MACOS, WINDOWS, host_platforms, platforms as name_platforms
 
 CORE_PREFIXES = ("libobs/", "rust/")
 CORE_FILES = {"Cargo.toml", "Cargo.lock", "rust-toolchain.toml"}
@@ -254,6 +261,10 @@ def scope(
             macos = windows = True
             continue
         if path.startswith(QT_AREAS):
+            # A host-named file still starts its OS lane (#1294).
+            host = host_platforms(path) or frozenset()
+            macos |= MACOS in host
+            windows |= WINDOWS in host
             continue
         found = os_lanes(path)
         macos |= MACOS in found

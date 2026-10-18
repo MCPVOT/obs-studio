@@ -56,6 +56,24 @@ _MODULES = {
     "shared/obs-shared-memory-queue/": frozenset({WINDOWS}),
 }
 
+# The host naming rule (docs/rust-port/naming.md, #1294): `foo-host-<os>.c.h`
+# (and its unity group `foo.host-<os>+.h.c`), a `hosts/<os>/` directory, and
+# a `foo-<os>.pch.<ext>` precompiled header name exactly one host. posix means
+# Linux and macOS, as for every other posix path here.
+_HOST = re.compile(r"(?:^|/)hosts/(windows|macos|linux|posix)/|[-.]host-(windows|macos|linux|posix)[.+]|-(windows|macos|linux|posix)\.pch\.[^/]+$")
+_HOST_OSES = {
+    "windows": frozenset({WINDOWS}),
+    "macos": frozenset({MACOS}),
+    "linux": frozenset({LINUX}),
+    "posix": frozenset({LINUX, MACOS}),
+}
+
+
+def host_platforms(path: str) -> frozenset[str] | None:
+    """The OS a host-named path is for, or None when it isn't host-named."""
+    m = _HOST.search(path)
+    return _HOST_OSES[next(g for g in m.groups() if g)] if m else None
+
 
 def platforms(path: str) -> frozenset[str] | None:
     """The platforms `path` belongs to, or None for core (every platform)."""
