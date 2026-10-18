@@ -345,7 +345,24 @@ jobs:
       # Consume restored objects before sizing the next snapshot. A normal
       # PCH build occupies 5-6 GiB uncompressed; purging at 2 GiB discarded
       # useful restored archives before every build (#1286).
+      - name: Set Up uv 🐍
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+
+      # This full-build job is outside PR/merge-group admission. Capture
+      # structured miss evidence without publishing raw compiler arguments.
+      - name: Start Native Cache Journal
+        id: native-cache-journal
+        continue-on-error: true
+        run: |
+          rust/tools/linux-validate/install-zccache.sh "${HOME}/.local/bin"
+          echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
+          uv run ci/native_cache_journal.py start \
+            --tool "${HOME}/.local/bin/zccache" --cache-dir "${ZCCACHE_CACHE_DIR}" \
+            --workspace "${GITHUB_WORKSPACE}" \
+            --journal "${RUNNER_TEMP}/native-cache-${{ matrix.rust }}.jsonl"
+
       - name: Build OBS Studio 🧱
+        id: ubuntu-native-build
         uses: ./.github/actions/build-obs
         env:
           ENABLE_RUST_LIBOBS: ${{ matrix.rust }}
@@ -360,6 +377,27 @@ jobs:
         with:
           target: x86_64
           config: ${{ needs.check-event.outputs.config }}
+
+      - name: Summarize Native Cache Journal
+        id: native-cache-summary
+        if: always() && steps.native-cache-journal.outcome == 'success'
+        continue-on-error: true
+        run: |
+          echo 'ZCCACHE_SESSION_ID=' >> "${GITHUB_ENV}"
+          uv run ci/native_cache_journal.py summarize \
+            --workspace "${GITHUB_WORKSPACE}" \
+            --journal "${RUNNER_TEMP}/native-cache-${{ matrix.rust }}.jsonl" \
+            --build-outcome "${{ steps.ubuntu-native-build.outcome }}" \
+            --output "${RUNNER_TEMP}/native-cache-${{ matrix.rust }}.json"
+
+      - name: Upload Native Cache Diagnostics
+        if: always() && steps.native-cache-summary.outcome == 'success'
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: native-cache-ubuntu-${{ matrix.rust }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/native-cache-${{ matrix.rust }}.json
+          retention-days: 2
 
       - name: Smoke Test OBS-Studio-Rust 🦀
         if: matrix.rust == 'ON'
@@ -399,10 +437,6 @@ jobs:
         with:
           name: obs-studio-${{ matrix.os }}${{ matrix.rust == 'ON' && '-rust' || '' }}-x86_64-${{ needs.check-event.outputs.commitHash }}-dbgsym
           path: ${{ github.workspace }}/build_ubuntu/obs-studio-*-x86_64-ubuntu-gnu-dbgsym.ddeb
-
-      - name: Set Up uv 🐍
-        if: matrix.rust == 'ON'
-        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
 
       # The GPU status light must not call llvmpipe green (#846, #940). The
       # runner has no GPU, so OBS renders on llvmpipe; the check also forces

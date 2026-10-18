@@ -572,6 +572,17 @@ and `job_delta_available: false`; their raw counts are preserved, without
 inventing a baseline after the action's final restore. Do not present them
 as compiler hits from that job alone.
 
+The existing full Ubuntu app lane captures a native zccache session journal
+to diagnose misses such as the observed 137 cold OFF calls. Its IPC endpoint
+and cache stay inside that job's workspace. Only a bounded, sanitized JSON
+summary is uploaded as `native-cache-ubuntu-<mode>-<run>` for two days:
+workspace-relative source candidates, outcomes, known miss categories, diff
+field names and latency counters. Raw arguments, environment values, raw
+journals and diff values are not uploaded. Missing, malformed or truncated
+evidence is marked explicitly. Diagnostics are non-blocking; compilation and
+integrity tests retain their normal failure behavior. This full-build lane
+does not add work to PR or merge-group admission.
+
 A restored archive does not imply compiler hits: one observed zccache
 rollout restored 278 MB but reported 772 cold compilations. Keep C/C++
 build totals separate from soldr session counters and ccache reports;
