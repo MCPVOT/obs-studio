@@ -12,6 +12,21 @@ def ubuntu_job():
     return re.search(r'^  ubuntu-build:\n(.*?)(?=^  [a-z0-9-]+:\n)',text,re.M|re.S).group(1)
 
 class UbuntuCachePreserveTest(unittest.TestCase):
+    def test_exact_restore_does_not_repack_immutable_snapshot(self):
+        job=ubuntu_job()
+        steps=re.split(r'(?m)^      - ',job)
+        restore=next(step for step in steps if 'uses: actions/cache/restore@' in step)
+        save=next(step for step in steps if 'uses: actions/cache/save@' in step)
+        self.assertIn('id: ubuntu-compiler-cache',restore)
+        guard=re.search(r'^        if: (.+)$',save,re.M).group(1)
+        self.assertIn("steps.ubuntu-compiler-cache.outputs.cache-hit != 'true'",guard,
+                      'An exact hit must skip compression and immutable-key reservation')
+        self.assertIn("github.ref == 'refs/heads/master'",guard)
+        self.assertIn("steps.cache-size.outputs.save == 'true'",guard)
+        key_pattern=r'^          key: (.+)$'
+        self.assertEqual(re.search(key_pattern,restore,re.M).group(1),
+                         re.search(key_pattern,save,re.M).group(1))
+
     def test_restore_stays_within_mode_runner_arch_and_configuration(self):
         block=ubuntu_job().split('restore-keys: |',1)[1].split('\n\n',1)[0]
         for mode,opposite in [('OFF','ON'),('ON','OFF')]:

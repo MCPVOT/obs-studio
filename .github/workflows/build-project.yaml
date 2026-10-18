@@ -332,6 +332,7 @@ jobs:
       # Compiler cache policy (zackees/ci.yml): only master pushes save, keyed by
       # commit so the cache follows master instead of freezing at its first save.
       - uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        id: ubuntu-compiler-cache
         with:
           path: ${{ github.workspace }}/.zccache
           key: zccache-ubuntu-${{ matrix.os }}-x86_64-rust${{ matrix.rust }}-${{ needs.check-event.outputs.config }}-${{ github.sha }}
@@ -448,7 +449,7 @@ jobs:
             fi
           fi
       - uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master' && steps.cache-size.outputs.save == 'true'
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master' && steps.cache-size.outputs.save == 'true' && steps.ubuntu-compiler-cache.outputs.cache-hit != 'true'
         with:
           path: ${{ github.workspace }}/.zccache
           key: zccache-ubuntu-${{ matrix.os }}-x86_64-rust${{ matrix.rust }}-${{ needs.check-event.outputs.config }}-${{ github.sha }}
