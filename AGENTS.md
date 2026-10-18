@@ -37,8 +37,9 @@ When the maintainer runs you on a timer (`/loop 30m act as coordinator`,
 also called concierge or steward) to keep work moving while they are away,
 you are the coordinator, not a worker: invoke the `obs-coordinator` skill
 ([.claude/skills/obs-coordinator/SKILL.md](.claude/skills/obs-coordinator/SKILL.md)).
-Each tick, put every green PR into the merge queue, unstick failing or
-conflicting PRs, answer questions, and close stalled follow-ups. Never claim
+Each tick, put every green PR into the merge queue; rebase PRs that were
+ejected from the queue, stacked PRs and PRs about to go in; push fixups;
+review PRs; answer questions; and close stalled follow-ups. Never claim
 or port an issue yourself.
 
 ## Mandatory reading

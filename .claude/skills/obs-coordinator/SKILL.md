@@ -51,6 +51,32 @@ the gate. Never merge around the queue.
   keep both lines, force-push with `--force-with-lease`, and queue the PR
   again. If the conflict is in code, comment for the author instead.
 - **Behind master with stale failures:** rebase it so CI runs fresh.
+- **Ejected from the queue:** rebase it on the new master and queue it
+  again in the same tick. Do not wait for the author.
+- **About to go in:** rebase the PRs behind the head of the queue ahead
+  of time when they touch the same files (`docs/features.md` above all), so
+  they are not ejected when the head lands.
+- **Stacked PRs:** when the PR below lands, rebase the one above onto master
+  right away. `git rebase` drops the commits that are already upstream.
+- **Commits already on master:** when a conflict keeps coming back, compare
+  the PR's commits with master by subject. If some already landed in another
+  PR, rebase only the new ones (`git rebase --onto origin/master <last
+  landed> <branch>`). Do not resolve the same conflict one commit at a
+  time.
+- **Fixups:** push small mechanical fixes that keep a ready PR from landing
+  (lint, formatting, a features-ledger line, a stale reference) as a
+  `fixup:` commit, and say so in a comment.
+
+Push to a fork branch only when the PR allows maintainer edits, and always
+with `--force-with-lease=<branch>:<old head sha>`.
+
+## 2a. Review
+
+Review each contributor PR that has no review, starting with the one
+nearest the front of the queue. Check correctness, RED → GREEN, Tier 2 and
+differential coverage, the features ledger, and the rules in AGENTS.md.
+Post the findings as a PR review. Fix small, mechanical issues yourself as
+a fixup commit. Leave design changes to the author.
 
 ## 3. Answer questions
 
@@ -80,10 +106,23 @@ answered, closed) and of what needs the maintainer, such as a code
 conflict, a policy question, or a real failure the author hasn't picked up. Say
 "quiet" only when §1 to §4 all came up empty.
 
+"Needs the maintainer" is a last resort. Before you list a stuck PR there,
+open its conflict or failure and try §2. A PR reported as "waiting on the
+maintainer" tick after tick without anyone looking at it is a coordinator
+failure.
+
+## 6. Backlog retrospective
+
+When you start, and whenever work has piled up, look at the backlog and
+name what the coordinator could have done to move it: PRs that were green
+but not queued, stacked PRs that needed a rebase, queue ejections, PRs
+without a review, and follow-ups that were decided but never done. Fix what
+you can in the same tick and record the pattern in this file.
+
 ## Never
 
 - Claim, port or take over an issue or another person's fix.
 - Merge outside the merge queue, or with checks failing.
-- Push to someone else's branch for anything other than a rebase or a
-  `docs/features.md` ledger conflict.
+- Push to someone else's branch for anything other than a rebase, a ledger
+  conflict, or a mechanical fixup (§2).
 - Open new issues for problems you notice. Report them to the maintainer.
