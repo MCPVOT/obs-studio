@@ -1,5 +1,8 @@
 blank_issues_enabled: true
 contact_links:
+  - name: Report a vulnerability
+    url: https://github.com/obs-rust/obs-studio/security/advisories/new
+    about: Suspected vulnerabilities go to a private advisory, never a public issue (see SECURITY.md).
   - name: Feature idea
     url: https://github.com/obs-rust/obs-studio/discussions/categories/ideas
     about: Propose a future feature in Discussions → Ideas. Issues are for bugs and claimable work.

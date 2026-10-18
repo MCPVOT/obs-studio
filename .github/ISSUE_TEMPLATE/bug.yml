@@ -5,6 +5,14 @@ labels: [bug]
 body:
   - type: markdown
     attributes:
+      value: >-
+        **Suspected vulnerability? Don't file it here.** Report it privately as
+        [SECURITY.md](https://github.com/obs-rust/obs-studio/blob/master/SECURITY.md) says.
+        Default rule: untrusted input can reach it (network, websocket, media files or streams,
+        browser pages, scene or profile files from others) or you are unsure → private advisory;
+        only a local user's own actions or a test can reach it → this form.
+  - type: markdown
+    attributes:
       value: Read docs/rust-port/coordination.md first. Search open issues and PRs for duplicates.
   - type: textarea
     id: location

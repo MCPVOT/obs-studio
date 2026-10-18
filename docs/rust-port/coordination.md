@@ -121,6 +121,14 @@ this document covers *who does what, and when*.
 
 ## 5. Filing issues
 
+- **Suspected vulnerability:** not an issue. Don't file, claim or push it;
+  report it privately as [SECURITY.md](../../SECURITY.md) says, and work on
+  the private fork the maintainers open on the advisory. Current default
+  rule: if untrusted input can reach the defect (network, websocket, media
+  files or streams, browser pages, scene or profile files from others),
+  report privately; if only a local user's own actions or a test can reach
+  it, file a public bug; if unsure, report privately (a maintainer can move
+  it to public).
 - **Bug:** use the bug template. Title `bug: <component>: <symptom>` (or
   `[crash] <component>: …`). Include file:line, a short excerpt, the class
   (OOB read, UAF, overflow, …), how it is reached, a proposed fix and a

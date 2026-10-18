@@ -70,6 +70,7 @@ errors (soldr permissions, disk, Docker, host FFmpeg): see
 
 ## Quick rules
 
+- A suspected vulnerability is never a public issue, PR or branch: report it privately as [SECURITY.md](SECURITY.md) says (default: untrusted input can reach it, or unsure → private advisory; see obs-worker §2).
 - Use `soldr cargo ...`, never bare `cargo`. `.claude/settings.json` wires `ci/hooks/tool_guard.py`, a PreToolUse hook that denies bare Rust tools and bare python/pip (clud sessions get the same rule from clud; `.clud/settings.json` turns on its soldr shims). It denies, after parsing the command: bare `cargo`, `cargo-clippy`, `cargo-fmt`, `clippy-driver`, `rustc`, `rustdoc`, `rustfmt`, `rustup`, `rust-gdb`, `rust-lldb`, `rust-analyzer`, `python`, `python3`, `pip`, `pip3`, also behind `FOO=bar`, `env`, `exec`, `sudo`, `time` or `bash -c`; text inside quoted arguments and heredoc bodies is never matched. Codex has no repo hook: follow the rule by hand. `ci/test_tool_guard.py` (part of `./lint`) also fails on bare Rust tools in `ci/` and `rust/tools/` shell scripts.
 - Run Python through `uv run` (or `uvx`), never bare `python`/`python3`; standalone scripts use `#!/usr/bin/env -S uv run --script`. `ci/test_uv_run.py` (part of `./lint`) enforces it; see the testing policy's "Python runs through uv" rule.
 - Pin `rust-toolchain.toml` to the latest Rust the CI soldr version supports natively, never beyond; bump it only after a soldr bump (see the testing policy).
