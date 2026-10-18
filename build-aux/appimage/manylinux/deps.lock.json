@@ -89,7 +89,7 @@
         "optimization": "release",
         "flavor": "r3"
       },
-      "sha256": "6421a3bca28e777becd40cfd34847e11fca7c198644f59f16a30898e3e5fa780",
+      "sha256": "806ecb55614a3bbac78ba141731d0c78603d3c44376db27069408cb9b73dc369",
       "install": "/opt/obs-deps/ffmpeg"
     },
     {
