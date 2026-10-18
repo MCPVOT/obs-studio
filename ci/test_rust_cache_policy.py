@@ -9,6 +9,23 @@ WORKFLOWS = ("build-project.yaml", "release-rust.yaml")
 
 
 class RustCachePolicyTest(unittest.TestCase):
+    def test_bypassed_compiler_store_is_not_transferred(self):
+        found = 0
+        for name in WORKFLOWS:
+            text = (ROOT / ".github/workflows" / name).read_text()
+            for step in re.split(r"(?m)^      - ", text):
+                if "uses: zackees/setup-soldr@" not in step:
+                    continue
+                found += 1
+                with self.subTest(workflow=name, callsite=found):
+                    self.assertRegex(step, r"(?m)^          build-cache: false$",
+                                     "Do not transfer an embedded store while its Rust consumer is bypassed")
+                    self.assertNotRegex(step, r"(?m)^          cache: false$",
+                                        "Preserve the other cache layers")
+                    self.assertIn("prebuild-deps-flags:", step)
+                    self.assertNotIn("prebuild-deps: none", step)
+        self.assertEqual(found, 7, "Audit new setup-soldr consumers explicitly")
+
     def test_all_consumers_inherit_the_rust_wrapper_bypass(self):
         for name in WORKFLOWS:
             with self.subTest(workflow=name):

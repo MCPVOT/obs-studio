@@ -62,16 +62,6 @@ class SoldrToolchainCacheTest(unittest.TestCase):
                     self.assertRegex(step, r"\n\s+solo-toolchain-cache: false\b")
         self.assertGreaterEqual(found, 1)
 
-    def test_only_deferred_fast_gate_avoids_the_unused_build_cache(self):
-        workflow_jobs = jobs(WORKFLOW.read_text())
-        gate = setup_soldr_steps(workflow_jobs["rust-tests-linux"])[0]
-        self.assertIn("build-cache: ${{ needs.check-event.outputs.deferred != 'true' }}", gate)
-        self.assertNotIn("prebuild-deps: none", gate)
-        # Logs show actual reuse in some full/master and cross sessions.
-        for name in ("rust-cross-lint", "rust-cross-lint-release", "rust-tests", "rust-linux-tier2-build", "rust-tier2"):
-            for step in setup_soldr_steps(workflow_jobs[name]):
-                self.assertNotIn("build-cache: false", step)
-
     def test_target_adding_jobs_disable_the_toolchain_cache(self):
         found = 0
         for name, job in jobs(WORKFLOW.read_text()).items():

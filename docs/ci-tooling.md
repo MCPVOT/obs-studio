@@ -90,7 +90,15 @@ Rust consumers; the local gate sets it too (`OBS_GATE_ZCCACHE=1` opts back in
 locally). Pinned soldr 0.9.35 defaults to the managed wrapper without this
 override, and [zccache#1943](https://github.com/zackees/zccache/issues/1943)
 remains unresolved. This safeguard preserves standalone C/C++ compiler
-caching and soldr cook/target archives. It does not solve the separate
+caching and soldr cook/target archives. All seven setup-soldr callsites also
+set `build-cache: false`: the full-run audit observed no embedded session
+across all eight expanded build lanes, despite transferring compiler-store
+archives (42.9 MB and 1.1–2.2 s in the inspected Linux host jobs). This input
+removes embedded compiler-store transport; it preserves cook, registry and
+toolchain layers. Reconsider it only when the compiler correctness probe
+passes and a consumer demonstrates useful reuse. The release callsite follows
+the same bypass policy; no release runtime comparison is claimed.
+This does not solve the separate
 restored-target fingerprint hazard documented in the cache audit. If a
 build behaves impossibly, retry with that variable set before debugging the
 code.
