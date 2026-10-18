@@ -77,3 +77,6 @@ pub mod video_frame;
 pub mod video_io;
 pub mod video_io_inlines;
 pub mod video_matrices;
+
+/// Build directory of the original C archive, for symbol-isolation checks.
+pub const ORACLE_ARCHIVE_DIR: &str = env!("OUT_DIR");

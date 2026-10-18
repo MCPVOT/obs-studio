@@ -1,4 +1,5 @@
 [package]
+autotests = false
 name = "obs-preflight-ffi"
 version = "0.1.0"
 description = "Static C ABI adapter for the OBS preflight engine"
@@ -8,6 +9,7 @@ license.workspace = true
 publish.workspace = true
 
 [lib]
+test = false
 crate-type = ["staticlib"]
 
 [dependencies]

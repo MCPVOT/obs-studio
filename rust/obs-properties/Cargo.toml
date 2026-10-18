@@ -1,4 +1,5 @@
 [package]
+autotests = false
 name = "obs-properties"
 version = "0.1.0"
 description = "Rust port of libobs/obs-properties.c"
@@ -12,3 +13,6 @@ obs-c-oracle = { path = "../obs-c-oracle" }
 obs-data = { path = "../obs-data" }
 obs-util = { path = "../obs-util" }
 proptest = "1"
+
+[lib]
+test = false

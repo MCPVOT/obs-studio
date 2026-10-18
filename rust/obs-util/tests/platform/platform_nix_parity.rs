@@ -294,6 +294,12 @@ fn abs_path_and_glob_match() {
 
 #[test]
 fn getcwd_matches_and_chdir_roundtrips() {
+    if !crate::common::isolated(concat!(
+        module_path!(),
+        "::getcwd_matches_and_chdir_roundtrips"
+    )) {
+        return;
+    }
     let _cwd = cwd_lock();
     let mut rs_buf = [0u8; 4096];
     let mut c_buf = [0u8; 4096];

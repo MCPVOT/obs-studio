@@ -1,7 +1,5 @@
 //! obs-util integration tests: memory (one module per former tests/*.rs file, #968).
-//! bmem counts allocations process-wide, so it gets its own binary.
+//! Process-wide accounting cases re-exec this shared harness in isolation.
 
 mod bmem;
 mod bmem_parity;
-#[path = "../common/mod.rs"]
-mod common;

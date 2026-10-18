@@ -12,7 +12,6 @@ use core::ptr;
 // Links the oracle's C libraries, which define the oracle_* symbols declared
 // below, and the Rust bmem port that provides bmalloc/bfree.
 use obs_c_oracle as _;
-use obs_util as _;
 
 #[cfg(windows)]
 type WChar = u16;

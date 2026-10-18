@@ -282,3 +282,8 @@ impl NativeBuild {
         compiler
     }
 }
+
+/// Host triple used to compile this build engine.
+pub const BUILD_HOST: &str = env!("OBS_BUILD_HOST");
+/// Target triple used to compile this build engine.
+pub const BUILD_TARGET: &str = env!("OBS_BUILD_TARGET");

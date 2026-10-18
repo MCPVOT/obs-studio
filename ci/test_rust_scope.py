@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import re
+import tomllib
 import unittest
 from pathlib import Path
 
@@ -21,6 +22,23 @@ BUILD = Path(__file__).resolve().parent.parent / ".github" / "workflows" / "buil
 
 
 class AffectedTest(unittest.TestCase):
+    def test_amalgamated_suite_owners_are_selected_for_borrowed_tests(self):
+        root = BUILD.parent.parent.parent
+        crates = {}
+        for manifest in sorted((root / "rust").glob("*/Cargo.toml")):
+            data = tomllib.loads(manifest.read_text())
+            deps = set(data.get("dependencies", {})) | set(data.get("dev-dependencies", {}))
+            crates[data["package"]["name"]] = (str(manifest.parent.relative_to(root)), deps)
+        for component, owner in (
+            ("obs-properties", "obs-data"), ("obs-hotkey", "obs-data"),
+            ("obs-codec", "obs-nvenc"), ("obs-c-oracle", "obs-util"),
+            ("obs-build", "obs-studio-rust"), ("obs-sys", "obs-studio-rust"),
+        ):
+            with self.subTest(component=component):
+                mode, packages = affected([f"rust/{component}/tests/changed.rs"], crates)
+                self.assertEqual(mode, "packages")
+                self.assertIn(owner, packages)
+
     def test_crate_change_tests_it_and_dependents(self):
         self.assertEqual(affected(["rust/obs-util/src/dstr.rs"], CRATES), ("packages", ["obs-data", "obs-hotkey", "obs-util"]))
         self.assertEqual(affected(["rust/obs-gpu-status/src/lib.rs"], CRATES), ("packages", ["obs-gpu-status"]))

@@ -7,8 +7,8 @@ fn original_whip_clock_and_host_tests_pass_without_a_core_or_sdk() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     let directory = tempfile::tempdir().unwrap();
     let build = NativeBuild {
-        host: env!("OBS_BUILD_HOST").into(),
-        target: env!("OBS_BUILD_TARGET").into(),
+        host: obs_build::BUILD_HOST.into(),
+        target: obs_build::BUILD_TARGET.into(),
         output: directory.path().join("native"),
     };
     let tests = validation::build_webrtc_tests(&build, &root).unwrap();

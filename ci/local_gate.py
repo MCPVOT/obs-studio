@@ -322,6 +322,25 @@ def changed_since_master() -> list[str] | None:
     return sorted(names)
 
 
+def check_test_binary_inventory() -> None:
+    """Enforce Cargo's inventory and cross-check the toolchain-free linter."""
+    import json
+    from test_binary_cap import cargo_test_targets, category_violations, workspace_test_targets
+
+    result = subprocess.run(
+        ["soldr", "cargo", "metadata", "--no-deps", "--format-version", "1", "--locked"],
+        cwd=ROOT, capture_output=True, text=True, check=True,
+    )
+    payload = "\n".join(line for line in result.stdout.splitlines() if not line.startswith("#"))
+    targets = cargo_test_targets(json.loads(payload))
+    errors = category_violations(targets)
+    if targets != workspace_test_targets():
+        errors.append("manifest test discovery differs from Cargo metadata")
+    if errors:
+        raise RuntimeError("\n".join(errors))
+    print(f"+ Cargo inventory: {len(targets)} category test executables", flush=True)
+
+
 def lane_lint(fix: bool) -> None:
     files = tracked_files()
     in_ci = bool(os.environ.get("GITHUB_ACTIONS"))
@@ -331,6 +350,7 @@ def lane_lint(fix: bool) -> None:
     clang_format(fmt_files, fix)
     gersemi(fmt_files, fix)
     self_test()
+    check_test_binary_inventory()
     platform_ifdef_ratchet()
     soldr_cargo(["fmt", "--all"] + ([] if fix else ["--check"]))
     soldr_cargo(["clippy", "--workspace", "--all-targets", "--locked", "--", "-D", "warnings"])

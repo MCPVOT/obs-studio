@@ -1,4 +1,5 @@
 [package]
+autotests = false
 name = "obs-studio-rust"
 version = "0.1.0"
 description = "Start, stop and inspect OBS streaming over the obs-websocket v5 protocol"
@@ -8,11 +9,31 @@ license.workspace = true
 publish.workspace = true
 
 [[bin]]
+test = false
 name = "obs-studio-rust"
 path = "src/main.rs"
 
+[features]
+libobs-integration = ["obs-build/libobs-integration"]
+bundled-native = ["dep:obs-sys", "obs-sys/bundled"]
+
 [dependencies]
+obs-sys = { path = "../obs-sys", optional = true }
 base64 = "0.23.1"
 serde_json = "1.0.151"
 sha2 = "0.11.0"
 tungstenite = { version = "0.30.0", default-features = false, features = ["handshake"] }
+
+[lib]
+test = false
+
+[[test]]
+name = "obs-tests-app"
+path = "tests/cli/main.rs"
+
+[dev-dependencies]
+dunce = "=1.0.5"
+pkg-config = "=0.3.34"
+obs-build = { path = "../obs-build" }
+libloading.workspace = true
+tempfile = "=3.27.0"

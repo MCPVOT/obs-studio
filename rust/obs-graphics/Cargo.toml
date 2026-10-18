@@ -1,4 +1,5 @@
 [package]
+autotests = false
 name = "obs-graphics"
 version = "0.1.0"
 description = "Rust ports of libobs/graphics"
@@ -15,3 +16,10 @@ libc = "0.2"
 obs-c-oracle = { path = "../obs-c-oracle" }
 obs-util = { path = "../obs-util" }
 proptest = "1"
+
+[lib]
+test = false
+
+[[test]]
+name = "obs-tests-graphics"
+path = "tests/graphics.rs"

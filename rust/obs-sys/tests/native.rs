@@ -35,13 +35,10 @@ fn bundled_native_build_modes_are_independent_and_validate_inputs() {
 fn bundled_native_build_uses_requested_modes() {
     let modes = build_options::BuildModes::from_lookup(|name| std::env::var_os(name)).unwrap();
     assert_eq!(
-        option_env!("OBS_SYS_NATIVE_UNITY"),
+        obs_sys::NATIVE_UNITY,
         Some(if modes.unity { "1" } else { "0" })
     );
-    assert_eq!(
-        option_env!("OBS_SYS_NATIVE_PCH"),
-        Some(if modes.pch { "1" } else { "0" })
-    );
+    assert_eq!(obs_sys::NATIVE_PCH, Some(if modes.pch { "1" } else { "0" }));
 }
 
 #[test]
@@ -49,7 +46,9 @@ fn bundled_libobs_reports_the_public_c_api_version() {
     // SAFETY: the bundled build links the original no-argument C API function.
     let version = unsafe { obs_sys::ffi::obs_get_version() };
     assert_eq!(version >> 24, 33);
-    assert!(std::path::Path::new(env!("OBS_SYS_LIBRARY")).is_file());
+    assert!(
+        std::path::Path::new(obs_sys::BUNDLED_LIBRARY.expect("bundled library path")).is_file()
+    );
 }
 
 #[test]

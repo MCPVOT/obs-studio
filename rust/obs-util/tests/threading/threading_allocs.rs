@@ -43,7 +43,10 @@ fn measure() {
     assert_eq!(unsafe { bnum_allocs() }, base);
 }
 
-const INIT_DESTROY: &str = "threading_allocs::init_destroy_counts_one_bzalloc_per_live_handle";
+const INIT_DESTROY: &str = concat!(
+    module_path!(),
+    "::init_destroy_counts_one_bzalloc_per_live_handle"
+);
 
 /// Measured in a child process of its own (#1133): the parent's other tests
 /// allocate through bmem in parallel.
@@ -80,8 +83,13 @@ fn holds_under_concurrent_allocation() {
     }
 
     // the check runs in its own process, which this thread does not touch
-    assert!(!crate::common::isolated(INIT_DESTROY));
+    let result = std::panic::catch_unwind(|| {
+        assert!(!crate::common::isolated(INIT_DESTROY));
+    });
 
     stop.store(true, Ordering::Relaxed);
     allocator.join().unwrap();
+    if let Err(panic) = result {
+        std::panic::resume_unwind(panic);
+    }
 }

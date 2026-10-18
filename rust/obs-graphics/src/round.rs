@@ -9,9 +9,9 @@
 //! code without raising the CPU baseline.
 //!
 //! Results equal `f32::ceil`/`f32::floor` bit for bit for every non-NaN
-//! input (the exhaustive test below checks all 2^32 bit patterns). A NaN is
-//! returned unchanged, as the GCC-inlined C does (GCC assumes no signaling
-//! NaNs by default, so it does not quiet them the way libm does).
+//! input (the category suite checks all 2^32 bit patterns). NaNs follow
+//! the host C convention: the GCC-inlined x86 sequence preserves their bits;
+//! MSVC and macOS quiet signaling NaNs.
 
 /// 2^23: every `f32` with at least this magnitude is already an integer.
 const TWO_POW_23: f32 = 8_388_608.0;
@@ -32,7 +32,7 @@ fn round_small(x: f32) -> f32 {
 #[inline]
 #[must_use]
 pub(crate) fn ceil_f32(x: f32) -> f32 {
-    // False for NaN: NaN, infinities and large values return unchanged.
+    // False for NaN: the host boundary handles its signaling convention.
     if x.abs() < TWO_POW_23 {
         let t = round_small(x);
         let up = if x > t { 1.0 } else { 0.0 };
@@ -40,7 +40,7 @@ pub(crate) fn ceil_f32(x: f32) -> f32 {
         (t + up).copysign(x)
     } else {
         core::hint::cold_path();
-        x
+        crate::platform::round_large(x)
     }
 }
 
@@ -54,80 +54,6 @@ pub(crate) fn floor_f32(x: f32) -> f32 {
         (t - down).copysign(x)
     } else {
         core::hint::cold_path();
-        x
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{ceil_f32, floor_f32};
-
-    /// Bitwise equal, or both NaN with the input's bits (the C behaviour).
-    fn matches(got: f32, want: f32, x: f32) -> bool {
-        if x.is_nan() {
-            got.to_bits() == x.to_bits()
-        } else {
-            got.to_bits() == want.to_bits()
-        }
-    }
-
-    /// Checks every `f32` bit pattern, split across threads. The crate's dev
-    /// profile is optimized (workspace `Cargo.toml`), so this takes seconds.
-    #[test]
-    fn exhaustive_matches_libm() {
-        const CHUNKS: u64 = 64;
-        let span = (1u64 << 32) / CHUNKS;
-        std::thread::scope(|s| {
-            let handles: Vec<_> = (0..CHUNKS)
-                .map(|c| {
-                    s.spawn(move || {
-                        for bits in c * span..(c + 1) * span {
-                            #[allow(clippy::cast_possible_truncation)]
-                            let x = f32::from_bits(bits as u32);
-                            assert!(
-                                matches(ceil_f32(x), x.ceil(), x),
-                                "ceil({bits:#010x}) = {:#010x}, want {:#010x}",
-                                ceil_f32(x).to_bits(),
-                                x.ceil().to_bits()
-                            );
-                            assert!(
-                                matches(floor_f32(x), x.floor(), x),
-                                "floor({bits:#010x}) = {:#010x}, want {:#010x}",
-                                floor_f32(x).to_bits(),
-                                x.floor().to_bits()
-                            );
-                        }
-                    })
-                })
-                .collect();
-            for h in handles {
-                h.join().expect("exhaustive chunk panicked");
-            }
-        });
-    }
-
-    #[test]
-    fn edge_values() {
-        let cases: [(f32, f32, f32); 12] = [
-            (0.0, 0.0, 0.0),
-            (-0.0, -0.0, -0.0),
-            (0.5, 1.0, 0.0),
-            (-0.5, -0.0, -1.0),
-            (1.0, 1.0, 1.0),
-            (-1.5, -1.0, -2.0),
-            (f32::from_bits(1), 1.0, 0.0),
-            (-f32::from_bits(1), -0.0, -1.0),
-            (8_388_607.5, 8_388_608.0, 8_388_607.0),
-            (2_147_483_648.0, 2_147_483_648.0, 2_147_483_648.0),
-            (f32::INFINITY, f32::INFINITY, f32::INFINITY),
-            (f32::NEG_INFINITY, f32::NEG_INFINITY, f32::NEG_INFINITY),
-        ];
-        for (x, c, f) in cases {
-            assert_eq!(ceil_f32(x).to_bits(), c.to_bits(), "ceil({x})");
-            assert_eq!(floor_f32(x).to_bits(), f.to_bits(), "floor({x})");
-        }
-        let snan = f32::from_bits(0x7f80_0001);
-        assert_eq!(ceil_f32(snan).to_bits(), snan.to_bits());
-        assert_eq!(floor_f32(snan).to_bits(), snan.to_bits());
+        crate::platform::round_large(x)
     }
 }

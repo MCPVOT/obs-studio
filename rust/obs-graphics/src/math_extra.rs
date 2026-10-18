@@ -1,8 +1,8 @@
 //! Safe core of `libobs/graphics/math-extra.c`.
 //!
 //! Header-inline `get_percentage` and `get_percentagei` stay in
-//! `math-extra.h`. `sin`/`cos`/`asin`/`atan2` are the Rust `f32` methods,
-//! which match the C library's `*f` functions on the Tier 3 inputs.
+//! `math-extra.h`. Paired sin/cos uses the host C convention through the
+//! platform boundary; asin/atan2 use Rust's f32 methods.
 //!
 //! `polar_to_cart` names its `cosf` result `sinx`, as in C, and the result
 //! `w` is 0. C copies that lane uninitialized. `cart_to_polar` does the same
@@ -46,9 +46,10 @@ pub(crate) enum TorqueWrite {
 /// `polar_to_cart`.
 #[must_use]
 pub fn polar_to_cart(v: Vec3) -> Vec3 {
-    let sinx = v.x.cos();
+    let (sin_x, sinx) = crate::platform::sin_cos(v.x);
+    let (sin_y, cos_y) = crate::platform::sin_cos(v.y);
     let sinx_z = v.z * sinx;
-    Vec3::new(sinx_z * v.y.sin(), v.z * v.x.sin(), sinx_z * v.y.cos())
+    Vec3::new(sinx_z * sin_y, v.z * sin_x, sinx_z * cos_y)
 }
 
 /// `cart_to_polar`. A length within `EPSILON` is the zero vector. `w` counts
@@ -72,8 +73,9 @@ pub fn norm_to_polar(norm: Vec3) -> Vec2 {
 /// `polar_to_norm`. `w` is 0 here; the shim does not store it.
 #[must_use]
 pub fn polar_to_norm(polar: Vec2) -> Vec3 {
-    let sinx = polar.x.sin();
-    Vec3::new(sinx * polar.y.cos(), sinx * polar.y.sin(), polar.x.cos())
+    let (sinx, cosx) = crate::platform::sin_cos(polar.x);
+    let (siny, cosy) = crate::platform::sin_cos(polar.y);
+    Vec3::new(sinx * cosy, sinx * siny, cosx)
 }
 
 /// `calc_torquef`. Values within `EPSILON` return `val2`. Otherwise the step

@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::parse_args;
+    use obs_preflight::cli::parse_args;
     use std::ffi::OsString;
     use std::fs::File;
     use std::io::ErrorKind;

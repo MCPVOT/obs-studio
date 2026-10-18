@@ -58,9 +58,7 @@ impl Matrix3 {
     /// does (`sinf` / `cosf` of half the angle), then [`Self::from_quat`].
     #[must_use]
     pub fn from_axisang(aa: AxisAng) -> Self {
-        let half = aa.w * 0.5;
-        let sine = half.sin();
-        Self::from_quat(Quat::new(aa.x * sine, aa.y * sine, aa.z * sine, half.cos()))
+        Self::from_quat(Quat::from_axisang(aa))
     }
 
     /// `matrix3_from_matrix4`. Copies xyz and clears every `w` lane.

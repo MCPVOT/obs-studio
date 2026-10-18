@@ -15,76 +15,14 @@ pub const STATUS_OK: i32 = 0;
 pub const STATUS_INVALID_ARGUMENT: i32 = 1;
 pub const STATUS_ANALYSIS_ERROR: i32 = 2;
 pub const STATUS_OUT_OF_RANGE: i32 = 3;
-pub const REASON_CAPACITY: usize = 256;
+use obs_preflight::ffi_types::REASON_CAPACITY;
 
-/// Mirrors `struct obs_preflight_sample` in the hand-written C header.
-#[repr(C)]
-#[derive(Clone, Copy, Debug)]
-pub struct ObsPreflightSample {
-    pub timestamp_ms: u64,
-    pub average_frame_time_ns: u64,
-    pub frame_interval_ns: u64,
-    pub lagged_frames: u32,
-    pub output_total_bytes: u64,
-    pub output_total_frames: u64,
-    pub output_frames_dropped: u64,
-    pub output_congestion: f64,
-    pub connect_time_ms: i32,
-    pub encoder_total_frames: u64,
-    pub encoder_skipped_frames: u64,
-    pub cpu_percent: f64,
-}
-
-/// Mirrors `struct obs_preflight_window` in the hand-written C header.
-#[repr(C)]
-#[derive(Clone, Copy, Debug)]
-pub struct ObsPreflightWindow {
-    pub start_ms: u64,
-    pub end_ms: u64,
-    pub duration_ms: u64,
-    pub output_bitrate_kbps: f64,
-    pub output_bytes: u64,
-    pub output_frames: u64,
-    pub output_frames_dropped: u64,
-    pub output_drop_percent: f64,
-    pub encoder_frames: u64,
-    pub encoder_frames_skipped: u64,
-    pub encoder_skip_percent: f64,
-    pub lagged_frames: u64,
-    pub render_lag_percent: f64,
-    pub average_frame_time_ns: f64,
-    pub frame_interval_ns: f64,
-    pub render_headroom_ns: i64,
-    pub congestion_percent: f64,
-    pub connect_time_ms: i32,
-    pub cpu_percent: f64,
-    pub verdict: i32,
-    pub reason: [c_char; REASON_CAPACITY],
-}
+pub use obs_preflight::ffi_types::{ObsPreflightSample, ObsPreflightWindow};
 
 /// Opaque, independently owned history for one preflight run.
 pub struct PreflightEngine {
     window_duration_ms: u64,
     samples: Vec<StatSample>,
-}
-
-impl From<ObsPreflightSample> for StatSample {
-    fn from(sample: ObsPreflightSample) -> Self {
-        Self {
-            timestamp_ms: sample.timestamp_ms,
-            average_frame_time_ns: sample.average_frame_time_ns,
-            frame_interval_ns: sample.frame_interval_ns,
-            lagged_frames: sample.lagged_frames,
-            output_total_bytes: sample.output_total_bytes,
-            output_total_frames: sample.output_total_frames,
-            output_frames_dropped: sample.output_frames_dropped,
-            output_congestion: sample.output_congestion,
-            connect_time_ms: sample.connect_time_ms,
-            encoder_total_frames: sample.encoder_total_frames,
-            encoder_skipped_frames: sample.encoder_skipped_frames,
-            cpu_percent: sample.cpu_percent,
-        }
-    }
 }
 
 fn results(engine: &PreflightEngine) -> Result<Vec<WindowResult>, ()> {
@@ -246,35 +184,4 @@ pub unsafe extern "C" fn obs_preflight_engine_get_window(
     // SAFETY: the caller provides writable output storage.
     unsafe { window_out.write(copy_result(window)) };
     STATUS_OK
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::mem::{align_of, offset_of, size_of};
-
-    #[test]
-    fn c_struct_layout_matches_the_hand_written_header() {
-        // These offsets are checked against the public C header by the cmocka
-        // collector test's compile-time sizeof/offsetof assertions.
-        assert_eq!(offset_of!(ObsPreflightSample, timestamp_ms), 0);
-        assert_eq!(offset_of!(ObsPreflightSample, average_frame_time_ns), 8);
-        assert_eq!(offset_of!(ObsPreflightSample, frame_interval_ns), 16);
-        assert_eq!(offset_of!(ObsPreflightSample, lagged_frames), 24);
-        assert_eq!(offset_of!(ObsPreflightSample, output_total_bytes), 32);
-        assert_eq!(offset_of!(ObsPreflightSample, output_total_frames), 40);
-        assert_eq!(offset_of!(ObsPreflightSample, output_frames_dropped), 48);
-        assert_eq!(offset_of!(ObsPreflightSample, output_congestion), 56);
-        assert_eq!(offset_of!(ObsPreflightSample, connect_time_ms), 64);
-        assert_eq!(offset_of!(ObsPreflightSample, encoder_total_frames), 72);
-        assert_eq!(offset_of!(ObsPreflightSample, encoder_skipped_frames), 80);
-        assert_eq!(offset_of!(ObsPreflightSample, cpu_percent), 88);
-        assert_eq!(size_of::<ObsPreflightSample>(), 96);
-        assert_eq!(align_of::<ObsPreflightSample>(), 8);
-
-        assert_eq!(offset_of!(ObsPreflightWindow, verdict), 152);
-        assert_eq!(offset_of!(ObsPreflightWindow, reason), 156);
-        assert_eq!(size_of::<ObsPreflightWindow>(), 416);
-        assert_eq!(align_of::<ObsPreflightWindow>(), 8);
-    }
 }

@@ -58,7 +58,13 @@ impl Drop for ScratchDir {
 /// the caller does the measurement there. In the parent it starts the
 /// child with `--exact <test> --test-threads=1`, asserts that it ran that
 /// one test and passed, and returns `false`.
+pub fn test_name(test: &str) -> &str {
+    test.strip_prefix(concat!(env!("CARGO_CRATE_NAME"), "::"))
+        .unwrap_or(test)
+}
+
 pub fn isolated(test: &str) -> bool {
+    let test = test_name(test);
     const MARKER: &str = "OBS_UTIL_ISOLATED_TEST";
     if std::env::var(MARKER).as_deref() == Ok(test) {
         return true;
@@ -80,4 +86,13 @@ pub fn isolated(test: &str) -> bool {
         "isolated {test} did not run exactly one test:\n{stdout}"
     );
     false
+}
+
+#[test]
+fn module_paths_resolve_to_exact_libtest_names() {
+    assert_eq!(
+        test_name(concat!(env!("CARGO_CRATE_NAME"), "::tests::probe")),
+        "tests::probe"
+    );
+    assert_eq!(test_name("tests::probe"), "tests::probe");
 }

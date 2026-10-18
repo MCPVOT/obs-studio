@@ -1,7 +1,6 @@
 //! obs-util integration tests: config (one module per former tests/*.rs file, #968).
 
-#[path = "../common/mod.rs"]
-mod common;
+use crate::common;
 
 mod cf_tokenizer;
 mod cf_tokenizer_ffi_bounds;

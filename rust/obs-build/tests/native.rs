@@ -42,8 +42,8 @@ fn native_plugin_links_shared_core_and_observes_rebuilt_dependency() {
     .unwrap();
     fs::write(&plugin_source, format!("extern int obs_fixture_answer(void); {EXPORT} int obs_fixture_plugin(void) {{ return obs_fixture_answer() + 1; }}")).unwrap();
     let build = NativeBuild {
-        host: env!("OBS_BUILD_HOST").into(),
-        target: env!("OBS_BUILD_TARGET").into(),
+        host: obs_build::BUILD_HOST.into(),
+        target: obs_build::BUILD_TARGET.into(),
         output: dir.path().join("artifacts"),
     };
     let core = build
@@ -98,8 +98,8 @@ fn unity_toggle_preserves_exports_and_explicit_generated_source_wins() {
     fs::write(&extra, "int obs_fixture_other(void) { return 23; }").unwrap();
     for unity in [false, true] {
         let build = NativeBuild {
-            host: env!("OBS_BUILD_HOST").into(),
-            target: env!("OBS_BUILD_TARGET").into(),
+            host: obs_build::BUILD_HOST.into(),
+            target: obs_build::BUILD_TARGET.into(),
             output: dir.path().join(format!("output-{unity}")),
         };
         let mut library = target("fixture-manifest", &generated, vec![]);
@@ -134,8 +134,8 @@ fn executable_runs_against_its_shared_core_dependency() {
     )
     .unwrap();
     let build = NativeBuild {
-        host: env!("OBS_BUILD_HOST").into(),
-        target: env!("OBS_BUILD_TARGET").into(),
+        host: obs_build::BUILD_HOST.into(),
+        target: obs_build::BUILD_TARGET.into(),
         output: dir.path().join("artifacts"),
     };
     let helper = build
@@ -170,7 +170,7 @@ const EXPORT: &str = "\n#if defined(_WIN32)\n__declspec(dllexport)\n#endif\n";
 
 #[test]
 fn pch_preserves_mixed_languages_unity_and_header_flag_invalidation() {
-    if !env!("OBS_BUILD_TARGET").contains("linux") {
+    if !obs_build::BUILD_TARGET.contains("linux") {
         eprintln!("compiled PCH integration currently covers Linux GCC and Clang");
         return;
     }
@@ -189,8 +189,8 @@ fn pch_preserves_mixed_languages_unity_and_header_flag_invalidation() {
         write_header(17);
         fs::write(&transitive, "#define TRANSITIVE_VALUE 0\n").unwrap();
         let build = NativeBuild {
-            host: env!("OBS_BUILD_HOST").into(),
-            target: env!("OBS_BUILD_TARGET").into(),
+            host: obs_build::BUILD_HOST.into(),
+            target: obs_build::BUILD_TARGET.into(),
             output: root.join(format!("output-{unity}")),
         };
         let mut library = target("fixture-pch", &c, vec![]);
@@ -239,8 +239,8 @@ fn explicit_groups_compile_as_individual_sources_and_observe_member_edits() {
     let group = root.join("build/fixture+.h.c");
     fs::write(&group, "/* explicit group */\n#include \"build/fixture.pch.h\"\n#include \"first.c.h\"\n#include \"second.c.h\"\n").unwrap();
     let build = NativeBuild {
-        host: env!("OBS_BUILD_HOST").into(),
-        target: env!("OBS_BUILD_TARGET").into(),
+        host: obs_build::BUILD_HOST.into(),
+        target: obs_build::BUILD_TARGET.into(),
         output: root.join("artifacts"),
     };
     let mut library = target("fixture-separate", &group, vec![]);
@@ -281,8 +281,8 @@ fn individual_compilation_rejects_conditional_group_selection() {
     )
     .unwrap();
     let build = NativeBuild {
-        host: env!("OBS_BUILD_HOST").into(),
-        target: env!("OBS_BUILD_TARGET").into(),
+        host: obs_build::BUILD_HOST.into(),
+        target: obs_build::BUILD_TARGET.into(),
         output: directory.path().join("artifacts"),
     };
     let error = build
@@ -322,8 +322,8 @@ fn mixed_c_and_cpp_use_independent_flags_and_the_cpp_linker() {
         ..SharedLibrary::default()
     };
     let build = NativeBuild {
-        host: env!("OBS_BUILD_HOST").into(),
-        target: env!("OBS_BUILD_TARGET").into(),
+        host: obs_build::BUILD_HOST.into(),
+        target: obs_build::BUILD_TARGET.into(),
         output: directory.path().join("out"),
     };
     let artifact = build.executable(&target).unwrap();
@@ -337,7 +337,7 @@ fn mixed_c_and_cpp_use_independent_flags_and_the_cpp_linker() {
 
 #[test]
 fn pch_batches_preserve_constructor_order_with_interleaved_headers() {
-    if !env!("OBS_BUILD_TARGET").contains("linux") {
+    if !obs_build::BUILD_TARGET.contains("linux") {
         eprintln!("compiled PCH integration currently covers Linux GCC and Clang");
         return;
     }
@@ -363,8 +363,8 @@ fn pch_batches_preserve_constructor_order_with_interleaved_headers() {
     fs::write(&entry, "int fixture_order = 0;\nextern \"C\" int obs_fixture_order(void) { return fixture_order; }\n").unwrap();
     for unity in [false, true] {
         let build = NativeBuild {
-            host: env!("OBS_BUILD_HOST").into(),
-            target: env!("OBS_BUILD_TARGET").into(),
+            host: obs_build::BUILD_HOST.into(),
+            target: obs_build::BUILD_TARGET.into(),
             output: root.join(format!("artifacts-{unity}")),
         };
         let mut library = target("fixture-order", &entry, vec![]);

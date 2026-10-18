@@ -1,4 +1,5 @@
 [package]
+autotests = false
 name = "obs-data"
 version = "0.1.0"
 description = "Rust port of libobs/obs-data.c"
@@ -14,6 +15,15 @@ libc = "0.2"
 cc = "1"
 
 [dev-dependencies]
+obs-properties = { path = "../obs-properties" }
+obs-hotkey = { path = "../obs-hotkey" }
 obs-c-oracle = { path = "../obs-c-oracle" }
 obs-util = { path = "../obs-util" }
 proptest = "1"
+
+[lib]
+test = false
+
+[[test]]
+name = "obs-tests-core"
+path = "tests/core.rs"

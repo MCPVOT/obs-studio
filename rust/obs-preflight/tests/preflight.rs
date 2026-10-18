@@ -1194,3 +1194,57 @@ proptest! {
         }
     }
 }
+
+mod tests {
+    use obs_preflight::cli::parse_args;
+    use std::ffi::OsString;
+    use std::io::ErrorKind;
+
+    #[test]
+    fn parser_returns_an_input_error_for_invalid_window_values() {
+        let error = parse_args(
+            [
+                OsString::from("replay"),
+                OsString::from("-"),
+                OsString::from("--window-ms"),
+                OsString::from("zero"),
+            ]
+            .into_iter(),
+        )
+        .expect_err("invalid numeric value should be rejected");
+        assert_eq!(error.kind(), ErrorKind::InvalidInput);
+    }
+}
+
+#[path = "../src/platform/mod.rs"]
+mod platform;
+
+mod ffi_layout {
+    use obs_preflight::ffi_types::{ObsPreflightSample, ObsPreflightWindow};
+    use std::mem::{align_of, offset_of, size_of};
+
+    #[test]
+    fn c_struct_layout_matches_the_hand_written_header() {
+        // These offsets are checked against the public C header by the cmocka
+        // collector test's compile-time sizeof/offsetof assertions.
+        assert_eq!(offset_of!(ObsPreflightSample, timestamp_ms), 0);
+        assert_eq!(offset_of!(ObsPreflightSample, average_frame_time_ns), 8);
+        assert_eq!(offset_of!(ObsPreflightSample, frame_interval_ns), 16);
+        assert_eq!(offset_of!(ObsPreflightSample, lagged_frames), 24);
+        assert_eq!(offset_of!(ObsPreflightSample, output_total_bytes), 32);
+        assert_eq!(offset_of!(ObsPreflightSample, output_total_frames), 40);
+        assert_eq!(offset_of!(ObsPreflightSample, output_frames_dropped), 48);
+        assert_eq!(offset_of!(ObsPreflightSample, output_congestion), 56);
+        assert_eq!(offset_of!(ObsPreflightSample, connect_time_ms), 64);
+        assert_eq!(offset_of!(ObsPreflightSample, encoder_total_frames), 72);
+        assert_eq!(offset_of!(ObsPreflightSample, encoder_skipped_frames), 80);
+        assert_eq!(offset_of!(ObsPreflightSample, cpu_percent), 88);
+        assert_eq!(size_of::<ObsPreflightSample>(), 96);
+        assert_eq!(align_of::<ObsPreflightSample>(), 8);
+
+        assert_eq!(offset_of!(ObsPreflightWindow, verdict), 152);
+        assert_eq!(offset_of!(ObsPreflightWindow, reason), 156);
+        assert_eq!(size_of::<ObsPreflightWindow>(), 416);
+        assert_eq!(align_of::<ObsPreflightWindow>(), 8);
+    }
+}

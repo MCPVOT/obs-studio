@@ -100,7 +100,7 @@ the existing export map. The twin is never installed.
 Build the release archive with `soldr cargo build -p libobs-rust --release`.
 With native dependencies available, set `OBS_BUILD_RUST_ARCHIVE` to the absolute
 `target/release/liblibobs_rust.a` path and run
-`soldr cargo test -p obs-build --features libobs-integration --test libobs`.
+`soldr cargo test -p obs-studio-rust --features libobs-integration --test obs-tests-app`.
 `OBS_BUILD_TEST_OUTPUT` optionally retains artifacts in a chosen output directory.
 The test defaults to a temporary output directory. Set
 `OBS_BUILD_DISABLE_HEVC=1` to exercise the disabled-HEVC configuration. GNU `nm`
@@ -841,7 +841,7 @@ before native compilation. PCH currently requires Linux GCC or Clang, as above.
 With the native dependencies installed, for example:
 
 ```sh
-OBS_SYS_UNITY=0 OBS_SYS_PCH=1 soldr cargo test -p obs-sys --features bundled --test native
+OBS_SYS_UNITY=0 OBS_SYS_PCH=1 soldr cargo test -p obs-studio-rust --features bundled-native --test obs-tests-app
 ```
 
 The build script tracks both variables and passes them to the shared libobs
@@ -1239,7 +1239,7 @@ matching the original test source languages. Each executable has a bounded
 checked. The helper graph currently supports Linux.
 
 ```sh
-soldr cargo test -p obs-build --features libobs-integration --test libobs -- webrtc_tests::original_whip_clock_and_host_tests_pass_without_a_core_or_sdk --exact --nocapture
+soldr cargo test -p obs-studio-rust --features libobs-integration --test obs-tests-app -- native_libobs::webrtc_tests::original_whip_clock_and_host_tests_pass_without_a_core_or_sdk --exact --nocapture
 ```
 
 The selected native graph now contains 52 core executables, six VLC tests,

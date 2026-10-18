@@ -269,8 +269,9 @@ Tier 2 checks.
    `quat.c`, `matrix3.c`, `matrix4.c`, `plane.c`, `bounds.c`, `axisang.c`,
    `math-extra.c`.
 2. `media-io` in crate `obs-media-io`.
-3. obs-websocket Tier 4 suite, then the staged port described in
-   [websocket-port.md](websocket-port.md).
+3. obs-websocket Tier 4 suite against the unchanged C++ plugin. Preserve it
+   as the compatibility check required by `AGENTS.md`; the earlier
+   [port proposal](websocket-port.md) is superseded.
 
 - Tier 3 parity is exact bit equality (NaN == NaN) where the C is scalar and
   deterministic. Only where the C uses SIMD (`vec3`, `vec4`, `matrix4` via
@@ -341,7 +342,7 @@ rust/
     src/ffi/bitstream.rs      # extern "C" shim, #[repr(C)] types (Tier 2)
     src/ffi/*.rs              # matching shims for the cores above
     src/platform/             # the only host-specific code (cfg_select!, unix/, windows/)
-    tests/containers/main.rs  # one test binary per category, <= 8 per crate (ci/test_binary_cap.py)
+    tests/containers/main.rs  # shared component test binary; see Test binary budget
     tests/containers/bitstream.rs        # Tier 1: 1:1 port of test/cmocka/test_bitstream.c
     tests/containers/bitstream_layout.rs # Tier 2: struct layout vs. C header
     tests/containers/bitstream_parity.rs # Tier 3: proptest vs. C oracle
@@ -360,6 +361,110 @@ port crate is added as a dependency of `libobs-rust` and re-exported there.
 
 New libobs areas get their own crate under `rust/` named after the libobs
 directory (`obs-util`, `obs-graphics`, `obs-media-io`, ...).
+
+## Test binary budget
+
+Minimize the number of Rust test executables that must be compiled and
+linked. Use **one amalgamated test binary per category**. The inventory below
+selects eight categories for the current workspace, including unit-test
+harness coverage and integration tests. Eight is the result of this grouping,
+not an allowance per crate. Prefer fewer when categories can share a harness
+without losing meaningful separation.
+
+The objective is fewer test compilation and link targets when building the
+whole suite. The category binaries replace existing per-crate unit-test
+harnesses and integration-test executables; they must not be added alongside
+them. Moving only integration tests while leaving the same library unit-test
+harnesses enabled does not complete consolidation. Production libraries
+remain dependencies of the shared harnesses and retain their normal builds.
+Do not compile an entire production source tree again through `include!` or `#[path]`
+just to put its tests into an amalgamated binary: that would duplicate the
+compilation we are trying to remove. The native build resolver is a narrow
+exception: its small private helper and test share one source module with
+the application harness, avoiding both a public test API and a second
+compilation of the entire build engine.
+
+| Category / selected binary | Existing suites and coverage to include |
+| --- | --- |
+| Utilities / `obs-util` library harness | All eight `obs-util` suites: config, containers, memory, platform, profiler, serializer, strings, threading; its inline platform tests; `obs-c-oracle/tests/oracle` oracle validation. |
+| Core state / `obs-tests-core` | `obs-data/tests/data`, `obs-properties/tests/properties`, and `obs-hotkey/tests/hotkey`. |
+| Graphics / `obs-tests-graphics` | `obs-graphics/tests/linear`, `geometry`, and `shader`. |
+| Media I/O / `obs-media-io` library harness | `obs-media-io/tests/audio`, `video`, and inline `video_output` tests. |
+| Codecs and encoders / `obs-tests-codec` | `obs-codec/tests/codec` and `obs-nvenc/tests/nvenc`, including the NVENC plugin boundary coverage. |
+| GPU status / `obs-tests-gpu` | `obs-gpu-status/tests/gpu_status`, including frontend adapter boundary coverage. |
+| Preflight / `obs-tests-preflight` | `obs-preflight` CLI, FFI, and per-platform inline tests; `obs-preflight-ffi` boundary coverage. |
+| Application / `obs-tests-app` | `obs-studio-rust/tests/cli`, including its CLI, JSON, and WebSocket client checks; `obs-build` native compilation contracts and private resolver check; feature-gated native libobs and `obs-sys` bundled contracts. Preserve the C++ OBS WebSocket plugin as required by AGENTS.md. |
+
+Utilities and media use their library unit harness as the one category
+executable. Their existing integration suites are modules in that harness,
+so private unit tests retain access without extra binaries or exposed
+internals. The other six categories use explicit integration targets.
+`libobs-rust` remains the production aggregation library; its constituent
+behavior belongs to the categories above. `obs-c-oracle` remains a shared
+test dependency, not a separate executable. FFI adapters with no tests have
+no empty harness. Fuzz targets, benchmarks, documentation tests, and unchanged
+C compatibility executables retain their separate execution models.
+
+Thread-safe cases run with libtest's normal parallelism. Serialize tests
+sharing the profiler with their existing common lock. Tests that change
+process-wide allocation counters, logging callbacks, or the working directory
+must re-exec the same category executable with an exact test selector.
+Pipe-spawning oracle checks also re-exec first: their C pipe-to-CLOEXEC
+window must not overlap unrelated child spawns in this process.
+File-replacement parity checks re-exec too: a concurrent Windows child can
+inherit an open C stdio handle and prevent replacement after C closes it.
+Crash probes also re-exec before forking, so they cannot inherit live pipe
+handles from other tests. Do not serialize the whole suite or add another
+compiled binary to obtain a clean process. Use `module_path!()` for exact
+selectors so module regrouping cannot silently run zero child tests.
+The application category retains `libobs-integration` and `bundled-native`
+feature gates for expensive native contracts; these add cases to the same
+executable, not new executables.
+
+The preflight CLI parser lives in the safe engine's `cli` module, consumed
+by its real executable and tested in the shared preflight suite. Its ABI
+layout structs live in `ffi/types.rs`, consumed by the static C adapter and
+the layout tests. Neither production source needs to be included a second
+time in a test executable to retain those checks.
+
+- Use the category map above to choose the shared test binary. A new test
+  file, test tier, feature, or crate does not by itself justify another
+  executable. Put cases in modules included by the component's harness.
+- Keep every assertion, differential case, platform check, and required
+  test tier. This policy reduces executable count, not test-case count.
+- Avoid empty or duplicate library/binary test harnesses. Disable them with
+  `test = false` only after their coverage is included in a shared harness.
+- Count the harnesses Cargo actually builds for each supported platform,
+  including automatically discovered targets. Report documentation tests
+  and unchanged C compatibility executables separately; this Rust budget
+  does not remove either kind of coverage.
+- Any necessary split must identify a distinct component or technical
+  isolation requirement and document why the existing categories cannot
+  accommodate it. Do not split binaries just because tests live in different
+  source files or crates.
+
+`ci/test_binary_cap.py` discovers unit harnesses and integration targets from
+manifests without requiring a Rust toolchain or compiling anything, including
+implicit workspace path dependencies. It checks category ownership,
+rejects duplicate and missing categories, and rejects any
+extra unit or integration harness. Cargo metadata provides an independent
+inventory check enforced by the lint lane on build hosts. The guard runs
+through existing CI Python test discovery; `uv run ci/test_binary_cap.py --report` prints the inventory.
+
+Use `soldr cargo test --workspace --locked` for the full suite. For focused
+work, select the owning category, for example
+`soldr cargo test -p obs-data --test obs-tests-core properties::` or
+`soldr cargo test -p obs-util --lib tests::strings::`. A crate whose tests
+belong to another category no longer has a separate executable. The fast
+gate follows dev-dependencies too, so a change to that crate still selects
+the category owner; `ci/test_rust_scope.py` guards these relationships.
+
+Verify consolidation with Cargo's actual test target inventory and test
+discovery before and after: all existing cases must still be discovered on
+their supported platforms, and the old unit/integration targets must no
+longer be built. Measure full-suite compilation and linking separately from
+test execution. A smaller target count is the structural requirement; report
+timing evidence before claiming a speed improvement.
 
 ## Rules that apply everywhere
 

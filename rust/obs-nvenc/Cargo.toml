@@ -1,4 +1,5 @@
 [package]
+autotests = false
 name = "obs-nvenc"
 version = "0.1.0"
 description = "Rust port of the plugins/obs-nvenc CUDA/NVENC driver loader"
@@ -11,4 +12,14 @@ publish.workspace = true
 libloading = { workspace = true }
 
 [dev-dependencies]
+obs-util = { path = "../obs-util" }
+proptest = "1"
+obs-codec = { path = "../obs-codec" }
 obs-c-oracle = { path = "../obs-c-oracle" }
+
+[lib]
+test = false
+
+[[test]]
+name = "obs-tests-codec"
+path = "tests/encoders.rs"

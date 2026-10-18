@@ -22,3 +22,11 @@ pub mod video_frame;
 pub mod video_io;
 pub mod video_matrices;
 mod video_output;
+
+#[cfg(test)]
+extern crate self as obs_media_io;
+
+#[cfg(test)]
+#[allow(unsafe_code)] // Existing layout and C-oracle tests retain their FFI boundary.
+#[path = "../tests/suite.rs"]
+mod tests;

@@ -1,4 +1,5 @@
 [package]
+autotests = false
 name = "obs-c-oracle"
 version = "0.1.0"
 description = "Test-only: original libobs C sources compiled with oracle_ prefixed symbols"
@@ -19,3 +20,6 @@ obs-codec = { path = "../obs-codec" }
 [[bench]]
 name = "port_comparison"
 harness = false
+
+[lib]
+test = false

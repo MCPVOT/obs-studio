@@ -1,4 +1,5 @@
 [package]
+autotests = false
 name = "obs-sys"
 version = "0.1.0"
 description = "Native libobs C ABI with an optional cc::Build source build"
@@ -15,6 +16,5 @@ bundled = ["dep:obs-build"]
 [build-dependencies]
 obs-build = { path = "../obs-build", optional = true }
 
-[[test]]
-name = "native"
-required-features = ["bundled"]
+[lib]
+test = false

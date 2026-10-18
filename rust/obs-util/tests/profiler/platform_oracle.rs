@@ -123,6 +123,9 @@ fn run_captured(op: &Op) -> (Outcome, String) {
 /// down.
 #[test]
 fn oracle_bmalloc_zero_dies_loudly() {
+    if !crate::common::isolated(concat!(module_path!(), "::oracle_bmalloc_zero_dies_loudly")) {
+        return;
+    }
     let (outcome, stderr) = run_captured(&Op::BmallocZero);
 
     assert!(
@@ -141,6 +144,12 @@ fn oracle_bmalloc_zero_dies_loudly() {
 /// `libobs/util/bmem.c:111`.
 #[test]
 fn oracle_brealloc_zero_dies_loudly() {
+    if !crate::common::isolated(concat!(
+        module_path!(),
+        "::oracle_brealloc_zero_dies_loudly"
+    )) {
+        return;
+    }
     let (outcome, stderr) = run_captured(&Op::BreallocZero);
 
     assert!(
@@ -156,6 +165,9 @@ fn oracle_brealloc_zero_dies_loudly() {
 /// A failed allocation must reach the oracle's `os_oom` path and stop loudly.
 #[test]
 fn oracle_bmalloc_oom_dies_loudly() {
+    if !crate::common::isolated(concat!(module_path!(), "::oracle_bmalloc_oom_dies_loudly")) {
+        return;
+    }
     let (outcome, stderr) = run_captured(&Op::BmallocOom);
 
     assert!(
@@ -174,6 +186,9 @@ fn oracle_bmalloc_oom_dies_loudly() {
 /// process could easily read as success.
 #[test]
 fn oracle_bcrash_alone_exits_zero() {
+    if !crate::common::isolated(concat!(module_path!(), "::oracle_bcrash_alone_exits_zero")) {
+        return;
+    }
     let (outcome, stderr) = run_captured(&Op::Bcrash);
 
     assert!(

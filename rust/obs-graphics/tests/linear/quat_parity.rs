@@ -490,3 +490,10 @@ fn cmocka_cases_match_c_oracle() {
     let id = Quat::from_axisang(AxisAng::new(0.0, 1.0, 0.0, 0.0));
     assert_eq!([id.x, id.y, id.z, id.w], [0.0, 0.0, 0.0, 1.0]);
 }
+
+/// Fixed inputs captured from macOS CI; paired sin/cos must match C exactly.
+#[test]
+fn paired_trig_regressions_match_c() {
+    check_axisang([0.0, 0.0, 0.0, -7.787993e34]).unwrap();
+    check_look([5.424295e-28, 0.0, 6.2596474e-28, -2.6469783e-23]).unwrap();
+}

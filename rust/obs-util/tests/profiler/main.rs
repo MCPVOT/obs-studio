@@ -11,10 +11,7 @@ mod profiler_snapshot;
 mod profiler_snapshot_layout;
 mod profiler_snapshot_parity;
 
-// The oracle's bmalloc/bcrash stand-ins (#1094). Its cases fork(), and a raw
-// fork copies every fd in the process, so they cannot share a binary with
-// pipe_parity (platform), whose leaked-fd check a forked child holding a pipe
-// end would trip. Nothing here spawns or checks fds or bnum_allocs.
+// Crash probes re-exec this binary before forking, isolating parallel pipe tests.
 mod platform_oracle;
 
 /// profiler.rs and profiler_parity.rs both reset the one process-global

@@ -1,7 +1,6 @@
 //! obs-util integration tests: platform (one module per former tests/*.rs file, #968).
 
-#[path = "../common/mod.rs"]
-mod common;
+use crate::common;
 
 mod export_list;
 mod path_extension;

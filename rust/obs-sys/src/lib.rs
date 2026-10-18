@@ -10,3 +10,8 @@
 
 #[allow(unsafe_code)]
 pub mod ffi;
+
+/// Artifact and mode metadata for consumers of the bundled native build.
+pub const BUNDLED_LIBRARY: Option<&str> = option_env!("OBS_SYS_LIBRARY");
+pub const NATIVE_UNITY: Option<&str> = option_env!("OBS_SYS_NATIVE_UNITY");
+pub const NATIVE_PCH: Option<&str> = option_env!("OBS_SYS_NATIVE_PCH");

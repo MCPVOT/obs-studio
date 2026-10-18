@@ -309,8 +309,14 @@ impl Pair {
         let b = cstr(backup);
         // SAFETY: both pointers are live configs; ext strings outlive the calls.
         let o = unsafe { oracle_config_save_safe(self.oracle, t.as_ptr(), b.as_ptr()) };
+        // Capture before Rust can overwrite the thread's OS error. C's cleanup
+        // may already have changed it, so this is only a diagnostic hint.
+        let oracle_error = std::io::Error::last_os_error();
         // SAFETY: same as above.
         let r = unsafe { config_save_safe(self.rust, t.as_ptr(), b.as_ptr()) };
+        if o != r {
+            eprintln!("config_save_safe C={o} Rust={r}; best-effort C OS error: {oracle_error:?}");
+        }
         (o, r)
     }
 
@@ -583,8 +589,7 @@ proptest! {
 
     /// Arbitrary INI file: open both, mutate identically, compare every
     /// observable return and then the saved bytes in separate temp dirs.
-    #[test]
-    fn parity_open_mutate_save(
+    fn parity_open_mutate_save_cases(
         text in arb_ini(4096),
         ops in prop::collection::vec(arb_op(), 0..24),
     ) {
@@ -667,6 +672,16 @@ proptest! {
         let (os, rs) = pair.save();
         assert_eq!(os, rs, "config_save return");
         assert_eq!(read(&c_path), read(&r_path), "saved bytes");
+    }
+}
+
+/// C stdio handles can be inherited by concurrently spawned Windows children,
+/// preventing ReplaceFileW after C closes its own handle. Keep all property
+/// cases together, without exposing their files to other tests' child spawns.
+#[test]
+fn parity_open_mutate_save() {
+    if common::isolated(concat!(module_path!(), "::parity_open_mutate_save")) {
+        parity_open_mutate_save_cases();
     }
 }
 

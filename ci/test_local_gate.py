@@ -37,12 +37,15 @@ class SoldrCacheTest(unittest.TestCase):
             mock.patch.object(local_gate, "clang_format"),
             mock.patch.object(local_gate, "gersemi"),
             mock.patch.object(local_gate, "self_test", create=True),
+            mock.patch.object(local_gate, "check_test_binary_inventory") as inventory,
             mock.patch.object(local_gate, "toolchain_gcc_ld", return_value="/sysroot/gcc-ld"),
         ):
             # The caller's own setting must not leak into the check.
             if "SOLDR_RUSTC_WRAPPER" not in (env or {}):
                 os.environ.pop("SOLDR_RUSTC_WRAPPER", None)
             lane(False)
+            if lane is local_gate.lane_lint:
+                inventory.assert_called_once_with()
         return [(cmd, e) for cmd, e in calls if cmd[:2] == ["soldr", "cargo"]]
 
     def test_lanes_disable_rustc_wrapper(self):

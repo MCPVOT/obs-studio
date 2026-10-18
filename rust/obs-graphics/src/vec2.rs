@@ -25,12 +25,14 @@ impl Vec2 {
     }
 
     /// Per-component floor (`vec2_floor`).
+    #[inline]
     #[must_use]
     pub fn floor(self) -> Self {
         Self::new(floor_f32(self.x), floor_f32(self.y))
     }
 
     /// Per-component ceiling (`vec2_ceil`).
+    #[inline]
     #[must_use]
     pub fn ceil(self) -> Self {
         Self::new(ceil_f32(self.x), ceil_f32(self.y))

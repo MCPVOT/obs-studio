@@ -6,6 +6,10 @@
 
 #![forbid(unsafe_code)]
 
+pub mod cli;
+#[path = "ffi/types.rs"]
+pub mod ffi_types;
+
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fmt;

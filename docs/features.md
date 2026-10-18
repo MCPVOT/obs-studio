@@ -1358,3 +1358,7 @@ area.
   [#497](https://github.com/obs-rust/obs-studio/pull/497),
   [#502](https://github.com/obs-rust/obs-studio/pull/502),
   [#503](https://github.com/obs-rust/obs-studio/pull/503).
+
+- Rust graphics preserves separate C trigonometric calls on macOS and signaling
+  NaN rounding on macOS/Windows. *macOS, Windows*, 2026-10-18.
+  PR [#1398](https://github.com/obs-rust/obs-studio/pull/1398).

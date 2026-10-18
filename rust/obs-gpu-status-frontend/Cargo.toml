@@ -1,4 +1,5 @@
 [package]
+autotests = false
 name = "obs-gpu-status-frontend"
 version = "0.1.0"
 description = "The staticlib the frontend links: obs-gpu-status's C ABI (obs-rust/obs-studio#846)"

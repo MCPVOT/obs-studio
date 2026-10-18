@@ -72,7 +72,7 @@ fn alignment_matches_c() {
 /// child process (#1133): the other tests of this binary allocate too.
 #[test]
 fn matches_c_oracle() {
-    if crate::common::isolated("bmem_parity::matches_c_oracle") {
+    if crate::common::isolated(concat!(module_path!(), "::matches_c_oracle")) {
         proptest!(|(ops in prop::collection::vec(op(), 1..64), seed in any::<usize>())| {
             check(ops, seed)?;
         });

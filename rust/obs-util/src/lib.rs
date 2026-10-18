@@ -42,3 +42,15 @@ pub mod text_lookup;
 pub mod threading;
 pub mod utf8;
 pub mod util_uint64;
+
+#[cfg(test)]
+extern crate self as obs_util;
+
+#[cfg(test)]
+#[allow(unsafe_code)] // Existing layout and C-oracle tests retain their FFI boundary.
+#[path = "../tests/suite.rs"]
+mod tests;
+
+#[cfg(test)]
+#[path = "../tests/common/mod.rs"]
+mod common;

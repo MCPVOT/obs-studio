@@ -1,4 +1,5 @@
 [package]
+autotests = false
 name = "obs-hotkey"
 version = "0.1.0"
 description = "Rust port of libobs/obs-hotkey-name-map.c"
@@ -11,3 +12,6 @@ publish.workspace = true
 obs-c-oracle = { path = "../obs-c-oracle" }
 obs-util = { path = "../obs-util" }
 proptest = "1"
+
+[lib]
+test = false

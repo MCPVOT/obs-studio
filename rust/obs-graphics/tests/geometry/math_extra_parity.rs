@@ -263,3 +263,11 @@ proptest! {
         check_torque(v1, v2, torque, min_adjust, t)?;
     }
 }
+
+/// Fixed inputs captured from macOS CI, including large argument reduction.
+#[test]
+fn paired_trig_regressions_match_c() {
+    check_polar(Vec3::new(0.0, -5886.8154, 1.2832579e19)).unwrap();
+    check_polar(Vec3::new(0.0, 1.1273432e30, 3.4347034e-22)).unwrap();
+    check_norm(Vec3::default(), Vec2::new(4.5483803e35, 0.0)).unwrap();
+}

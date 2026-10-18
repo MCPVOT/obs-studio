@@ -465,6 +465,9 @@ fn regex_uuid(bytes: &[u8]) -> bool {
 
 #[test]
 fn chdir_matches_the_c_file() {
+    if !crate::common::isolated(concat!(module_path!(), "::chdir_matches_the_c_file")) {
+        return;
+    }
     let _guard = PARITY.lock().unwrap_or_else(|e| e.into_inner());
     let mut saved = [0u8; 512];
     // SAFETY: `saved` is 512 bytes.

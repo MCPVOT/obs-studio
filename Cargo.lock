@@ -467,6 +467,8 @@ dependencies = [
  "cc",
  "libc",
  "obs-c-oracle",
+ "obs-hotkey",
+ "obs-properties",
  "obs-util",
  "proptest",
 ]
@@ -521,6 +523,9 @@ version = "0.1.0"
 dependencies = [
  "libloading",
  "obs-c-oracle",
+ "obs-codec",
+ "obs-util",
+ "proptest",
 ]
 
 [[package]]
@@ -561,8 +566,14 @@ name = "obs-studio-rust"
 version = "0.1.0"
 dependencies = [
  "base64",
+ "dunce",
+ "libloading",
+ "obs-build",
+ "obs-sys",
+ "pkg-config",
  "serde_json",
  "sha2",
+ "tempfile",
  "tungstenite",
 ]
 

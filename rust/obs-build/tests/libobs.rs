@@ -41,8 +41,8 @@ fn c_and_rust_twins_preserve_public_data_lifecycle_and_module_apis() {
     );
     let output = tempfile::tempdir().unwrap();
     let build = NativeBuild {
-        host: env!("OBS_BUILD_HOST").into(),
-        target: env!("OBS_BUILD_TARGET").into(),
+        host: obs_build::BUILD_HOST.into(),
+        target: obs_build::BUILD_TARGET.into(),
         output: std::env::var_os("OBS_BUILD_TEST_OUTPUT")
             .map(PathBuf::from)
             .unwrap_or_else(|| output.path().into()),
@@ -753,7 +753,13 @@ fn c_and_rust_twins_preserve_public_data_lifecycle_and_module_apis() {
         let run = command
             .args([
                 "--exact",
-                "c_and_rust_twins_preserve_public_data_lifecycle_and_module_apis",
+                concat!(
+                    module_path!(),
+                    "::c_and_rust_twins_preserve_public_data_lifecycle_and_module_apis"
+                )
+                .split_once("::")
+                .expect("module path contains the crate prefix")
+                .1,
                 "--nocapture",
             ])
             .env("OBS_BUILD_TEST_CORE", path)
@@ -779,6 +785,10 @@ fn c_and_rust_twins_preserve_public_data_lifecycle_and_module_apis() {
             run.status,
             String::from_utf8_lossy(&run.stdout),
             String::from_utf8_lossy(&run.stderr)
+        );
+        assert!(
+            String::from_utf8_lossy(&run.stdout).contains("1 passed"),
+            "native core child did not execute exactly one compatibility test"
         );
         if qsv_enabled {
             let stdout = String::from_utf8_lossy(&run.stdout);

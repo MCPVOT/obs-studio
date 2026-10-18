@@ -1,4 +1,5 @@
 [package]
+autotests = false
 name = "obs-preflight"
 version = "0.1.0"
 description = "Headless OBS preflight scoring and bake-off planning"
@@ -8,9 +9,11 @@ license.workspace = true
 publish.workspace = true
 
 [lib]
+test = false
 path = "src/lib.rs"
 
 [[bin]]
+test = false
 name = "obs-preflight"
 path = "src/main.rs"
 
@@ -20,3 +23,7 @@ serde_json = "1.0.151"
 
 [dev-dependencies]
 proptest = "1"
+
+[[test]]
+name = "obs-tests-preflight"
+path = "tests/preflight.rs"

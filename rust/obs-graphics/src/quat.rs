@@ -3,7 +3,8 @@
 //! Header-inline helpers stay in `quat.h`. The functions here follow the C
 //! expression order, including the SSE `quat_dot` / `vec3_dot` sum
 //! `(w + y) + (z + x)`, so results are bit-identical to the C code.
-//! `sin`/`cos`/`acos`/`asin`/`atan2` are the Rust `f32` methods, which match
+//! Paired sin/cos follows the host C convention through the platform
+//! boundary. Other trig uses Rust `f32` methods, which match
 //! the C library's `*f` functions on the Tier 3 inputs.
 
 use core::ops::{Add, Mul, Sub};
@@ -50,8 +51,8 @@ impl Quat {
     #[must_use]
     pub fn from_axisang(aa: AxisAng) -> Self {
         let halfa = aa.w * 0.5;
-        let sine = halfa.sin();
-        Self::new(aa.x * sine, aa.y * sine, aa.z * sine, halfa.cos())
+        let (sine, cosine) = crate::platform::sin_cos(halfa);
+        Self::new(aa.x * sine, aa.y * sine, aa.z * sine, cosine)
     }
 
     /// `quat_from_matrix4`. A positive trace takes the `w` branch. Otherwise
@@ -181,12 +182,9 @@ impl Quat {
     #[must_use]
     pub fn exp(self) -> Self {
         let length = ((self.x * self.x) + (self.y * self.y) + (self.z * self.z)).sqrt();
-        let scale = if length > EPSILON {
-            length.sin() / length
-        } else {
-            1.0
-        };
-        Self::new(self.x * scale, self.y * scale, self.z * scale, length.cos())
+        let (sine, cosine) = crate::platform::sin_cos(length);
+        let scale = if length > EPSILON { sine / length } else { 1.0 };
+        Self::new(self.x * scale, self.y * scale, self.z * scale, cosine)
     }
 
     /// `quat_interpolate`. Spherical when `acos(dot) >= EPSILON`, otherwise

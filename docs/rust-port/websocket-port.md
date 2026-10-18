@@ -1,5 +1,10 @@
 # obs-websocket v5 port boundary
 
+**Superseded:** preserve the existing C++ OBS WebSocket plugin as a binary
+compatibility check, per [AGENTS.md](../../AGENTS.md#obs-websocket-compatibility-directive).
+The design below is historical and must not be implemented without an explicit
+user request changing that directive.
+
 This is the Phase 5 design decision for #147. Port the protocol and session
 core first, behind the existing C++ plugin. Keep the WebSocket++/Asio listener,
 OBS request and event handlers, plugin API, configuration, and Qt/frontend UI

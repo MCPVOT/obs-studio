@@ -1,4 +1,5 @@
 [package]
+autotests = false
 name = "obs-codec"
 version = "0.1.0"
 description = "Rust ports of the libobs codec bitstream helpers (obs-nal, obs-avc, obs-hevc, obs-av1)"
@@ -13,3 +14,6 @@ obs-util = { path = "../obs-util" }
 [dev-dependencies]
 obs-c-oracle = { path = "../obs-c-oracle" }
 proptest = "1"
+
+[lib]
+test = false

@@ -359,3 +359,15 @@ proptest! {
         check(rows, other, q, dist)?;
     }
 }
+
+/// Fixed input from macOS CI: matrix conversion must use scalar C trig too.
+#[test]
+fn from_axisang_trig_regression_matches_c() {
+    check(
+        [[0.0; 4]; 4],
+        [[0.0; 4]; 4],
+        [1.1e-44, -1_625_024.0, 127_771.28, 42_494.33],
+        5.739125e22,
+    )
+    .unwrap();
+}

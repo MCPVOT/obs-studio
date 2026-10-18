@@ -26,7 +26,7 @@ const PUBLIC_THREADING: [&str; 12] = [
 
 #[test]
 fn oracle_archive_keeps_threading_helpers_private() {
-    let archive = Path::new(env!("OUT_DIR")).join("libobs_c_oracle.a");
+    let archive = Path::new(obs_c_oracle::ORACLE_ARCHIVE_DIR).join("libobs_c_oracle.a");
     let out = Command::new("nm")
         .arg("-g")
         .arg(&archive)

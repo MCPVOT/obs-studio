@@ -118,6 +118,9 @@ fn cs(text: &str) -> CString {
 
 #[test]
 fn null_get_pointers_are_accepted() {
+    if !crate::common::isolated(concat!(module_path!(), "::null_get_pointers_are_accepted")) {
+        return;
+    }
     let _gate = lock();
     // SAFETY: both out-pointers are null. The functions return without writing.
     unsafe {
@@ -128,6 +131,9 @@ fn null_get_pointers_are_accepted() {
 
 #[test]
 fn cmocka_cases_match_oracle() {
+    if !crate::common::isolated(concat!(module_path!(), "::cmocka_cases_match_oracle")) {
+        return;
+    }
     let _gate = lock();
     let mut ours = Rec::new();
     let mut theirs = Rec::new();
@@ -163,6 +169,12 @@ fn cmocka_cases_match_oracle() {
 
 #[test]
 fn null_handler_falls_back_to_default() {
+    if !crate::common::isolated(concat!(
+        module_path!(),
+        "::null_handler_falls_back_to_default"
+    )) {
+        return;
+    }
     let _gate = lock();
     let mut marker = 1u8;
     let _saved = Saved::capture();
@@ -191,6 +203,12 @@ fn null_handler_falls_back_to_default() {
 
 #[test]
 fn default_handler_output_matches_oracle() {
+    if !crate::common::isolated(concat!(
+        module_path!(),
+        "::default_handler_output_matches_oracle"
+    )) {
+        return;
+    }
     let _gate = lock();
     let _saved = Saved::capture();
     // SAFETY: null handler and null param restore the default on each side.
@@ -236,6 +254,12 @@ fn default_handler_output_matches_oracle() {
 
 #[test]
 fn default_handler_truncates_like_c() {
+    if !crate::common::isolated(concat!(
+        module_path!(),
+        "::default_handler_truncates_like_c"
+    )) {
+        return;
+    }
     let _gate = lock();
     let _saved = Saved::capture();
     // SAFETY: null handler and null param select the default on each side.
@@ -256,6 +280,12 @@ fn default_handler_truncates_like_c() {
 
 #[test]
 fn second_crash_handler_matches_oracle() {
+    if !crate::common::isolated(concat!(
+        module_path!(),
+        "::second_crash_handler_matches_oracle"
+    )) {
+        return;
+    }
     let _gate = lock();
     let mut ours = Rec::new();
     let mut theirs = Rec::new();
@@ -287,24 +317,29 @@ fn second_crash_handler_matches_oracle() {
     assert_eq!(theirs.text(), ours.text());
 }
 
-proptest! {
-    #[test]
-    fn formatted_int_matches_oracle(level in any::<i32>(), n in any::<i32>()) {
-        let _gate = lock();
-        let mut ours = Rec::new();
-        let mut theirs = Rec::new();
-        let _saved = Saved::capture();
-        arm(&mut ours, &mut theirs);
-        let fmt = cs("n=%d");
-        // SAFETY: fmt outlives both calls.
-        unsafe {
-            base_test_rust_blog_i(level, fmt.as_ptr(), n);
-            base_test_oracle_blog_i(level, fmt.as_ptr(), n);
+#[test]
+fn formatted_int_matches_oracle() {
+    if !crate::common::isolated(concat!(module_path!(), "::formatted_int_matches_oracle")) {
+        return;
+    }
+    proptest! {
+        |(level in any::<i32>(), n in any::<i32>())| {
+            let _gate = lock();
+            let mut ours = Rec::new();
+            let mut theirs = Rec::new();
+            let _saved = Saved::capture();
+            arm(&mut ours, &mut theirs);
+            let fmt = cs("n=%d");
+            // SAFETY: fmt outlives both calls.
+            unsafe {
+                base_test_rust_blog_i(level, fmt.as_ptr(), n);
+                base_test_oracle_blog_i(level, fmt.as_ptr(), n);
+            }
+            assert_eq!(ours.calls, theirs.calls);
+            assert_eq!(ours.level, theirs.level);
+            assert_eq!(ours.text(), theirs.text());
+            assert_eq!(ours.level, level);
         }
-        assert_eq!(ours.calls, theirs.calls);
-        assert_eq!(ours.level, theirs.level);
-        assert_eq!(ours.text(), theirs.text());
-        assert_eq!(ours.level, level);
     }
 }
 
@@ -341,7 +376,7 @@ fn blog_output(which: &str, level: c_int, body: &str) -> (Vec<u8>, Vec<u8>) {
     let output = std::process::Command::new(exe)
         .args([
             "--exact",
-            "base_parity::default_handler_capture_worker",
+            crate::common::test_name(concat!(module_path!(), "::default_handler_capture_worker")),
             "--test-threads=1",
         ])
         .env("BASE_CAPTURE_WHICH", which)

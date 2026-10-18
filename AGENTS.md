@@ -6,7 +6,24 @@ This repository is being converted from C/C++ to Rust while keeping the public
 API (libobs C API/ABI, obs-websocket v5 protocol, frontend and scripting APIs)
 compatible.
 
+## OBS WebSocket compatibility directive
+
+Preserve the existing C++ OBS WebSocket plugin in `plugins/obs-websocket`
+as a compatibility check for Rust OBS. Do not port it to Rust or modify it
+to accommodate the Rust implementation. Existing compiled plugin binaries
+must load and work through the preserved libobs C API/ABI, and existing
+clients must continue to work through the obs-websocket v5 protocol.
+Fix compatibility failures in Rust OBS. This directive supersedes earlier
+plans to port OBS WebSocket, including `docs/rust-port/websocket-port.md`.
+Changing this policy requires an explicit user request.
+
 ## Worker role
+
+Minimize Rust test executables: use one amalgamated binary for each category
+in the testing policy's category map. Eight categories are currently selected;
+preserve all assertions and required test tiers, and add cases as modules in
+the category's existing binary. See the
+[test binary policy](docs/rust-port/testing-policy.md#test-binary-budget).
 
 When you take an issue to work on (claim, port, fix, test, or build, lint,
 push and open a PR), you are a worker: invoke the `obs-worker` skill

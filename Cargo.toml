@@ -22,7 +22,7 @@ panic = "abort"
 [profile.dev.package.obs-media-io]
 opt-level = 3
 
-# obs-graphics' inline ceil/floor test checks every f32 bit pattern (#1298).
+# obs-graphics' category ceil/floor test checks every f32 bit pattern (#1298).
 [profile.dev.package.obs-graphics]
 opt-level = 3
 

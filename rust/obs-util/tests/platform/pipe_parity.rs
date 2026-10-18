@@ -52,7 +52,9 @@ use obs_util::ffi::pipe as shim;
 use obs_util::pipe::Args;
 use proptest::prelude::*;
 
-/// Every test here that spawns holds this lock (obs-rust/obs-studio#192).
+/// Pipe-spawning cases first re-exec this same binary in isolation, so other
+/// categories cannot fork during the C oracle's pipe-to-CLOEXEC window.
+/// Spawners within each isolated test also hold this lock (#192).
 ///
 /// A child spawned on one thread can keep another test's pipe open:
 /// `pipe-posix.c` creates its pipes with `pipe()` and only then sets
@@ -338,6 +340,9 @@ mod process {
 
     #[test]
     fn process_commands_match_oracle() {
+        if !crate::common::isolated(concat!(module_path!(), "::process_commands_match_oracle")) {
+            return;
+        }
         let _serial = serial();
         for (cmd, type_) in [
             (&b"printf 'hello'"[..], &b"r"[..]),
@@ -356,6 +361,9 @@ mod process {
     /// `create2` with a NUL-free argv on both sides.
     #[test]
     fn process_create2_matches_oracle() {
+        if !crate::common::isolated(concat!(module_path!(), "::process_create2_matches_oracle")) {
+            return;
+        }
         let _serial = serial();
         let items: &[&[u8]] = &[b"/bin/sh", b"-c", b"printf abc; printf err 1>&2"];
         let owned: Vec<Vec<u8>> = items.iter().map(|s| s.to_vec()).collect();
@@ -405,6 +413,9 @@ mod process {
     /// Tier 1 pins the exact pid on the Rust side).
     #[test]
     fn signaled_child_destroys_to_pid() {
+        if !crate::common::isolated(concat!(module_path!(), "::signaled_child_destroys_to_pid")) {
+            return;
+        }
         let _serial = serial();
         for _ in 0..4 {
             let opp = spawn_oracle(&cstring(b"kill -KILL $$"), &cstring(b"r"));
@@ -425,6 +436,12 @@ mod process {
     /// writes went through on Linux (see `serial` for why).
     #[test]
     fn dead_pipe_write_survives_concurrent_spawns() {
+        if !crate::common::isolated(concat!(
+            module_path!(),
+            "::dead_pipe_write_survives_concurrent_spawns"
+        )) {
+            return;
+        }
         use std::sync::Arc;
         use std::sync::atomic::{AtomicBool, Ordering};
         let stop = Arc::new(AtomicBool::new(false));
@@ -483,6 +500,9 @@ mod process {
     /// deterministic with no sleeps.
     #[test]
     fn dead_pipe_write_matches_oracle() {
+        if !crate::common::isolated(concat!(module_path!(), "::dead_pipe_write_matches_oracle")) {
+            return;
+        }
         let _serial = serial();
         let cmd = b"echo closed 1>&2; exec 0<&-";
         let opp = spawn_oracle(&cstring(cmd), &cstring(b"w"));
@@ -507,8 +527,7 @@ mod process {
     proptest! {
         /// Random payloads through `cat > /dev/null` in write mode: full
         /// short counts and exit codes match.
-        #[test]
-        fn write_matches_oracle(payload in proptest::collection::vec(any::<u8>(), 0..1024)) {
+        fn write_matches_oracle_cases(payload in proptest::collection::vec(any::<u8>(), 0..1024)) {
             let _serial = serial();
             let opp = spawn_oracle(&cstring(b"cat > /dev/null"), &cstring(b"w"));
             prop_assert!(!opp.is_null());
@@ -528,8 +547,7 @@ mod process {
 
         /// Random read chunk sizes over a fixed output: concatenations and
         /// codes match regardless of chunking.
-        #[test]
-        fn read_chunked_matches_oracle(chunk in 1usize..64) {
+        fn read_chunked_matches_oracle_cases(chunk in 1usize..64) {
             let _serial = serial();
             let opp = spawn_oracle(&cstring(b"printf '0123456789abcdef'"), &cstring(b"r"));
             prop_assert!(!opp.is_null());
@@ -565,6 +583,19 @@ mod process {
             prop_assert_eq!(s_out.as_slice(), o_out.as_slice());
             prop_assert_eq!(s_out, b"0123456789abcdef");
             prop_assert_eq!(s_code, o_code);
+        }
+    }
+    #[test]
+    fn write_matches_oracle() {
+        if crate::common::isolated(concat!(module_path!(), "::write_matches_oracle")) {
+            write_matches_oracle_cases();
+        }
+    }
+
+    #[test]
+    fn read_chunked_matches_oracle() {
+        if crate::common::isolated(concat!(module_path!(), "::read_chunked_matches_oracle")) {
+            read_chunked_matches_oracle_cases();
         }
     }
 }
@@ -687,6 +718,9 @@ mod windows_process {
 
     #[test]
     fn process_commands_match_oracle() {
+        if !crate::common::isolated(concat!(module_path!(), "::process_commands_match_oracle")) {
+            return;
+        }
         let _serial = serial();
         for (cmd, type_, spawns) in [
             (&b"cmd /c echo hello"[..], &b"r"[..], true),
@@ -745,6 +779,9 @@ mod windows_process {
 
     #[test]
     fn process_create2_matches_oracle() {
+        if !crate::common::isolated(concat!(module_path!(), "::process_create2_matches_oracle")) {
+            return;
+        }
         let _serial = serial();
         let cases: &[(&[&[u8]], bool)] = &[
             (
@@ -784,8 +821,7 @@ mod windows_process {
 
         /// Random arguments to `cmd /c echo`: echo prints the command line
         /// create2 built, so both sides must print the same bytes.
-        #[test]
-        fn create2_quoting_matches_oracle(args in proptest::collection::vec(echo_arg(), 1..5)) {
+        fn create2_quoting_matches_oracle_cases(args in proptest::collection::vec(echo_arg(), 1..5)) {
             let _serial = serial();
             let mut items = vec![b"cmd".to_vec(), b"/c".to_vec(), b"echo".to_vec(), b"=".to_vec()];
             items.extend(args);
@@ -795,8 +831,7 @@ mod windows_process {
         }
 
         /// Random payloads through `more > NUL` in write mode.
-        #[test]
-        fn write_matches_oracle(payload in proptest::collection::vec(0x20u8..0x7f, 0..1024)) {
+        fn write_matches_oracle_cases(payload in proptest::collection::vec(0x20u8..0x7f, 0..1024)) {
             let _serial = serial();
             let opp = unsafe {
                 oracle::oracle_os_process_pipe_create(c"cmd /c more > NUL".as_ptr(), c"w".as_ptr())
@@ -817,8 +852,7 @@ mod windows_process {
 
         /// Random read sizes over a fixed output: concatenations and codes
         /// match whatever the chunking.
-        #[test]
-        fn read_chunked_matches_oracle(chunk in 1usize..64) {
+        fn read_chunked_matches_oracle_cases(chunk in 1usize..64) {
             let _serial = serial();
             let cmd = c"cmd /c echo 0123456789abcdef";
             let opp = unsafe { oracle::oracle_os_process_pipe_create(cmd.as_ptr(), c"r".as_ptr()) };
@@ -873,6 +907,9 @@ mod windows_process {
     /// [`write_until_broken`]).
     #[test]
     fn dead_pipe_write_matches_oracle() {
+        if !crate::common::isolated(concat!(module_path!(), "::dead_pipe_write_matches_oracle")) {
+            return;
+        }
         let _serial = serial();
         let cmd = c"cmd /c (1>&2 echo closed) & exit 7";
         // SAFETY: live C strings; each pipe is used and destroyed once.
@@ -905,6 +942,9 @@ mod windows_process {
     /// on the Rust side (C passes it to `ReadFile`/`WriteFile`, which fail).
     #[test]
     fn nulls_match_oracle() {
+        if !crate::common::isolated(concat!(module_path!(), "::nulls_match_oracle")) {
+            return;
+        }
         let mut scratch = [0u8; 4];
         // SAFETY: only null handles and live C strings are passed.
         unsafe {
@@ -944,6 +984,26 @@ mod windows_process {
             assert!(!spp.is_null());
             assert_eq!(shim::os_process_pipe_read(spp, ptr::null_mut(), 4), 0);
             assert_eq!(shim::os_process_pipe_destroy(spp), 0);
+        }
+    }
+    #[test]
+    fn create2_quoting_matches_oracle() {
+        if crate::common::isolated(concat!(module_path!(), "::create2_quoting_matches_oracle")) {
+            create2_quoting_matches_oracle_cases();
+        }
+    }
+
+    #[test]
+    fn write_matches_oracle() {
+        if crate::common::isolated(concat!(module_path!(), "::write_matches_oracle")) {
+            write_matches_oracle_cases();
+        }
+    }
+
+    #[test]
+    fn read_chunked_matches_oracle() {
+        if crate::common::isolated(concat!(module_path!(), "::read_chunked_matches_oracle")) {
+            read_chunked_matches_oracle_cases();
         }
     }
 }
