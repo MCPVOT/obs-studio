@@ -53,6 +53,20 @@ class CookProfilesTest(unittest.TestCase):
                 self.assertIn("prebuild-deps-flags: --release", job, name)
         self.assertEqual(found, 1)
 
+    def test_release_linux_host_shares_host_namespace_only_on_linux(self):
+        release = jobs(ROOT / ".github/workflows/release-rust.yaml")["build"]
+        match = re.search(r"^\s+cache-key-suffix: (.+)$", release, re.M)
+        self.assertIsNotNone(match, "The release Linux host must share the host archive identity")
+        expression = re.fullmatch(
+            r"\$\{\{ matrix.os == '([^']+)' && '([^']+)' \|\| '([^']*)' \}\}", match[1])
+        self.assertIsNotNone(expression)
+        host = jobs(ROOT / ".github/workflows/build-project.yaml")["rust-tests-linux"]
+        host_suffix = re.search(r"^\s+cache-key-suffix: (\S+)$", host, re.M)[1]
+        for platform, expected in [("linux", host_suffix), ("macos", ""), ("windows", "")]:
+            with self.subTest(platform=platform):
+                actual = expression[2] if platform == expression[1] else expression[3]
+                self.assertEqual(actual, expected)
+
 
 if __name__ == "__main__":
     unittest.main()
