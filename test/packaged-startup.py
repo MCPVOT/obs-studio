@@ -534,24 +534,42 @@ def close_frontend(proc: subprocess.Popen, platform: str) -> None:
             wintypes.LPARAM,
         ]
         windows = []
+        observed = []
 
         @callback_type
         def owned_window(hwnd, _):
             pid = wintypes.DWORD()
             user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
-            if pid.value == proc.pid and user32.IsWindowVisible(hwnd):
-                windows.append(hwnd)
+            if pid.value == proc.pid:
+                visible = bool(user32.IsWindowVisible(hwnd))
+                observed.append((hwnd, visible))
+                if visible:
+                    windows.append(hwnd)
             return True
 
-        user32.EnumWindows(owned_window, 0)
-        if not windows:
-            raise RuntimeError(
-                "cannot find the owned frontend window for clean shutdown"
-            )
+        deadline = time.monotonic() + 30
+        while True:
+            windows.clear()
+            observed.clear()
+            if not user32.EnumWindows(owned_window, 0):
+                raise ctypes.WinError(ctypes.get_last_error())
+            if windows:
+                break
+            if proc.poll() is not None:
+                raise RuntimeError(
+                    f"packaged app exited before window discovery: {proc.returncode}"
+                )
+            if time.monotonic() >= deadline:
+                raise RuntimeError(
+                    "cannot find the owned frontend window for clean shutdown "
+                    f"within 30 seconds (pid={proc.pid}, owned windows={observed})"
+                )
+            time.sleep(0.05)
         for hwnd in windows:
-            user32.PostMessageW(
+            if not user32.PostMessageW(
                 hwnd, 0x0010, 0, 0
-            )  # WM_CLOSE, like the window's close button.
+            ):  # WM_CLOSE, like the window's close button.
+                raise ctypes.WinError(ctypes.get_last_error())
     try:
         result = proc.wait(timeout=30)
     except subprocess.TimeoutExpired:

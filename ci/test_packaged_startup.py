@@ -357,3 +357,40 @@ class GpuStatusTest(unittest.TestCase):
         smoke.require_gpu_log("warning: ==== GPU acceleration: YELLOW ====\n")
         with self.assertRaisesRegex(RuntimeError, "GPU acceleration"):
             smoke.require_gpu_log("info: Loading up OpenGL on adapter X\n")
+
+
+class WindowsCloseFrontendTest(unittest.TestCase):
+    def run_windows_close(self, visible, owners=None, ticks=None):
+        import ctypes
+
+        api = Mock()
+        api.EnumWindows.side_effect = lambda callback, _: callback(42, 0)
+        api.GetWindowThreadProcessId.side_effect = (
+            lambda hwnd, pid: setattr(pid._obj, "value", next(owner_values))
+        )
+        owner_values = iter(owners or [123] * 10)
+        api.IsWindowVisible.side_effect = visible
+        api.PostMessageW.return_value = 1
+        proc = Mock(pid=123, poll=Mock(return_value=None), wait=Mock(return_value=0))
+        with (
+            patch.object(ctypes, "WinDLL", return_value=api, create=True),
+            patch.object(ctypes, "WINFUNCTYPE", side_effect=lambda *args: lambda fn: fn, create=True),
+            patch.object(smoke.time, "monotonic", side_effect=ticks or [0] * 10),
+            patch.object(smoke.time, "sleep"),
+        ):
+            smoke.close_frontend(proc, "windows")
+        return api, proc
+
+    def test_waits_for_a_visible_window_of_the_owned_process(self):
+        api, proc = self.run_windows_close([False, True])
+        self.assertEqual(api.EnumWindows.call_count, 2)
+        api.PostMessageW.assert_called_once_with(42, 0x0010, 0, 0)
+        proc.wait.assert_called_once_with(timeout=30)
+
+    def test_never_closes_an_unrelated_process(self):
+        with self.assertRaisesRegex(RuntimeError, "owned frontend window"):
+            self.run_windows_close([True] * 10, owners=[456] * 10, ticks=[0, 31])
+
+    def test_permanently_invisible_owned_window_times_out(self):
+        with self.assertRaisesRegex(RuntimeError, "owned frontend window"):
+            self.run_windows_close([False] * 10, ticks=[0, 31])
