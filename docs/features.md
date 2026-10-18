@@ -1201,6 +1201,11 @@ area.
   sleeping on the UI thread. *All*, 2026-10-17. Issue
   [#1283](https://github.com/obs-rust/obs-studio/issues/1283), PR
   [#1342](https://github.com/obs-rust/obs-studio/pull/1342).
+- Recording shutdown waits until the output actually reports inactive,
+  including the interval after its deactivate signal; a signal alone no
+  longer permits premature shutdown. The UI keeps processing events within
+  the existing timeout. *All*, 2026-10-18. Issue
+  [#1391](https://github.com/obs-rust/obs-studio/issues/1391).
 
 ### Scripting
 

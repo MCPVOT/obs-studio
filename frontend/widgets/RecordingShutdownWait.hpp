@@ -29,9 +29,10 @@
  * A graceful stop of an active output signals "stop" while the output is
  * still flushing its encoders, then "deactivate" when it is done, just
  * before it reports inactive; an output that never began capturing signals
- * only "stop", and is already inactive. So the wait ends on "deactivate", or
- * on "stop" once active() is false. libobs signals on its own threads: the
- * callback only records the signal and queues the check to the UI thread. */
+ * only "stop", and is already inactive. Signals trigger an active-state
+ * check. After "deactivate", queued timer checks bridge the interval before
+ * the output reports inactive, bounded by the same timeout. libobs signals
+ * on its own threads; callbacks queue checks to the UI thread. */
 inline bool WaitForOutputToStop(signal_handler_t *output_signals, uint64_t timeout_ms,
 				const std::function<bool()> &active)
 {
@@ -40,12 +41,20 @@ inline bool WaitForOutputToStop(signal_handler_t *output_signals, uint64_t timeo
 		QObject receiver; /* lives on this (the UI) thread */
 		std::atomic<bool> deactivated{false};
 		const std::function<bool()> *active = nullptr;
+		bool retry_pending = false; /* UI thread only */
 
-		bool Stopped() const { return deactivated.load() || !(*active)(); }
+		bool Stopped() const { return !(*active)(); }
 		void Check()
 		{
 			if (Stopped()) {
 				loop.quit();
+			} else if (deactivated.load() && !retry_pending) {
+				/* deactivate precedes the inactive store on the output thread. */
+				retry_pending = true;
+				QTimer::singleShot(1, &receiver, [this]() {
+					retry_pending = false;
+					Check();
+				});
 			}
 		}
 		void Queue()
