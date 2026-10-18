@@ -18,3 +18,17 @@ function(obs_rust_cargo_target out is_macos osx_architectures)
   endif()
   set(${out} "${triple}" PARENT_SCOPE)
 endfunction()
+
+# Corrosion's imports share a Cargo target directory. Cargo waits for its
+# build lock, but soldr's no-cache preflight cannot detach cached files while
+# another Cargo owns it (#1407). Order only the Cargo invocations, through
+# Corrosion 0.5.2's public prebuild/build targets; native compilation stays
+# parallel. Target dependencies work with MSBuild as well as Ninja/Make.
+function(obs_serialize_cargo_build crate)
+  string(REPLACE "-" "_" target "${crate}")
+  get_property(previous GLOBAL PROPERTY OBS_PREVIOUS_CARGO_BUILD)
+  if(previous)
+    add_dependencies(cargo-prebuild_${target} ${previous})
+  endif()
+  set_property(GLOBAL PROPERTY OBS_PREVIOUS_CARGO_BUILD cargo-build_${target})
+endfunction()

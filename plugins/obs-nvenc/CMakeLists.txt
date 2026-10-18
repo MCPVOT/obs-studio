@@ -62,6 +62,7 @@ if(TARGET libobs-with-rust)
     CRATE_TYPES staticlib
     PROFILE release
   )
+  obs_serialize_cargo_build(obs-nvenc-plugin)
   target_link_libraries(obs-nvenc-with-rust PRIVATE obs_nvenc_plugin-static)
   if(OS_LINUX)
     target_link_options(obs-nvenc-with-rust PRIVATE "LINKER:--exclude-libs,ALL")

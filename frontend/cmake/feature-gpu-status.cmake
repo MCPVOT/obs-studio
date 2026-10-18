@@ -35,6 +35,7 @@ if(ENABLE_GPU_STATUS AND COMMAND corrosion_import_crate)
     CRATE_TYPES staticlib
     PROFILE release
   )
+  obs_serialize_cargo_build(obs-gpu-status-frontend)
   if(OS_MACOS)
     # Same as libobs/cmake/rust.cmake (#777): let the linker use the selected
     # Xcode SDK, not the CLT SDK Corrosion injects.

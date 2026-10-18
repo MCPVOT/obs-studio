@@ -26,6 +26,7 @@ corrosion_import_crate(
   CRATE_TYPES staticlib
   PROFILE release
 )
+obs_serialize_cargo_build(libobs-rust)
 
 # Whole-archive so every exported C symbol ends up in libobs-with-rust, including ones
 # libobs itself never calls (e.g. bitstream_reader_r16, used by plugins).
