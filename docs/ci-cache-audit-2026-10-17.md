@@ -18,7 +18,7 @@ three existing PulseAudio device skips; CTest took 302.01 / 308.84 s.
 | Native compiler reuse | Linux Tier 2 784/785 cached; Windows Tier 2 308/309 cacheable hits | Preserve native compiler stores |
 | Warm Ubuntu ON | Full job 684 → 435 s; build 602 → 324 s, in unmatched observations | Keep the working ON seed; measure durability |
 | Ubuntu OFF fallback | 43/361 calls cached; mixed state 9,526 MiB; save skipped | #1371 restricts restores to compatible mode/configuration; runtime verification pending |
-| Embedded Rust store | All eight expanded soldr lanes reported no embedded session | #1372 removes unused transport; cook/registry/toolchain remain |
+| Embedded Rust store | All eight expanded soldr lanes reported no embedded session | #1372 merged; queue logs confirm disabled transport with cook/registry/toolchain retained |
 | Rust correctness | Pinned compiler-cache stale-source bug and separate restored-target hazard remain | Keep wrapper bypass; do not deploy deeper test reuse without freshness validation |
 | Startup incident | Local reproduction plus PR, queue, master and full-run verification | #1365 verified; #1355 closed |
 | Storage headroom | Post-run listing summed to 12.43 GB; separate usage API disagrees | Resolve redundant writes and global-budget policy; no stable-headroom claim |
@@ -191,6 +191,38 @@ The cause remains unknown; it is tracked in
 [setup-soldr#581](https://github.com/zackees/setup-soldr/issues/581).
 [Inventory summaries and explicit limits](ci-evidence/2026-10-18-cache-pressure-and-cook-conflict.json)
 keep the publication conflict separate from compiler hits and storage totals.
+
+### Merged transport policy and a post-native-burst consumer
+
+PR #1372 merged at 00:49:59 UTC. Its successful queue run
+[39084053608](https://github.com/obs-rust/obs-studio/actions/runs/39084053608)
+reports the embedded build-cache layer as disabled while restoring the exact
+host cook archive. The action's policy layers are now toolchain, registry
+and cook; setup took 19.1 s in this configuration cohort. This verifies the
+transport choice without claiming a product-code speedup.
+
+A later master consumer, job 117546797737 in run 39083903921, restored the
+full native run's `2f9bf8d77` Tier 2 seed and recorded 784/785 cached
+compilations, then saved a new seed. The later inventory retained that new
+seed. Thus the queue compiler store has observed useful consumption after
+the native write burst. Registry and mini-tool cache misses still occurred;
+this single observation does not establish durable overall retention.
+[Runtime policy and consumer evidence](ci-evidence/2026-10-18-cache-policy-runtime.json).
+
+The mode/configuration restore restriction #1371 is also merged, but no
+post-change Ubuntu seed/consumer measurement is claimed. PR #1374 merged and its master Qt producer (job 117551485401, run
+39084764880) passed: 298/300 cacheable hits, a new
+`qt-ccache-linux-inputs-v1-7d748b6e…` snapshot, and a 5-second save step.
+[Producer metadata](ci-evidence/2026-10-18-qt-identity-producer.json) records the
+exact key and bytes. A subsequent docs-only consumer must still prove exact
+reuse and skipped upload; the initial save is not that proof.
+
+The unchanged group-hide audio test passed three isolated and sixteen
+concurrent local invocations on four pinned CPUs (76 cases, no skips). This
+negative sample did not reproduce #838; serial execution preceded concurrent
+execution without cold/warm Mesa cache control, and local binaries were not
+matched to the GitHub revision. No scheduling or assertion change was made.
+[Local probe and limitations](ci-evidence/2026-10-18-audio-resource-probe.json).
 
 ### Subsequent consumers and availability failures
 
