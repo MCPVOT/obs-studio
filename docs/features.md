@@ -365,6 +365,13 @@ area.
 
 ### Video capture
 
+- An XComposite window capture no longer asks the X server whether its
+  window exists once or twice per frame while holding the graphics
+  context; it keeps the window's state from X events (map, unmap,
+  destroy) and checks with the server at most once a second, so a busy or
+  remote X server no longer stalls rendering. *Linux*, 2026-10-17. Issue
+  [#1356](https://github.com/obs-rust/obs-studio/issues/1356), PR
+  [#1377](https://github.com/obs-rust/obs-studio/pull/1377).
 - An XComposite window capture whose window is minimized or on another
   workspace no longer searches every window and rebuilds its pixmap every
   2 s; the search backs off to 30 s and runs at once when the window maps

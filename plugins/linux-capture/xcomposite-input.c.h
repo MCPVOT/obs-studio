@@ -28,6 +28,7 @@ struct xcompcap {
 	bool exclude_alpha;
 
 	struct xcomp_search search;
+	struct xcomp_presence presence;
 	bool window_changed;
 	bool window_hooked;
 
@@ -442,6 +443,8 @@ void watcher_process(xcb_generic_event_t *ev)
 
 	pthread_mutex_lock(&watcher_lock);
 	xcb_window_t win = 0;
+	bool changed = true;
+	enum xcomp_presence_event presence = XCOMP_PRESENCE_OTHER;
 
 	switch (ev->response_type & ~0x80) {
 	case XCB_CONFIGURE_NOTIFY:
@@ -449,6 +452,14 @@ void watcher_process(xcb_generic_event_t *ev)
 		break;
 	case XCB_MAP_NOTIFY:
 		win = ((xcb_map_notify_event_t *)ev)->event;
+		presence = XCOMP_PRESENCE_MAPPED;
+		break;
+	case XCB_UNMAP_NOTIFY:
+		// Only the cached state changes; the tick's lost-window search
+		// handles it like before (#1356).
+		win = ((xcb_unmap_notify_event_t *)ev)->event;
+		presence = XCOMP_PRESENCE_UNMAPPED;
+		changed = false;
 		break;
 	case XCB_EXPOSE:
 		win = ((xcb_expose_event_t *)ev)->window;
@@ -458,6 +469,7 @@ void watcher_process(xcb_generic_event_t *ev)
 		break;
 	case XCB_DESTROY_NOTIFY:
 		win = ((xcb_destroy_notify_event_t *)ev)->event;
+		presence = XCOMP_PRESENCE_DESTROYED;
 		break;
 	};
 
@@ -466,7 +478,9 @@ void watcher_process(xcb_generic_event_t *ev)
 			struct reg_item *item =
 				(struct reg_item *)darray_item(sizeof(struct reg_item), &watcher_registry.da, i);
 			if (item->win == win) {
-				item->src->window_changed = true;
+				if (changed)
+					item->src->window_changed = true;
+				xcomp_presence_event(&item->src->presence, presence);
 			}
 		}
 	}
@@ -573,15 +587,30 @@ static void xcompcap_video_tick(void *data, float seconds)
 	if (!obs_source_showing(s->source))
 		return;
 
+	// Whether the window is viewable comes from the X events the watcher
+	// receives (Map/Unmap/DestroyNotify), not a blocking round trip per
+	// frame under obs_enter_graphics (#1356). xcb_poll_for_event reads the
+	// socket without blocking; before, only the round trips pulled events
+	// in. A real check still runs after window_changed and at most once a
+	// second in case an event was missed, outside the graphics context.
+	pthread_mutex_lock(&s->lock);
+	xcb_generic_event_t *event;
+	while ((event = xcb_poll_for_event(xcomp_conn))) {
+		watcher_process(event);
+		free(event);
+	}
+	if (s->window_changed)
+		xcomp_presence_invalidate(&s->presence);
+	if (xcomp_presence_check_due(&s->presence, seconds))
+		xcomp_presence_set(&s->presence, xcomp_window_exists(xcomp_conn, s->win));
+	bool window_viewable = s->presence.viewable;
+	pthread_mutex_unlock(&s->lock);
+
 	obs_enter_graphics();
 	pthread_mutex_lock(&s->lock);
 
-	xcb_generic_event_t *event;
-	while ((event = xcb_poll_for_queued_event(xcomp_conn)))
-		watcher_process(event);
-
 	// Send an unhooked signal if the window isn't found anymore
-	if (s->window_hooked && !xcomp_window_exists(xcomp_conn, s->win)) {
+	if (s->window_hooked && !window_viewable) {
 		s->window_hooked = false;
 
 		signal_handler_t *sh = obs_source_get_signal_handler(s->source);
@@ -595,7 +624,7 @@ static void xcompcap_video_tick(void *data, float seconds)
 	// reconfigured. A window that stays unmapped (minimized, other
 	// workspace) is searched less and less often (#1357); a MapNotify on it
 	// sets window_changed through the watcher.
-	bool window_lost = !xcomp_window_exists(xcomp_conn, s->win) || !s->gltex;
+	bool window_lost = !window_viewable || !s->gltex;
 	bool forced = s->window_changed;
 	if (xcomp_search_due(&s->search, seconds, window_lost, forced)) {
 		s->window_changed = false;
@@ -632,6 +661,8 @@ static void xcompcap_video_tick(void *data, float seconds)
 			xcb_xcursor_offset(s->cursor, s->cursor->x_org + s->crop_left, s->cursor->y_org + s->crop_top);
 		}
 
+		if (found == s->win)
+			xcomp_presence_set(&s->presence, viewable);
 		xcomp_search_done(&s->search, s->gltex != NULL, forced);
 	}
 
@@ -895,6 +926,7 @@ static void xcompcap_update(void *data, obs_data_t *settings)
 	xcomp_cleanup_pixmap(disp, s);
 	xcomp_create_pixmap(xcomp_conn, s, LOG_ERROR);
 	xcomp_search_reset(&s->search);
+	xcomp_presence_invalidate(&s->presence);
 	xcb_xcursor_offset_win(xcomp_conn, s->cursor, s->win);
 	xcb_xcursor_offset(s->cursor, s->cursor->x_org + s->crop_left, s->cursor->y_org + s->crop_top);
 
