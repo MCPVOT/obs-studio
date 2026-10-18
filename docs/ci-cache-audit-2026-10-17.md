@@ -47,8 +47,10 @@ Full manual run [39074304012](https://github.com/obs-rust/obs-studio/actions/run
 at `d315ee9c6` passed all seven native app builds: Ubuntu OFF/ON, Windows
 x64/arm64, macOS x86/arm64 and Flatpak. This confirms native unity/PCH build
 success at that revision. The overall workflow **failed**: Linux OFF
-`test_slideshow_empty` returned `obs_startup=false` in group setup. The cause
-is unknown and tracked in [#1355](https://github.com/obs-rust/obs-studio/issues/1355).
+`test_slideshow_empty` returned `obs_startup=false` in group setup. The startup failure is tracked in
+[#1355](https://github.com/obs-rust/obs-studio/issues/1355). Subsequent local
+reproduction and the merged Xvfb lifetime fix are described below; that does
+not establish the cause of every historical startup incident.
 The X-display informational message also occurs in passing tests and does not
 diagnose that failure. No test assertion was relaxed.
 
@@ -83,6 +85,28 @@ cost even though its cause remains unresolved.
 keep the successful native builds, failed test setup, cold cache production
 and unresolved cache loss separate. The full-day comparison remains open.
 
+### Startup fix verified in the merge queue, 00:10 UTC October 18
+
+PR [#1365](https://github.com/obs-rust/obs-studio/pull/1365) merged at
+00:10:16 UTC after queue run
+[39081091301](https://github.com/obs-rust/obs-studio/actions/runs/39081091301)
+succeeded. Both implementations registered 295 tests with zero failures;
+CTest took 314.95 s OFF and 308.87 s ON. The slideshow test and the new
+startup-failure diagnostic test passed in both modes. These observations
+verify queue coverage of the Xvfb `-noreset` fix; they do not replace the
+pending full nightly run or establish a throughput improvement.
+
+[Machine-readable queue results](ci-evidence/2026-10-18-startup-queue-validation.json)
+keep this verification separate from the earlier PR results and local
+repeated-startup experiment.
+
+Linux release setup also now uses `linux-host-v1`: PR
+[#1367](https://github.com/obs-rust/obs-studio/pull/1367) merged at 00:11:16 UTC.
+All seven setup-soldr callsites now have explicit consumer profiles, and all
+Linux callsites distinguish host and container cache identities. The release
+workflow itself was not dispatched; its subsequent warm-consumer performance
+remains unmeasured.
+
 ### Subsequent consumers and availability failures
 
 [Consumer and capacity observations](ci-evidence/2026-10-17-cache-consumer-followup.json)
@@ -104,8 +128,18 @@ daemon diagnostics, plus uncached real compilation during the existing single
 recovery attempt when daemon status confirms unavailability. Local testing
 with checksum-verified zccache 1.15.5 confirms unavailable status exits 1,
 valid C compiles with `ZCCACHE_DISABLE=1`, and deliberate invalid C still
-fails with its current diagnostic. Live CI verification remains pending;
-the daemon-death cause is unknown.
+fails with its current diagnostic. Latest PR run
+[39081664635](https://github.com/obs-rust/obs-studio/actions/runs/39081664635)
+passed the build but failed the unchanged `test_recording_shutdown_wait`
+state assertions in both modes: each registered 295 tests with one failing
+test executable. The startup diagnostic passed in both. Source inspection
+found a race candidate: the wait may return on `deactivate` before the output
+reports inactive. Evidence is posted under the existing claim in
+[#1283](https://github.com/obs-rust/obs-studio/issues/1283#issuecomment-6243649634);
+no rerun, skip, or assertion change was made. This is not evidence of a cache
+recovery failure. The daemon-death cause remains unknown, and #1362 is not
+yet merged. [Raw validation summary](ci-evidence/2026-10-18-recovery-pr-validation.json)
+keeps build success separate from test failures.
 
 The full dispatch's native Windows Tier 2 compiler cache hit 308/308
 cacheable calls, with 27 noncacheable calls. macOS Tier 2 passed 163
@@ -375,6 +409,80 @@ headroom and the representative-day comparison remain acceptance work under
 #1286. This report does not claim those requirements are complete.
 
 ## Recommendation and acceptance checkpoint
+
+### Rebuilt Tier 2 cache: observed warm consumer
+
+After the archive disappearance, master `635454ee7` rebuilt 783 units cold
+and saved a 188,194,495-byte compiler archive. Master `3ac86f74c` subsequently
+restored it, recorded 734 cached / 49 cold compilations, and saved an updated
+193,854,787-byte archive. Only documentation changed between these revisions;
+generated revision metadata and runner placement still differ.
+
+| Observed job | Complete build step | Whole job | Compiler hits |
+| --- | ---: | ---: | ---: |
+| Cold producer 117527420015 | 300 s | 383 s | 0/783 |
+| Warm consumer 117530045228 | 117 s | 238 s | 734/783 |
+
+[Raw producer/consumer observations](ci-evidence/2026-10-17-tier2-reseed-cold-warm.json)
+establish useful reuse of the smaller new archive. These are single
+observations, not a matched causal benchmark. Survival through another full
+nightly write burst and representative-day traffic remains unverified.
+
+### Expanded soldr lane observations
+
+The earlier full dispatch also supplies
+[eight soldr lane observations](ci-evidence/2026-10-17-full-dispatch-soldr-lanes.json),
+including separate setup/post-step times and literal cook/embedded compiler
+summaries. These are eight expanded jobs from the configured callsites,
+not eight matched cold/warm experiments. Native test and static-library
+consumers are kept separate from host cross-lint and Fast Gate. The Windows
+Tier 2 standalone ccache hit 308/308 cacheable calls while its embedded soldr
+counter was zero; those values describe different cache layers. Do not
+disable the working native compiler cache based on the embedded counter.
+
+### Existing artifact transport cost
+
+The successful #1353 queue run uploaded its 177,835,306-byte execution tree
+in 3 seconds. OFF/ON consumers downloaded it in 2/4 seconds and unpacked it
+in 2 seconds each. [Literal step observations](ci-evidence/2026-10-17-tier2-artifact-transfer.json)
+show inexpensive same-run transport for this payload. Cross-run producer
+selection/authentication and deep Cargo/object-state payloads are separate,
+unmeasured costs; this does not implement queue-only cache publication.
+
+### Startup blocker: local failure identified
+
+The failure diagnostics in proposed #1365 let the real unchanged slideshow
+test identify `XOpenDisplay` failure during hotkey initialization under
+concurrent startup/shutdown. On a shared default Xvfb server, six of 68
+attempted invocations failed (workers stop at their first failure). With
+only `-noreset` added, all 160 invocations and 1,920 startup groups passed.
+The earlier Xlib-only probe had not reproduced this behavior. #1365 proposes
+the server-lifetime fix for normal and repeated runs, preserving assertions,
+parallelism and failure propagation. Full fresh OFF/ON CI and queue validation
+remain pending; this local reproduction does not assign every historical
+startup failure to the same cause.
+
+### Remaining acceptance work
+
+The follow-up fixes also incurred iteration cost. Across eight completed
+runs on only the #1362/#1365 branches, canceled runs consumed 44.07 observed
+runner-minutes and failed runs 58.08. Two active corrected runs are excluded
+from this snapshot. [Per-run observations](ci-evidence/2026-10-17-followup-iteration-cost.json)
+keep this separate from steady-state gains, billing and total #1286 rollout
+cost. Failures included cache-daemon availability, startup and the new test
+interposer; superseded runs also consumed work before cancellation completed.
+These costs must not be hidden by reporting only successful final runs.
+
+The pinned janitor's global-budget behavior is now checked directly:
+`cache/ops.py::janitor` plans family/stale/finding cleanup and applies
+newest-entry/grace protection, without a global trim against `[cache].budget`.
+A [read-only synthetic executor probe](ci-evidence/2026-10-17-janitor-global-budget-probe.json)
+kept two current 6 GiB entries when their individual limits were 6 GiB,
+despite a 10 GiB global budget. That fixture intentionally has invalid
+aggregate declarations; it is not a live inventory or a claim that static
+budget checks accept it. Lowering the global budget field alone would not
+create retention headroom. Whole-budget allocation and writer-burst policy
+remain tracked in #1269; family isolation is insufficient by itself.
 
 Keep the merged queue policy, Rust correctness safeguard, bounded useful
 compiler caches and parallel OFF/ON runners. Validate the observed host-package
