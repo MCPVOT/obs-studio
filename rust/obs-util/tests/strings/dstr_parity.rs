@@ -18,6 +18,21 @@
 //! `const char *` arguments are NUL-terminated buffers of arbitrary bytes, so
 //! an embedded NUL truncates the string on both sides.
 //!
+//! Intentional difference (#1297): a source that points into the
+//! destination's own buffer. `dstr_ncat` (and `dstr_cat_strref` through it)
+//! with a pointer into `dst->array`, `dstr_cat_dstr(d, d)` and `dstr_copy`
+//! from inside `dst->array`. When the buffer grows, C `brealloc`s it and then
+//! `memcpy`s from the old pointer, reading freed memory. `dstr_cat_dstr(d, d)`
+//! and `dstr_copy` from inside the buffer also `memcpy` overlapping ranges.
+//! Both are undefined behavior. Rust takes the source's offset before the
+//! grow, finds the source again in the new buffer and copies with `memmove`,
+//! so the result is the source bytes as they were before the call. The
+//! oracle never gets the aliasing pointer: these ops give C a private copy
+//! of the same bytes, which is defined in C, and compare bytes, terminator,
+//! `len` and `capacity` as usual. `dstr_ncat_dstr(d, d, n)` is defined in C
+//! (it re-reads `str->array` after the realloc, and the ranges do not
+//! overlap), so both sides get the aliasing pointer.
+//!
 //! Mutation check (run by the integrator): replace one `Dstr` method body in
 //! `src/dstr.rs` with `todo!()`, or change the growth rule of
 //! `ensure_capacity` (for example always allocate exactly `new_size`); this
@@ -227,6 +242,15 @@ enum Op {
     Ncopy(Vec<u8>, usize),
     NcopyDstr(usize),
     CatDstr,
+    /// `dstr_cat_dstr(d, d)`: the source aliases the destination.
+    CatSelf,
+    /// `dstr_ncat_dstr(d, d, len)`.
+    NcatDstrSelf(usize),
+    /// `dstr_ncat(d, d->array + start, len)` with room to spare, so the
+    /// source stays valid in C (no `brealloc` moves it).
+    NcatFromOwn(usize, usize),
+    /// `dstr_copy(d, d->array + start)`: copy from inside the buffer.
+    CopyFromOwn(usize),
     CatStrref(Option<Vec<u8>>, usize),
     Ncat(Option<Vec<u8>>, usize),
     NcatDstr(usize),
@@ -259,6 +283,10 @@ fn op() -> impl Strategy<Value = Op> {
             .boxed(),
         n().prop_map(Op::NcopyDstr).boxed(),
         Just(Op::CatDstr).boxed(),
+        Just(Op::CatSelf).boxed(),
+        n().prop_map(Op::NcatDstrSelf).boxed(),
+        (n(), n()).prop_map(|(a, b)| Op::NcatFromOwn(a, b)).boxed(),
+        n().prop_map(Op::CopyFromOwn).boxed(),
         (opt(any_bytes()), n())
             .prop_map(|(v, l)| Op::CatStrref(v, l))
             .boxed(),
@@ -296,8 +324,9 @@ fn apply(op: &Op, d: &mut Pair, s: &mut Pair) {
     // SAFETY: both pairs hold valid dstrs of identical state that are only
     // changed through these functions; strings are NUL-terminated buffers
     // that outlive the calls; indices and counts are reduced to ranges C
-    // defines; `src` and `dst` are distinct unless the operation is the
-    // in-place `dstr_left`.
+    // defines; `src` and `dst` are distinct unless the operation is one of
+    // the aliasing cases (`dstr_left` in place, the `*Self` and `*FromOwn`
+    // operations), which pass both sides the same aliasing.
     unsafe {
         match op {
             Op::SetSrc(v) => {
@@ -340,6 +369,52 @@ fn apply(op: &Op, d: &mut Pair, s: &mut Pair) {
             Op::CatDstr => {
                 r::dstr_cat_dstr(&mut d.r, &s.r);
                 c::oracle_dstr_cat_dstr(&mut d.c, &s.c);
+            }
+            // The three aliasing ops below are intentional differences
+            // (see the header): only the Rust side gets the aliasing
+            // pointer. C gets a private copy of the same source bytes, which
+            // is defined and has the same result and capacity growth.
+            Op::CatSelf => {
+                // C copies `len + 1` bytes, the terminator included.
+                let own = nt(d.rust_bytes());
+                let pr = &raw mut d.r;
+                r::dstr_cat_dstr(pr, pr);
+                let src = OracleDstr {
+                    array: own.as_ptr() as *mut c_char,
+                    len: own.len() - 1,
+                    capacity: own.len(),
+                };
+                c::oracle_dstr_cat_dstr(&mut d.c, &src);
+            }
+            Op::NcatDstrSelf(raw) => {
+                // Defined in C: `str == dst` is re-read after the realloc and
+                // the ranges do not overlap.
+                let len = raw % (ld + 3);
+                let (pr, pc) = (&raw mut d.r, &raw mut d.c);
+                r::dstr_ncat_dstr(pr, pr, len);
+                c::oracle_dstr_ncat_dstr(pc, pc, len);
+            }
+            Op::NcatFromOwn(a, b) => {
+                if ld == 0 {
+                    return;
+                }
+                let start = a % ld;
+                // Lengths past the spare capacity make Rust move the buffer
+                // and re-find the source.
+                let len = b % (ld - start + 1);
+                // NUL-terminated: C reads the first byte even when `len == 0`.
+                let own = nt(&d.rust_bytes()[start..start + len]);
+                r::dstr_ncat(&mut d.r, d.r.array.add(start), len);
+                c::oracle_dstr_ncat(&mut d.c, own.as_ptr() as *const c_char, len);
+            }
+            Op::CopyFromOwn(raw) => {
+                if ld == 0 {
+                    return;
+                }
+                let start = raw % ld;
+                let own = nt(cstr(&d.rust_bytes()[start..]));
+                r::dstr_copy(&mut d.r, d.r.array.add(start));
+                c::oracle_dstr_copy(&mut d.c, own.as_ptr() as *const c_char);
             }
             Op::CatStrref(v, raw) => {
                 let sr = Sr::new(v, *raw);

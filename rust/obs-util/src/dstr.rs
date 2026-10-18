@@ -35,34 +35,16 @@ fn at(s: &[u8], i: usize) -> u8 {
     s.get(i).copied().unwrap_or(0)
 }
 
-/// Index of the first `b` in `s`, eight bytes at a time (SWAR), so long
-/// strings without the byte are scanned at near memory speed like C `strstr`.
-fn find_byte(s: &[u8], b: u8) -> Option<usize> {
-    const LO: u64 = 0x0101_0101_0101_0101;
-    const HI: u64 = 0x8080_8080_8080_8080;
-    let pattern = LO * u64::from(b);
-    let (chunks, _) = s.as_chunks::<8>();
-    let mut base = 0;
-    for chunk in chunks {
-        let word = u64::from_le_bytes(*chunk);
-        let x = word ^ pattern;
-        if (x.wrapping_sub(LO) & !x & HI) != 0 {
-            break; // a zero byte in `x`: `b` is in this chunk
-        }
-        base += 8;
-    }
-    s[base..].iter().position(|&c| c == b).map(|i| base + i)
-}
-
-/// First index `>= from` where `needle` (non-empty) starts in `hay`: scan for
-/// the first byte, then compare the rest.
+/// First index `>= from` where `needle` (non-empty) starts in `hay`: a SIMD
+/// `memchr` for the first byte, then compare the rest. Long strings are
+/// scanned at memory speed like C `strstr`, with no per-call searcher setup
+/// (#1297).
 fn find_from(hay: &[u8], needle: &[u8], from: usize) -> Option<usize> {
     let (&head, tail) = needle.split_first()?;
     let last_start = hay.len().checked_sub(needle.len())?;
     let mut i = from;
     while i <= last_start {
-        let off = find_byte(&hay[i..=last_start], head)?;
-        i += off;
+        i += memchr::memchr(head, &hay[i..=last_start])?;
         if &hay[i + 1..i + needle.len()] == tail {
             return Some(i);
         }
@@ -71,9 +53,97 @@ fn find_from(hay: &[u8], needle: &[u8], from: usize) -> Option<usize> {
     None
 }
 
+/// How `dstr_replace` changes the string held in a buffer, decided before
+/// the buffer is touched (#1297: the C ABI shim edits the C buffer in place).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReplacePlan {
+    /// No match (or an empty `find`): nothing changes.
+    None,
+    /// Same-length or shrinking replace: done in place by
+    /// [`replace_in_place`], which returns the new length. `first` is the
+    /// first match.
+    InPlace { first: usize },
+    /// Growing replace: the string becomes `new_len` bytes; grow the buffer
+    /// to hold `new_len` bytes, then call [`replace_grow`].
+    Grow { new_len: usize, first: usize },
+}
+
+/// Plans `dstr_replace` of `find` with `replace` in `s`. `find` and
+/// `replace` are the C strings' bytes without the terminator (callers cut
+/// them with [`cstr`] once, so a long value is not rescanned).
+pub fn replace_plan(s: &[u8], find: &[u8], replace: &[u8]) -> ReplacePlan {
+    if find.is_empty() {
+        return ReplacePlan::None;
+    }
+    let Some(first) = find_from(s, find, 0) else {
+        return ReplacePlan::None; // no match: no copy, no allocation (#1296)
+    };
+    if replace.len() <= find.len() {
+        return ReplacePlan::InPlace { first };
+    }
+    let mut count = 0usize;
+    let mut at = Some(first);
+    while let Some(i) = at {
+        count += 1;
+        at = find_from(s, find, i + find.len());
+    }
+    ReplacePlan::Grow {
+        new_len: s.len() + count * (replace.len() - find.len()),
+        first,
+    }
+}
+
+/// Same-length or shrinking `dstr_replace` on `buf` (the whole string),
+/// starting at the first match `first` from [`replace_plan`]; returns the
+/// new length. Matches are found left to right and do not overlap, as in C.
+/// `replace` must be no longer than `find` (bytes as for [`replace_plan`]).
+pub fn replace_in_place(buf: &mut [u8], first: usize, find: &[u8], replace: &[u8]) -> usize {
+    assert!(!find.is_empty() && replace.len() <= find.len());
+    let len = buf.len();
+    // `w` is where the next kept byte goes, `r` where the scan resumes;
+    // `w <= r` because each replacement is no longer than its match.
+    let (mut w, mut r) = (first, first);
+    let mut at = Some(first);
+    while let Some(i) = at {
+        buf.copy_within(r..i, w);
+        w += i - r;
+        buf[w..w + replace.len()].copy_from_slice(replace);
+        w += replace.len();
+        r = i + find.len();
+        at = find_from(&buf[..len], find, r);
+    }
+    buf.copy_within(r..len, w);
+    w + len - r
+}
+
+/// Growing `dstr_replace`: `buf` is the grown string of
+/// [`ReplacePlan::Grow`]'s `new_len` bytes whose first `old_len` bytes hold
+/// the original string, `first` its first match. Fills `buf` with the
+/// result.
+pub fn replace_grow(buf: &mut [u8], old_len: usize, first: usize, find: &[u8], replace: &[u8]) {
+    let new_len = buf.len();
+    assert!(!find.is_empty() && replace.len() > find.len() && first < old_len);
+    // Move everything after the first match's start to the end, then
+    // rebuild front to back. The write position never passes the read
+    // position: it trails it by the growth still to come.
+    let shift = new_len - old_len;
+    buf.copy_within(first..old_len, first + shift);
+    let (mut w, mut r) = (first, first + shift);
+    let mut at = Some(r);
+    while let Some(i) = at {
+        buf.copy_within(r..i, w);
+        w += i - r;
+        buf[w..w + replace.len()].copy_from_slice(replace);
+        w += replace.len();
+        r = i + find.len();
+        at = find_from(&buf[..new_len], find, r);
+    }
+    buf.copy_within(r..new_len, w);
+}
+
 /// The C string held by `s`: everything before the first NUL.
 pub fn cstr(s: &[u8]) -> &[u8] {
-    match s.iter().position(|&b| b == 0) {
+    match memchr::memchr(0, s) {
         Some(n) => &s[..n],
         None => s,
     }
@@ -412,43 +482,19 @@ impl Dstr {
             return;
         }
         let (find, replace) = (cstr(find), cstr(replace));
-        if find.is_empty() {
-            return;
-        }
-        // Matches are found left to right and do not overlap, as in C.
-        let Some(first) = find_from(&self.bytes, find, 0) else {
-            return; // no match: no copy, no allocation (#1296)
-        };
-        if replace.len() == find.len() {
-            let mut at = Some(first);
-            while let Some(i) = at {
-                self.bytes[i..i + find.len()].copy_from_slice(replace);
-                at = find_from(&self.bytes, find, i + find.len());
+        match replace_plan(&self.bytes, find, replace) {
+            ReplacePlan::None => {}
+            ReplacePlan::InPlace { first } => {
+                let n = replace_in_place(&mut self.bytes, first, find, replace);
+                self.bytes.truncate(n);
             }
-            return;
+            ReplacePlan::Grow { new_len, first } => {
+                let old_len = self.bytes.len();
+                self.ensure_capacity(new_len + 1);
+                self.bytes.resize(new_len, 0);
+                replace_grow(&mut self.bytes, old_len, first, find, replace);
+            }
         }
-        let src = &self.bytes;
-        let mut count = 0usize;
-        let mut at = Some(first);
-        while let Some(i) = at {
-            count += 1;
-            at = find_from(src, find, i + find.len());
-        }
-        let new_len = src.len() - count * find.len() + count * replace.len();
-        let mut out = Vec::with_capacity(new_len);
-        let mut prev = 0;
-        let mut at = Some(first);
-        while let Some(i) = at {
-            out.extend_from_slice(&src[prev..i]);
-            out.extend_from_slice(replace);
-            prev = i + find.len();
-            at = find_from(src, find, prev);
-        }
-        out.extend_from_slice(&src[prev..]);
-        if replace.len() > find.len() {
-            self.ensure_capacity(out.len() + 1);
-        }
-        self.bytes = out;
     }
 
     /// `dstr_safe_printf`: `$1`..`$4` are replaced by the non-NULL values.

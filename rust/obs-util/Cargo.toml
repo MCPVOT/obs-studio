@@ -10,6 +10,8 @@ publish.workspace = true
 [dependencies]
 # Unix errno values and pthread_setname_np in ffi/threading.rs.
 libc = "0.2"
+# SIMD substring search for dstr_replace (C uses libc strstr), #1297.
+memchr = "2"
 
 [dev-dependencies]
 obs-c-oracle = { path = "../obs-c-oracle" }

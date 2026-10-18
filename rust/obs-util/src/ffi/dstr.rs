@@ -2,10 +2,13 @@
 //! `libobs/util/dstr.c`.
 //!
 //! `struct dstr` is public (the `dstr.h` inline helpers read and write it),
-//! so the layout below is the contract. Every shim reads the raw dstr into
-//! the safe [`Dstr`] model, runs the safe core and writes the result back,
-//! allocating only through `bmalloc`/`bfree` so C can later free or resize
-//! the buffer.
+//! so the layout below is the contract. The hot paths (`dstr_copy`, the
+//! appends and `dstr_replace`/`dstr_safe_printf`) edit the C buffer in place
+//! and grow it with `brealloc` exactly like `dstr_ensure_capacity`, so the
+//! existing string is never copied out and back (#1297). The rarer shims
+//! read the raw dstr into the safe [`Dstr`] model, run the safe core and
+//! write the result back. Either way the buffer only ever comes from the
+//! `bmalloc` family, so C can later free or resize it.
 
 // c_char is i8 on most targets and u8 on some (aarch64-pc-windows-msvc,
 // aarch64 Linux): the `as u8` / `as *const u8` conversions below are needed on
@@ -15,8 +18,9 @@
 use core::ffi::{CStr, c_char, c_int, c_void};
 use core::{mem, ptr, slice};
 
-use super::darray::{bfree, bmalloc};
-use crate::dstr::{self as core_dstr, Dstr};
+use super::darray::{bfree, bmalloc, brealloc};
+use crate::darray::grow_capacity;
+use crate::dstr::{self as core_dstr, Dstr, ReplacePlan};
 
 /// Mirrors `struct dstr` in `libobs/util/dstr.h`.
 #[repr(C)]
@@ -137,6 +141,148 @@ unsafe fn with<R>(d: *mut dstr, f: impl FnOnce(&mut Dstr) -> R) -> R {
     // SAFETY: forwarded to the caller.
     unsafe { write(d, model) };
     r
+}
+
+/// `dstr_ensure_capacity` from `dstr.h`: the same growth rule and the same
+/// `brealloc` call, so `capacity` (and the allocator traffic) match C.
+///
+/// # Safety
+///
+/// `d` must point to a valid `dstr` whose `array` is null or came from the
+/// `bmalloc` family. A grow may move the buffer, invalidating pointers into
+/// it.
+unsafe fn ensure_capacity(d: *mut dstr, new_size: usize) {
+    // SAFETY: the caller guarantees `d` is valid.
+    let d = unsafe { &mut *d };
+    if new_size <= d.capacity {
+        return;
+    }
+    let new_cap = grow_capacity(d.capacity, new_size);
+    // SAFETY: `array` is null or from the `bmalloc` family; `new_cap > 0`.
+    d.array = unsafe { brealloc(d.array as *mut c_void, new_cap) } as *mut c_char;
+    d.capacity = new_cap;
+}
+
+/// `dstr_free`.
+///
+/// # Safety
+///
+/// As for [`ensure_capacity`].
+unsafe fn free(d: *mut dstr) {
+    // SAFETY: the caller guarantees `d` is valid and `array` freeable.
+    unsafe {
+        bfree((*d).array as *mut c_void);
+        (*d).array = ptr::null_mut();
+        (*d).len = 0;
+        (*d).capacity = 0;
+    }
+}
+
+/// Writes the `n` bytes at `src` to offset `at` of `d`'s buffer (growing it
+/// to `at + n + 1` first), then sets `len = at + n` and the terminator.
+/// Shared body of the appends (`at = len`) and `dstr_copy` (`at = 0`).
+///
+/// `src` may point into `d`'s own buffer (`dstr_cat_dstr(d, d)`, or a
+/// pointer into `d->array`): its offset is taken before the grow and the
+/// pointer re-derived after it, so a moving `brealloc` cannot leave it
+/// dangling, and the copy is a `memmove`.
+///
+/// # Safety
+///
+/// `d` as for [`ensure_capacity`], with `at <= len`; `src` must be valid
+/// for `n` reads.
+unsafe fn write_at(d: *mut dstr, at: usize, src: *const u8, n: usize) {
+    // SAFETY: the caller guarantees `d` is valid.
+    let (old, old_cap) = unsafe { ((*d).array as *const u8, (*d).capacity) };
+    let own = (!old.is_null())
+        .then(|| (src as usize).wrapping_sub(old as usize))
+        .filter(|&off| off < old_cap);
+    // SAFETY: forwarded to the caller.
+    unsafe { ensure_capacity(d, at + n + 1) };
+    // SAFETY: the buffer now holds `at + n + 1` bytes. An own-buffer source
+    // is re-derived from the (possibly moved) buffer at the same offset; it
+    // stays in bounds because `brealloc` keeps the old contents. `ptr::copy`
+    // allows the ranges to overlap.
+    unsafe {
+        let buf = (*d).array as *mut u8;
+        let src = match own {
+            Some(off) => buf.add(off) as *const u8,
+            None => src,
+        };
+        ptr::copy(src, buf.add(at), n);
+        *buf.add(at + n) = 0;
+        (*d).len = at + n;
+    }
+}
+
+/// `dstr_replace` on the C buffer in place: no model copy, and a growing
+/// replace grows the buffer through [`ensure_capacity`] as C does.
+///
+/// # Safety
+///
+/// `d` as for [`ensure_capacity`] with `array` (when non-null) holding
+/// `len + 1` bytes; `find` and `replace` are C strings by value.
+unsafe fn replace_in_place(d: *mut dstr, find: &[u8], replace: &[u8]) {
+    // SAFETY: the caller guarantees `d` is valid.
+    let (array, len) = unsafe { ((*d).array as *mut u8, (*d).len) };
+    // `dstr_is_empty`.
+    // SAFETY: a non-null array with `len > 0` holds at least one byte.
+    if array.is_null() || len == 0 || unsafe { *array } == 0 {
+        return;
+    }
+    // SAFETY: a non-null array holds `len` bytes; no other reference to the
+    // buffer is live while `s` is.
+    let s = unsafe { slice::from_raw_parts(array, len) };
+    match core_dstr::replace_plan(s, find, replace) {
+        ReplacePlan::None => {}
+        ReplacePlan::InPlace { first } => {
+            // SAFETY: as above, now mutably; nothing else borrows the buffer.
+            let buf = unsafe { slice::from_raw_parts_mut(array, len) };
+            let n = core_dstr::replace_in_place(buf, first, find, replace);
+            // SAFETY: `n <= len < capacity`, so the terminator fits.
+            unsafe {
+                *array.add(n) = 0;
+                (*d).len = n;
+            }
+        }
+        ReplacePlan::Grow { new_len, first } => {
+            // SAFETY: forwarded to the caller; `array` is not used after.
+            unsafe { ensure_capacity(d, new_len + 1) };
+            // SAFETY: the buffer now holds `new_len + 1` bytes, the first
+            // `len` of them the original string (`brealloc` keeps contents).
+            unsafe {
+                let buf = (*d).array as *mut u8;
+                core_dstr::replace_grow(
+                    slice::from_raw_parts_mut(buf, new_len),
+                    len,
+                    first,
+                    find,
+                    replace,
+                );
+                *buf.add(new_len) = 0;
+                (*d).len = new_len;
+            }
+        }
+    }
+}
+
+/// `dstr_copy` on the C buffer.
+///
+/// # Safety
+///
+/// `d` as for [`ensure_capacity`]; `array` null or a NUL-terminated string
+/// (it may point into `d`'s own buffer).
+unsafe fn copy_in_place(d: *mut dstr, array: *const c_char) {
+    // SAFETY: forwarded to the caller.
+    match unsafe { opt_cstr(array) } {
+        Some(s) if !s.is_empty() => {
+            // SAFETY: `s` is readable for `s.len()` bytes; `write_at`
+            // handles a source inside `d`'s buffer.
+            unsafe { write_at(d, 0, s.as_ptr(), s.len()) }
+        }
+        // SAFETY: forwarded to the caller.
+        _ => unsafe { free(d) },
+    }
 }
 
 /// # Safety
@@ -317,10 +463,7 @@ pub unsafe extern "C" fn dstr_init_copy_strref(dst: *mut dstr, src: *const Strre
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dstr_copy(dst: *mut dstr, array: *const c_char) {
     // SAFETY: forwarded to the caller.
-    unsafe {
-        let s = opt_cstr(array).unwrap_or(&[]);
-        with(dst, |d| d.copy(s));
-    }
+    unsafe { copy_in_place(dst, array) };
 }
 
 /// # Safety
@@ -370,11 +513,14 @@ pub unsafe extern "C" fn dstr_ncopy_dstr(dst: *mut dstr, src: *const dstr, len: 
 /// `dst` and `src` must point to valid `dstr`s.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dstr_cat_dstr(dst: *mut dstr, src: *const dstr) {
-    // SAFETY: forwarded to the caller.
-    unsafe {
-        let s = read(src);
-        with(dst, |d| d.cat_dstr(s.as_bytes()));
+    // SAFETY: the caller guarantees `src` is valid. Read its fields before
+    // `dst` changes: `src` may be `dst` itself, which `write_at` handles.
+    let (array, len) = unsafe { ((*src).array as *const u8, (*src).len) };
+    if len == 0 {
+        return;
     }
+    // SAFETY: a source with `len > 0` holds `len` bytes; `dst` is valid.
+    unsafe { write_at(dst, (*dst).len, array, len) };
 }
 
 /// # Safety
@@ -382,11 +528,8 @@ pub unsafe extern "C" fn dstr_cat_dstr(dst: *mut dstr, src: *const dstr) {
 /// `dst` must point to a valid `dstr`; `src` to a valid `strref`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dstr_cat_strref(dst: *mut dstr, src: *const Strref) {
-    // SAFETY: forwarded to the caller.
-    unsafe {
-        let s = strref_bytes(src);
-        with(dst, |d| d.ncat(s));
-    }
+    // SAFETY: the caller guarantees `src` is valid.
+    unsafe { dstr_ncat(dst, (*src).array, (*src).len) };
 }
 
 /// # Safety
@@ -395,14 +538,13 @@ pub unsafe extern "C" fn dstr_cat_strref(dst: *mut dstr, src: *const Strref) {
 /// `len` bytes (and for one byte when `len` is zero).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dstr_ncat(dst: *mut dstr, array: *const c_char, len: usize) {
-    if array.is_null() || len == 0 {
+    // SAFETY: a non-null `array` is readable for `len >= 1` bytes.
+    if array.is_null() || len == 0 || unsafe { *array } == 0 {
         return;
     }
-    // SAFETY: forwarded to the caller.
-    unsafe {
-        let s = slice::from_raw_parts(array as *const u8, len);
-        with(dst, |d| d.ncat(s));
-    }
+    // SAFETY: `array` holds `len` bytes (it may point into `dst`'s buffer,
+    // which `write_at` handles); `dst` is valid.
+    unsafe { write_at(dst, (*dst).len, array as *const u8, len) };
 }
 
 /// # Safety
@@ -410,11 +552,15 @@ pub unsafe extern "C" fn dstr_ncat(dst: *mut dstr, array: *const c_char, len: us
 /// `dst` and `src` must point to valid `dstr`s.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dstr_ncat_dstr(dst: *mut dstr, src: *const dstr, len: usize) {
-    // SAFETY: forwarded to the caller.
-    unsafe {
-        let s = read(src);
-        with(dst, |d| d.ncat_dstr(s.as_bytes(), len));
+    // SAFETY: the caller guarantees `src` is valid; read before `dst`
+    // changes, since `src` may be `dst`.
+    let (array, src_len) = unsafe { ((*src).array as *const u8, (*src).len) };
+    // SAFETY: a non-null array holds at least its terminator.
+    if array.is_null() || unsafe { *array } == 0 || len == 0 {
+        return;
     }
+    // SAFETY: the source holds `src_len >= min(len, src_len)` bytes.
+    unsafe { write_at(dst, (*dst).len, array, len.min(src_len)) };
 }
 
 /// # Safety
@@ -474,16 +620,18 @@ pub unsafe extern "C" fn dstr_safe_printf(
     val3: *const c_char,
     val4: *const c_char,
 ) {
-    // SAFETY: forwarded to the caller.
+    // SAFETY: forwarded to the caller. Each step edits the C buffer in
+    // place, as C does: copy the format, then replace `$1`..`$4`.
     unsafe {
-        let vals = [
-            opt_cstr(val1),
-            opt_cstr(val2),
-            opt_cstr(val3),
-            opt_cstr(val4),
-        ];
-        let format = opt_cstr(format);
-        with(dst, |d| d.safe_printf(format, vals));
+        copy_in_place(dst, format);
+        for (find, val) in [c"$1", c"$2", c"$3", c"$4"]
+            .into_iter()
+            .zip([val1, val2, val3, val4])
+        {
+            if let Some(val) = opt_cstr(val) {
+                replace_in_place(dst, find.to_bytes(), val);
+            }
+        }
     }
 }
 
@@ -497,7 +645,7 @@ pub unsafe extern "C" fn dstr_replace(str: *mut dstr, find: *const c_char, repla
     unsafe {
         let find = opt_cstr(find).unwrap_or(&[]);
         let replace = opt_cstr(replace).unwrap_or(&[]);
-        with(str, |d| d.replace(find, replace));
+        replace_in_place(str, find, replace);
     }
 }
 

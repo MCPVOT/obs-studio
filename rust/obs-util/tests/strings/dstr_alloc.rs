@@ -70,3 +70,108 @@ fn replace_with_matches_allocates_at_most_once() {
     assert!(allocs_during(|| d.replace(b"obs", b"Rust OBS")) <= 1);
     assert_eq!(d.as_bytes(), "Rust OBS ".repeat(1024).as_bytes());
 }
+
+// ---------------------------------------------------------------------------
+// The C ABI shims edit the C buffer in place (#1297): an append or a
+// safe_printf makes no Rust-side heap allocation (the C buffer itself grows
+// through `brealloc`, which this counter does not see), so the existing
+// string is never copied into an owned model and back.
+
+mod ffi_in_place {
+    use core::ffi::c_char;
+    use core::ptr;
+
+    use obs_util::ffi::darray::bfree;
+    use obs_util::ffi::dstr::{self as r, Strref, dstr};
+
+    use super::allocs_during;
+
+    struct Owned(dstr);
+
+    impl Owned {
+        fn with_spare(len: usize, spare: usize) -> Self {
+            let mut d = Owned(dstr {
+                array: ptr::null_mut(),
+                len: 0,
+                capacity: 0,
+            });
+            let seed = "obs ".repeat(len / 4) + "\0";
+            // SAFETY: valid empty dstr and NUL-terminated seed.
+            unsafe { r::dstr_copy(&mut d.0, seed.as_ptr() as *const c_char) };
+            let pad = vec![b'x'; spare];
+            // SAFETY: as above; grows the buffer, then trims back to `len`.
+            unsafe {
+                r::dstr_ncat(&mut d.0, pad.as_ptr() as *const c_char, spare);
+                r::dstr_remove(&mut d.0, len, spare);
+            }
+            d
+        }
+
+        fn bytes(&self) -> &[u8] {
+            // SAFETY: a non-null array holds `len` bytes plus a NUL.
+            unsafe { core::slice::from_raw_parts(self.0.array as *const u8, self.0.len + 1) }
+        }
+    }
+
+    impl Drop for Owned {
+        fn drop(&mut self) {
+            // SAFETY: the array came from bmalloc/brealloc (or is null).
+            unsafe { bfree(self.0.array as *mut _) };
+        }
+    }
+
+    #[test]
+    fn ncat_onto_4096_with_spare_capacity_does_not_allocate() {
+        let mut d = Owned::with_spare(4096, 64);
+        let cap = d.0.capacity;
+        assert!(cap > 4096 + 8);
+        // SAFETY: valid dstr; 8 readable bytes.
+        let n = allocs_during(|| unsafe { r::dstr_ncat(&mut d.0, c" capture".as_ptr(), 8) });
+        assert_eq!(n, 0);
+        assert_eq!(d.0.len, 4104);
+        assert_eq!(d.0.capacity, cap);
+        assert_eq!(&d.bytes()[4096..], b" capture\0");
+    }
+
+    #[test]
+    fn appends_that_grow_do_not_allocate_rust_side() {
+        let mut d = Owned::with_spare(128, 0);
+        let mut s = Owned::with_spare(16, 0);
+        let sr = Strref {
+            array: c"strref".as_ptr(),
+            len: 6,
+        };
+        // SAFETY: valid dstrs and strref.
+        let n = allocs_during(|| unsafe {
+            r::dstr_ncat(&mut d.0, c" capture".as_ptr(), 8);
+            r::dstr_cat_dstr(&mut d.0, &s.0);
+            r::dstr_cat_strref(&mut d.0, &sr);
+            r::dstr_ncat_dstr(&mut d.0, &s.0, 4);
+            let p = &raw mut s.0;
+            r::dstr_cat_dstr(p, p);
+        });
+        assert_eq!(n, 0);
+        assert_eq!(d.0.len, 128 + 8 + 16 + 6 + 4);
+        assert_eq!(s.0.len, 32);
+    }
+
+    #[test]
+    fn safe_printf_does_not_allocate_rust_side() {
+        let mut d = Owned::with_spare(4096, 0);
+        let val = "obs ".repeat(1024) + "\0";
+        // SAFETY: valid dstr; NUL-terminated strings.
+        let n = allocs_during(|| unsafe {
+            r::dstr_safe_printf(
+                &mut d.0,
+                c"$1: $2".as_ptr(),
+                val.as_ptr() as *const c_char,
+                c"42".as_ptr(),
+                ptr::null(),
+                ptr::null(),
+            )
+        });
+        assert_eq!(n, 0);
+        assert_eq!(d.0.len, 4096 + 4);
+        assert!(d.bytes().ends_with(b"obs : 42\0"));
+    }
+}
