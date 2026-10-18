@@ -94,6 +94,20 @@ def triggers(path: Path) -> list[str]:
 
 
 class CiTomlTest(unittest.TestCase):
+    def test_disabled_store_has_no_retention_protection(self):
+        prefixes = family_prefixes(load())
+        for platform in ("linux-x64", "macos-arm64", "windows-x64"):
+            key = f"setup-soldr-buildcache-v2-{platform}-legacy"
+            with self.subTest(key=key):
+                self.assertFalse(any(key.startswith(prefix) for prefix in prefixes),
+                                 "Disabled archives must be eligible for unmatched-family cleanup")
+        for key in ("cook-base-v2-linux-x64-current", "setup-soldr-cargoregistry-v1-linux-current",
+                    "solo-toolchain-v3-linux-current", "zccache-tier2-linux-current",
+                    "targets-ccache-linux-current", "targets-apt-current"):
+            with self.subTest(key=key):
+                self.assertTrue(any(key.startswith(prefix) for prefix in prefixes),
+                                "Preserve useful dependency and native cache families")
+
     def test_schema_and_pin(self):
         ci = load()
         self.assertEqual(ci["schema"], 3)
@@ -111,7 +125,10 @@ class CiTomlTest(unittest.TestCase):
 
     def test_setup_soldr_and_uv_families_declared(self):
         vias = {fam.get("via") for fam in load()["cache"]["family"].values()}
-        self.assertLessEqual(set(VIA_PREFIXES), vias)
+        # build-cache is optional and disabled at every audited callsite;
+        # test_rust_cache_policy checks both that input and its retirement.
+        required = set(VIA_PREFIXES) - {"setup-soldr:build-cache"}
+        self.assertLessEqual(required, vias)
 
     def test_workflows_declare_their_triggers(self):
         allowed = load()["allow"]["workflows"]

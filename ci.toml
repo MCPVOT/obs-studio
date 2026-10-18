@@ -60,7 +60,8 @@ pr = { mode = "none", families = [], max-per-pr = "0MB", budget = "0MB", trim = 
 registry = { via = "setup-soldr:cargo-registry", max = "60MB", per = "platform" }
 # Linux retains measured dev (~622 MB) and release (~637 MB) snapshots.
 deps = { via = "setup-soldr:cook", max = "900MB", evict = "lru", shapes = { linux = { max = "1.4GB" }, macos = { max = "400MB" }, windows = { max = "650MB" } } }
-compile = { via = "setup-soldr:build-cache", max = "170MB", per = "platform" }
+# Embedded compiler-store transport is disabled at every setup-soldr callsite.
+# No family: legacy setup-soldr-buildcache-v2-* entries may be reclaimed.
 toolchain = { via = "setup-soldr:solo-toolchain", max = "190MB", per = "platform" }
 soldr-mini = { via = "setup-soldr:soldr-mini", max = "15MB", per = "platform" }
 # astral-sh/setup-uv's own cache.
