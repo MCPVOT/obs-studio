@@ -35,6 +35,42 @@ fn at(s: &[u8], i: usize) -> u8 {
     s.get(i).copied().unwrap_or(0)
 }
 
+/// Index of the first `b` in `s`, eight bytes at a time (SWAR), so long
+/// strings without the byte are scanned at near memory speed like C `strstr`.
+fn find_byte(s: &[u8], b: u8) -> Option<usize> {
+    const LO: u64 = 0x0101_0101_0101_0101;
+    const HI: u64 = 0x8080_8080_8080_8080;
+    let pattern = LO * u64::from(b);
+    let (chunks, _) = s.as_chunks::<8>();
+    let mut base = 0;
+    for chunk in chunks {
+        let word = u64::from_le_bytes(*chunk);
+        let x = word ^ pattern;
+        if (x.wrapping_sub(LO) & !x & HI) != 0 {
+            break; // a zero byte in `x`: `b` is in this chunk
+        }
+        base += 8;
+    }
+    s[base..].iter().position(|&c| c == b).map(|i| base + i)
+}
+
+/// First index `>= from` where `needle` (non-empty) starts in `hay`: scan for
+/// the first byte, then compare the rest.
+fn find_from(hay: &[u8], needle: &[u8], from: usize) -> Option<usize> {
+    let (&head, tail) = needle.split_first()?;
+    let last_start = hay.len().checked_sub(needle.len())?;
+    let mut i = from;
+    while i <= last_start {
+        let off = find_byte(&hay[i..=last_start], head)?;
+        i += off;
+        if &hay[i + 1..i + needle.len()] == tail {
+            return Some(i);
+        }
+        i += 1;
+    }
+    None
+}
+
 /// The C string held by `s`: everything before the first NUL.
 pub fn cstr(s: &[u8]) -> &[u8] {
     match s.iter().position(|&b| b == 0) {
@@ -379,24 +415,36 @@ impl Dstr {
         if find.is_empty() {
             return;
         }
-        let src = &self.bytes;
-        let mut out = Vec::with_capacity(src.len());
-        let mut count = 0usize;
-        let mut i = 0;
-        while i + find.len() <= src.len() {
-            if &src[i..i + find.len()] == find {
-                out.extend_from_slice(replace);
-                i += find.len();
-                count += 1;
-            } else {
-                out.push(src[i]);
-                i += 1;
+        // Matches are found left to right and do not overlap, as in C.
+        let Some(first) = find_from(&self.bytes, find, 0) else {
+            return; // no match: no copy, no allocation (#1296)
+        };
+        if replace.len() == find.len() {
+            let mut at = Some(first);
+            while let Some(i) = at {
+                self.bytes[i..i + find.len()].copy_from_slice(replace);
+                at = find_from(&self.bytes, find, i + find.len());
             }
-        }
-        out.extend_from_slice(&src[i..]);
-        if count == 0 {
             return;
         }
+        let src = &self.bytes;
+        let mut count = 0usize;
+        let mut at = Some(first);
+        while let Some(i) = at {
+            count += 1;
+            at = find_from(src, find, i + find.len());
+        }
+        let new_len = src.len() - count * find.len() + count * replace.len();
+        let mut out = Vec::with_capacity(new_len);
+        let mut prev = 0;
+        let mut at = Some(first);
+        while let Some(i) = at {
+            out.extend_from_slice(&src[prev..i]);
+            out.extend_from_slice(replace);
+            prev = i + find.len();
+            at = find_from(src, find, prev);
+        }
+        out.extend_from_slice(&src[prev..]);
         if replace.len() > find.len() {
             self.ensure_capacity(out.len() + 1);
         }

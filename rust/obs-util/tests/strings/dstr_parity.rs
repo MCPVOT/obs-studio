@@ -603,3 +603,21 @@ unsafe fn read_list(list: *mut *mut c_char) -> Option<Vec<(usize, Vec<u8>)>> {
         i += 1;
     }
 }
+
+/// Two-letter alphabet so `find` overlaps itself and the source often
+/// (`aa` in `aaaa`), and the replacement often contains `find` (#1296).
+fn ab(max: usize) -> impl Strategy<Value = Vec<u8>> {
+    vec(prop::sample::select(b"ab".to_vec()), 0..max)
+}
+
+proptest! {
+    #[test]
+    fn replace_overlapping_matches_c(src in ab(24), find in ab(5), rep in opt(ab(6))) {
+        let mut d = Pair::new();
+        let mut s = Pair::new();
+        apply(&Op::Copy(Some(src)), &mut d, &mut s);
+        d.check()?;
+        apply(&Op::Replace(find, rep), &mut d, &mut s);
+        d.check()?;
+    }
+}
