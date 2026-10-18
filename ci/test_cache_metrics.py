@@ -35,6 +35,18 @@ class CacheMetricsTest(unittest.TestCase):
     def test_missing_log_counters_are_not_invented(self):
         self.assertEqual(metrics.parse_cache_logs("Build\tstep\t2026-10-17T18:00:00Z Cache restored successfully"), {})
 
+    def test_current_ctest_success_preserves_failures_and_unknown_counts(self):
+        log = "\n".join([
+            "Qt\tBuild frontend\t2026-10-18T01:29:45Z 100% tests passed out of 15",
+            "OFF\tTest\t2026-10-18T01:19:08Z 99% tests passed, 1 tests failed out of 295",
+            "Unknown\tTest\t2026-10-18T01:29:45Z Test project /build",
+        ])
+        parsed = metrics.parse_cache_logs(log)
+        self.assertIn("Qt", parsed, "Capture the observed shorter success summary")
+        self.assertEqual(parsed["Qt"]["ctest_reports"], [{"total": 15, "failed": 0}])
+        self.assertEqual(parsed["OFF"]["ctest_reports"], [{"total": 295, "failed": 1}])
+        self.assertNotIn("Unknown", parsed)
+
     def test_source_cohort_requires_files(self):
         self.assertEqual(metrics.cohort([]), "unknown")
         self.assertEqual(metrics.cohort(["docs/a.md", "AGENTS.md"]), "docs")
@@ -47,6 +59,14 @@ class CacheMetricsTest(unittest.TestCase):
         self.assertEqual(metrics.cohort(["ci/cache_metrics.py", evidence]), "ci-config")
         self.assertEqual(metrics.cohort(["libobs/obs.c", evidence]), "code")
         self.assertEqual(metrics.cohort(["plugins/service/data/config.json"]), "code")
+
+    def test_report_figures_and_generators_stay_in_documentation_cohort(self):
+        evidence = ["docs/ci-evidence/libobs-2026-10-17/build-trials.svg",
+                    "docs/ci-evidence/libobs-2026-10-17/plot_trials.py"]
+        self.assertEqual(metrics.cohort(evidence), "docs")
+        self.assertEqual(metrics.cohort(evidence + ["ci/cache_metrics.py"]), "ci-config")
+        self.assertEqual(metrics.cohort(evidence + ["libobs/obs.c.h"]), "code")
+        self.assertEqual(metrics.cohort(["scripts/plot_trials.py"]), "code")
 
     def collect(self, missing_compare=False):
         run = {"databaseId": 1, "status": "completed", "conclusion": "success", "event": "pull_request",

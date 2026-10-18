@@ -35,7 +35,8 @@ def cohort(files: list[str]) -> str:
     if not files:
         return "unknown"
     def documentation(name: str) -> bool:
-        return name.endswith(".md") or (name.startswith("docs/ci-evidence/") and name.endswith(".json"))
+        # This directory contains report data, figures and their generators.
+        return name.endswith(".md") or name.startswith("docs/ci-evidence/")
 
     if all(documentation(name) for name in files):
         return "docs"
@@ -103,6 +104,10 @@ def parse_cache_logs(text: str) -> dict:
         tests = re.search(r"(\d+) tests failed out of (\d+)", message)
         if tests:
             observations["ctest_reports"] = {"total": int(tests[2]), "failed": int(tests[1])}
+        else:
+            passed = re.search(r"\b100% tests passed out of (\d+)", message)
+            if passed:
+                observations["ctest_reports"] = {"total": int(passed[1]), "failed": 0}
         saved = re.search(r"Cache saved with key: (\S+)", message)
         if saved:
             observations["saved_keys"] = saved[1]
