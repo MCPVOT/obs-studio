@@ -173,8 +173,24 @@ else
     launcher_failed=$(sed 's/\x1b\[[0-9;]*m//g' "$build.build.log" | grep -c '^FAILED: \[code=125\]' || true)
     if [ "$launcher_failed" -gt 0 ]; then
       echo "== $launcher_failed compiles failed in the zccache launcher (exit 125); restarting it and rebuilding once"
-      zccache stop >/dev/null 2>&1 || true
-      cmake --build "$build" --target "${tier2_targets[@]}" -- -k 0 >"$build.build.log" 2>&1 ||
+      # Keep the original cause: the retry can report only a recovery cooldown.
+      cp "$build.build.log" "$build.build-first-failure.log"
+      "$SRC"/rust/tools/linux-validate/build-errors.sh "$build.build-first-failure.log"
+      echo "== zccache status before recovery"
+      daemon_unavailable=0
+      if ! zccache status 2>&1 | head -60; then
+        echo "::warning::zccache daemon unavailable; the single recovery build will compile without caching"
+        daemon_unavailable=1
+        if [ -n "${GITHUB_OUTPUT:-}" ]; then
+          echo 'cache-healthy=false' >>"$GITHUB_OUTPUT"
+        fi
+      fi
+      echo "== zccache stop for recovery"
+      zccache stop 2>&1 | head -40 || true
+      (
+        if [ "$daemon_unavailable" = 1 ]; then export ZCCACHE_DISABLE=1; fi
+        cmake --build "$build" --target "${tier2_targets[@]}" -- -k 0
+      ) >"$build.build.log" 2>&1 ||
         { "$SRC"/rust/tools/linux-validate/build-errors.sh "$build.build.log"; exit 1; }
     else
       "$SRC"/rust/tools/linux-validate/build-errors.sh "$build.build.log"

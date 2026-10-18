@@ -1311,6 +1311,7 @@ jobs:
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Build Tier 2 (libobs and libobs-with-rust) 🧱
+        id: tier2-build
         env:
           OBS_TIER2_SRC: ${{ github.workspace }}
           OBS_TIER2_BUILD: ${{ runner.temp }}/tier2
@@ -1333,7 +1334,7 @@ jobs:
       # validate.sh stops the zccache daemon on exit, flushing its index.
       - name: Save Tier 2 zccache 💾
         uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master' && steps.tier2-build.outputs.cache-healthy != 'false'
         with:
           path: ${{ github.workspace }}/.tier2-zccache
           key: zccache-tier2-linux-both-${{ github.sha }}
