@@ -35,10 +35,22 @@
       "seconds": 5.0
     }
   ],
-  "consumer_verification": "pending",
+  "consumer_verification": "Exact key restored and save skipped in run 39086280608 / job 117554246917",
   "limits": [
-    "Successful initial producer; exact-hit reuse and skipped upload remain unverified",
     "Step timestamps have whole-second resolution",
     "New publication still uses older compiler-cache fallback to keep useful objects"
-  ]
+  ],
+  "parent_final_status": {
+    "conclusion": "failure",
+    "status": "completed"
+  },
+  "parent_failure_context": {
+    "issue": 1283,
+    "job": 117551485445,
+    "test": "test_recording_shutdown_wait",
+    "assertion_lines": [
+      121,
+      142
+    ]
+  }
 }

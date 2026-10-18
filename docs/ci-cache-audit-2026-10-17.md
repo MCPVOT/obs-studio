@@ -30,9 +30,16 @@ measured median CPU 63.482 → 46.620 s (26.6% lower); uncached wall
 315 → 198 s result is a different benchmark. Neither establishes the
 current merge queue's end-to-end improvement.
 
-**Next priorities:** finish #1371/#1372 verification, prevent redundant Qt
-snapshots, resolve the independently reproduced recording-wait race blocking
-#1362, and collect at least one representative post-rollout day. The proposed
+![Isolated libobs trials showing CPU medians 63.482 to 46.620 seconds and overlapping uncached wall-time ranges](ci-evidence/libobs-2026-10-17/build-trials.svg)
+
+The plot shows all three trials and min–max ranges. Its warm panel excludes
+the initial seed build and uses a separately identified grouped revision.
+[Raw trials and reproducible plotting script](ci-evidence/libobs-2026-10-17/plot_trials.py).
+
+**Next priorities:** verify compatible Ubuntu seed publication after #1371,
+resolve the independently reproduced recording-wait race blocking #1362,
+and collect at least one representative post-rollout day. Qt publication
+reuse and skipped upload are verified for one docs-only pair. The proposed
 queue-only publisher needs a transport compatible with temporary queue refs;
 cross-run artifacts are feasible, but that architecture has not been deployed.
 
@@ -214,8 +221,20 @@ post-change Ubuntu seed/consumer measurement is claimed. PR #1374 merged and its
 39084764880) passed: 298/300 cacheable hits, a new
 `qt-ccache-linux-inputs-v1-7d748b6e…` snapshot, and a 5-second save step.
 [Producer metadata](ci-evidence/2026-10-18-qt-identity-producer.json) records the
-exact key and bytes. A subsequent docs-only consumer must still prove exact
-reuse and skipped upload; the initial save is not that proof.
+exact key and bytes. The subsequent docs-only consumer, job 117554246917 in
+run 39086280608, passed its 15 registered Qt tests with the exact same key,
+298/300 hits, and its Qt
+snapshot save step skipped. It reused the 1,161,888,219-byte archive without
+uploading another Qt snapshot. Build/tests still ran (74 s versus the
+producer's 54 s); these unmatched runner observations do not establish an
+end-to-end speedup. [Consumer and upload evidence](ci-evidence/2026-10-18-qt-identity-consumer.json).
+
+The producer's parent workflow later failed the separate recording-wait
+assertions. A proposed private-helper patch passes two controlled ordering
+cases where the original fails, and ten invocations of the unchanged test
+(40 cases). It was offered on the existing #1283 claim for review;
+production source and assertions remain unchanged, and real app shutdown
+validation is still required. [Patch, probe source and results](ci-evidence/2026-10-18-recording-wait-proposed-patch.json).
 
 The unchanged group-hide audio test passed three isolated and sixteen
 concurrent local invocations on four pinned CPUs (76 cases, no skips). This
