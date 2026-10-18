@@ -3,6 +3,39 @@
 Implementation and measurement tracker:
 [obs-studio#1286](https://github.com/obs-rust/obs-studio/issues/1286).
 
+## Current executive verdict — October 18 UTC
+
+**The full native validation is successful.** Run
+[39082733551](https://github.com/obs-rust/obs-studio/actions/runs/39082733551)
+at `2f9bf8d77` passed all seven app builds: Ubuntu OFF/ON, Windows x64/arm64,
+macOS x86/arm64 and Flatpak. Native Rust tests, Tier 2 and nightly scans also
+passed. Linux OFF/ON each registered 295 tests with zero failures and the
+three existing PulseAudio device skips; CTest took 302.01 / 308.84 s.
+[Full-run evidence](ci-evidence/2026-10-18-full-warm-validation.json).
+
+| Finding | Verified result | Recommendation/status |
+| --- | --- | --- |
+| Native compiler reuse | Linux Tier 2 784/785 cached; Windows Tier 2 308/309 cacheable hits | Preserve native compiler stores |
+| Warm Ubuntu ON | Full job 684 → 435 s; build 602 → 324 s, in unmatched observations | Keep the working ON seed; measure durability |
+| Ubuntu OFF fallback | 43/361 calls cached; mixed state 9,526 MiB; save skipped | #1371 restricts restores to compatible mode/configuration; runtime verification pending |
+| Embedded Rust store | All eight expanded soldr lanes reported no embedded session | #1372 removes unused transport; cook/registry/toolchain remain |
+| Rust correctness | Pinned compiler-cache stale-source bug and separate restored-target hazard remain | Keep wrapper bypass; do not deploy deeper test reuse without freshness validation |
+| Startup incident | Local reproduction plus PR, queue, master and full-run verification | #1365 verified; #1355 closed |
+| Storage headroom | Post-run listing summed to 12.43 GB; separate usage API disagrees | Resolve redundant writes and global-budget policy; no stable-headroom claim |
+| Representative queue throughput | Product-code queue observation 843 s; older unmatched median 954 s | Full post-rollout day still required; no causal speedup claim |
+
+**Build improvements are real but scoped.** The isolated libobs experiment
+measured median CPU 63.482 → 46.620 s (26.6% lower); uncached wall
+9.749 → 9.407 s had overlapping ranges. The broader app's historical
+315 → 198 s result is a different benchmark. Neither establishes the
+current merge queue's end-to-end improvement.
+
+**Next priorities:** finish #1371/#1372 verification, prevent redundant Qt
+snapshots, resolve the independently reproduced recording-wait race blocking
+#1362, and collect at least one representative post-rollout day. The proposed
+queue-only publisher needs a transport compatible with temporary queue refs;
+cross-run artifacts are feasible, but that architecture has not been deployed.
+
 ## Executive assessment
 
 The janitor failed because a fork PR received a read-only Actions token:
@@ -106,6 +139,58 @@ All seven setup-soldr callsites now have explicit consumer profiles, and all
 Linux callsites distinguish host and container cache identities. The release
 workflow itself was not dispatched; its subsequent warm-consumer performance
 remains unmeasured.
+
+### Master validation and controlled recording-wait reproduction
+
+Master run [39081770788](https://github.com/obs-rust/obs-studio/actions/runs/39081770788)
+passed after the startup fix: both modes registered 295 tests with zero
+failures; CTest took 314.72 s OFF and 308.66 s ON. Both the startup diagnostic
+and recording-shutdown test passed. [Raw master observations](ci-evidence/2026-10-18-startup-master-validation.json)
+do not disprove the recording race seen in a different run.
+
+The unchanged recording-shutdown test passed 20 local repetitions. A separate
+minimal fixture using the production helper, a real signal handler and an
+atomic active flag demonstrated the inspected race: after `deactivate`, a
+controlled 100 ms worker pause before the inactive store lets the UI helper
+return `stopped=true` while `active=true`. Both signals were registered and
+the worker joined cleanly. This confirms a possible ordering failure under
+controlled scheduling; it does not prove that pause occurred in historical
+CI. [Fixture source, source identities and results](ci-evidence/2026-10-18-recording-wait-race-probe.json)
+are retained separately from the unchanged-test results. The follow-up is
+posted to the existing #1283 claim; production code and existing tests were
+not edited.
+
+### Warm Ubuntu consumers and full-run write pressure
+
+Full run [39082733551](https://github.com/obs-rust/obs-studio/actions/runs/39082733551)
+completed successfully, including both Ubuntu jobs. Both restored the earlier ON archive (712,780,180 bytes).
+
+| Mode | Compiler results | Restore | Build, cold → warm | Job, cold → warm |
+| --- | --- | --- | --- | --- |
+| ON | 200 cached / 145 cold / 16 noncacheable | 23 s | 602 → 324 s | 684 → 435 s |
+| OFF, using ON fallback | 43 cached / 302 cold / 16 noncacheable | 28 s | 584 → 574 s | 629 → 619 s |
+
+These are individual unmatched observations across revisions and runners,
+not causal benchmarks. ON passed both Tier 4 checks and saved a 794,953,805-byte
+archive. OFF accumulated 9,526 MiB of mixed compiler state, exceeded the
+8,192 MiB save guard and published no OFF archive. The opposite-mode fallback
+therefore provided limited observed reuse and prevented seeding this mode in
+this run. Restore compatibility and snapshot growth must be addressed before
+claiming both modes are warm. [Raw observations](ci-evidence/2026-10-18-ubuntu-warm-consumers.json).
+
+A mid-run listing summed to 12,218,332,982 bytes, above the declared 10 GiB
+budget. Three Qt snapshots alone held approximately 3.48 GB; their observed
+jobs each had only 2–4 compiler misses. The separate usage endpoint reported
+8,389,095,940 bytes, so these are different observations, not proof of an
+atomic storage peak or a particular eviction actor. Avoiding redundant
+per-commit Qt snapshots is a remaining opportunity; preserve useful seeds.
+
+Fast Gate also missed its host release cook key, then received HTTP 409
+on reservation. Two later listings had no visible entry for that exact key.
+The cause remains unknown; it is tracked in
+[setup-soldr#581](https://github.com/zackees/setup-soldr/issues/581).
+[Inventory summaries and explicit limits](ci-evidence/2026-10-18-cache-pressure-and-cook-conflict.json)
+keep the publication conflict separate from compiler hits and storage totals.
 
 ### Subsequent consumers and availability failures
 
@@ -489,8 +574,8 @@ compiler caches and parallel OFF/ON runners. Validate the observed host-package
 benefit over real traffic; an archive HIT alone is not a throughput result.
 Validate Ubuntu app reuse after removing the pre-build purge, and compare a
 full day of code PR/queue traffic after the final cache rollout. Track the
-macOS integrity failure was resolved by #1338; track the separate, unresolved
-startup failure through #1355.
+macOS integrity failure was resolved by #1338. The startup fix in #1365
+has passed PR, queue, master and full native validation; #1355 is closed.
 
 | #1286 requirement | Evidence/status at this checkpoint |
 | --- | --- |
@@ -501,7 +586,7 @@ startup failure through #1355.
 | 5. Persist test timing | Nonempty OFF/ON producer, save, later restore and CTest consumption verified across master runs (#1288/#1311). |
 | 6. Match remote save policy | All seven setup-soldr consumers use master-only remote saves; PR/queue/local-save behavior verified (#1291). |
 | 7. Bound Qt cache | 1.2 GB compiler bound, 1.3 GB family, actual high hit rates and restore/save times verified (#1309). Overall repository headroom still needs the full-day view. |
-| 8. Unify nightly cleanup | Competing purge removed; original startup permission failure fixed (#1289). Real full dispatch completed; separate macOS test failure remains #1334. |
+| 8. Unify nightly cleanup | Competing purge removed; original startup permission failure fixed (#1289). Real full dispatch started successfully; macOS test issue #1334 was resolved by #1338. Later startup failure #1355 has a merged fix, with full validation pending. |
 | 9. Isolated libobs measurements | Three trials per condition and raw wall/CPU/cache evidence published in #1306. Wall-time ranges overlap. |
 | 10. Shorten critical path | Independent OFF/ON runners landed (#1314); phase times, runner cost, skips and serial-test bottlenecks recorded. Overall queue gain remains unproven. |
 | 11. Durable before/after comparison | Full-day baseline and cohort-separated per-step collector ready. At least one full representative post-rollout day remains outstanding. |
