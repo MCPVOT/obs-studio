@@ -101,6 +101,12 @@ def parse_cache_logs(text: str) -> dict:
             observations["compiler_reports"] = dict(zip(("hits", "misses", "compilations", "non_cacheable", "errors"), map(int, session.groups())), kind="soldr-session")
         elif hits:
             observations["compiler_reports"] = {"kind": "ccache", "hits": int(hits[1]), "cacheable": int(hits[2])}
+            if "flatpak" in name.casefold():
+                # The pinned builder restores the whole state directory,
+                # including statistics, after the separate ccache restore.
+                # There is no counter reset/baseline after that final restore.
+                observations["compiler_reports"].update(
+                    counter_scope="restored-cumulative", job_delta_available=False)
         tests = re.search(r"(\d+) tests failed out of (\d+)", message)
         if tests:
             observations["ctest_reports"] = {"total": int(tests[2]), "failed": int(tests[1])}
@@ -270,6 +276,7 @@ def collect(repo: str, start: str, end: str, output: Path, per_group: int, inclu
             "Log counters have different compiler/job scopes and are not summed.",
             "Archive byte observations can repeat and are not total transfer bytes.",
             "Missing/expired logs or absent counters are unknown, never zero hits.",
+            "Flatpak ccache counters include restored history; job deltas are unavailable without a final-restore baseline.",
             "Compiler-version changes require separate cold/warm cohorts.",
         ])
     (output / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")

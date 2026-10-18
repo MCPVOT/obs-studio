@@ -566,6 +566,12 @@ are cached per run/attempt, and each record/summary includes recognized
 per-job archive byte observations, compiler reports, saved keys and CTest
 counts. Missing logs or counters remain unknown.
 
+Flatpak's pinned builder can restore cumulative ccache statistics along with
+the build state. Those reports carry `counter_scope: restored-cumulative`
+and `job_delta_available: false`; their raw counts are preserved, without
+inventing a baseline after the action's final restore. Do not present them
+as compiler hits from that job alone.
+
 A restored archive does not imply compiler hits: one observed zccache
 rollout restored 278 MB but reported 772 cold compilations. Keep C/C++
 build totals separate from soldr session counters and ccache reports;

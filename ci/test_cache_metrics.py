@@ -35,6 +35,23 @@ class CacheMetricsTest(unittest.TestCase):
     def test_missing_log_counters_are_not_invented(self):
         self.assertEqual(metrics.parse_cache_logs("Build\tstep\t2026-10-17T18:00:00Z Cache restored successfully"), {})
 
+    def test_restored_flatpak_counters_are_not_job_deltas(self):
+        name = "Build 🧱 / Flatpak 📦"
+        log = "\n".join([
+            f"{name}\tCcache Stats\t2026-10-18T02:38:56Z   Hits: 602 / 889 (67.72%)",
+            "Qt\tCcache Stats\t2026-10-18T02:38:56Z   Hits: 343 / 345 (99.42%)",
+        ])
+        parsed = metrics.parse_cache_logs(log)
+        flatpak = parsed[name]["compiler_reports"][0]
+        self.assertEqual(flatpak["hits"], 602, "Keep the observed cumulative count")
+        self.assertEqual(flatpak["cacheable"], 889)
+        self.assertEqual(flatpak.get("counter_scope"), "restored-cumulative")
+        self.assertIs(flatpak.get("job_delta_available"), False,
+                      "No baseline exists after the action's final restore")
+        self.assertEqual(parsed["Qt"]["compiler_reports"][0]["hits"], 343)
+        self.assertNotEqual(parsed["Qt"]["compiler_reports"][0].get("counter_scope"),
+                            "restored-cumulative", "Do not generalize Flatpak's counter behavior")
+
     def test_current_ctest_success_preserves_failures_and_unknown_counts(self):
         log = "\n".join([
             "Qt\tBuild frontend\t2026-10-18T01:29:45Z 100% tests passed out of 15",
