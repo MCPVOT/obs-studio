@@ -627,6 +627,12 @@ area.
 - The Expander filter at a 1:1 ratio no longer turns down the audio that
   follows silence. *All*, 2026-10-16. PR
   [#995](https://github.com/obs-rust/obs-studio/pull/995).
+- A disconnected macOS audio device no longer makes OBS retry CoreAudio
+  every 300 ms or 2 s forever: retries back off to every 30 s and restart
+  quickly when a device is plugged in or the default device changes.
+  *macOS*, 2026-10-17. Issue
+  [#1358](https://github.com/obs-rust/obs-studio/issues/1358), PR
+  [#1370](https://github.com/obs-rust/obs-studio/pull/1370).
 
 ### Encoding, streaming and recording
 

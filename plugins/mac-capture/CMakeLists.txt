@@ -10,6 +10,7 @@ target_sources(
     build/mac-capture.objc-macos+.h.m
     build/mac-capture.sck-stop+.h.c
     audio-device-enum.h
+    coreaudio-retry.h
     mac-sck-common.h
     mac-sck-stop.h
     window-utils.h

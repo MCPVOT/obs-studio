@@ -22,3 +22,5 @@
 #include <mach/mach_time.h>
 #include <util/threading.h>
 #include <util/c99defs.h>
+
+#include "plugins/mac-capture/coreaudio-retry.h"
