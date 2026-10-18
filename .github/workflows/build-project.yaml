@@ -1495,13 +1495,6 @@ jobs:
           uv run ci/fetch_libs_asset.py "${QT_TAG}" "${QT_ASSET}" "${QT_SHA256}" "${{ runner.temp }}/qt"
           uv run ci/fetch_libs_asset.py "${FFMPEG_TAG}" "${FFMPEG_ASSET}" "${FFMPEG_SHA256}" "${{ runner.temp }}/ffmpeg"
 
-      # PRs restore the compiler cache; only master pushes save it.
-      - uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        with:
-          path: ${{ github.workspace }}/.qt-ccache
-          key: qt-ccache-linux-${{ github.sha }}
-          restore-keys: qt-ccache-linux-
-
       # No distro Qt, FFmpeg or codec dev packages: the prebuilt prefixes
       # supply them.
       - name: Install Build Dependencies 📦
@@ -1519,6 +1512,30 @@ jobs:
             libcmocka-dev libxss-dev extra-cmake-modules xvfb xauth libdbus-1-dev \
             libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 \
             libxcb-xkb1 libxkbcommon-x11-0 libxcb-shape0 libxcb-sync1 libegl1
+
+      # Publication identity only: ccache still validates every compilation,
+      # and the build/tests always run. Avoid a ~1.16 GB upload for a docs SHA.
+      - name: Qt Compiler Snapshot Identity
+        id: qt-cache-identity
+        run: |
+          inputs="$RUNNER_TEMP/qt-compiler-inputs"
+          git ls-files --stage -z -- . ':!docs/**' ':!*.md' ':!**/*.md' > "$inputs"
+          printf '\nimage=%s\nqt=%s\nffmpeg=%s\n' "${ImageVersion:-unknown}" "$QT_SHA256" "$FFMPEG_SHA256" >> "$inputs"
+          cc --version >> "$inputs"
+          c++ --version >> "$inputs"
+          cmake --version >> "$inputs"
+          ccache --version >> "$inputs"
+          ninja --version >> "$inputs"
+          digest=$(sha256sum "$inputs" | cut -d' ' -f1)
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+
+      # Older snapshots remain useful fallbacks when actual inputs change.
+      - uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        id: qt-compiler-cache
+        with:
+          path: ${{ github.workspace }}/.qt-ccache
+          key: qt-ccache-linux-inputs-v1-${{ steps.qt-cache-identity.outputs.digest }}
+          restore-keys: qt-ccache-linux-
 
       - name: Set Qt Cache Limit 🗄️
         run: |
@@ -1539,10 +1556,10 @@ jobs:
 
       - name: Save Qt ccache 💾
         uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master' && steps.qt-compiler-cache.outputs.cache-hit != 'true'
         with:
           path: ${{ github.workspace }}/.qt-ccache
-          key: qt-ccache-linux-${{ github.sha }}
+          key: qt-ccache-linux-inputs-v1-${{ steps.qt-cache-identity.outputs.digest }}
 
   rust-tier2:
     name: Rust Tier 2 ${{ matrix.os }}

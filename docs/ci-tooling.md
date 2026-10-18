@@ -126,6 +126,22 @@ installer does not update soldr's `zccache-soldr` wrapper selected by the
 optional `ENABLE_ZCCACHE` CMake module. That wrapper needs a soldr release
 whose dependency and vendored zccache both include the new version.
 
+#### Qt compiler snapshot publication
+
+Qt compiler snapshots use `qt-ccache-linux-inputs-v1-<digest>` rather than a
+new key for every commit. On the clean CI checkout, the digest includes staged
+file identities except `docs/` and Markdown, the runner image, pinned Qt/FFmpeg
+archives, and installed C, C++, CMake, ccache and Ninja versions. An exact restore
+skips the upload; changed inputs can restore the existing `qt-ccache-linux-`
+fallback and publish a new snapshot on master. Older archives are not purged.
+
+This is a publication identity, not a build or test attestation. Compilation
+and Qt tests still run, and ccache validates current compiler inputs. Generated
+commit-version objects can still miss after docs-only commits; avoiding another
+~1.16 GB archive for those objects is intentional. It does not make deeper Rust
+test archives safe or solve repository-wide retention by itself. Runtime
+publication/reuse measurements remain required after deployment.
+
 #### Cross-compile check: Windows and macOS C from any host
 
 `cmake/cross/` compiles libobs for another OS on this machine, with no Windows or macOS runner.
