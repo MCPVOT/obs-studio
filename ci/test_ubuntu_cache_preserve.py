@@ -12,7 +12,7 @@ def ubuntu_job():
     return re.search(r'^  ubuntu-build:\n(.*?)(?=^  [a-z0-9-]+:\n)',text,re.M|re.S).group(1)
 
 class UbuntuCachePreserveTest(unittest.TestCase):
-    def test_surviving_opposite_mode_can_warm_same_runner_and_configuration(self):
+    def test_restore_stays_within_mode_runner_arch_and_configuration(self):
         block=ubuntu_job().split('restore-keys: |',1)[1].split('\n\n',1)[0]
         for mode,opposite in [('OFF','ON'),('ON','OFF')]:
             rendered=block
@@ -28,14 +28,19 @@ class UbuntuCachePreserveTest(unittest.TestCase):
             own=f'zccache-ubuntu-ubuntu-26.04-x86_64-rust{mode}-RelWithDebInfo-old'
             survivor=f'zccache-ubuntu-ubuntu-26.04-x86_64-rust{opposite}-RelWithDebInfo-new'
             incompatible=[
+                survivor,
                 survivor.replace('ubuntu-26.04','ubuntu-24.04'),
                 survivor.replace('x86_64','aarch64'),
                 survivor.replace('RelWithDebInfo','Debug'),
+                own.replace('RelWithDebInfo','Debug'),
+                own.replace('ubuntu-26.04','ubuntu-24.04'),
+                own.replace('x86_64','aarch64'),
             ]
             def restore(keys):
                 return next((key for prefix in prefixes for key in keys if key.startswith(prefix)),None)
             with self.subTest(mode=mode):
-                self.assertEqual(restore([survivor,*incompatible]),survivor)
+                self.assertIsNone(restore([survivor,*incompatible]),
+                                  'A foreign mode/configuration bloats the snapshot and can prevent seeding')
                 self.assertEqual(restore([survivor,own]),own)
                 self.assertIsNone(restore(incompatible))
 

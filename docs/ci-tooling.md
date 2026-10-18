@@ -97,6 +97,14 @@ code.
 
 #### Linux C/C++ and PCH caching
 
+Ubuntu app compiler snapshots restore only within the same runner, architecture,
+Rust mode and build configuration. An observed opposite-mode fallback yielded
+only 43 cached compilations out of 361 calls and accumulated 9,526 MiB, exceeding
+the 8,192 MiB save guard and preventing an OFF seed. A missing compatible seed
+starts cold; publication remains subject to the post-build size guard and
+retention policy. This restriction does not establish that both modes fit the
+current pooled nightly retention allowance.
+
 The Ubuntu build, AppImage, sanitizers and Tier 2 use the standalone zccache
 pinned in `rust/tools/linux-validate/install-zccache.sh`, with SHA-256 checks
 for both Linux architectures. Version 1.15.5 restores a byte-identical PCH

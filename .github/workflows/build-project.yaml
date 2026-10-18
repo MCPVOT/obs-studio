@@ -337,9 +337,9 @@ jobs:
           key: zccache-ubuntu-${{ matrix.os }}-x86_64-rust${{ matrix.rust }}-${{ needs.check-event.outputs.config }}-${{ github.sha }}
           restore-keys: |
             zccache-ubuntu-${{ matrix.os }}-x86_64-rust${{ matrix.rust }}-${{ needs.check-event.outputs.config }}-
-            zccache-ubuntu-${{ matrix.os }}-x86_64-rust${{ matrix.rust == 'ON' && 'OFF' || 'ON' }}-${{ needs.check-event.outputs.config }}-
-            zccache-ubuntu-${{ matrix.os }}-x86_64-rust${{ matrix.rust }}-
 
+      # Keep modes/configurations separate: the measured ON-to-OFF fallback
+      # produced 9526 MiB and prevented OFF from saving under the 8192 MiB cap.
       # Consume restored objects before sizing the next snapshot. A normal
       # PCH build occupies 5-6 GiB uncompressed; purging at 2 GiB discarded
       # useful restored archives before every build (#1286).
