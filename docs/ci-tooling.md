@@ -84,8 +84,14 @@ What not to do:
   fails to load the workspace (`failed to load manifest for workspace member
   rust/target`).
 
-Known pitfall: zccache has replayed stale compiler output. The local gate runs
-cargo with `SOLDR_RUSTC_WRAPPER=none` (`OBS_GATE_ZCCACHE=1` opts back in). If a
+Known pitfall: zccache has replayed stale Rust compiler output. Both the build
+and release workflows set `SOLDR_RUSTC_WRAPPER=none` for setup/cook and native
+Rust consumers; the local gate sets it too (`OBS_GATE_ZCCACHE=1` opts back in
+locally). Pinned soldr 0.9.35 defaults to the managed wrapper without this
+override, and [zccache#1943](https://github.com/zackees/zccache/issues/1943)
+remains unresolved. This safeguard preserves standalone C/C++ compiler
+caching and soldr cook/target archives. It does not solve the separate
+restored-target fingerprint hazard documented in the cache audit. If a
 build behaves impossibly, retry with that variable set before debugging the
 code.
 

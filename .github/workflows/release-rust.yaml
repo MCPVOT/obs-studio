@@ -36,6 +36,9 @@ permissions:
 concurrency:
   group: ${{ inputs.verify_only && format('verify-rust-{0}', github.ref) || 'release-rust' }}
   cancel-in-progress: false
+env:
+  # Same correctness boundary as build-project.yaml and the local gate.
+  SOLDR_RUSTC_WRAPPER: none
 jobs:
   check:
     name: Check version 🏷️

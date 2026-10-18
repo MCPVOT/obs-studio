@@ -12,6 +12,10 @@ on:
         type: boolean
         required: false
         default: false
+env:
+  # Pinned soldr can replay stale Rust output (zackees/zccache#1943).
+  # Keep cook/target reuse and standalone C/C++ compiler caching enabled.
+  SOLDR_RUSTC_WRAPPER: none
 jobs:
   check-event:
     name: Event Data 🔎
