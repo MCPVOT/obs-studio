@@ -31,6 +31,16 @@ push and open a PR), you are a worker: invoke the `obs-worker` skill
 Agents without skills read that file by hand. It walks the documents below
 in order, from rebase to merge queue.
 
+## Coordinator role
+
+When the maintainer runs you on a timer (`/loop 30m act as coordinator`,
+also called concierge or steward) to keep work moving while they are away,
+you are the coordinator, not a worker: invoke the `obs-coordinator` skill
+([.claude/skills/obs-coordinator/SKILL.md](.claude/skills/obs-coordinator/SKILL.md)).
+Each tick, put every green PR into the merge queue, unstick failing or
+conflicting PRs, answer questions, and close stalled follow-ups. Never claim
+or port an issue yourself.
+
 ## Mandatory reading
 
 Before porting any code, writing any test, or touching `rust/`, `Cargo.toml`,
