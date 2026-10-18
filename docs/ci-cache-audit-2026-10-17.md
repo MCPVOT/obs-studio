@@ -5,23 +5,25 @@ Implementation and measurement tracker:
 
 ## Current executive verdict — October 18 UTC
 
-**The full native validation is successful.** Run
-[39082733551](https://github.com/obs-rust/obs-studio/actions/runs/39082733551)
-at `2f9bf8d77` passed all seven app builds: Ubuntu OFF/ON, Windows x64/arm64,
+**The latest full native validation is successful.** Run
+[39089156757](https://github.com/obs-rust/obs-studio/actions/runs/39089156757)
+at `df86995022` passed all seven app builds: Ubuntu OFF/ON, Windows x64/arm64,
 macOS x86/arm64 and Flatpak. Native Rust tests, Tier 2 and nightly scans also
-passed. Linux OFF/ON each registered 295 tests with zero failures and the
-three existing PulseAudio device skips; CTest took 302.01 / 308.84 s.
-[Full-run evidence](ci-evidence/2026-10-18-full-warm-validation.json).
+passed. Linux OFF/ON each registered 296 tests with zero failures; CTest took
+314.80 / 304.42 s. Both Ubuntu modes published compatible snapshots.
+[Current full-run and producer evidence](ci-evidence/2026-10-18-ubuntu-compatible-producer.json).
+The earlier full run at `2f9bf8d77` also passed; its distinct 295-test results
+remain [recorded separately](ci-evidence/2026-10-18-full-warm-validation.json).
 
 | Finding | Verified result | Recommendation/status |
 | --- | --- | --- |
 | Native compiler reuse | Linux Tier 2 784/785 cached; Windows Tier 2 308/309 cacheable hits | Preserve native compiler stores |
 | Warm Ubuntu ON | Full job 684 → 435 s; build 602 → 324 s, in unmatched observations | Keep the working ON seed; measure durability |
-| Ubuntu OFF fallback | 43/361 calls cached; mixed state 9,526 MiB; save skipped | #1371 restricts restores to compatible mode/configuration; runtime verification pending |
-| Embedded Rust store | All eight expanded soldr lanes reported no embedded session | #1372 merged; queue logs confirm disabled transport with cook/registry/toolchain retained |
-| Rust correctness | Pinned compiler-cache stale-source bug and separate restored-target hazard remain | Keep wrapper bypass; do not deploy deeper test reuse without freshness validation |
+| Ubuntu OFF fallback | 43/361 calls cached; mixed state 9,526 MiB; save skipped | #1371 verified: later OFF restored the exact seed and achieved 208/345 cacheable hits; remaining misses and retention unresolved |
+| Embedded Rust store | All eight expanded soldr lanes reported no embedded session | #1372 disables transport; #1380 retired retention and the queue janitor reclaimed 183,330,575 bytes |
+| Compiler correctness | Rust stale-source/target blockers remain; a separate rapid-edit native C probe also returned stale output | Keep Rust bypass; follow native freshness upstream #1935 and avoid deeper reuse without validation |
 | Startup incident | Local reproduction plus PR, queue, master and full-run verification | #1365 verified; #1355 closed |
-| Storage headroom | Post-run listing summed to 12.43 GB; separate usage API disagrees | Resolve redundant writes and global-budget policy; no stable-headroom claim |
+| Storage headroom | Post-run listing summed to 12.43 GB; separate usage API disagrees; useful plugin seeds later absent | Resolve global-budget policy and preserve queue-useful seeds; no stable-headroom claim |
 | Representative queue throughput | Product-code queue observation 843 s; older unmatched median 954 s | Full post-rollout day still required; no causal speedup claim |
 
 **Build improvements are real but scoped.** The isolated libobs experiment
@@ -36,12 +38,134 @@ The plot shows all three trials and min–max ranges. Its warm panel excludes
 the initial seed build and uses a separately identified grouped revision.
 [Raw trials and reproducible plotting script](ci-evidence/libobs-2026-10-17/plot_trials.py).
 
-**Next priorities:** verify compatible Ubuntu seed publication after #1371,
+**Next priorities:** investigate the remaining Ubuntu OFF misses,
 resolve the independently reproduced recording-wait race blocking #1362,
-and collect at least one representative post-rollout day. Qt publication
+restore durable retention of the measured plugin seeds, and collect at least
+one representative post-rollout day. Qt publication
 reuse and skipped upload are verified for one docs-only pair. The proposed
 queue-only publisher needs a transport compatible with temporary queue refs;
 cross-run artifacts are feasible, but that architecture has not been deployed.
+
+## Retention verification after the full run
+
+PR #1380 merged after successful queue run
+[39088853334](https://github.com/obs-rust/obs-studio/actions/runs/39088853334).
+All seven setup-soldr callsites already disabled embedded compiler-store
+transport; retiring its unused family allowed the actual queue janitor to
+delete all three remaining archives, totaling **183,330,575 bytes**. A fresh
+inventory contained zero such archives. The pinned offline executor selected
+exactly those three additional IDs, leaving its other decisions unchanged.
+[Executor and runtime evidence](ci-evidence/2026-10-18-retired-embedded-cache.json).
+This is verified storage reclamation, not a measured CI speedup or proof of
+stable headroom.
+
+The subsequent master run 39088999741 passed. Its Tier 2 build restored
+compiler, apt and timing snapshots and reported 785 cached / 1 cold native
+compilations; OFF and ON each registered 296 tests with zero failures.
+[Post-retirement master observations](ci-evidence/2026-10-18-retired-embedded-master-validation.json)
+verify useful native reuse survived this change. A single passing run does
+not establish durable retention or resolve the separate recording race.
+
+The useful touched-plugin compiler and apt seeds were present in the saved
+00:32 UTC inventory (28,117,319 and 147,539,809 bytes), but absent in the
+01:56 inventory. Seventeen completed janitor logs inspected from 00:42 to
+01:55 record no deletion of those IDs. These observations establish a retention
+gap; they do not identify the deletion actor or prove GitHub eviction.
+[Entries, inspected jobs and limitations](ci-evidence/2026-10-18-plugin-cache-retention-gap.json).
+The earlier 41/41-hit warm consumer remains valid historical evidence, while
+retention durability remains unresolved under #1269.
+
+A later master run, 39088389865, failed the independent recording-wait
+assertions in ON (296 registered CTests, one failing executable); OFF passed
+all 296. The successful full native run above predates this recurrence.
+The proposed helper patch has not been applied, and no tests were skipped or
+relaxed. See [the #1283 recurrence](https://github.com/obs-rust/obs-studio/issues/1283#issuecomment-6244581047).
+
+### Post-compatibility Ubuntu producer validation
+
+In full run 39089156757 on `df86995022`, Ubuntu ON passed with 340 cached,
+5 cold and 16 noncacheable compiler calls. It restored the compatible ON
+archive, then saved a new 795,699,586-byte archive from 5,488 MiB of raw
+state, below the 8,192 MiB guard. Restore/build/save took 19/234/18 s; the
+whole job took 340 s, including successful GPU and app Tier 4 checks.
+[Producer metadata](ci-evidence/2026-10-18-ubuntu-compatible-producer.json)
+keeps this separate from the earlier unmatched warm observations.
+
+OFF also passed. It found no compatible archive, built all 345 cacheable
+calls cold (16 other calls noncacheable), and published its own snapshot:
+5,045 MiB raw, below the 8,192 MiB cap. The API confirmed both mode-specific
+seeds were present after the jobs completed. This verifies producer behavior
+under #1371, replacing the previous mixed-mode 9,526 MiB save failure. A later
+OFF consumer is recorded below; stable retention remains unverified. The parent full run
+subsequently passed all seven native app builds and the remaining checks.
+
+
+The two new Ubuntu archives total 1,508,547,016 bytes, exceeding their pooled
+zccache family footprint of 1,153,433,600 bytes (shared with AppImage and
+sanitizer entries). The pinned janitor, run offline on the saved inventory
+with a hypothetical clock beyond the grace window, plans deletion of the
+ON archive and retention of OFF. Both were present in the real inventory;
+this is a predicted future plan, not an observed deletion.
+[Exact entries, capacity and dry-run plan](ci-evidence/2026-10-18-ubuntu-retention-plan.json).
+Mode-compatible restores repair correctness of reuse and snapshot sizing,
+but cannot keep both modes warm under this allocation. Whole-budget policy
+remains unresolved under #1269; no global allocation change is claimed here.
+
+### Same-revision Ubuntu consumer results
+
+Both Ubuntu jobs passed in consumer run 39090099191, at the same source
+revision as the producer, and restored their exact new mode-specific keys.
+
+| Mode | Producer cached / cold | Consumer cached / cold | Build, producer → consumer | Whole job, producer → consumer |
+| --- | --- | --- | --- | --- |
+| OFF | 0 / 345 | 208 / 137 | 630 → 359 s | 661 → 405 s |
+| ON | 340 / 5 | 343 / 2 | 234 → 212 s | 340 → 324 s |
+
+Each job also reported 16 noncacheable calls. These are individual runner
+observations, not a controlled hardware comparison or queue-throughput result.
+[Consumer logs, counters and step timing metadata](ci-evidence/2026-10-18-ubuntu-compatible-consumer.json).
+The parent consumer workflow subsequently passed, including all seven native
+app builds and the remaining checks.
+
+OFF's runner image, GNU 15.2.0, zccache 1.15.5 and all 306 logged installed
+package versions match the producer. That excludes the visible version
+differences; it does not explain the 137 cold calls. These logs lack
+per-compilation hit/miss records, so neither their affected units nor root
+cause are established. Keep this gap distinct from the now-verified cache
+transport and compatibility fix.
+
+The save actions still compressed the stores on exact hits, taking 14 s OFF
+and 11 s ON, then warned that the immutable keys could not be reserved.
+Merged #1381 adds a guard to skip this redundant work; subsequent Ubuntu
+execution of that guard is not yet a verified runtime saving. Restore, build and integrity coverage remain required.
+
+### Native journal diagnostic and correctness limit
+
+Pinned zccache 1.15.5 supports private sessions with `--stats --journal
+<path>.jsonl --profile`, followed by offline `zccache analyze --json`. Raw
+journal records contain arguments, outcomes, `miss_reason` and `miss_diff`.
+This provides a diagnostic route beyond the current CI aggregate counters;
+no journal instrumentation has been enabled in production CI by this audit.
+
+An isolated GCC 15.2.0 fixture exposed a separate freshness failure: compile a
+function returning 7, warm it, then immediately write return 8 with equal
+size and a naturally changed nanosecond mtime. The journal reports a hit and
+the cached executable returns 7; a fresh compile returns 8. The unwrapped GCC
+binary reproduces the result, so it is not limited to the Nix compiler wrapper.
+A separate 200 ms settling control returns the correct value; the delay is
+not a production workaround. Private cache/endpoint ownership keeps these
+fixtures separate from the shared daemon.
+[Source, executable results, stamps and raw journals](ci-evidence/2026-10-18-native-journal-freshness.json)
+corroborate existing upstream [zccache#1935](https://github.com/zackees/zccache/issues/1935#issuecomment-6244827358).
+This does not establish wrong output in the GitHub runs, explain OFF's 137
+misses, or identify a specific internal shortcut from aggregate outcomes.
+The compiler-cache correctness recommendation now includes this native
+rapid-edit limit alongside the existing Rust and restored-target blockers.
+
+Upstream 1.15.6 contains a separate Clang PCH timestamp-isolation fix
+([#1958](https://github.com/zackees/zccache/pull/1958)). Neither that release
+nor a production version bump is qualified by the measurements here; it is
+not asserted to fix this GNU fixture or the observed CI misses.
 
 ## Executive assessment
 
@@ -624,7 +748,7 @@ Keep the merged queue policy, Rust correctness safeguard, bounded useful
 compiler caches and parallel OFF/ON runners. Validate the observed host-package
 benefit over real traffic; an archive HIT alone is not a throughput result.
 Validate Ubuntu app reuse after removing the pre-build purge, and compare a
-full day of code PR/queue traffic after the final cache rollout. Track the
+full day of code PR/queue traffic after the final cache rollout. The
 macOS integrity failure was resolved by #1338. The startup fix in #1365
 has passed PR, queue, master and full native validation; #1355 is closed.
 
@@ -632,14 +756,14 @@ has passed PR, queue, master and full native validation; #1355 is closed.
 | --- | --- |
 | 1. Match cook profiles and measure consumers | Explicit profiles landed in #1318; local dev/release/no-cook experiment and native consumers recorded. Representative post-rollout comparison remains pending. |
 | 2. Rust cache correctness | Reproduction still fails on pinned soldr; safeguard retained in #1290, upstream zccache#1943 linked. |
-| 3. Remove unused overhead | Deferred Fast Gate layer removed in #1315; 13 Ubuntu restore/purge events fixed by #1337. Live Ubuntu reuse and budget behavior remain to verify. |
-| 4. Warm scoped plugin builds | Trusted compiler and host-package seeds consumed by a PR: 41/41 compiler hits, 323 packages, zero package bytes downloaded; job 165 → 148 s in the first host cold/warm pair. Day-scale validation remains. |
+| 3. Remove unused overhead | #1372 disables unused embedded transport in all seven callsites; #1380 reclaimed 183 MB of retired archives. Qt exact-key reuse skips duplicate publication. #1371 mode-compatible Ubuntu producers and later OFF reuse passed; remaining misses and whole-budget retention remain unresolved. |
+| 4. Warm scoped plugin builds | PR consumer verified 41/41 compiler hits, 323 packages and zero package download bytes; first unmatched job pair 165 → 148 s. Both seed families were later absent. Warming works; durable retention and day-scale benefit remain unresolved under #1269. |
 | 5. Persist test timing | Nonempty OFF/ON producer, save, later restore and CTest consumption verified across master runs (#1288/#1311). |
 | 6. Match remote save policy | All seven setup-soldr consumers use master-only remote saves; PR/queue/local-save behavior verified (#1291). |
 | 7. Bound Qt cache | 1.2 GB compiler bound, 1.3 GB family, actual high hit rates and restore/save times verified (#1309). Overall repository headroom still needs the full-day view. |
-| 8. Unify nightly cleanup | Competing purge removed; original startup permission failure fixed (#1289). Real full dispatch started successfully; macOS test issue #1334 was resolved by #1338. Later startup failure #1355 has a merged fix, with full validation pending. |
+| 8. Unify nightly cleanup | Competing purge removed and startup permission failure fixed (#1289). #1338 resolved the macOS assertion; #1365 startup correction passed queue/master/full validation. Latest full run 39089156757 passed all seven app builds and nightly checks. |
 | 9. Isolated libobs measurements | Three trials per condition and raw wall/CPU/cache evidence published in #1306. Wall-time ranges overlap. |
-| 10. Shorten critical path | Independent OFF/ON runners landed (#1314); phase times, runner cost, skips and serial-test bottlenecks recorded. Overall queue gain remains unproven. |
+| 10. Shorten critical path | Independent OFF/ON runners and Fast Gate/build overlap landed. Product-code queue observation: required gate 843 s; Fast Gate 209 s entirely overlapped with build. Runner cost and coverage recorded; causal/day-scale gain remains unproven. |
 | 11. Durable before/after comparison | Full-day baseline and cohort-separated per-step collector ready. At least one full representative post-rollout day remains outstanding. |
 
 This checkpoint preserves the original scope. #1286 remains open while the
