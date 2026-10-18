@@ -927,6 +927,49 @@ same-stamp rejection and dependency preservation. Without that flag the probe
 exits 1 when it reproduces stale unit-test success. Logs and the archive remain
 in the chosen directory. No global cache or daemon is purged.
 
+### Native fingerprint helper evaluation
+
+Standalone zccache 1.15.5 already exposes `snapshot-fp-record` and
+`snapshot-fp-validate`, so the audit tested those native APIs before adding
+production package-mapping logic. Both experiments kept the Rust wrapper
+bypassed and preserved the modified nested source's size and nanosecond mtime
+through hydration.
+
+| Root package | Native source coverage | Validation report | Unit-test result after validation |
+| --- | --- | --- | --- |
+| `obs-deep-cache-probe` | 0 crates / 0 sources | 0 clean / 0 dirty | Old binary passed; current compile error absent |
+| `obs_deep_cache_probe` | 1 crate / 2 root sources; hyphenated dependency missing | 0 clean / 1 dirty | Old binary passed; current compile error absent |
+
+The naming failure is concrete: the recorder looks for a `.d` file using the
+hyphenated fingerprint-directory basename, while Cargo emits a normalized
+target filename with underscores. The same construction remains in the
+inspected upstream source. It is tracked in
+[zccache#1959](https://github.com/zackees/zccache/issues/1959).
+
+The control also establishes a separate semantic limit. Native validation
+recognizes changed source when covered, but only future-stamps clean units;
+it leaves dirty Cargo metadata intact. It therefore cannot alone enforce
+freshness for the preserved-timestamp case. The existing known-package
+quarantine rejects the edit and retains the dependency in both fixtures;
+automatic production mapping and generated-input coverage remain unfinished.
+[Versions, source coverage, CLI outcomes and controls](ci-evidence/2026-10-18-native-fingerprint-helper.json).
+
+Reproduce with a new directory and the pinned executables:
+
+```sh
+uv run ci/deep_test_cache_probe.py \
+  --directory build_ci_audit/native-fingerprint-new \
+  --soldr /absolute/path/to/soldr \
+  --native-fingerprint-tool /absolute/path/to/zccache \
+  --verify-native-guard
+```
+
+The current pins return 1 because native coverage/invalidation is insufficient.
+Repeat in another new directory with `--package-name obs_deep_cache_probe`
+for the naming control. Existing `--verify-guard` still verifies only the
+known-package quarantine. These are manual experiments; no native helper
+was enabled in production CI and no tests were skipped.
+
 ### Build-script inputs can defeat deep reuse
 
 The workspace-shaped delta experiment produced a 62,371,228-byte delta versus
