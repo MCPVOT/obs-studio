@@ -157,6 +157,10 @@ not get a line.
 
 ### Encoding, streaming and recording
 
+- **Codec availability follows the build.** MP4 and MOV outputs do not advertise
+  HEVC when it was disabled at build time. *Linux*, pending merge. PR
+  [#1333](https://github.com/obs-rust/obs-studio/pull/1333).
+
 - **Enhanced Broadcasting encoder controls.** Enhanced Broadcasting stream
   settings can turn off B-frames and lookahead and set the preset and
   tuning, for lower latency than the service settings give, and show a
@@ -640,6 +644,11 @@ area.
   *macOS*, 2026-10-17. Issue
   [#1358](https://github.com/obs-rust/obs-studio/issues/1358), PR
   [#1370](https://github.com/obs-rust/obs-studio/pull/1370).
+
+- Audio timestamp differences smaller than one sample no longer leave an
+  invalid interval in the mixer. *All*, pending merge. Issue
+  [#838](https://github.com/obs-rust/obs-studio/issues/838), PR
+  [#1385](https://github.com/obs-rust/obs-studio/pull/1385).
 
 ### Encoding, streaming and recording
 
@@ -1320,6 +1329,11 @@ area.
   [#1108](https://github.com/obs-rust/obs-studio/issues/1108), PR
   [#1109](https://github.com/obs-rust/obs-studio/pull/1109), upstream
   [obsproject/obs-studio#12213](https://github.com/obsproject/obs-studio/issues/12213).
+
+- Browser panels no longer crash during cold startup with CEF 150, and
+  closing OBS while its browser engine starts no longer hangs. *Linux*,
+  2026-10-17. PR [#1333](https://github.com/obs-rust/obs-studio/pull/1333),
+  dependency [obs-browser#1](https://github.com/obs-rust/obs-browser/pull/1).
 
 ### Security hardening
 

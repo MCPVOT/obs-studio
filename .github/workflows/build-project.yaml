@@ -1218,6 +1218,12 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
+      - name: Set Up uv 🐍
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          version: '0.13.1'
+          enable-cache: false
+
       # Reuse the 339 MB of .debs every Tier 2 job downloaded (#1055): keep
       # them (the stock image's docker-clean config deletes them after each
       # install) and restore the archive dir, keyed on the list and the image.
@@ -1368,6 +1374,12 @@ jobs:
         with:
           submodules: recursive
           fetch-depth: 0
+
+      - name: Set Up uv 🐍
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          version: '0.13.1'
+          enable-cache: false
 
       # Reuse the 339 MB of .debs every Tier 2 job downloaded (#1055): keep
       # them (the stock image's docker-clean config deletes them after each

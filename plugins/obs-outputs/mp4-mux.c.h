@@ -453,6 +453,7 @@ static size_t mp4_write_avcC(struct mp4_mux *mux, obs_encoder_t *enc)
 	return box_size;
 }
 
+#ifdef ENABLE_HEVC
 /// ISO/IEC 14496-15 8.4.1.1 HEVCConfigurationBox
 static size_t mp4_write_hvcC(struct mp4_mux *mux, obs_encoder_t *enc)
 {
@@ -476,6 +477,8 @@ static size_t mp4_write_hvcC(struct mp4_mux *mux, obs_encoder_t *enc)
 	bfree(packet.data);
 	return box_size;
 }
+
+#endif
 
 /// AV1 ISOBMFF 2.3. AV1 Codec Configuration Box
 static size_t mp4_write_av1C(struct mp4_mux *mux, obs_encoder_t *enc)
@@ -672,6 +675,7 @@ static size_t mp4_write_avc1(struct mp4_mux *mux, obs_encoder_t *enc)
 	return write_box_size(s, start);
 }
 
+#ifdef ENABLE_HEVC
 /// ISO/IEC 14496-15 8.4.1.1 HEVCSampleEntry
 static size_t mp4_write_hvc1(struct mp4_mux *mux, obs_encoder_t *enc)
 {
@@ -699,6 +703,8 @@ static size_t mp4_write_hvc1(struct mp4_mux *mux, obs_encoder_t *enc)
 
 	return write_box_size(s, start);
 }
+
+#endif
 
 /// AV1 ISOBMFF 2.2. AV1 Sample Entry
 static size_t mp4_write_av01(struct mp4_mux *mux, obs_encoder_t *enc)
@@ -1296,8 +1302,10 @@ static size_t mp4_write_stsd(struct mp4_mux *mux, struct mp4_track *track)
 	if (track->type == TRACK_VIDEO) {
 		if (track->codec == MP4_CODEC_H264)
 			mp4_write_avc1(mux, track->encoder);
+#ifdef ENABLE_HEVC
 		else if (track->codec == MP4_CODEC_HEVC)
 			mp4_write_hvc1(mux, track->encoder);
+#endif
 		else if (track->codec == MP4_CODEC_AV1)
 			mp4_write_av01(mux, track->encoder);
 		else if (track->codec == MP4_CODEC_PRORES)
@@ -2750,8 +2758,10 @@ static inline enum mp4_codec get_codec(obs_encoder_t *enc)
 
 	if (strcmp(codec, "h264") == 0)
 		return MP4_CODEC_H264;
+#ifdef ENABLE_HEVC
 	if (strcmp(codec, "hevc") == 0)
 		return MP4_CODEC_HEVC;
+#endif
 	if (strcmp(codec, "av1") == 0)
 		return MP4_CODEC_AV1;
 	if (strcmp(codec, "prores") == 0)
@@ -2928,8 +2938,10 @@ bool mp4_mux_submit_packet(struct mp4_mux *mux, struct encoder_packet *pkt)
 	} else {
 		if (track->codec == MP4_CODEC_H264)
 			obs_parse_avc_packet(&parsed_packet, pkt);
+#ifdef ENABLE_HEVC
 		else if (track->codec == MP4_CODEC_HEVC)
 			obs_parse_hevc_packet(&parsed_packet, pkt);
+#endif
 		else if (track->codec == MP4_CODEC_AV1)
 			obs_parse_av1_packet(&parsed_packet, pkt);
 		else if (track->codec == MP4_CODEC_PRORES)

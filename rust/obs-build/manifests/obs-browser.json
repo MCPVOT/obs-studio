@@ -1,0 +1,29 @@
+{
+  "common": [
+    "browser-app.cpp",
+    "browser-client.cpp",
+    "browser-dummy-client.cpp",
+    "browser-scheme.cpp",
+    "deps/base64/base64.cpp",
+    "deps/signal-restore.cpp",
+    "deps/wide-string.cpp",
+    "obs-browser-plugin.cpp",
+    "obs-browser-source.cpp"
+  ],
+  "panels": [
+    "panel/browser-panel-client.cpp",
+    "panel/browser-panel.cpp",
+    "panel/browser-panel.hpp",
+    "panel/browser-panel-internal.hpp"
+  ],
+  "unity_start": [
+    "browser-app.cpp",
+    "deps/base64/base64.cpp",
+    "obs-browser-source.cpp"
+  ],
+  "helper": [
+    "browser-app.cpp",
+    "browser-dummy-client.cpp",
+    "obs-browser-page/obs-browser-page-main.cpp"
+  ]
+}

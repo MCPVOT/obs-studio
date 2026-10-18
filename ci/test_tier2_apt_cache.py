@@ -26,6 +26,12 @@ def job(name: str) -> str:
 
 
 class AptCacheTest(unittest.TestCase):
+    def test_manifest_reader_has_uv_in_both_stock_job_containers(self):
+        for name in ("rust-linux-tier2-build", "rust-linux-tier2"):
+            j = job(name)
+            self.assertRegex(j, r"uses: astral-sh/setup-uv@[0-9a-f]{40}", name)
+            self.assertLess(j.index("astral-sh/setup-uv@"), j.index("run: bash rust/tools/linux-validate/validate.sh"), name)
+
     def test_every_tier2_linux_job_caches_apt_archives(self):
         for name in ("rust-linux-tier2-build", "rust-linux-tier2"):
             j = job(name)

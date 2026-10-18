@@ -1,10 +1,13 @@
 # Linux build environment for Tier 2 validation (docs/rust-port/testing-policy.md).
 FROM ubuntu:26.04
+# The source-manifest validator runs Python through uv in local containers too.
+COPY --from=ghcr.io/astral-sh/uv:0.13.1 /uv /uvx /usr/local/bin/
 ENV DEBIAN_FRONTEND=noninteractive
 COPY apt-packages.txt /tmp/apt-packages.txt
 RUN apt-get update && grep -v '^#' /tmp/apt-packages.txt | xargs apt-get install -y --no-install-recommends \
  && if apt-cache show libvpl-dev >/dev/null 2>&1; then apt-get install -y --no-install-recommends libvpl-dev; fi
 # libvpl-dev is amd64-only. validate.sh leaves QSV off, so an arm64 image skips it.
+RUN uv run --no-project --offline --python /usr/bin/python3 python -c 'import json, pathlib, re'
 # Install exactly the toolchain pinned in rust-toolchain.toml (run.sh passes it)
 # so corrosion/CMake finds it; rustup must not have to fetch it at run time.
 # Compiler launcher for the CMake builds: zccache, pinned with its checksum.

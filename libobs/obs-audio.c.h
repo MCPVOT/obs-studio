@@ -359,7 +359,8 @@ static void set_fixed_audio_buffering(struct obs_core_audio *audio, size_t sampl
 static void add_audio_buffering(struct obs_core_audio *audio, size_t sample_rate, struct ts_info *ts, uint64_t min_ts,
 				const char *buffering_name)
 {
-	struct ts_info new_ts;
+	/* A sub-sample offset adds no ticks, so the loop may leave end untouched. */
+	struct ts_info new_ts = *ts;
 	uint64_t offset;
 	uint64_t frames;
 	size_t total_ms;

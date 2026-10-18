@@ -117,20 +117,13 @@ done
 export ZCCACHE_CACHE_DIR="${ZCCACHE_CACHE_DIR:-$BUILD/zccache}"
 trap 'zccache stop >/dev/null 2>&1 || true' EXIT
 
-# Every libobs C file the Rust build replaces: the implementation files of
-# the unity groups (BUILD.md) in LIBOBS_PORTED_SOURCES and
-# LIBOBS_LINUX_PORTED_SOURCES in libobs/cmake/sources.cmake, instead of a
-# hand-kept list (obs-rust/obs-studio#137). Paths stay relative to libobs/ and
-# are matched under libobs.dir/, because libobs also links same-named files
-# from deps (deps/libcaption/src/utf8.c).
-ported_groups=$(awk '/^set\($/ { getline name; inlist = (name ~ /^ *LIBOBS_(LINUX_)?PORTED_SOURCES$/); next }
-  /^set\(LIBOBS_(LINUX_)?PORTED_SOURCES / { for (i = 2; i <= NF; i++) print $i; next }
-  inlist && /^\)/ { inlist = 0 } inlist { print $1 }
-  /list\(APPEND LIBOBS_PORTED_SOURCES / { print $3 }' "$SRC"/libobs/cmake/sources.cmake |
-  tr -d ')' | grep -E '^build/.*\+\.h\.c$' | sort -u)
-ported_objs=$(cd "$SRC/libobs" && sed -n 's|^#include "libobs/\(.*\.c\.h\)"$|\1.o|p' $ported_groups | sort -u)
+# Read the same canonical source sets as CMake and obs-build, then expand the
+# selected ported groups into implementation object names. Scraping sources.cmake
+# misses groups now that it imports the JSON manifest instead of listing them.
+ported_objs=$(uv run --no-project python "$SRC/rust/tools/ported_sources.py" --root "$SRC" --host linux)
+
 if [ "$(wc -w <<<"$ported_objs")" -lt 20 ]; then
-  echo "FAIL: derived only $(wc -w <<<"$ported_objs") ported objects from libobs/cmake/sources.cmake"
+  echo "FAIL: derived only $(wc -w <<<"$ported_objs") ported objects from libobs/build/source-sets.json"
   exit 1
 fi
 echo "== ported objects checked out of libobs-with-rust: $(wc -w <<<"$ported_objs")"

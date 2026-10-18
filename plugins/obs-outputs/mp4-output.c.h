@@ -596,7 +596,11 @@ uint64_t mp4_output_total_bytes(void *data)
 struct obs_output_info mp4_output_info = {
 	.id = "mp4_output",
 	.flags = OBS_OUTPUT_AV | OBS_OUTPUT_ENCODED | OBS_OUTPUT_MULTI_TRACK_AV | OBS_OUTPUT_CAN_PAUSE,
+#ifdef ENABLE_HEVC
 	.encoded_video_codecs = "h264;hevc;av1",
+#else
+	.encoded_video_codecs = "h264;av1",
+#endif
 	.encoded_audio_codecs = "aac;alac;flac;opus",
 	.get_name = mp4_output_name,
 	.create = mp4_output_create,
@@ -611,7 +615,11 @@ struct obs_output_info mp4_output_info = {
 struct obs_output_info mov_output_info = {
 	.id = "mov_output",
 	.flags = OBS_OUTPUT_AV | OBS_OUTPUT_ENCODED | OBS_OUTPUT_MULTI_TRACK_AV | OBS_OUTPUT_CAN_PAUSE,
+#ifdef ENABLE_HEVC
 	.encoded_video_codecs = "h264;hevc;prores",
+#else
+	.encoded_video_codecs = "h264;prores",
+#endif
 	.encoded_audio_codecs = "aac;alac",
 	.get_name = mov_output_name,
 	.create = mov_output_create,
