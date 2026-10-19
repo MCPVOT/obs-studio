@@ -434,3 +434,64 @@ fn each_pid_keeps_its_own_window() {
     assert_eq!(nvml.process_utilization(&pci(BUS_ID), 999), Some(50));
     assert_eq!(nvml.process_utilization(&pci(BUS_ID), OBS_PID), None);
 }
+
+extern "C" fn handle_two_devices(bus_id: *const c_char, device: *mut *mut c_void) -> i32 {
+    // SAFETY: the caller provides a terminated bus ID and writable output.
+    let bus_id = unsafe { CStr::from_ptr(bus_id) };
+    let handle = match bus_id.to_bytes() {
+        b"0000:2b:00.0" => HANDLE,
+        b"0000:2c:00.0" => HANDLE + 1,
+        _ => return NVML_ERROR_NOT_FOUND,
+    };
+    // SAFETY: the output points to the caller's handle slot.
+    unsafe { *device = handle as *mut c_void };
+    NVML_SUCCESS
+}
+
+extern "C" fn process_two_devices(
+    device: *mut c_void,
+    out: *mut Sample,
+    count: *mut u32,
+    last_seen: u64,
+) -> i32 {
+    if ![HANDLE, HANDLE + 1].contains(&(device as usize)) {
+        return NVML_ERROR_NOT_FOUND;
+    }
+    // Both GPUs have samples in the same sampling window.
+    // SAFETY: delegates with the same writable buffer contract.
+    process_utilization(HANDLE as *mut c_void, out, count, last_seen)
+}
+
+#[test]
+fn each_adapter_keeps_its_own_process_window() {
+    let lib = FakeLib::full(init_ok as *const (), rates_37 as *const ())
+        .with(
+            c"nvmlDeviceGetHandleByPciBusId_v2",
+            handle_two_devices as *const (),
+        )
+        .with(
+            c"nvmlDeviceGetProcessUtilization",
+            process_two_devices as *const (),
+        );
+    let nvml = Nvml::load(Box::new(lib)).unwrap();
+    assert_eq!(nvml.process_utilization(&pci(BUS_ID), OBS_PID), Some(25));
+    assert_eq!(
+        nvml.process_utilization(&pci("0000:2c:00.0"), OBS_PID),
+        Some(25)
+    );
+    assert_eq!(nvml.process_utilization(&pci(BUS_ID), OBS_PID), None);
+}
+
+extern "C" fn info_not_supported(_: *mut c_void, _: *mut InfoV1) -> i32 {
+    3 // NVML_ERROR_NOT_SUPPORTED
+}
+
+#[test]
+fn unsupported_new_process_api_falls_back_to_old_api() {
+    let lib = with_process(FakeLib::full(init_ok as *const (), rates_37 as *const ())).with(
+        c"nvmlDeviceGetProcessesUtilizationInfo",
+        info_not_supported as *const (),
+    );
+    let nvml = Nvml::load(Box::new(lib)).unwrap();
+    assert_eq!(nvml.process_utilization(&pci(BUS_ID), OBS_PID), Some(25));
+}

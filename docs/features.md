@@ -42,6 +42,8 @@ not get a line.
 
 ## Features
 
+- Rust libobs process pipes fill reads across kernel pipe chunks, matching the C API on Linux and macOS.
+
 - Failed libobs startup reports the initializer that failed; Linux X11
   hotkey initialization reports a failed display connection and its display
   name. *All* (X11 detail on Linux), 2026-10-17. Issue
@@ -85,7 +87,8 @@ not get a line.
   renders on a hardware GPU (green), in software on a machine without a GPU
   (yellow), or in software although a GPU is present, after a graphics
   failure or over the frame budget (red). Clicking it explains the state and
-  quotes the graphics log lines. The startup log and
+  quotes the graphics log lines, including the D3D11 adapter selected on Windows. Legacy Mesa Software Rasterizer and Apple
+  Software Renderer are recognized as CPU rendering. The startup log and
   `GetStats.gpuAcceleration` in obs-websocket have the same state
   ([gpu-status.md](gpu-status.md)). *All*, 2026-10-15. Issues
   [#846](https://github.com/obs-rust/obs-studio/issues/846),
@@ -110,7 +113,9 @@ not get a line.
   [#1226](https://github.com/obs-rust/obs-studio/pull/1226).
 - **`GPU: x%` label.** The light shows the render GPU's utilization next to
   the CPU usage, or `CPU rendering` in software; obs-websocket gets the same
-  reading. Sources: NVML for NVIDIA and `gpu_busy_percent` for AMD on
+  reading. NVML process sampling keeps a separate window for each GPU and PID,
+  and falls back to the older API when a GPU cannot use the newer one.
+  Sources: NVML for NVIDIA and `gpu_busy_percent` for AMD on
   Linux, IOKit on macOS, the PDH `GPU Engine` counters on Windows (every
   vendor). *All*, 2026-10-17. Issues
   [#1020](https://github.com/obs-rust/obs-studio/issues/1020),

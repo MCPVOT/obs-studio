@@ -139,38 +139,24 @@ impl Pipe {
         self.child.id()
     }
 
-    /// One read from the child's stdout, mirroring the single `fread` in
-    /// `os_process_pipe_read` (short reads are returned, not filled).
+    /// Read until the buffer is full, EOF, or an error, matching `fread` in
+    /// `os_process_pipe_read` across short kernel reads.
     /// Zero for a write-mode pipe.
     pub fn read(&mut self, buf: &mut [u8]) -> usize {
-        use std::io::Read;
         let Some(reader) = self.reader.as_mut() else {
             return 0;
         };
-        loop {
-            match reader.read(buf) {
-                Ok(n) => return n,
-                Err(err) if err.kind() == std::io::ErrorKind::Interrupted => continue,
-                Err(_) => return 0,
-            }
-        }
+        read_stream(reader, buf)
     }
 
     /// One read from the child's stderr, mirroring
     /// `os_process_pipe_read_err`. Unlike [`Pipe::read`] this works on a
     /// write-mode pipe too.
     pub fn read_err(&mut self, buf: &mut [u8]) -> usize {
-        use std::io::Read;
         let Some(err) = self.err.as_mut() else {
             return 0;
         };
-        loop {
-            match err.read(buf) {
-                Ok(n) => return n,
-                Err(err) if err.kind() == std::io::ErrorKind::Interrupted => continue,
-                Err(_) => return 0,
-            }
-        }
+        read_stream(err, buf)
     }
 
     /// Write until `buf` is consumed or the pipe errors, mirroring the one
@@ -198,5 +184,44 @@ impl Pipe {
             }
         }
         done
+    }
+}
+
+/// `fread(..., 1, len, ...)` retries short reads until EOF or failure.
+fn read_stream(reader: &mut impl std::io::Read, buf: &mut [u8]) -> usize {
+    let mut done = 0;
+    while done < buf.len() {
+        match reader.read(&mut buf[done..]) {
+            Ok(0) => break,
+            Ok(n) => done += n,
+            Err(err) if err.kind() == std::io::ErrorKind::Interrupted => continue,
+            Err(_) => break,
+        }
+    }
+    done
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Pipe;
+
+    #[test]
+    fn read_fills_requested_buffer_across_pipe_chunks() {
+        let mut pipe = Pipe::create(Some(b"head -c 131072 /dev/zero"), b"r").unwrap();
+        let mut buf = vec![1; 131072];
+        let got = pipe.read(&mut buf);
+        let _ = pipe.destroy();
+        assert_eq!(got, buf.len());
+        assert!(buf.iter().all(|&byte| byte == 0));
+    }
+
+    #[test]
+    fn read_err_fills_requested_buffer_across_pipe_chunks() {
+        let mut pipe = Pipe::create(Some(b"head -c 131072 /dev/zero >&2"), b"r").unwrap();
+        let mut buf = vec![1; 131072];
+        let got = pipe.read_err(&mut buf);
+        let _ = pipe.destroy();
+        assert_eq!(got, buf.len());
+        assert!(buf.iter().all(|&byte| byte == 0));
     }
 }

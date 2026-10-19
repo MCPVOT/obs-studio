@@ -45,6 +45,8 @@ pub fn parse_fdinfo(text: &str) -> Option<FdinfoClient> {
     let mut client_id = None;
     let mut engines: BTreeMap<String, Engine> = BTreeMap::new();
 
+    let mut times = BTreeMap::new();
+    let mut cycles = BTreeMap::new();
     for line in text.lines() {
         let Some((key, value)) = line.split_once(':') else {
             continue;
@@ -74,7 +76,8 @@ pub fn parse_fdinfo(text: &str) -> Option<FdinfoClient> {
                 .strip_suffix(" ns")
                 .and_then(|v| v.trim().parse().ok())
             {
-                engine(&mut engines, name).busy = n;
+                times.insert(name.to_owned(), n);
+                engine(&mut engines, name);
             }
         } else if let Some(name) = key.strip_prefix("drm-total-cycles-") {
             if let Some(n) = number() {
@@ -83,9 +86,27 @@ pub fn parse_fdinfo(text: &str) -> Option<FdinfoClient> {
         } else if let Some(name) = key.strip_prefix("drm-cycles-")
             && let Some(n) = number()
         {
-            engine(&mut engines, name).busy = n;
+            cycles.insert(name.to_owned(), n);
+            engine(&mut engines, name);
         }
     }
+
+    // Keep units paired: prefer cycles only with their total-cycle clock.
+    // Otherwise fall back to an engine's time counter, never cycles / ns.
+    engines.retain(|name, e| {
+        if let Some(&busy) = cycles.get(name)
+            && e.total.is_some()
+        {
+            e.busy = busy;
+            true
+        } else if let Some(&busy) = times.get(name) {
+            e.busy = busy;
+            e.total = None;
+            true
+        } else {
+            false
+        }
+    });
 
     Some(FdinfoClient {
         driver: driver?,
@@ -109,10 +130,18 @@ pub fn read_fdinfo(dir: &Path) -> Vec<FdinfoClient> {
 
 /// Each client on `pdev` once, by client id: fds of one client carry the
 /// same counters.
-fn clients_on<'a>(clients: &'a [FdinfoClient], pdev: &str) -> BTreeMap<u64, &'a FdinfoClient> {
-    let mut by_id = BTreeMap::new();
+fn clients_on(clients: &[FdinfoClient], pdev: &str) -> BTreeMap<u64, FdinfoClient> {
+    let mut by_id: BTreeMap<u64, FdinfoClient> = BTreeMap::new();
     for c in clients.iter().filter(|c| c.pdev.as_deref() == Some(pdev)) {
-        by_id.entry(c.client_id).or_insert(c);
+        let client = by_id.entry(c.client_id).or_insert_with(|| c.clone());
+        for (name, e) in &c.engines {
+            let previous = client.engines.entry(name.clone()).or_insert(*e);
+            // Duplicate descriptors are read at different instants. Keep
+            // the furthest counter, with its matching clock-domain sample.
+            if e.busy > previous.busy || (e.busy == previous.busy && e.total > previous.total) {
+                *previous = *e;
+            }
+        }
     }
     by_id
 }

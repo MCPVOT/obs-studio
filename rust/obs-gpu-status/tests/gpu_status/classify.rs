@@ -200,3 +200,21 @@ fn merge_fills_names_and_adds_missing() {
 fn system_probe_does_not_panic() {
     let _ = platform::system_devices();
 }
+
+#[test]
+fn legacy_software_renderers_never_report_hardware_acceleration() {
+    for adapter in ["Mesa Software Rasterizer", "Apple Software Renderer"] {
+        assert_eq!(
+            classify(Some(adapter), &[nv()], None),
+            State::Red,
+            "{adapter}"
+        );
+        assert_eq!(
+            classify(Some(adapter), &[], None),
+            State::Yellow,
+            "{adapter}"
+        );
+        let readout = obs_gpu_status::report::Report::new(Some(adapter), vec![], None).readout();
+        assert_eq!(readout.label.english, "CPU rendering");
+    }
+}

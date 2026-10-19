@@ -95,3 +95,12 @@ fn the_latest_lines_win_when_full() {
     assert_eq!(lines.first().map(String::as_str), Some("EGL error 15"));
     assert_eq!(lines.last().map(String::as_str), Some("EGL error 24"));
 }
+
+#[test]
+fn captures_the_actual_d3d11_backend_adapter_line() {
+    // libobs-d3d11/d3d11-subsystem.cpp.hpp uses D3D11, not Direct3D 11.
+    let line = "Loading up D3D11 on adapter Microsoft Basic Render Driver (0)";
+    let mut log = LogCapture::new();
+    log.push(line);
+    assert_eq!(log.lines(), vec![line.to_owned()]);
+}
