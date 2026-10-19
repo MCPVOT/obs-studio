@@ -219,6 +219,12 @@ not get a line.
   [#1176](https://github.com/obs-rust/obs-studio/pull/1176),
   [#1177](https://github.com/obs-rust/obs-studio/pull/1177),
   [#1178](https://github.com/obs-rust/obs-studio/pull/1178).
+- **Settings load and save faster.** Storing and reloading scene collections,
+  profiles and source settings no longer takes about a third longer than the
+  original C code: the JSON round trip is 28-32 % faster than before. *All*,
+  2026-10-19. Issue
+  [#1452](https://github.com/obs-rust/obs-studio/issues/1452), PR
+  [#1461](https://github.com/obs-rust/obs-studio/pull/1461).
 
 ### Stability
 
