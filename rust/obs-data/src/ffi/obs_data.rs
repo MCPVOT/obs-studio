@@ -595,20 +595,9 @@ fn cached_json(data: *mut c_void, pretty: bool, defaults: bool) -> *const c_char
     let Some(data) = borrow_data(data) else {
         return ptr::null();
     };
-    match (pretty, defaults) {
-        (false, false) => {
-            let _ = data.json();
-        }
-        (false, true) => {
-            let _ = data.json_with_defaults();
-        }
-        (true, false) => {
-            let _ = data.json_pretty();
-        }
-        (true, true) => {
-            let _ = data.json_pretty_with_defaults();
-        }
-    }
+    // Rebuild the cached text straight into its CString: the C ABI returns
+    // `json_ptr` below, so a `String` here would only be discarded (#1452).
+    data.refresh_json(pretty, defaults);
     data.json_ptr()
 }
 
