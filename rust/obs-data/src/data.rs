@@ -14,7 +14,7 @@ use std::ffi::CString;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard, Weak};
 
-use crate::ffi::json::{self, J};
+use crate::ffi::json;
 
 /// The `RefCell`-style accessors on the per-object lock (#1451).
 ///
@@ -729,17 +729,7 @@ impl Data {
     }
 
     pub fn from_json(text: &str) -> Option<Self> {
-        let value = json::loads(text)?;
-        match value {
-            J::Object(pairs) => {
-                let data = Self::new();
-                ingest(&data, pairs);
-                Some(data)
-            }
-            // An array root has nothing for object iteration to walk.
-            J::Array(_) => Some(Self::new()),
-            _ => None,
-        }
+        json::load_data(text)
     }
 
     pub fn from_json_file(path: &Path) -> Option<Self> {
@@ -1476,24 +1466,21 @@ impl Data {
     }
 
     fn dump(&self, pretty: bool, with_defaults: bool) -> String {
-        let value = self.to_j(with_defaults);
-        let text = json::dumps(&value, pretty).unwrap_or_default();
+        self.refresh_json(pretty, with_defaults);
+        self.last_json().unwrap_or_default()
+    }
+
+    /// Rebuilds the cached JSON text for `pretty` and `with_defaults`.
+    ///
+    /// The C ABI returns [`Self::json_ptr`] after this, so it must not build a
+    /// `String` it would throw away (#1452).
+    pub(crate) fn refresh_json(&self, pretty: bool, with_defaults: bool) {
+        let text = json::dump_data(self, pretty, with_defaults);
         let mut inner = self.inner.borrow_mut();
-        inner.json = CString::new(text.clone()).ok();
-        text
+        inner.json = text;
     }
 
-    fn to_j(&self, with_defaults: bool) -> J {
-        let snaps = self.snapshot(with_defaults);
-        J::Object(
-            snaps
-                .into_iter()
-                .map(|(name, rendered)| (name, rendered.into_j(with_defaults)))
-                .collect(),
-        )
-    }
-
-    fn snapshot(&self, with_defaults: bool) -> Vec<(String, Rendered)> {
+    pub(crate) fn rendered_items(&self, with_defaults: bool) -> Vec<(String, Rendered)> {
         self.inner
             .borrow()
             .items
@@ -1526,65 +1513,13 @@ impl Default for Data {
     }
 }
 
-enum Rendered {
+pub(crate) enum Rendered {
     String(String),
     Int(i64),
     Real(f64),
     Bool(bool),
     Object(Option<Data>),
     Array(Option<Array>),
-}
-
-impl Rendered {
-    fn into_j(self, with_defaults: bool) -> J {
-        match self {
-            Rendered::String(text) => J::String(text),
-            Rendered::Int(value) => J::Int(value),
-            Rendered::Real(value) => J::Real(value),
-            Rendered::Bool(value) => J::Bool(value),
-            Rendered::Object(obj) => obj.map(|data| data.to_j(with_defaults)).unwrap_or(J::Null),
-            Rendered::Array(array) => {
-                let items = array
-                    .map(|array| {
-                        array
-                            .elements()
-                            .into_iter()
-                            .map(|data| data.to_j(with_defaults))
-                            .collect()
-                    })
-                    .unwrap_or_default();
-                J::Array(items)
-            }
-        }
-    }
-}
-
-fn ingest(data: &Data, pairs: Vec<(String, J)>) {
-    for (key, value) in pairs {
-        match value {
-            J::Object(inner) => {
-                let child = Data::new();
-                ingest(&child, inner);
-                data.set_obj(&key, Some(&child));
-            }
-            J::Array(items) => {
-                let array = Array::new();
-                for item in items {
-                    if let J::Object(inner) = item {
-                        let child = Data::new();
-                        ingest(&child, inner);
-                        array.push(Some(&child));
-                    }
-                }
-                data.set_array(&key, Some(&array));
-            }
-            J::String(text) => data.set_string(&key, Some(&text)),
-            J::Int(value) => data.set_int(&key, value),
-            J::Real(value) => data.set_double(&key, value),
-            J::Bool(value) => data.set_bool(&key, value),
-            J::Null => data.set_obj(&key, None),
-        }
-    }
 }
 
 fn copy_user(value: &Value) -> Option<Value> {
