@@ -14,7 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "build/libobs.pch.h"
+#include "build/libobs-ported-callback.pch.h"
 
 /*
  *   Uses a data stack.  Probably more complex than it should be, but reduces

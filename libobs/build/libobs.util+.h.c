@@ -1,8 +1,7 @@
-/* Unity group (BUILD.md): util/ and callback/. */
+/* Unity group (BUILD.md): unported util/ and callback/. */
 
 #include "libobs/build/libobs.pch.h"
 
-#include "libobs/callback/calldata.c.h"
 #include "libobs/callback/decl.c.h"
 #include "libobs/callback/proc.c.h"
 #include "libobs/callback/signal.c.h"

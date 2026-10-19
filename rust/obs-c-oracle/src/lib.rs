@@ -38,6 +38,7 @@ pub mod base;
 pub mod bitstream;
 pub mod bmem;
 pub mod buffered_file_serializer;
+pub mod calldata;
 pub mod cf_tokenizer;
 pub mod config_file;
 pub mod crc32;

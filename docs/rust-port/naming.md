@@ -50,6 +50,7 @@ One name per thing, so releases, crates and tags can't be confused (#320).
 | `libobs/obs-data.c` | `rust/obs-data` |
 | `libobs/obs-properties.c` | `rust/obs-properties` |
 | `libobs/obs-hotkey-name-map.c` | `rust/obs-hotkey` |
+| `libobs/callback/` | `rust/obs-callback` |
 | `plugins/obs-nvenc/` (CUDA/NVENC loader) | `rust/obs-nvenc`, linked through `rust/obs-nvenc-plugin` |
 | GPU acceleration status (frontend, #846) | `rust/obs-gpu-status`, linked through `rust/obs-gpu-status-frontend` |
 | all libobs ports, as one C ABI drop-in | `rust/libobs-rust` |

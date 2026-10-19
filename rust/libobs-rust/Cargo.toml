@@ -15,6 +15,7 @@ doctest = false
 
 [dependencies]
 obs-util = { path = "../obs-util" }
+obs-callback = { path = "../obs-callback" }
 obs-graphics = { path = "../obs-graphics" }
 obs-hotkey = { path = "../obs-hotkey" }
 obs-codec = { path = "../obs-codec" }
