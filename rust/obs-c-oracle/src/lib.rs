@@ -67,6 +67,7 @@ pub mod platform_nix;
 pub mod platform_number;
 #[cfg(all(windows, target_env = "msvc"))]
 pub mod platform_windows;
+pub mod proc;
 pub mod profiler;
 pub mod profiler_snapshot;
 pub mod shader_param_names;

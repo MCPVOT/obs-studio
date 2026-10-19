@@ -1,5 +1,5 @@
 /* Precompiled header (BUILD.md) for the libobs unity group libobs.ported-callback.
- * callback/calldata.c and callback/decl.c alone, without the core, so the C oracle and C tests can compile them. C.
+ * callback/calldata.c, callback/decl.c and callback/proc.c alone, without the core, so the C oracle and C tests can compile them. C.
  * The implementation files include this header and nothing else: the includes below are theirs. */
 
 #pragma once
@@ -14,3 +14,8 @@
 /* callback/decl.c */
 #include "util/cf-parser.h"
 #include "callback/decl.h"
+
+/* callback/proc.c */
+#include "util/darray.h"
+#include "util/threading.h"
+#include "callback/proc.h"

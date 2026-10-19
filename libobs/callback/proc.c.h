@@ -14,7 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "build/libobs.pch.h"
+#include "build/libobs-ported-callback.pch.h"
 
 struct proc_info {
 	struct decl_info func;
