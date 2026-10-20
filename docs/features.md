@@ -154,6 +154,8 @@ not get a line.
   [#386](https://github.com/obs-rust/obs-studio/pull/386),
   [#977](https://github.com/obs-rust/obs-studio/pull/977).
 
+- **Video scaler buffer ownership.** A video input replaced during scaling cannot inherit the old registration's scaler buffers. *All*, 2026-10-20. Issue [#1540](https://github.com/obs-rust/obs-studio/issues/1540), PR [#1544](https://github.com/obs-rust/obs-studio/pull/1544).
+
 ### Audio
 
 - **ALSA captures 24-bit devices at 24 bits.** A USB audio interface that
