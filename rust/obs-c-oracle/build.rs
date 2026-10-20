@@ -285,6 +285,10 @@ fn main() {
         flags.push("/wd4702");
         oracle.flag("/wd4127");
         flags.push("/wd4127");
+        // obs-internal.h uses a C11 flexible array for caption_text.text.
+        // MSVC diagnoses it as extension C4200 even in C11 mode (#1427).
+        oracle.flag("/wd4200");
+        flags.push("/wd4200");
     }
     if oracle.get_compiler().is_like_clang() {
         // soldr's Apple toolchains pass -fuse-ld=lld in CFLAGS, unused by a
