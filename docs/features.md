@@ -164,6 +164,8 @@ not get a line.
 
 ### Encoding, streaming and recording
 
+- **let buffered queues fit one chunk.** Large buffered recording chunks complete when the configured queue limit is smaller than a chunk. *All*, 2026-10-20. Issue [#1526](https://github.com/obs-rust/obs-studio/issues/1526), PR [#1527](https://github.com/obs-rust/obs-studio/pull/1527).
+
 - **Codec availability follows the build.** MP4 and MOV outputs do not advertise
   HEVC when it was disabled at build time. *Linux*, pending merge. PR
   [#1333](https://github.com/obs-rust/obs-studio/pull/1333).

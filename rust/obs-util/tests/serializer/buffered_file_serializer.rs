@@ -175,3 +175,22 @@ fn small_write_stays_off_disk_until_free() {
 
     assert_eq!(read_file(&path), payload);
 }
+
+/// Intentional C difference: an empty queue must accept one chunk, even
+/// when that chunk exceeds its configured limit. The C writer deadlocks.
+#[test]
+fn chunk_larger_than_queue_capacity() {
+    let (tx, rx) = std::sync::mpsc::sync_channel(1);
+    std::thread::spawn(move || {
+        let scratch = Scratch::new();
+        let path = scratch.join("large-chunk.bin");
+        let data = vec![0x5a; 2 * 1048576];
+        let out = Output::create(&path, 64, data.len()).unwrap();
+        assert_eq!(out.write(&data), data.len());
+        drop(out);
+        assert_eq!(read_file(&path), data);
+        tx.send(()).unwrap();
+    });
+    rx.recv_timeout(std::time::Duration::from_secs(5))
+        .expect("oversized chunk blocked on an empty queue");
+}

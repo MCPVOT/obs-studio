@@ -1,3 +1,5 @@
+//! Intentional C difference: Large buffered recording chunks complete when the configured queue limit is smaller than a chunk.
+//!
 //! Safe core for `libobs/util/buffered-file-serializer.c`.
 //!
 //! A background thread drains a byte queue and writes the file. Chunks under
@@ -228,7 +230,12 @@ impl Output {
             let mut shared = self.inner.shared.lock().unwrap();
             let chunk_size = shared.chunk_size;
             let next_chunk = (buf.len() - offset).min(chunk_size);
-            let cap = shared.buf.capacity.max(shared.buffer_size);
+            // Even an empty queue must fit one chunk and its header.
+            let cap = shared
+                .buf
+                .capacity
+                .max(shared.buffer_size)
+                .max(next_chunk.saturating_add(HEADER_LEN));
             let free = cap.saturating_sub(shared.buf.len());
             if free < next_chunk + HEADER_LEN {
                 // Reset while holding the data lock, then wait. The writer

@@ -1,6 +1,8 @@
 //! Tier 3: `buffered_file_serializer_*` against the C oracle.
 //!
 //! Exclusions, not fed to the oracle:
+//! - Chunks larger than the queue capacity: Rust accepts one whole chunk;
+//!   C can wait forever. The bounded oversized-chunk regression covers it.
 //! - `buffered_file_serializer_free(NULL)` returns. C crashes on a null serializer.
 //! - A null data pointer with a non-zero size is undefined in C (`deque_push_back`
 //!   reads it). The shim returns 0.
