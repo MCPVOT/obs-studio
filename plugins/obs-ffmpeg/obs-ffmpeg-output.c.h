@@ -1217,8 +1217,11 @@ static bool ffmpeg_output_start(void *data)
 	output->video_start_ts = 0;
 	output->total_bytes = 0;
 
+	output->connecting = true;
 	ret = pthread_create(&output->start_thread, NULL, start_thread, output);
-	return (output->connecting = (ret == 0));
+	if (ret != 0)
+		output->connecting = false;
+	return ret == 0;
 }
 
 static void ffmpeg_output_full_stop(void *data)
