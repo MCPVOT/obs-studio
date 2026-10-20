@@ -1324,6 +1324,11 @@ area.
 
 ### Scripting
 
+- A busy Lua source no longer makes the graphics thread poll its locks. OBS
+  uses cached dimensions or skips that source's render call until the lock is
+  available, allowing the rest of the frame to proceed. All; pending merge.
+  Issue [#1275](https://github.com/obs-rust/obs-studio/issues/1275).
+
 - quat_set, which Lua and Python scripts can call, now stores the x, y, z
   and w values in the correct order. *All*, 2026-10-10. PR
   [#86](https://github.com/obs-rust/obs-studio/pull/86).

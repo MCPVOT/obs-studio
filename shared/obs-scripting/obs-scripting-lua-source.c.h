@@ -171,18 +171,14 @@ struct obs_lua_data {
 	pthread_mutex_unlock(&__data->mutex); \
 	current_lua_script = __prev_script;
 
-/* Number of threads in obs_enter_graphics() called from Lua, waiting for the
- * graphics context. */
-static volatile long lua_graphics_waiters = 0;
-
 /* The graphics thread calls get_width, get_height and video_render with the
  * graphics context held, and then needs the definition and script locks.
  * Lua code running on another thread holds those locks, so if it calls
  * obs_enter_graphics() at the same time, both threads wait for each other
- * forever (obsproject/obs-studio#6674). With the graphics context held, wait
- * for a busy lock only while no Lua code waits for graphics; otherwise give
- * up, so that the caller skips the script for this call and the graphics
- * thread can finish the frame and release the context. */
+ * forever (obsproject/obs-studio#6674). Even without a graphics waiter, a
+ * busy script must not stall rendering (#1275). With the graphics context
+ * held, try once and let the caller use cached dimensions or skip rendering
+ * until a later call. Never sleep or wait while holding that context. */
 static bool lock_in_graphics(pthread_mutex_t *mutex)
 {
 	if (!gs_get_context()) {
@@ -190,12 +186,7 @@ static bool lock_in_graphics(pthread_mutex_t *mutex)
 		return true;
 	}
 
-	while (pthread_mutex_trylock(mutex) != 0) {
-		if (os_atomic_load_long(&lua_graphics_waiters) > 0)
-			return false;
-		os_sleep_ms(1);
-	}
-	return true;
+	return pthread_mutex_trylock(mutex) == 0;
 }
 
 #define lock_script_in_graphics(skip)                              \
@@ -207,13 +198,7 @@ static bool lock_in_graphics(pthread_mutex_t *mutex)
 
 static int obs_lua_enter_graphics(lua_State *script)
 {
-	bool waits = !gs_get_context();
-
-	if (waits)
-		os_atomic_inc_long(&lua_graphics_waiters);
 	obs_enter_graphics();
-	if (waits)
-		os_atomic_dec_long(&lua_graphics_waiters);
 
 	UNUSED_PARAMETER(script);
 	return 0;
