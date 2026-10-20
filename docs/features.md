@@ -158,6 +158,10 @@ not get a line.
 
 ### Audio
 
+- JACK timestamp fallback uses the active server sample rate instead of an uninitialized zero rate. *Linux*.
+
+- Unchanged JACK source settings no longer restart audio capture. *Linux*.
+
 - **ALSA captures 24-bit devices at 24 bits.** A USB audio interface that
   offers `S24_3LE` and `S16_LE` is opened at 24 bits, where before OBS tried
   16 bits first. *Linux*, 2026-10-16. Issue

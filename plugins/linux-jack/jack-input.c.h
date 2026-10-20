@@ -71,7 +71,7 @@ static void jack_update(void *vptr, obs_data_t *settings)
 		settings_changed = true;
 
 	new_device = obs_source_get_name(data->source);
-	if (!data->device || strcmp(data->device, new_device) != 0) {
+	if (!data->device || strcmp(data->device + sizeof("OBS Studio: ") - 1, new_device) != 0) {
 		if (data->device)
 			bfree(data->device);
 		/* prefix all devices to make it clear that they belong to obs */

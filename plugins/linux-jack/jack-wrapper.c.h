@@ -81,7 +81,7 @@ int jack_process_callback(jack_nframes_t nframes, void *arg)
 	if (!jack_get_cycle_times(data->jack_client, &current_frames, &current_usecs, &next_usecs, &period_usecs)) {
 		out.timestamp = now - (int64_t)(period_usecs * 1000);
 	} else {
-		out.timestamp = now - util_mul_div64(nframes, 1000000000ULL, data->samples_per_sec);
+		out.timestamp = now - util_mul_div64(nframes, 1000000000ULL, out.samples_per_sec);
 		blog(LOG_WARNING, "jack_get_cycle_times error: guessing timestamp");
 	}
 
