@@ -226,8 +226,10 @@ def linux_target(path: str) -> str | None:
     if not path.startswith(LINUX_TARGET_ROOTS) or path.startswith(QT_AREAS):
         return None
     parts = path.split("/")
-    if len(parts) < 3:
-        return None  # plugins/CMakeLists.txt etc.: not one module
+    # Gitlink updates name the module directory itself, with no child path.
+    # Top-level build files (plugins/CMakeLists.txt etc.) are not targets.
+    if len(parts) < 2 or (len(parts) == 2 and "." in parts[1]):
+        return None
     plat = path_platforms(path)
     if plat is not None and LINUX not in plat:
         return None  # win-capture/, mac-*/ ... never build on Linux

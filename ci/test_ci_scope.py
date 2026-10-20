@@ -281,6 +281,10 @@ class LaneTableTest(unittest.TestCase):
         self.assertTrue(self.sc("libobs/util/platform-nix.c.h").tier2)
         self.assertTrue(self.sc("libobs/util/threading-posix.c.h").tier2)
 
+    def test_submodule_root_selects_its_linux_target(self):
+        for module in ("obs-websocket", "obs-browser"):
+            self.assertEqual(self.sc(f"plugins/{module}").linux_targets, module)
+
     def test_linux_targets_are_the_touched_modules(self):
         self.assertEqual(self.sc("plugins/obs-filters/expander-filter.c").linux_targets, "obs-filters")
         self.assertEqual(
