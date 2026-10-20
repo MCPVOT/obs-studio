@@ -35,4 +35,6 @@
     video_output_free_frame_rate_divisor;
     /* obs-data.c: json_decref is a static inline. The glue is not EXPORT. */
     obs_data_json_decref;
+    /* obs-scene-bounds.c. obs-scene.c calls it inside libobs. Not EXPORT. */
+    obs_bounds_fit_scale;
 };

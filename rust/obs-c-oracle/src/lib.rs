@@ -71,6 +71,7 @@ pub mod platform_windows;
 pub mod proc;
 pub mod profiler;
 pub mod profiler_snapshot;
+pub mod scene_bounds;
 pub mod shader_param_names;
 pub mod task;
 pub mod text_lookup;

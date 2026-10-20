@@ -406,6 +406,7 @@ dependencies = [
  "obs-media-io",
  "obs-missing-files",
  "obs-properties",
+ "obs-scene-bounds",
  "obs-util",
 ]
 
@@ -485,9 +486,11 @@ dependencies = [
  "libc",
  "obs-c-oracle",
  "obs-callback",
+ "obs-graphics",
  "obs-hotkey",
  "obs-missing-files",
  "obs-properties",
+ "obs-scene-bounds",
  "obs-util",
  "proptest",
 ]
@@ -585,6 +588,13 @@ dependencies = [
  "obs-data",
  "obs-util",
  "proptest",
+]
+
+[[package]]
+name = "obs-scene-bounds"
+version = "0.1.0"
+dependencies = [
+ "obs-graphics",
 ]
 
 [[package]]
