@@ -400,10 +400,10 @@ impl<'a> Calldata<'a> {
         }
     }
 
-    /// `cd_ensure_capacity`: grow when `new_size >= capacity`. Fixed stacks
+    /// `cd_ensure_capacity`: grow when `new_size > capacity`. Fixed stacks
     /// refuse instead of allocating.
     fn ensure(&mut self, new_size: usize) -> bool {
-        if new_size < self.capacity {
+        if new_size <= self.capacity {
             return true;
         }
         if self.fixed {

@@ -222,15 +222,14 @@ fn resize_keeps_later_param_test() {
 }
 
 #[test]
-fn exact_capacity_grows_test() {
+fn exact_capacity_fits_test() {
     let mut cd = Calldata::new();
     cd.set_data("a", b"Z");
     let size = cd.size();
     assert_eq!(cd.capacity(), 128);
     assert!(size < 128);
 
-    // Characterized, not endorsed: growth happens when the needed size is
-    // equal to capacity, not only when it is greater.
+    // An exact fit already includes the terminating size field.
     let extra = 128 - size;
     let overhead = 2 + size_of::<usize>() * 2;
     assert!(extra > overhead);
@@ -239,7 +238,7 @@ fn exact_capacity_grows_test() {
     cd.set_data("b", &blob);
 
     assert_eq!(cd.size(), 128);
-    assert_eq!(cd.capacity(), 128 * 2);
+    assert_eq!(cd.capacity(), 128);
     assert_eq!(cd.get_data("a", 1), Some(&b"Z"[..]));
     assert_eq!(cd.get_data("b", data_size), Some(blob.as_slice()));
 }
@@ -350,23 +349,20 @@ fn fixed_stack_test() {
     assert_eq!(cd.size(), needed);
     assert_eq!(cd.get_int("a"), Some(42));
 
-    // Characterized, not endorsed: one spare byte is not usable. The
-    // capacity check is strict less-than, so a one-byte grow is refused
-    // and the previous value stays.
-    let bigger = vec![7u8; size_of::<i64>() + 1];
+    // A write beyond the fixed capacity is refused and preserves the value.
+    let bigger = vec![7u8; size_of::<i64>() + 2];
     cd.set_data("a", &bigger);
     assert_eq!(cd.overflow_count(), 1);
     assert_eq!(cd.size(), needed);
     assert_eq!(cd.int("a"), 42);
     assert_eq!(cd.stack().unwrap()[needed], 0xAB);
 
-    // A fixed buffer whose capacity equals the write is refused too.
-    // Nothing is stored.
+    // The terminator is included in needed; an exact fit is valid.
     let mut cd_exact = Calldata::fixed(&mut exact);
     cd_exact.set_int("a", 5);
-    assert_eq!(cd_exact.overflow_count(), 1);
-    assert_eq!(cd_exact.size(), size_of::<usize>());
-    assert!(cd_exact.get_int("a").is_none());
+    assert_eq!(cd_exact.overflow_count(), 0);
+    assert_eq!(cd_exact.size(), needed);
+    assert_eq!(cd_exact.get_int("a"), Some(5));
 
     let mut cd_room = Calldata::fixed(&mut room);
     cd_room.set_int("a", 1);

@@ -207,7 +207,7 @@ fn exact_fit_and_past_double_match_oracle() {
     let blob = vec![0x11u8; extra - overhead];
     set_both(&mut c_side.0, &mut rust_side.0, "b", &blob);
     assert_same(&c_side.0, &rust_side.0);
-    assert_eq!(c_side.0.capacity, 256);
+    assert_eq!(c_side.0.capacity, 128);
 
     let mut c_side = Heap(fresh());
     let mut rust_side = Heap(fresh());
@@ -236,7 +236,7 @@ fn fixed_stack_matches_oracle() {
     init_fixed(&mut rust_side.0, &mut r_buf);
     set_both(&mut c_side.0, &mut rust_side.0, "a", &42i64.to_ne_bytes());
     assert_same(&c_side.0, &rust_side.0);
-    let bigger = vec![7u8; size_of::<i64>() + 1];
+    let bigger = vec![7u8; size_of::<i64>() + 2];
     set_both(&mut c_side.0, &mut rust_side.0, "a", &bigger);
     assert_same(&c_side.0, &rust_side.0);
     assert_gets(&c_side.0, &rust_side.0, "a", size_of::<i64>());
@@ -249,7 +249,7 @@ fn fixed_stack_matches_oracle() {
     init_fixed(&mut rust_side.0, &mut r_exact);
     set_both(&mut c_side.0, &mut rust_side.0, "a", &5i64.to_ne_bytes());
     assert_same(&c_side.0, &rust_side.0);
-    assert_eq!(c_side.0.size, size_of::<usize>());
+    assert_eq!(c_side.0.size, needed);
 }
 
 #[derive(Clone, Debug)]

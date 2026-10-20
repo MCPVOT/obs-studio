@@ -271,7 +271,7 @@ static void resize_keeps_later_param_test(void **state)
 	calldata_free(&cd);
 }
 
-static void exact_capacity_grows_test(void **state)
+static void exact_capacity_fits_test(void **state)
 {
 	UNUSED_PARAMETER(state);
 
@@ -288,8 +288,10 @@ static void exact_capacity_grows_test(void **state)
 	assert_int_equal(cd.capacity, 128);
 	assert_true(size < 128);
 
-	/* Characterized, not endorsed: cd_ensure_capacity grows when the
-	 * needed size is equal to capacity, not only when it is greater. */
+	/* An exact fit is a fit: the needed size already includes the
+	 * terminating size field. This supersedes the earlier
+	 * characterization (grow when the needed size equals capacity), which
+	 * wasted a reallocation and made fixed buffers refuse exact fits. */
 	extra = 128 - size;
 	overhead = 2 + sizeof(size_t) * 2;
 	assert_true(extra > overhead);
@@ -298,7 +300,7 @@ static void exact_capacity_grows_test(void **state)
 	calldata_set_data(&cd, "b", blob, data_size);
 
 	assert_int_equal(cd.size, 128);
-	assert_int_equal(cd.capacity, 128 * 2);
+	assert_int_equal(cd.capacity, 128);
 	{
 		uint8_t got[128];
 		assert_true(data_size <= sizeof(got));
@@ -445,7 +447,7 @@ static void fixed_stack_test(void **state)
 	struct calldata cd_room;
 	size_t needed = param_bytes(2, sizeof(long long));
 	long long out = 0;
-	uint8_t bigger[sizeof(long long) + 1];
+	uint8_t bigger[sizeof(long long) + 2];
 
 	memset(&rec, 0, sizeof(rec));
 	base_get_log_handler(&prev, &prev_param);
@@ -465,9 +467,10 @@ static void fixed_stack_test(void **state)
 	assert_true(calldata_get_int(&cd, "a", &out));
 	assert_int_equal(out, 42);
 
-	/* Characterized, not endorsed: one spare byte is not usable. The
-	 * capacity check is strict less-than, so a one-byte grow is refused
-	 * and the previous value stays. */
+	/* A write one byte beyond the fixed capacity is refused and the
+	 * previous value stays. (The old characterization, that even the one
+	 * spare byte was unusable, is superseded: the capacity check now
+	 * accepts an exact fit.) */
 	memset(bigger, 7, sizeof(bigger));
 	calldata_set_data(&cd, "a", bigger, sizeof(bigger));
 	assert_int_equal(rec.calls, 1);
@@ -476,19 +479,26 @@ static void fixed_stack_test(void **state)
 	assert_int_equal(cd.size, needed);
 	assert_int_equal(calldata_int(&cd, "a"), 42);
 
-	/* A fixed buffer whose capacity equals the write is refused too.
-	 * Nothing is stored. */
+	/* A fixed buffer whose capacity equals the write accepts it: needed
+	 * includes the terminator. This supersedes the old characterization
+	 * that an exact fit was refused and nothing stored. */
 	calldata_init_fixed(&cd_exact, exact, needed);
 	calldata_set_int(&cd_exact, "a", 5);
-	assert_int_equal(rec.calls, 2);
-	assert_string_equal(rec.message, "Tried to go above fixed calldata stack size!");
-	assert_int_equal(cd_exact.size, sizeof(size_t));
-	assert_false(calldata_get_int(&cd_exact, "a", &out));
+	assert_int_equal(rec.calls, 1);
+	assert_int_equal(cd_exact.size, needed);
+	assert_true(calldata_get_int(&cd_exact, "a", &out));
+	assert_int_equal(out, 5);
+	{
+		size_t offset = 0;
+		long long a = 5;
+		expect_param(&cd_exact, &offset, "a", &a, sizeof(a));
+		expect_end(&cd_exact, offset);
+	}
 
 	calldata_init_fixed(&cd_room, room, sizeof(room));
 	calldata_set_int(&cd_room, "a", 1);
 	calldata_set_int(&cd_room, "b", 2);
-	assert_int_equal(rec.calls, 2);
+	assert_int_equal(rec.calls, 1);
 	assert_int_equal(calldata_int(&cd_room, "a"), 1);
 	assert_int_equal(calldata_int(&cd_room, "b"), 2);
 	{
@@ -536,7 +546,7 @@ int main(void)
 		cmocka_unit_test(capacity_boundary_test),
 		cmocka_unit_test(string_test),
 		cmocka_unit_test(resize_keeps_later_param_test),
-		cmocka_unit_test(exact_capacity_grows_test),
+		cmocka_unit_test(exact_capacity_fits_test),
 		cmocka_unit_test(growth_past_double_test),
 		cmocka_unit_test(typed_helpers_test),
 		cmocka_unit_test(clear_and_reuse_test),
