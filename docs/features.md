@@ -170,6 +170,8 @@ not get a line.
   HEVC when it was disabled at build time. *Linux*, pending merge. PR
   [#1333](https://github.com/obs-rust/obs-studio/pull/1333).
 
+- **wake buffered producers after disk errors.** Buffered recording producers wake and report failure after a disk write error. *All*, 2026-10-20. Issue [#1533](https://github.com/obs-rust/obs-studio/issues/1533), PR [#1536](https://github.com/obs-rust/obs-studio/pull/1536).
+
 - **Enhanced Broadcasting encoder controls.** Enhanced Broadcasting stream
   settings can turn off B-frames and lookahead and set the preset and
   tuning, for lower latency than the service settings give, and show a

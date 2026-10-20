@@ -1,4 +1,5 @@
 //! Intentional C difference: Large buffered recording chunks complete when the configured queue limit is smaller than a chunk.
+//! Intentional C difference: Buffered recording producers wake and report failure after a disk write error.
 //!
 //! Safe core for `libobs/util/buffered-file-serializer.c`.
 //!
@@ -49,6 +50,8 @@ pub fn seek_type_from_c(code: i32) -> Option<SeekType> {
 struct AutoEvent {
     flag: Mutex<bool>,
     cv: Condvar,
+    #[cfg(test)]
+    waiters: std::sync::atomic::AtomicUsize,
 }
 
 impl AutoEvent {
@@ -56,13 +59,19 @@ impl AutoEvent {
         Self {
             flag: Mutex::new(false),
             cv: Condvar::new(),
+            #[cfg(test)]
+            waiters: std::sync::atomic::AtomicUsize::new(0),
         }
     }
 
-    fn wait(&self) {
+    fn wait(&self, error: Option<&AtomicBool>) {
         let mut flag = self.flag.lock().unwrap();
-        while !*flag {
+        while !*flag && !error.is_some_and(|error| error.load(Ordering::SeqCst)) {
+            #[cfg(test)]
+            self.waiters.fetch_add(1, Ordering::SeqCst);
             flag = self.cv.wait(flag).unwrap();
+            #[cfg(test)]
+            self.waiters.fetch_sub(1, Ordering::SeqCst);
         }
         *flag = false;
     }
@@ -71,6 +80,12 @@ impl AutoEvent {
         let mut flag = self.flag.lock().unwrap();
         *flag = true;
         self.cv.notify_one();
+    }
+
+    fn signal_all(&self) {
+        let mut flag = self.flag.lock().unwrap();
+        *flag = true;
+        self.cv.notify_all();
     }
 
     fn reset(&self) {
@@ -224,10 +239,10 @@ impl Output {
         }
         let mut offset = 0;
         while offset < buf.len() {
+            let mut shared = self.inner.shared.lock().unwrap();
             if self.inner.output_error.load(Ordering::SeqCst) {
                 return 0;
             }
-            let mut shared = self.inner.shared.lock().unwrap();
             let chunk_size = shared.chunk_size;
             let next_chunk = (buf.len() - offset).min(chunk_size);
             // Even an empty queue must fit one chunk and its header.
@@ -242,7 +257,7 @@ impl Output {
                 // thread signals `space` under that same lock.
                 self.inner.space.reset();
                 drop(shared);
-                self.inner.space.wait();
+                self.inner.space.wait(Some(&self.inner.output_error));
                 continue;
             }
             let mut num_chunks = free / (next_chunk + HEADER_LEN);
@@ -305,7 +320,7 @@ impl Drop for Output {
 
 /// `os_fseeki64(..., SEEK_SET)` takes an `int64_t`. A wrapped position is
 /// negative and the seek fails, leaving the file offset where it was.
-fn seek_set(file: &mut File, pos: u64) {
+fn seek_set<W: Seek>(file: &mut W, pos: u64) {
     let off = pos as i64;
     if off < 0 {
         return;
@@ -313,7 +328,7 @@ fn seek_set(file: &mut File, pos: u64) {
     let _ = file.seek(SeekFrom::Start(off as u64));
 }
 
-fn write_full(file: &mut File, mut buf: &[u8]) -> bool {
+fn write_full<W: Write>(file: &mut W, mut buf: &[u8]) -> bool {
     while !buf.is_empty() {
         match file.write(buf) {
             Ok(0) => return false,
@@ -325,7 +340,7 @@ fn write_full(file: &mut File, mut buf: &[u8]) -> bool {
     true
 }
 
-fn io_thread(inner: Arc<Inner>, mut file: File) {
+fn io_thread<W: Write + Seek>(inner: Arc<Inner>, mut file: W) {
     let chunk_size = inner.shared.lock().unwrap().chunk_size;
     let mut chunk = vec![0u8; chunk_size];
     let mut chunk_used = 0usize;
@@ -337,7 +352,7 @@ fn io_thread(inner: Arc<Inner>, mut file: File) {
     let mut shutting_down;
 
     'outer: loop {
-        inner.new_data.wait();
+        inner.new_data.wait(None);
         'chunks: loop {
             {
                 let mut shared = inner.shared.lock().unwrap();
@@ -385,7 +400,11 @@ fn io_thread(inner: Arc<Inner>, mut file: File) {
                 }
             }
             if !write_full(&mut file, &chunk[..chunk_used]) {
+                // Pair error publication and the wake with the producer's
+                // check/reset under the queue lock to prevent lost wakeups.
+                let _shared = inner.shared.lock().unwrap();
                 inner.output_error.store(true, Ordering::SeqCst);
+                inner.space.signal_all();
                 return;
             }
             chunk_used = 0;
@@ -394,5 +413,101 @@ fn io_thread(inner: Arc<Inner>, mut file: File) {
         if shutting_down {
             break 'outer;
         }
+    }
+}
+
+#[cfg(test)]
+mod failure_tests {
+    use super::*;
+    use std::sync::mpsc;
+    use std::time::{Duration, Instant};
+
+    struct FailingWriter(mpsc::SyncSender<()>, mpsc::Receiver<()>);
+
+    impl Write for FailingWriter {
+        fn write(&mut self, _: &[u8]) -> std::io::Result<usize> {
+            self.0.send(()).unwrap();
+            self.1.recv().unwrap();
+            Err(std::io::Error::other("disk full"))
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+    impl Seek for FailingWriter {
+        fn seek(&mut self, _: SeekFrom) -> std::io::Result<u64> {
+            Ok(0)
+        }
+    }
+
+    fn error_wakes_producers(producers: usize) {
+        let inner = Arc::new(Inner {
+            output_error: AtomicBool::new(false),
+            shutdown_requested: AtomicBool::new(false),
+            space: AutoEvent::new(),
+            new_data: AutoEvent::new(),
+            shared: Mutex::new(Shared {
+                buf: ByteBuf::with_capacity(INITIAL_CAPACITY),
+                next_pos: 0,
+                buffer_size: INITIAL_CAPACITY,
+                chunk_size: SMALL_WRITE,
+            }),
+        });
+        let (entered_tx, entered_rx) = mpsc::sync_channel(1);
+        let (resume_tx, resume_rx) = mpsc::sync_channel(1);
+        let worker_inner = Arc::clone(&inner);
+        let join = std::thread::spawn(move || {
+            io_thread(worker_inner, FailingWriter(entered_tx, resume_rx))
+        });
+        let out = Arc::new(Output {
+            inner: Arc::clone(&inner),
+            join: Some(join),
+        });
+        assert_eq!(out.write(&vec![1; SMALL_WRITE]), SMALL_WRITE);
+        entered_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+        let (done_tx, done_rx) = mpsc::sync_channel(1);
+        let mut handles = Vec::new();
+        for _ in 0..producers {
+            let out = Arc::clone(&out);
+            let done_tx = done_tx.clone();
+            handles.push(std::thread::spawn(move || {
+                let result = out.write(&vec![2; 2 * INITIAL_CAPACITY]);
+                done_tx.send(result).unwrap();
+            }));
+        }
+        drop(done_tx);
+        let deadline = Instant::now() + Duration::from_secs(5);
+        // The test-only waiter count proves every producer entered its
+        // condition-variable wait before the writer publishes the disk error.
+        while inner.space.waiters.load(Ordering::SeqCst) < producers {
+            assert!(
+                Instant::now() < deadline,
+                "producers did not reach backpressure"
+            );
+            std::thread::yield_now();
+        }
+        resume_tx.send(()).unwrap();
+        for _ in 0..producers {
+            assert_eq!(
+                done_rx
+                    .recv_timeout(Duration::from_secs(5))
+                    .expect("producer stuck after write error"),
+                0
+            );
+        }
+        for handle in handles {
+            handle.join().unwrap();
+        }
+        drop(out);
+    }
+
+    #[test]
+    fn write_error_wakes_backpressured_producer() {
+        error_wakes_producers(1);
+    }
+
+    #[test]
+    fn write_error_wakes_every_backpressured_producer() {
+        error_wakes_producers(4);
     }
 }
