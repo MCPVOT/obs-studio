@@ -45,6 +45,9 @@ FLAG = re.compile(r"(?<![\w-])-W[A-Za-z][\w=+.-]*")
 
 def excludes_msvc(cond: str) -> bool:
     """True when the branch guarded by `cond` never runs with MSVC."""
+    alternatives = re.split(r"\bOR\b", cond, flags=re.IGNORECASE)
+    if len(alternatives) > 1:
+        return all(excludes_msvc(part) for part in alternatives)
     if NOT_WINDOWS.search(cond):
         return True
     return bool(OTHER_PLATFORM.search(cond)) and not WINDOWS.search(cond)

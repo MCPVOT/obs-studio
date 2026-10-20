@@ -27,6 +27,14 @@ def flagged(text: str, path: str = "plugins/x/CMakeLists.txt") -> list[str]:
 
 
 class Flagged(unittest.TestCase):
+    def test_or_can_enable_flags_for_msvc(self):
+        for condition in ("NOT MSVC OR ENABLE_WARNINGS", "UNIX OR ENABLE_WARNINGS"):
+            with self.subTest(condition=condition):
+                self.assertEqual(
+                    flagged(f"if({condition})\n  target_compile_options(x PRIVATE -Werror)\nendif()\n"),
+                    ["-Werror"],
+                )
+
     def test_bare_flag(self):
         self.assertEqual(flagged("target_compile_options(x PRIVATE -Wno-vla)\n"), ["-Wno-vla"])
 
