@@ -167,14 +167,19 @@ else
   # error (a warning ratchet otherwise took a round trip per file; #634).
   # A compile the zccache launcher itself fails exits 125 with no compiler
   # output: every in-flight compile failed at once when its daemon died (master
-  # run 39002068564). Restart the daemon and rebuild once; ninja redoes only
-  # the failed edges, and a real compile error fails the second time too.
+  # run 39002068564). A request the daemon accepted and then lost under load
+  # exits 1 instead, with only "zccache[err][R]: daemon response failure"
+  # (runs 39376294047, 39380784311): zccache keeps that exit 1 by design
+  # (wrap/ipc/lost_request.rs) and leaves the replay to the build tool.
+  # Restart the daemon and rebuild once; ninja redoes only the failed edges,
+  # and a real compile error fails the second time too.
   tier2_targets=(libobs libobs-with-rust cmocka-tests decklink obs-nvenc obs-nvenc-with-rust)
   if ! cmake --build "$build" --target "${tier2_targets[@]}" -- -k 0 >"$build.build.log" 2>&1; then
     # Ninja colors its log (\e[31mFAILED: ...), so strip the escapes first.
     launcher_failed=$(sed 's/\x1b\[[0-9;]*m//g' "$build.build.log" | grep -c '^FAILED: \[code=125\]' || true)
-    if [ "$launcher_failed" -gt 0 ]; then
-      echo "== $launcher_failed compiles failed in the zccache launcher (exit 125); restarting it and rebuilding once"
+    lost_requests=$(grep -c '^zccache\[err\]\[R\]: daemon response failure' "$build.build.log" || true)
+    if [ "$launcher_failed" -gt 0 ] || [ "$lost_requests" -gt 0 ]; then
+      echo "== zccache launcher failures: $launcher_failed exit 125, $lost_requests requests the daemon lost; restarting it and rebuilding once"
       # Keep the original cause: the retry can report only a recovery cooldown.
       cp "$build.build.log" "$build.build-first-failure.log"
       "$SRC"/rust/tools/linux-validate/build-errors.sh "$build.build-first-failure.log"

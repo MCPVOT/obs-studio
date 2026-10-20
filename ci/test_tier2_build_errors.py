@@ -41,21 +41,40 @@ warning: unused variable: `x`
 
 
 class BuildErrorsTest(unittest.TestCase):
-    def test_recovery_preserves_first_failure_and_keeps_one_retry(self):
+    @staticmethod
+    def recovery_script() -> str:
         source = (SCRIPT.parent / 'validate.sh').read_text()
         recovery = source.split('  tier2_targets=', 1)[1].split('  if [ -n "${OBS_EXTRA_CFLAGS:-}"', 1)[0]
         recovery = 'tier2_targets=' + recovery
         # Run the same helper through bash on hosts without /bin/bash.
-        recovery = recovery.replace('"$SRC"/rust/tools/linux-validate/build-errors.sh',
-                                    'bash "$SRC"/rust/tools/linux-validate/build-errors.sh')
-        for retry_status, daemon_status in ((0, 0), (0, 1), (1, 0), (1, 1)):
-            with self.subTest(retry_status=retry_status, daemon_status=daemon_status), tempfile.TemporaryDirectory() as directory:
+        return recovery.replace('"$SRC"/rust/tools/linux-validate/build-errors.sh',
+                                'bash "$SRC"/rust/tools/linux-validate/build-errors.sh')
+
+    # A launcher that cannot reach the daemon exits 125 (run 39002068564). A
+    # request the daemon accepted and then lost exits 1 with a
+    # "daemon response failure" line and no compiler output: zccache's
+    # wrapper/ipc/lost_request.rs keeps that exit 1 on purpose and leaves the
+    # replay to the build tool (runs 39376294047, 39380784311).
+    FIRST_FAILURES = (
+        "echo 'FAILED: [code=125] first.o'\n"
+        "    echo 'zccache[err][D]: original daemon failure'",
+        "echo 'zccache[err][R]: daemon response failure (closed-connection): lost connection "
+        "to daemon (no response). The requested tool returned no status; run '\\''zccache status'\\'' then retry.'\n"
+        "    echo 'zccache[info][Q]: daemon under load: compiling, 2 compiles in flight'\n"
+        "    printf '\\033[31mFAILED: [code=1] \\033[0mfirst.o\\n'",
+    )
+
+    def test_recovery_preserves_first_failure_and_keeps_one_retry(self):
+        recovery = self.recovery_script()
+        for first, retry_status, daemon_status in (
+                (f, r, d) for f in self.FIRST_FAILURES for r, d in ((0, 0), (0, 1), (1, 0), (1, 1))):
+            with self.subTest(first=first[:40], retry_status=retry_status, daemon_status=daemon_status), \
+                    tempfile.TemporaryDirectory() as directory:
                 prefix = '''
 cmake() {
   if [ ! -f "$build.calls" ]; then
     echo 1 > "$build.calls"
-    echo 'FAILED: [code=125] first.o'
-    echo 'zccache[err][D]: original daemon failure'
+    ''' + first + '''
     return 1
   fi
   echo 2 > "$build.calls"
@@ -74,16 +93,39 @@ zccache() { echo "daemon diagnostic: $*"; return "$daemon_status"; }
                     capture_output=True, text=True)
                 self.assertEqual(result.returncode, retry_status)
                 self.assertEqual(Path(directory, 'build.calls').read_text().strip(), '2')
-                self.assertIn('original daemon failure', result.stdout)
+                marker = 'original daemon failure' if 'code=125' in first else 'daemon response failure (closed-connection)'
+                self.assertIn(marker, result.stdout)
                 self.assertIn('daemon diagnostic: status', result.stdout)
                 self.assertIn('daemon diagnostic: stop', result.stdout)
                 self.assertIn('retry cache bypass: ' + ('1' if daemon_status else 'unset'),
                               Path(directory, 'build.build.log').read_text())
-                self.assertIn('original daemon failure',
-                              Path(directory, 'build.build-first-failure.log').read_text())
+                self.assertIn(marker, Path(directory, 'build.build-first-failure.log').read_text())
                 output = Path(directory, 'step-output')
                 fields = output.read_text() if output.exists() else ''
                 self.assertEqual('cache-healthy=false' in fields, bool(daemon_status))
+
+    def test_real_compile_error_is_not_retried(self):
+        # A compile that failed with exit 1 and no lost daemon request is a
+        # real error: report it, never rebuild it.
+        with tempfile.TemporaryDirectory() as directory:
+            prefix = '''
+cmake() {
+  echo x >> "$build.calls"
+  echo 'zccache[info][Q]: daemon under load: compiling, 2 compiles in flight'
+  echo "/src/a.c:1:1: error: unknown type name 'foo'"
+  echo 'FAILED: [code=1] a.o'
+  return 1
+}
+zccache() { echo "daemon diagnostic: $*"; }
+'''
+            result = subprocess.run(
+                ['bash', '-euo', 'pipefail', '-c', prefix + self.recovery_script()],
+                env={**os.environ, 'SRC': str(ROOT), 'build': directory + '/build'},
+                capture_output=True, text=True)
+            self.assertEqual(result.returncode, 1)
+            self.assertEqual(Path(directory, 'build.calls').read_text().count('x'), 1)
+            self.assertNotIn('daemon diagnostic', result.stdout)
+            self.assertIn("unknown type name 'foo'", result.stdout)
 
     def test_unhealthy_cache_is_not_published(self):
         workflow = (ROOT / '.github/workflows/build-project.yaml').read_text()
