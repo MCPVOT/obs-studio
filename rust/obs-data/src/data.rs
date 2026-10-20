@@ -303,9 +303,7 @@ impl ItemInner {
     fn write(&mut self, slot: Slot, value: Value) {
         match slot {
             Slot::Default => {
-                if (self.user.is_some() || self.default.is_some() || self.autoselect.is_some())
-                    && self.ty != value.ty()
-                {
+                if self.ty != value.ty() {
                     return;
                 }
                 self.ty = value.ty();
