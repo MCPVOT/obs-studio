@@ -15,11 +15,14 @@
  * libobs/callback/signal.c.h produces today (#1441). Cases marked
  * "characterized, not endorsed" pin odd behavior of that C.
  *
- * Not pinned, on purpose:
- * - signal_handler_connect_global / disconnect_global find an entry with
- *   da_find, a memcmp of the whole struct global_callback_info, padding
- *   included. Whether a second connect or a disconnect matches depends on
- *   bytes the C never sets. */
+ * Superseded characterizations (split from #1464, approved by the
+ * maintainer as in #1508): signal_handler_connect_global and
+ * disconnect_global used to find an entry with da_find, a memcmp of the
+ * whole struct global_callback_info (padding and signaling count
+ * included), so a global callback could not disconnect itself; and a
+ * nested signal reset the thread-local current callback, so
+ * signal_handler_remove_current() after it removed nothing. Both are now
+ * fixed and the tests below expect the fixed behavior. */
 
 struct log_record {
 	int calls;
@@ -107,9 +110,51 @@ static void nested_then_remove(void *data, calldata_t *params)
 
 	record(ctx, NULL, params);
 	signal_handler_signal(ctx->handler, "inner", params);
-	/* characterized, not endorsed: the nested signal reset the
-	 * thread-local current callback to NULL, so this removes nothing. */
+	/* The nested signal restores the current callback when it returns,
+	 * so this removes this callback. (Supersedes the old
+	 * characterization: the nested signal reset it to NULL and this
+	 * removed nothing.) */
 	signal_handler_remove_current();
+}
+
+static int count_calls;
+
+static void count_only(void *data, calldata_t *params)
+{
+	UNUSED_PARAMETER(data);
+	UNUSED_PARAMETER(params);
+	count_calls++;
+}
+
+#define MANY_CONNECTS 64
+static int many_data[MANY_CONNECTS];
+
+/* Connects enough callbacks to reallocate the callback array, then
+ * removes itself: the removal must still reach its own entry. */
+static void connect_many_then_remove(void *data, calldata_t *params)
+{
+	struct cb_ctx *ctx = data;
+
+	record(ctx, NULL, params);
+	if (ctx->seen->count == 1) {
+		for (int i = 0; i < MANY_CONNECTS; i++)
+			signal_handler_connect(ctx->handler, "ev", count_only, &many_data[i]);
+	}
+	signal_handler_remove_current();
+}
+
+/* Signals "ev" again from inside "ev" once. */
+static void recurse_once(void *data, calldata_t *params)
+{
+	struct cb_ctx *ctx = data;
+	int *depth = ctx->other;
+
+	record(ctx, NULL, params);
+	if (*depth == 0) {
+		(*depth)++;
+		signal_handler_signal(ctx->handler, "ev", params);
+		(*depth)--;
+	}
 }
 
 static void disconnect_own_global(void *data, const char *signal, calldata_t *params)
@@ -369,12 +414,16 @@ static void nested_signal_test(void **state)
 
 	signal_handler_signal(handler, "ev", NULL);
 	signal_handler_signal(handler, "ev", NULL);
-	/* a stays connected: 1, 2, 1, 2. */
-	assert_int_equal(seen.count, 4);
+	/* a removed itself after the nested signal: 1, 2, then nothing.
+	 * (Supersedes the old characterization 1, 2, 1, 2.) */
+	assert_int_equal(seen.count, 2);
 	assert_int_equal(seen.ids[0], 1);
 	assert_int_equal(seen.ids[1], 2);
-	assert_int_equal(seen.ids[2], 1);
-	assert_int_equal(seen.ids[3], 2);
+
+	/* inner is still connected. */
+	signal_handler_signal(handler, "inner", NULL);
+	assert_int_equal(seen.count, 3);
+	assert_int_equal(seen.ids[2], 2);
 
 	signal_handler_destroy(handler);
 	assert_int_equal(bnum_allocs(), allocs);
@@ -432,6 +481,94 @@ static void keep_ref_remove_current_test(void **state)
 	assert_int_equal(bnum_allocs(), allocs);
 }
 
+static void keep_ref_remove_current_last_ref_test(void **state)
+{
+	UNUSED_PARAMETER(state);
+
+	long allocs = bnum_allocs();
+	struct seen seen = {0};
+	struct cb_ctx a = {1, &seen, NULL, NULL};
+	signal_handler_t *handler = handler_with("void ev()");
+
+	/* When the creator's reference is already gone, the reference a
+	 * keep_ref callback gives back after removing itself is the last
+	 * one, and the handler is destroyed then, not leaked. */
+	signal_handler_connect_ref(handler, "ev", remove_self, &a);
+	signal_handler_destroy(handler);
+	assert_true(bnum_allocs() > allocs);
+	signal_handler_signal(handler, "ev", NULL);
+	assert_int_equal(seen.count, 1);
+	assert_int_equal(bnum_allocs(), allocs);
+}
+
+static void recursive_remove_test(void **state)
+{
+	UNUSED_PARAMETER(state);
+
+	long allocs = bnum_allocs();
+	struct seen seen = {0};
+	int depth = 0;
+	signal_handler_t *handler = handler_with("void ev()");
+	struct cb_ctx r = {1, &seen, NULL, NULL};
+	struct cb_ctx a = {2, &seen, handler, &depth};
+	struct cb_ctx c = {3, &seen, NULL, NULL};
+
+	signal_handler_connect(handler, "ev", remove_self, &r);
+	signal_handler_connect(handler, "ev", recurse_once, &a);
+	signal_handler_connect(handler, "ev", on_signal, &c);
+
+	/* r removes itself in the outer pass; the inner pass must not erase
+	 * it while the outer pass is still walking the list, or the outer
+	 * pass skips c. Outer r, outer a, inner a, inner c, outer c. */
+	signal_handler_signal(handler, "ev", NULL);
+	assert_int_equal(depth, 0);
+	assert_int_equal(seen.count, 5);
+	assert_int_equal(seen.ids[0], 1);
+	assert_int_equal(seen.ids[1], 2);
+	assert_int_equal(seen.ids[2], 2);
+	assert_int_equal(seen.ids[3], 3);
+	assert_int_equal(seen.ids[4], 3);
+
+	/* After the outermost pass r is gone. */
+	signal_handler_signal(handler, "ev", NULL);
+	assert_int_equal(seen.count, 9);
+	assert_int_equal(seen.ids[5], 2);
+	assert_int_equal(seen.ids[6], 2);
+	assert_int_equal(seen.ids[7], 3);
+	assert_int_equal(seen.ids[8], 3);
+
+	signal_handler_destroy(handler);
+	assert_int_equal(bnum_allocs(), allocs);
+}
+
+static void connect_then_remove_current_test(void **state)
+{
+	UNUSED_PARAMETER(state);
+
+	long allocs = bnum_allocs();
+	struct seen seen = {0};
+	signal_handler_t *handler = handler_with("void ev()");
+	struct cb_ctx x = {1, &seen, handler, NULL};
+
+	count_calls = 0;
+	signal_handler_connect(handler, "ev", connect_many_then_remove, &x);
+
+	/* x connects enough callbacks to move the callback array, then
+	 * removes itself. The removal must mark x's entry, not the old
+	 * array. The new callbacks run in the same pass (see
+	 * connect_during_signal_test). */
+	signal_handler_signal(handler, "ev", NULL);
+	assert_int_equal(seen.count, 1);
+	assert_int_equal(count_calls, MANY_CONNECTS);
+
+	signal_handler_signal(handler, "ev", NULL);
+	assert_int_equal(seen.count, 1);
+	assert_int_equal(count_calls, MANY_CONNECTS * 2);
+
+	signal_handler_destroy(handler);
+	assert_int_equal(bnum_allocs(), allocs);
+}
+
 static void global_test(void **state)
 {
 	UNUSED_PARAMETER(state);
@@ -444,6 +581,8 @@ static void global_test(void **state)
 	signal_handler_t *handler = handler_with("void ev()");
 
 	signal_handler_connect(handler, "ev", on_signal, &a);
+	signal_handler_connect_global(handler, on_global, &g);
+	/* The same callback and data again is not added twice. */
 	signal_handler_connect_global(handler, on_global, &g);
 	/* A null handler or callback is ignored. */
 	signal_handler_connect_global(NULL, on_global, &g);
@@ -478,17 +617,23 @@ static void global_remove_test(void **state)
 
 	/* signal_handler_remove_current() in a global callback removes it. */
 	signal_handler_connect_global(handler, remove_self_global, &r);
-	/* characterized, not endorsed: a global callback that disconnects
-	 * itself is not found (da_find compares the whole entry, and its
-	 * signaling count is 1), so it stays connected. */
+	/* A global callback that disconnects itself is found by callback
+	 * and data and removed. (Supersedes the old characterization: da_find
+	 * compared the whole entry, signaling count included, so it was not
+	 * found and stayed connected.) */
 	signal_handler_connect_global(handler, disconnect_own_global, &d);
 
 	signal_handler_signal(handler, "ev", NULL);
 	signal_handler_signal(handler, "ev", NULL);
-	assert_int_equal(seen.count, 3);
+	assert_int_equal(seen.count, 2);
 	assert_int_equal(seen.ids[0], 7);
 	assert_int_equal(seen.ids[1], 8);
-	assert_int_equal(seen.ids[2], 8);
+
+	/* Disconnecting outside a signal also finds the entry. */
+	signal_handler_connect_global(handler, on_global, &r);
+	signal_handler_disconnect_global(handler, on_global, &r);
+	signal_handler_signal(handler, "ev", NULL);
+	assert_int_equal(seen.count, 2);
 
 	signal_handler_destroy(handler);
 	assert_int_equal(bnum_allocs(), allocs);
@@ -508,6 +653,9 @@ int main(void)
 		cmocka_unit_test(nested_signal_test),
 		cmocka_unit_test(keep_ref_test),
 		cmocka_unit_test(keep_ref_remove_current_test),
+		cmocka_unit_test(keep_ref_remove_current_last_ref_test),
+		cmocka_unit_test(recursive_remove_test),
+		cmocka_unit_test(connect_then_remove_current_test),
 		cmocka_unit_test(global_test),
 		cmocka_unit_test(global_remove_test),
 	};
