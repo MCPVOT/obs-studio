@@ -1,0 +1,2 @@
+cf_adderror
+cf_pass_pair

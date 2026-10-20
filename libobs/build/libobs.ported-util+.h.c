@@ -7,6 +7,7 @@
 #include "libobs/util/bitstream.c.h"
 #include "libobs/util/bmem.c.h"
 #include "libobs/util/buffered-file-serializer.c.h"
+#include "libobs/util/cf-parser.c.h"
 #include "libobs/util/cf-tokenizer.c.h"
 #include "libobs/util/config-file.c.h"
 #include "libobs/util/crc32.c.h"
