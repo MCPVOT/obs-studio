@@ -357,6 +357,10 @@ fn str_to_i64_impl(b: &[u8], hex: bool) -> i64 {
         }
         _ => false,
     };
+    // strto* with base 16 accepts another optional prefix after the sign.
+    if hex && b.get(i) == Some(&b'0') && matches!(b.get(i + 1), Some(b'x' | b'X')) {
+        i += 2;
+    }
     let base = if hex { 16u128 } else { 10u128 };
     let mut mag: u128 = 0;
     let mut any = false;
@@ -409,6 +413,10 @@ fn str_to_u64_impl(b: &[u8], hex: bool) -> u64 {
         }
         _ => false,
     };
+    // strto* with base 16 accepts another optional prefix after the sign.
+    if hex && b.get(i) == Some(&b'0') && matches!(b.get(i + 1), Some(b'x' | b'X')) {
+        i += 2;
+    }
     let base = if hex { 16u64 } else { 10u64 };
     let mut mag: u64 = 0;
     let mut any = false;
