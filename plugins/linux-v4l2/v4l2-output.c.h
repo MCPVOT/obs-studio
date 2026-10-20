@@ -303,10 +303,14 @@ static void virtual_video(void *param, struct video_data *frame)
 {
 	struct virtualcam_data *vcam = (struct virtualcam_data *)param;
 	uint32_t frame_size = vcam->frame_size;
+	const uint8_t *frame_data = frame->data[0];
 	while (frame_size > 0) {
-		ssize_t written = write(vcam->device, frame->data[0], vcam->frame_size);
-		if (written == -1)
+		ssize_t written = write(vcam->device, frame_data, frame_size);
+		if (written < 0 && errno == EINTR)
+			continue;
+		if (written <= 0)
 			break;
+		frame_data += written;
 		frame_size -= written;
 	}
 }

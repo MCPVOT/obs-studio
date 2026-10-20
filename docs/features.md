@@ -139,6 +139,7 @@ not get a line.
 ### Video capture
 
 - **reject duplicate inputs after scaler reentry.** One disconnect removes a video input even when scaler creation reenters registration. *All*, 2026-10-20. Issue [#1529](https://github.com/obs-rust/obs-studio/issues/1529), PR [#1534](https://github.com/obs-rust/obs-studio/pull/1534).
+- Virtual camera output resumes at the correct byte after a short device write. *Linux*.
 
 - **Busy V4L2 cameras are recovered.** When another process holds a V4L2
   camera, OBS names that process, offers a Force Camera button and opens the
