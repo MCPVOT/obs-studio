@@ -407,6 +407,7 @@ dependencies = [
  "obs-hotkey",
  "obs-media-io",
  "obs-missing-files",
+ "obs-output",
  "obs-properties",
  "obs-scene-blend",
  "obs-scene-bounds",
@@ -506,6 +507,7 @@ dependencies = [
  "obs-graphics",
  "obs-hotkey",
  "obs-missing-files",
+ "obs-output",
  "obs-properties",
  "obs-scene-blend",
  "obs-scene-bounds",
@@ -580,6 +582,13 @@ name = "obs-nvenc-plugin"
 version = "0.1.0"
 dependencies = [
  "obs-nvenc",
+]
+
+[[package]]
+name = "obs-output"
+version = "0.1.0"
+dependencies = [
+ "obs-util",
 ]
 
 [[package]]
