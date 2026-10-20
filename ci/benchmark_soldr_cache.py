@@ -13,6 +13,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import subprocess
 import time
 from pathlib import Path
@@ -40,8 +41,10 @@ def benchmark(
     version = subprocess.run(
         [soldr, "--version"], capture_output=True, text=True, check=True
     ).stdout.strip()
-    if version != "soldr 0.9.35":
-        raise ValueError(f"Expected the CI pin soldr 0.9.35, got {version}")
+    expected = re.search(r"set\(OBS_SOLDR_VERSION ([0-9.]+)\)",
+                         (ROOT / "cmake/common/soldr.cmake").read_text())[1]
+    if version != f"soldr {expected}":
+        raise ValueError(f"Expected the CI pin soldr {expected}, got {version}")
 
     def source_state() -> str:
         diff = subprocess.run(

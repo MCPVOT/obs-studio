@@ -907,8 +907,8 @@ jobs:
       - name: Set Up soldr 🦀
         uses: zackees/setup-soldr@b782f606a2f3beadc35b9e3bf5b4565e005f52ed # v0.9.86
         with:
-          # soldr 0.9.35 embeds zccache 1.15.4 (has zackees/zccache#1937).
-          version: 0.9.35
+          # soldr 0.9.38 embeds zccache 1.15.5 (has zackees/zccache#1937).
+          version: 0.9.38
           build-cache: false
           prebuild-deps-flags: ${{ needs.check-event.outputs.core == 'true' && '--release' || '--profile dev' }}
           # Host/container archive paths have different Actions-cache versions.
@@ -1068,7 +1068,7 @@ jobs:
       - name: Set Up soldr 🦀
         uses: zackees/setup-soldr@b782f606a2f3beadc35b9e3bf5b4565e005f52ed # v0.9.86
         with:
-          version: 0.9.35
+          version: 0.9.38
           build-cache: false
           prebuild-deps-flags: --profile dev
           cache-key-suffix: linux-host-v1
@@ -1112,7 +1112,7 @@ jobs:
       - name: Set Up soldr 🦀
         uses: zackees/setup-soldr@b782f606a2f3beadc35b9e3bf5b4565e005f52ed # v0.9.86
         with:
-          version: 0.9.35
+          version: 0.9.38
           build-cache: false
           prebuild-deps-flags: --profile dev
           cache-key-suffix: linux-host-v1
@@ -1150,8 +1150,8 @@ jobs:
       - name: Set Up soldr 🦀
         uses: zackees/setup-soldr@b782f606a2f3beadc35b9e3bf5b4565e005f52ed # v0.9.86
         with:
-          # soldr 0.9.35 embeds zccache 1.15.4 (has zackees/zccache#1937).
-          version: 0.9.35
+          # soldr 0.9.38 embeds zccache 1.15.5 (has zackees/zccache#1937).
+          version: 0.9.38
           build-cache: false
           prebuild-deps-flags: --profile dev
           save-cache-remote: ${{ github.ref == 'refs/heads/master' }}
@@ -1277,7 +1277,7 @@ jobs:
       - name: Set Up soldr 🦀
         uses: zackees/setup-soldr@b782f606a2f3beadc35b9e3bf5b4565e005f52ed # v0.9.86
         with:
-          version: 0.9.35
+          version: 0.9.38
           build-cache: false
           prebuild-deps-flags: --release
           cache-key-suffix: linux-container-v1
@@ -1634,9 +1634,9 @@ jobs:
       - name: Set Up soldr 🦀
         uses: zackees/setup-soldr@b782f606a2f3beadc35b9e3bf5b4565e005f52ed # v0.9.86
         with:
-          # soldr 0.9.35 embeds zccache 1.15.4, which names MSVC staticlib
+          # soldr 0.9.38 embeds zccache 1.15.5, which names MSVC staticlib
           # outputs <crate>-<hash>.lib (zackees/zccache#1937).
-          version: 0.9.35
+          version: 0.9.38
           build-cache: false
           prebuild-deps-flags: --release
           save-cache-remote: ${{ github.ref == 'refs/heads/master' }}

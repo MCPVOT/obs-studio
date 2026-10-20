@@ -87,7 +87,7 @@ What not to do:
 Known pitfall: zccache has replayed stale Rust compiler output. Both the build
 and release workflows set `SOLDR_RUSTC_WRAPPER=none` for setup/cook and native
 Rust consumers; the local gate sets it too (`OBS_GATE_ZCCACHE=1` opts back in
-locally). Pinned soldr 0.9.35 defaults to the managed wrapper without this
+locally). Pinned soldr 0.9.38 defaults to the managed wrapper without this
 override, and [zccache#1943](https://github.com/zackees/zccache/issues/1943)
 remains unresolved. This safeguard preserves standalone C/C++ compiler
 caching and soldr cook/target archives. All seven setup-soldr callsites also
@@ -103,6 +103,13 @@ not proof of repository-wide headroom or a measured CI speedup. Reconsider
 the layer and declare its family again only when the compiler correctness probe
 passes and a consumer demonstrates useful reuse. The release callsite follows
 the same bypass policy; no release runtime comparison is claimed.
+Soldr 0.9.38 fixes source mtime truncation during archive replay (#1359).
+Regenerated local `obs-util` full and base plus delta archives preserve the
+exact nanosecond timestamp and report Fresh with the wrapper disabled. The
+pinned setup action's cook keys include the Soldr version, so 0.9.35 archives
+cannot match the new base key or delta restore prefixes. The action's default
+is still 0.9.33; retain the explicit 0.9.38 override until its default includes
+the fix. See the [probe and limits](ci-evidence/2026-10-20-soldr-source-mtime.md).
 This does not solve the separate
 restored-target fingerprint hazard documented in the cache audit. If a
 build behaves impossibly, retry with that variable set before debugging the
@@ -125,11 +132,11 @@ input header's recorded mtime before clang loads it; real content changes
 remain subject to clang's validation. This fixes `#pragma once` redefinitions
 after touches or checkouts without relaxing PCH validation.
 
-This launcher is independent of soldr's embedded Rust cache. The pinned soldr
-0.9.35 (and released 0.9.37) embeds zccache 1.15.4. Updating the standalone
-installer does not update soldr's `zccache-soldr` wrapper selected by the
-optional `ENABLE_ZCCACHE` CMake module. That wrapper needs a soldr release
-whose dependency and vendored zccache both include the new version.
+The pinned soldr 0.9.38 also embeds zccache 1.15.5, including the wrapper
+selected by the optional `ENABLE_ZCCACHE` CMake module. Updating the standalone
+installer alone does not update that embedded wrapper. Matching the versions
+does not establish Rust compiler-cache correctness: the Rust wrapper bypass
+above remains enabled.
 
 #### Qt compiler snapshot publication
 

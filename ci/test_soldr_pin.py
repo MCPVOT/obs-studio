@@ -54,6 +54,12 @@ def workflow_pins() -> dict[str, set[str]]:
 
 
 class SoldrPinTest(unittest.TestCase):
+    def test_source_mtimes_keep_nanosecond_precision(self):
+        self.assertGreaterEqual(
+            tuple(map(int, cmake_pin().split("."))), (0, 9, 38),
+            "Older Soldr source manifests truncate mtimes to milliseconds (#1359)",
+        )
+
     def test_cmake_pin_matches_every_setup_soldr_step(self):
         pins = workflow_pins()
         self.assertTrue(pins, "no setup-soldr version: pins found")
