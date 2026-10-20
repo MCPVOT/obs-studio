@@ -23,6 +23,7 @@ obs-hotkey = { path = "../obs-hotkey" }
 obs-missing-files = { path = "../obs-missing-files" }
 obs-scene-blend = { path = "../obs-scene-blend" }
 obs-scene-bounds = { path = "../obs-scene-bounds" }
+obs-audio-controls = { path = "../obs-audio-controls" }
 obs-graphics = { path = "../obs-graphics" }
 obs-callback = { path = "../obs-callback" }
 obs-c-oracle = { path = "../obs-c-oracle" }

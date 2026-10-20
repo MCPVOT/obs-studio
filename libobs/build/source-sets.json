@@ -125,7 +125,8 @@
     "build/libobs.ported-graphics+.h.c",
     "build/libobs.ported-missing-files+.h.c",
     "build/libobs.ported-scene-blend+.h.c",
-    "build/libobs.ported-scene-bounds+.h.c"
+    "build/libobs.ported-scene-bounds+.h.c",
+    "build/libobs.ported-audio-controls+.h.c"
   ],
   "LIBOBS_RUST_SOURCES": [
     "build/libobs.rust-variadic+.h.c"

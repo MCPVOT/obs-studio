@@ -171,7 +171,7 @@ void parse_timestamps(const utf8_char_t* line, double* start_pts, double* end_pt
         *end_pts = parse_timestamp(end_str);
     }
     if ((matches == 3) && (strlen(cue_str) > 0)) {
-        int cue_size = strlen(cue_str);
+        size_t cue_size = strlen(cue_str);
         *cue_settings = malloc(cue_size + 1);
         strncpy(*cue_settings, cue_str, cue_size);
         (*cue_settings)[cue_size] = '\0';

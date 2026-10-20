@@ -4,7 +4,8 @@
  *
  * On x86 this is the native SSE header, which is what SIMDe maps to there.
  * Elsewhere it defines, in plain C, only the intrinsics the graphics math
- * headers and media-io/format-conversion.c use. Each one follows the SSE
+ * headers, media-io/format-conversion.c, and obs-audio-controls.c.h use.
+ * Each one follows the SSE
  * definition lane by lane, which is also what SIMDe guarantees on NEON
  * (including the NaN and signed-zero rules of minps/maxps). The oracle is
  * built with -ffp-contract=off, so no multiply-add is fused.
@@ -30,12 +31,18 @@
 #define _mm_add_epi64 oracle_scalar_mm_add_epi64
 #undef _mm_add_ps
 #define _mm_add_ps oracle_scalar_mm_add_ps
+#undef _mm_andnot_ps
+#define _mm_andnot_ps oracle_scalar_mm_andnot_ps
 #undef _mm_and_si128
 #define _mm_and_si128 oracle_scalar_mm_and_si128
 #undef _mm_div_ps
 #define _mm_div_ps oracle_scalar_mm_div_ps
+#undef _mm_load_ps
+#define _mm_load_ps oracle_scalar_mm_load_ps
 #undef _mm_load_si128
 #define _mm_load_si128 oracle_scalar_mm_load_si128
+#undef _mm_loadu_ps
+#define _mm_loadu_ps oracle_scalar_mm_loadu_ps
 #undef _mm_max_ps
 #define _mm_max_ps oracle_scalar_mm_max_ps
 #undef _mm_min_ps
@@ -68,6 +75,8 @@
 #define _mm_shufflelo_epi16 oracle_scalar_mm_shufflelo_epi16
 #undef _mm_srai_epi16
 #define _mm_srai_epi16 oracle_scalar_mm_srai_epi16
+#undef _mm_storeu_ps
+#define _mm_storeu_ps oracle_scalar_mm_storeu_ps
 #undef _mm_srli_si128
 #define _mm_srli_si128 oracle_scalar_mm_srli_si128
 #undef _mm_sub_ps
@@ -348,6 +357,52 @@ static inline __m128i _mm_shufflelo_epi16(__m128i a, int imm)
 	}
 	return oracle_sse_from_bytes(r);
 }
+
+/* andnps: ~a & b, lane by lane, on the float bits. */
+static inline __m128 _mm_andnot_ps(__m128 a, __m128 b)
+{
+	uint32_t aa[4], bb[4], r[4];
+	memcpy(aa, &a, sizeof(aa));
+	memcpy(bb, &b, sizeof(bb));
+	for (int i = 0; i < 4; i++) {
+		r[i] = ~aa[i] & bb[i];
+	}
+	__m128 out;
+	memcpy(&out, r, sizeof(r));
+	return out;
+}
+
+static inline __m128 _mm_load_ps(const float *p)
+{
+	__m128 r;
+	memcpy(&r, p, sizeof(r));
+	return r;
+}
+
+static inline __m128 _mm_loadu_ps(const float *p)
+{
+	return _mm_load_ps(p);
+}
+
+static inline void _mm_storeu_ps(float *p, __m128 a)
+{
+	memcpy(p, &a, sizeof(a));
+}
+
+/* The xmmintrin.h transpose. Argument order of movehl matches that header. */
+#ifndef _MM_TRANSPOSE4_PS
+#define _MM_TRANSPOSE4_PS(row0, row1, row2, row3)                                                                          \
+	do {                                                                                                               \
+		__m128 __t0 = _mm_unpacklo_ps((row0), (row1));                                                             \
+		__m128 __t1 = _mm_unpackhi_ps((row0), (row1));                                                             \
+		__m128 __t2 = _mm_unpacklo_ps((row2), (row3));                                                             \
+		__m128 __t3 = _mm_unpackhi_ps((row2), (row3));                                                             \
+		(row0) = _mm_movelh_ps(__t0, __t2);                                                                        \
+		(row1) = _mm_movehl_ps(__t2, __t0);                                                                        \
+		(row2) = _mm_movelh_ps(__t1, __t3);                                                                        \
+		(row3) = _mm_movehl_ps(__t3, __t1);                                                                        \
+	} while (0)
+#endif
 
 /* Arithmetic shift of each int16 lane; counts above 15 fill with the sign. */
 static inline __m128i _mm_srai_epi16(__m128i a, int imm)

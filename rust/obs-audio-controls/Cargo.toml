@@ -1,0 +1,16 @@
+[package]
+autotests = false
+name = "obs-audio-controls"
+version = "0.1.0"
+description = "Rust port of libobs/obs-audio-controls.c.h"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+test = false
+
+[dependencies]
+obs-media-io = { path = "../obs-media-io" }
+obs-util = { path = "../obs-util" }

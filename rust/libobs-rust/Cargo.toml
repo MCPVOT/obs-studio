@@ -23,6 +23,7 @@ gio = ["obs-util/gio"]
 
 [dependencies]
 obs-util = { path = "../obs-util" }
+obs-audio-controls = { path = "../obs-audio-controls" }
 obs-callback = { path = "../obs-callback" }
 obs-graphics = { path = "../obs-graphics" }
 obs-hotkey = { path = "../obs-hotkey" }

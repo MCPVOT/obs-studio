@@ -21,6 +21,7 @@ target_sources(
     src/scc.c
     src/srt.c
     src/utf8.c
+    src/vtt.c
     src/xds.c
   PUBLIC caption/caption.h
 )
