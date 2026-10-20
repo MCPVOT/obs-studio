@@ -41,7 +41,7 @@ file of a platform (`win-capture/`, `platform-osx.mm`, `threading-posix.c`,
 carry no platform defines (ci/platform_ifdef_ratchet.py), so a core change
 runs on Linux. `.github/`, `cmake/common/`, `cmake/finders/`, `libobs/cmake/`
 (except `os-<os>.cmake`, which starts its own OS),
-the root CMake files, `platform/mod.rs` and the C++ cmocka tests (with their
+the root CMake files, crate `build.rs`, `platform/mod.rs` and the C++ cmocka tests (with their
 tests.d registrations) stay shared: every platform consumes them.
 Host-named files (docs/rust-port/naming.md, #1294) start their OS lane in any
 area, Qt areas included: `foo-host-<os>.c.h` (unity group
@@ -71,7 +71,7 @@ CORE_FILES = {"Cargo.toml", "Cargo.lock", "rust-toolchain.toml"}
 # Build and CI configuration every platform consumes.
 SHARED_PREFIXES = ("cmake/common/", "cmake/finders/", "libobs/cmake/")
 SHARED_FILES = {"CMakeLists.txt", "CMakePresets.json", "buildspec.json"}
-SHARED_PATTERN = re.compile(r"^rust/[^/]+/src/platform/mod\.rs$")
+SHARED_PATTERN = re.compile(r"^rust/[^/]+/(?:build\.rs|src/platform/mod\.rs)$")
 # libobs/cmake/os-<os>.cmake picks one OS's sources: that OS only (#1051).
 OS_CMAKE = re.compile(r"^libobs/cmake/os-[a-z]+\.cmake$")
 # Every platform's Tier 2 compiles these with its own compiler and C++

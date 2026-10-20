@@ -90,6 +90,35 @@ class CiScopeTest(unittest.TestCase):
             got = scope([path])
             self.assertTrue(got.macos and got.windows, path)
 
+    def test_rust_build_scripts_select_native_platforms(self):
+        # Build scripts choose native compiler flags and C sources (#1566).
+        for path in (
+            "rust/obs-c-oracle/build.rs",
+            "rust/obs-util/build.rs",
+            "rust/obs-sys/build.rs",
+            "rust/future-crate/build.rs",
+        ):
+            with self.subTest(path=path):
+                got = scope([path])
+                self.assertTrue(got.core)
+                self.assertTrue(got.windows)
+                self.assertTrue(got.macos)
+                self.assertFalse(got.full)
+                self.assertFalse(got.qt)
+
+    def test_ordinary_rust_files_do_not_select_native_platforms(self):
+        for path in (
+            "rust/obs-util/src/dstr.rs",
+            "rust/obs-util/src/build.rs",
+            "rust/obs-util/tests/fixtures/build.rs",
+            "rust/obs-util/build.rs.bak",
+            "docs/build.rs",
+        ):
+            with self.subTest(path=path):
+                got = scope([path])
+                self.assertFalse(got.windows)
+                self.assertFalse(got.macos)
+
     def test_cpp_cmocka_tests_and_test_build_config_need_every_platform(self):
         # Each platform's Tier 2 compiles them with its own compiler (#610).
         for path in [

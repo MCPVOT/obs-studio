@@ -313,7 +313,8 @@ the paths that select them, so a change only triggers the tests it can affect.
   never renamed for this (#1051). `libobs/cmake/os-<os>.cmake` starts only
   its OS. Shared and so every platform:
   `.github/`, `cmake/common/`, `cmake/finders/`, the rest of `libobs/cmake/`, the root
-  CMake files, `platform/mod.rs`, `test/cmocka/CMakeLists.txt` and the C++
+  CMake files, crate-root `rust/<crate>/build.rs`, `platform/mod.rs`,
+  `test/cmocka/CMakeLists.txt` and the C++
   cmocka tests with their `tests.d` registrations (#610). Pushes and the
   merge queue are scoped the same way; every platform runs on master pushes, schedule, workflow_dispatch, tags,
   release branches and in the release gate; no PR path selects the full builds.
@@ -335,7 +336,7 @@ Cargo files test the workspace), on every PR. No Qt is installed there.
 | everything | Fast Gate: 1) fmt, clippy, Dylint; 2) unit tests of the touched crates; 3) Linux build of touched `plugins/<x>`/`shared/<x>` targets (ENABLE_FRONTEND=OFF, no Qt) |
 | `libobs/` (not platform-only files), crates linked into libobs, `test/cmocka/`, `deps/`, `rust/tools/linux-validate/`, Cargo files | Tier 2 Linux: compilation overlaps Fast Gate; OFF/ON tests wait for it |
 | `frontend/`, Qt-linked tests, `shared/qt`, the Qt job's own files | Qt Frontend Linux (the only Qt). Frontend platform files start no Windows/macOS Rust or Tier 2 job; Windows/macOS Qt lanes are a follow-up |
-| files matching `/platform[/-](windows, macos, linux, posix)[/.]` (posix = linux+macos), legacy OS names, shared build files (`cmake/common`, `cmake/finders`, `libobs/cmake`, root CMake, `platform/mod.rs`, C++ cmocka tests) | macOS / Windows Rust tests, Tier 2, cross lint |
+| files matching `/platform[/-](windows, macos, linux, posix)[/.]` (posix = linux+macos), legacy OS names, shared build files (`cmake/common`, `cmake/finders`, `libobs/cmake`, root CMake, crate-root `build.rs`, `platform/mod.rs`, C++ cmocka tests) | macOS / Windows Rust tests, Tier 2, cross lint |
 | `build-aux/`, `.gitmodules`, submodules | compiled on Linux only; no full build from a PR |
 | `docs/`, `.github/`, `ci/` | lint and the ci/ self-tests |
 
