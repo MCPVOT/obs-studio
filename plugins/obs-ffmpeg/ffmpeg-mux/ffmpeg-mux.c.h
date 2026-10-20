@@ -158,7 +158,7 @@ static void free_avformat(struct ffmpeg_mux *ffm)
 	if (ffm->output) {
 		avcodec_free_context(&ffm->video_ctx);
 
-		if ((ffm->output->oformat->flags & AVFMT_NOFILE) == 0) {
+		if ((ffm->output->oformat->flags & AVFMT_NOFILE) == 0 && ffm->output->pb) {
 			if (!ffmpeg_mux_is_network(ffm)) {
 				av_free(ffm->output->pb->buffer);
 				avio_context_free(&ffm->output->pb);
@@ -787,15 +787,22 @@ static int64_t ffmpeg_mux_seek_av_buffer(void *opaque, int64_t offset, int whenc
 	if (os_atomic_load_bool(&ffm->io.output_error))
 		return -1;
 
-	// Update where the next write should go
+	whence &= ~AVSEEK_FORCE;
+	if (whence != SEEK_SET && whence != SEEK_CUR)
+		return -1;
+
+	// Update where the next write should go and report the resulting position.
 	pthread_mutex_lock(&ffm->io.data_mutex);
-	if (whence == SEEK_SET)
-		ffm->io.next_pos = offset;
-	else if (whence == SEEK_CUR)
-		ffm->io.next_pos += offset;
+	int64_t base = whence == SEEK_CUR ? (int64_t)ffm->io.next_pos : 0;
+	if (offset < -base || (offset > 0 && base > INT64_MAX - offset)) {
+		pthread_mutex_unlock(&ffm->io.data_mutex);
+		return -1;
+	}
+	int64_t position = base + offset;
+	ffm->io.next_pos = position;
 	pthread_mutex_unlock(&ffm->io.data_mutex);
 
-	return 0;
+	return position;
 }
 
 static int ffmpeg_mux_write_av_buffer(void *opaque, const uint8_t *buf, int buf_size)
@@ -1100,12 +1107,11 @@ static inline bool read_change_file(struct ffmpeg_mux *ffm, uint32_t size, struc
 	ffmpeg_mux_free(ffm);
 
 	ret = ffmpeg_mux_init(ffm, argc, argv);
+	argv[1] = argv1_backup;
 	if (ret != FFM_SUCCESS) {
 		fprintf(stderr, "Couldn't initialize muxer\n");
 		return false;
 	}
-
-	argv[1] = argv1_backup;
 
 	return true;
 }
@@ -1178,7 +1184,7 @@ int main(int argc, char *argv[])
 		free(argv[i]);
 	free(argv);
 #endif
-	return 0;
+	return fail ? FFM_ERROR : FFM_SUCCESS;
 }
 
 /* File-local macros (BUILD.md): out of the next file in the unity group. */

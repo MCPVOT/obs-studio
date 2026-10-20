@@ -175,6 +175,7 @@ not get a line.
 - **let buffered queues fit one chunk.** Large buffered recording chunks complete when the configured queue limit is smaller than a chunk. *All*, 2026-10-20. Issue [#1526](https://github.com/obs-rust/obs-studio/issues/1526), PR [#1527](https://github.com/obs-rust/obs-studio/pull/1527).
 
 - **FFmpeg output retry and encoder errors.** FFmpeg output can retry after a connection attempt that finishes before thread creation returns, and missing FFmpeg video encoders report an error using initialized message storage. *All*, pending merge. Split from PR [#1464](https://github.com/obs-rust/obs-studio/pull/1464).
+- **FFmpeg muxer error handling.** The FFmpeg recording muxer reports seek positions and rejects unsupported seeks correctly, cleans up safely when the recording file cannot be opened, exits with an error when writing or reading a packet fails, and restores argument ownership when opening a split recording fails (prevents a Windows double free). *All*, pending merge. Split from PR [#1464](https://github.com/obs-rust/obs-studio/pull/1464).
 
 - **Codec availability follows the build.** MP4 and MOV outputs do not advertise
   HEVC when it was disabled at build time. *Linux*, pending merge. PR
