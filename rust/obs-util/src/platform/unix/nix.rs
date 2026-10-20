@@ -1,3 +1,5 @@
+//! Intentional C difference: File copies report buffered close failures instead of success for truncated output.
+//!
 //! POSIX half of `libobs/util/platform-nix.c` (macOS, Linux, FreeBSD).
 //!
 //! `unsafe` is the libc calls that have to match the C errno, modes, and
@@ -310,11 +312,12 @@ pub fn copy_file(src: &[u8], dst: &[u8]) -> i32 {
         }
     }
     // SAFETY: both FILEs came from `fopen`.
-    unsafe {
-        libc::fclose(file_out);
-        libc::fclose(file_in);
-    }
-    ret
+    let close_failed = unsafe {
+        let output_error = libc::fclose(file_out) != 0;
+        let input_error = libc::fclose(file_in) != 0;
+        output_error || input_error
+    };
+    if close_failed { -1 } else { ret }
 }
 
 /// `os_getcwd` into a caller buffer. `false` when `getcwd` fails, including

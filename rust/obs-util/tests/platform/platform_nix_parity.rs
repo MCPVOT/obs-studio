@@ -525,3 +525,34 @@ fn program_data_path_longer_than_int_max_fails() {
         assert!(rs::os_get_program_data_path_ptr(name.as_ptr()).is_null());
     }
 }
+
+/// Intentional difference: C ignores fclose's buffered write failure.
+#[cfg(target_os = "linux")]
+#[test]
+fn copy_reports_buffered_close_failure() {
+    if !common::isolated(concat!(
+        module_path!(),
+        "::copy_reports_buffered_close_failure"
+    )) {
+        return;
+    }
+    let root = scratch("copy-close-error");
+    let source = root.join("source");
+    let dest = root.join("dest");
+    fs::write(&source, [1; 256]).unwrap();
+    // SAFETY: this isolated child changes only its own signal disposition and
+    // file-size limit. The source is already written; libc receives live paths.
+    unsafe {
+        assert_ne!(libc::signal(libc::SIGXFSZ, libc::SIG_IGN), libc::SIG_ERR);
+        let limit = libc::rlimit {
+            rlim_cur: 128,
+            rlim_max: 128,
+        };
+        assert_eq!(libc::setrlimit(libc::RLIMIT_FSIZE, &limit), 0);
+        assert_eq!(
+            rs::os_copyfile(c_path(&source).as_ptr(), c_path(&dest).as_ptr()),
+            -1
+        );
+    }
+    assert_eq!(fs::metadata(dest).unwrap().len(), 128);
+}
