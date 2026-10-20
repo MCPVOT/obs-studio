@@ -55,8 +55,10 @@ static bool null_output_start(void *data)
 	if (!obs_output_initialize_encoders(context->output, 0))
 		return false;
 
-	if (context->stop_thread_active)
+	if (context->stop_thread_active) {
 		pthread_join(context->stop_thread, NULL);
+		context->stop_thread_active = false;
+	}
 
 	obs_output_begin_data_capture(context->output, 0);
 	return true;
@@ -66,7 +68,6 @@ static void *stop_thread(void *data)
 {
 	struct null_output *context = data;
 	obs_output_end_data_capture(context->output);
-	context->stop_thread_active = false;
 	return NULL;
 }
 
@@ -74,6 +75,9 @@ static void null_output_stop(void *data, uint64_t ts)
 {
 	struct null_output *context = data;
 	UNUSED_PARAMETER(ts);
+
+	if (context->stop_thread_active)
+		pthread_join(context->stop_thread, NULL);
 
 	context->stop_thread_active = pthread_create(&context->stop_thread, NULL, stop_thread, data) == 0;
 }
