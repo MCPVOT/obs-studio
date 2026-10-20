@@ -164,8 +164,9 @@ fn convert(value: *mut c_void) -> J {
 /// The tree the parser builds is walked once, in the order jansson reports it,
 /// so the object keeps the JSON order. The rules follow
 /// `obs_data_add_json_item` in `libobs/obs-data.c.h`: an array keeps only its
-/// object elements, a null becomes an empty object, and any other JSON type is
-/// ignored.
+/// object elements, a null stores an object item with no value
+/// (`set_obj(key, None)`, like `obs_data_add_json_null`), and any other JSON
+/// type is ignored.
 pub fn load_data(text: &str) -> Option<Data> {
     let Ok(input) = CString::new(text) else {
         let msg = c"invalid string";
