@@ -10,7 +10,9 @@
 //! - a first token that is not a name (C reads an uninitialized return
 //!   type),
 //! - a function-name token that is not a name (C calls `strcmp` on null),
-//! - a `#` first on a line (C runs the preprocessor).
+//! - a `#` first on a line (C runs the preprocessor),
+//! - a terminal line splice within a comment or string, the existing
+//!   tokenizer exclusion documented in `cf_tokenizer_parity.rs`.
 
 use std::ffi::{CStr, CString, c_char, c_int, c_void};
 use std::ptr;
@@ -121,6 +123,27 @@ fn excluded(text: &[u8]) -> bool {
         return false;
     }
     let lexed = cf_lex(text);
+    let terminal_splice = [b"\\\n".as_slice(), b"\\\r\n", b"\\\r", b"\\\n\r"]
+        .iter()
+        .any(|suffix| text.ends_with(suffix));
+    if terminal_splice {
+        let last = lexed
+            .tokens
+            .iter()
+            .rev()
+            .find(|t| t.kind != CfTokenType::None);
+        if let Some(last) = last {
+            let comment =
+                last.kind == CfTokenType::SpaceTab && text.get(last.unmerged_start) == Some(&b'/');
+            // Only an unterminated token consumes the trailing splice.
+            // A closed comment or string followed by a splice stays covered.
+            if (comment || last.kind == CfTokenType::String)
+                && last.unmerged_start + last.unmerged_len >= text.len()
+            {
+                return true;
+            }
+        }
+    }
     let tok = |t: &obs_util::cf_tokenizer::CfToken| {
         &lexed.reformatted[t.str_start..t.str_start + t.str_len]
     };
@@ -325,4 +348,26 @@ proptest! {
         prop_assume!(!excluded(&text));
         assert_parity(&text);
     }
+}
+
+#[test]
+fn terminal_splices_exclude_only_comment_and_string_tokens() {
+    for suffix in [b"\\\n".as_slice(), b"\\\r\n", b"\\\r", b"\\\n\r"] {
+        for prefix in [
+            b"void f/*open".as_slice(),
+            b"void f//open",
+            b"void f(\"open",
+        ] {
+            let mut text = prefix.to_vec();
+            text.extend_from_slice(suffix);
+            assert!(excluded(&text), "{text:?}");
+        }
+        let mut text = b"void f()".to_vec();
+        text.extend_from_slice(suffix);
+        assert!(!excluded(&text), "ordinary terminal splice: {text:?}");
+    }
+    assert!(!excluded(b"void f/* open"));
+    assert!(!excluded(b"void f(\"open"));
+    assert!(!excluded(b"void f/* closed */\\\n"));
+    assert!(!excluded(b"void f(\"closed\"\\\n"));
 }
