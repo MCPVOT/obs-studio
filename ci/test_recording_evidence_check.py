@@ -82,6 +82,10 @@ class RendererTest(unittest.TestCase):
     def test_accepts_hardware_d3d11(self):
         self.assertEqual(rec.renderer(D3D11_LOG)["api"], "D3D11")
 
+    def test_rejects_swiftshader(self):
+        with self.assertRaisesRegex(rec.CheckError, "software renderer"):
+            rec.renderer("Loading up OpenGL on adapter Google Inc. Google SwiftShader")
+
     def test_rejects_llvmpipe(self):
         with self.assertRaisesRegex(rec.CheckError, "software renderer"):
             rec.renderer(LLVMPIPE_LOG)

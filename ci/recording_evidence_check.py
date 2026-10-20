@@ -32,7 +32,7 @@ class CheckError(Exception):
 ADAPTER = re.compile(r"Loading up (OpenGL|D3D11|Metal) on adapter (.+?)\s*$")
 GL_VERSION = re.compile(r"OpenGL loaded successfully, version (.+?)\s*$")
 SOFTWARE = re.compile(
-    r"llvmpipe|softpipe|swrast|lavapipe|software rasterizer|"
+    r"llvmpipe|softpipe|swrast|lavapipe|swiftshader|software rasterizer|"
     r"Microsoft Basic Render Driver|Apple Software Renderer",
     re.IGNORECASE,
 )
