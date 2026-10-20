@@ -26,6 +26,7 @@ pub mod platform_nix;
 #[cfg(all(unix, not(target_os = "macos")))]
 pub mod platform_nix_inhibit;
 pub mod platform_number;
+pub mod platform_time;
 #[cfg(windows)]
 pub mod platform_windows;
 pub mod profiler;
