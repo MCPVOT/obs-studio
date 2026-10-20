@@ -13,4 +13,5 @@ pub use obs_data::ffi as data_ffi;
 pub use obs_graphics::ffi as graphics_ffi;
 pub use obs_hotkey::ffi as hotkey_ffi;
 pub use obs_media_io::ffi as media_io_ffi;
+pub use obs_missing_files::ffi as missing_files_ffi;
 pub use obs_properties::ffi as properties_ffi;

@@ -6,5 +6,7 @@ mod callback;
 mod data;
 #[path = "../../obs-hotkey/tests/hotkey/main.rs"]
 mod hotkey;
+#[path = "../../obs-missing-files/tests/missing_files/main.rs"]
+mod missing_files;
 #[path = "../../obs-properties/tests/properties/main.rs"]
 mod properties;

@@ -19,6 +19,7 @@ cc = "1"
 [dev-dependencies]
 obs-properties = { path = "../obs-properties" }
 obs-hotkey = { path = "../obs-hotkey" }
+obs-missing-files = { path = "../obs-missing-files" }
 obs-callback = { path = "../obs-callback" }
 obs-c-oracle = { path = "../obs-c-oracle" }
 obs-util = { path = "../obs-util" }
