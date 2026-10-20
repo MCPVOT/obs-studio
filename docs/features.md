@@ -390,6 +390,8 @@ area.
 
 ### Video capture
 
+- **deliver video after a callback disconnects.** A video callback that disconnects itself no longer causes the next subscriber to miss a frame. *All*, 2026-10-20. Issue [#1535](https://github.com/obs-rust/obs-studio/issues/1535), PR [#1539](https://github.com/obs-rust/obs-studio/pull/1539).
+
 - An XComposite window capture no longer asks the X server whether its
   window exists once or twice per frame while holding the graphics
   context; it keeps the window's state from X events (map, unmap,

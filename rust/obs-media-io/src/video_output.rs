@@ -1,4 +1,5 @@
-//! Intentional C difference: One disconnect removes a video input even when scaler creation reenters registration.
+//! Intentional C differences: scaler creation rechecks duplicate inputs,
+//! and self-disconnection does not skip the following video subscriber.
 //!
 //! Safe core of `libobs/media-io/video-io.c`.
 //!
@@ -107,6 +108,7 @@ struct Data {
 }
 
 struct Input {
+    identity: Arc<()>,
     callback: usize,
     param: usize,
     divisor: u32,
@@ -347,6 +349,7 @@ impl VideoOutput {
             }
             let first = inputs.is_empty();
             inputs.push(Input {
+                identity: Arc::new(()),
                 callback,
                 param,
                 divisor,
@@ -473,24 +476,31 @@ fn cur_frame(shared: &Shared, frame_time: u64) -> bool {
 
     {
         let mut guard = shared.inputs.lock();
-        let mut index = 0;
+        // Callbacks may remove inputs and reconnect the same callback/param.
+        // Visit each registration at most once, and defer a replacement of an
+        // already visited callback/param until the next frame. New subscribers
+        // with a different callback/param still receive this frame.
+        let mut visited = Vec::new();
         loop {
             let prep = guard.with_mut(|inputs| {
-                if index >= inputs.len() {
-                    return None;
-                }
-                Some(prepare_input(&mut inputs[index]))
+                let input = inputs.iter_mut().find(|input| {
+                    !visited.iter().any(|(id, callback, param)| {
+                        Arc::ptr_eq(id, &input.identity)
+                            || (*callback == input.callback && *param == input.param)
+                    })
+                })?;
+                visited.push((Arc::clone(&input.identity), input.callback, input.param));
+                Some(prepare_input(input))
             });
             let Some(prep) = prep else {
                 break;
             };
             match prep {
-                Prep::Next => index += 1,
+                Prep::Next => {}
                 Prep::Direct { callback, param } => {
                     // The `&mut` has ended. The guard stays held, so other
                     // threads still wait. This thread's callback may connect.
                     shared.host.deliver(callback, param, &source);
-                    index += 1;
                 }
                 Prep::Scale {
                     callback,
@@ -522,7 +532,6 @@ fn cur_frame(shared: &Shared, frame_time: u64) -> bool {
                         Scaled::Failed => shared.host.warn_scale_failed(),
                         Scaled::Gone => {}
                     }
-                    index += 1;
                 }
             }
         }
@@ -624,7 +633,7 @@ fn match_space(a: i32, b: i32) -> bool {
 #[cfg(test)]
 #[allow(unsafe_code)] // the scaler reenters through the test's output pointer
 mod tests {
-    use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
+    use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicUsize, Ordering};
     use std::sync::{Arc, Condvar, Mutex};
     use std::time::Duration;
 
@@ -635,6 +644,8 @@ mod tests {
     struct State {
         output: AtomicPtr<VideoOutput>,
         reenter_creation: AtomicBool,
+        self_remove: AtomicBool,
+        reconnects_left: AtomicUsize,
         hit: Mutex<Vec<usize>>,
         lock: Mutex<usize>,
         cv: Condvar,
@@ -668,6 +679,23 @@ mod tests {
         fn profile_end(&self) {}
         fn reenable(&self) {}
         fn deliver(&self, callback: usize, _param: usize, _frame: &FrameView) {
+            if callback == 1 && self.0.self_remove.swap(false, Ordering::SeqCst) {
+                let ptr = self.0.output.load(Ordering::Acquire);
+                // SAFETY: the output stays alive until its worker is joined.
+                let output = unsafe { &*ptr };
+                assert!(output.disconnect(callback, 0));
+                if self
+                    .0
+                    .reconnects_left
+                    .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |left| {
+                        left.checked_sub(1)
+                    })
+                    .is_ok()
+                {
+                    assert!(output.connect(None, 1, callback, 0));
+                    self.0.self_remove.store(true, Ordering::SeqCst);
+                }
+            }
             self.0.hit.lock().unwrap().push(callback);
             let mut count = self.0.lock.lock().unwrap();
             *count += 1;
@@ -698,6 +726,8 @@ mod tests {
         let state = Arc::new(State {
             output: AtomicPtr::new(std::ptr::null_mut()),
             reenter_creation: AtomicBool::new(false),
+            self_remove: AtomicBool::new(false),
+            reconnects_left: AtomicUsize::new(0),
             hit: Mutex::new(Vec::new()),
             lock: Mutex::new(0),
             cv: Condvar::new(),
@@ -749,6 +779,8 @@ mod tests {
         let state = Arc::new(State {
             output: AtomicPtr::new(std::ptr::null_mut()),
             reenter_creation: AtomicBool::new(true),
+            self_remove: AtomicBool::new(false),
+            reconnects_left: AtomicUsize::new(0),
             hit: Mutex::new(Vec::new()),
             lock: Mutex::new(0),
             cv: Condvar::new(),
@@ -780,5 +812,92 @@ mod tests {
         assert!(output.disconnect(1, 0));
         assert!(!output.active(), "duplicate input survived disconnect");
         output.stop();
+    }
+    #[test]
+    fn self_disconnect_still_delivers_following_input() {
+        let state = Arc::new(State {
+            output: AtomicPtr::new(std::ptr::null_mut()),
+            reenter_creation: AtomicBool::new(false),
+            self_remove: AtomicBool::new(true),
+            reconnects_left: AtomicUsize::new(0),
+            hit: Mutex::new(Vec::new()),
+            lock: Mutex::new(0),
+            cv: Condvar::new(),
+        });
+        let output = VideoOutput::open(
+            OpenInfo {
+                format: VideoFormat::Rgba as i32,
+                width: 4,
+                height: 4,
+                cache_size: 1,
+                range: 0,
+                colorspace: 0,
+            },
+            33_333_333,
+            Box::new(TestHost(Arc::clone(&state))),
+        )
+        .unwrap();
+        state
+            .output
+            .store(std::ptr::from_ref(&output).cast_mut(), Ordering::Release);
+        assert!(output.connect(None, 1, 1, 0));
+        assert!(output.connect(None, 1, 2, 0));
+        assert!(output.lock_frame(1, 1_000).is_some());
+        output.unlock_frame();
+        let count = state.lock.lock().unwrap();
+        let (count, _) = state
+            .cv
+            .wait_timeout_while(count, Duration::from_secs(2), |n| *n < 2)
+            .unwrap();
+        let delivered = *count;
+        drop(count);
+        output.stop();
+        assert_eq!(delivered, 2, "self removal skipped the next input");
+        assert_eq!(*state.hit.lock().unwrap(), vec![1, 2]);
+    }
+    #[test]
+    fn self_reconnect_waits_for_the_next_frame() {
+        let state = Arc::new(State {
+            output: AtomicPtr::new(std::ptr::null_mut()),
+            reenter_creation: AtomicBool::new(false),
+            self_remove: AtomicBool::new(true),
+            reconnects_left: AtomicUsize::new(3),
+            hit: Mutex::new(Vec::new()),
+            lock: Mutex::new(0),
+            cv: Condvar::new(),
+        });
+        let output = VideoOutput::open(
+            OpenInfo {
+                format: VideoFormat::Rgba as i32,
+                width: 4,
+                height: 4,
+                cache_size: 1,
+                range: 0,
+                colorspace: 0,
+            },
+            33_333_333,
+            Box::new(TestHost(Arc::clone(&state))),
+        )
+        .unwrap();
+        state
+            .output
+            .store(std::ptr::from_ref(&output).cast_mut(), Ordering::Release);
+        assert!(output.connect(None, 1, 1, 0));
+        assert!(output.connect(None, 1, 2, 0));
+        assert!(output.lock_frame(1, 1_000).is_some());
+        output.unlock_frame();
+        let count = state.lock.lock().unwrap();
+        let (count, _) = state
+            .cv
+            .wait_timeout_while(count, Duration::from_secs(2), |n| *n < 2)
+            .unwrap();
+        let delivered = *count;
+        drop(count);
+        output.stop();
+        assert_eq!(
+            delivered, 2,
+            "reconnection changed the frame delivery count"
+        );
+        assert_eq!(*state.hit.lock().unwrap(), vec![1, 2]);
     }
 }
