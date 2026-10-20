@@ -436,3 +436,34 @@ bool PlatformSavesBeforeSignalQuit()
 
 /* File-local macros (BUILD.md): out of the next file in the unity group. */
 #undef INSTALL_DATA_PATH
+
+/* OAuth and auto-configuration platform policy (#887). */
+bool PlatformSupportsOAuthBrowser()
+{
+	return !QApplication::platformName().contains("wayland");
+}
+
+void ConfigureOAuthLinkMessageBox(QMessageBox &dialog)
+{
+	UNUSED_PARAMETER(dialog);
+}
+
+bool PlatformUseModernWizardStyle()
+{
+	return false;
+}
+
+bool PlatformSupportsAppleHardwareEncoder(const char *id)
+{
+	UNUSED_PARAMETER(id);
+	return false;
+}
+
+bool PlatformNeedsQsvStreamingFallback()
+{
+#ifdef __linux__
+	return true;
+#else
+	return false;
+#endif
+}

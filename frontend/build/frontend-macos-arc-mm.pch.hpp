@@ -29,3 +29,6 @@
 #include <QtGui/private/qguiapplication_p.h>
 #include <qpa/qplatformintegration.h>
 #endif
+
+#include <QMessageBox>
+#include <util/platform.h>

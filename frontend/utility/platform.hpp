@@ -94,6 +94,14 @@ bool IsUpdateBranchSupported(bool windows, bool macos);
 /* Whether SIGINT/SIGTERM/... save the scene collection before quitting (not on macOS). */
 bool PlatformSavesBeforeSignalQuit();
 
+/* OAuth and auto-configuration facade (#887). */
+class QMessageBox;
+bool PlatformSupportsOAuthBrowser();
+void ConfigureOAuthLinkMessageBox(QMessageBox &dialog);
+bool PlatformUseModernWizardStyle();
+bool PlatformSupportsAppleHardwareEncoder(const char *id);
+bool PlatformNeedsQsvStreamingFallback();
+
 enum TaskbarOverlayStatus {
 	TaskbarOverlayStatusInactive,
 	TaskbarOverlayStatusActive,

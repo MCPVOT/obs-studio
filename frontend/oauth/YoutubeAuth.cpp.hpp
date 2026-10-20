@@ -229,11 +229,7 @@ std::shared_ptr<Auth> YoutubeAuth::Login(QWidget *owner, const std::string &serv
 	dlg.setText(text);
 	dlg.setTextFormat(Qt::RichText);
 	dlg.setStandardButtons(QMessageBox::StandardButton::Cancel);
-#if defined(__APPLE__)
-	/* We can't show clickable links with the native NSAlert, so let's
-	 * force the old non-native dialog instead. */
-	dlg.setOption(QMessageBox::Option::DontUseNativeDialog);
-#endif
+	ConfigureOAuthLinkMessageBox(dlg);
 
 	connect(&dlg, &QMessageBox::buttonClicked, &dlg, [&](QAbstractButton *) {
 #ifdef _DEBUG

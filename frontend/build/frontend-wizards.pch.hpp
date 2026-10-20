@@ -46,3 +46,5 @@
 #include <OBSApp.hpp>
 
 #include <QScreen>
+
+#include "frontend/utility/platform.hpp"

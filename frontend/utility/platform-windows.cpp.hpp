@@ -573,3 +573,30 @@ bool PlatformSavesBeforeSignalQuit()
 {
 	return true;
 }
+
+/* OAuth and auto-configuration platform policy (#887). */
+bool PlatformSupportsOAuthBrowser()
+{
+	return true;
+}
+
+void ConfigureOAuthLinkMessageBox(QMessageBox &dialog)
+{
+	UNUSED_PARAMETER(dialog);
+}
+
+bool PlatformUseModernWizardStyle()
+{
+	return true;
+}
+
+bool PlatformSupportsAppleHardwareEncoder(const char *id)
+{
+	UNUSED_PARAMETER(id);
+	return false;
+}
+
+bool PlatformNeedsQsvStreamingFallback()
+{
+	return false;
+}

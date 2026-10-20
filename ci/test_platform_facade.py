@@ -34,7 +34,7 @@ DECLARATION = re.compile(r"^[A-Za-z_][\w:<>\s\*&,]*?\b(\w+)\([^;{]*\);$")
 def facade_functions() -> list[str]:
     text = HEADER.read_text()
     start = text.index(MARKER)
-    end = text.index("enum TaskbarOverlayStatus", start)
+    end = text.index("/* OAuth and auto-configuration facade", start)
     names = []
     for line in text[start:end].splitlines():
         match = DECLARATION.match(line.strip())

@@ -28,3 +28,5 @@
 
 #include <QMessageBox>
 #include <json11.hpp>
+
+#include "frontend/utility/platform.hpp"

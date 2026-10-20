@@ -52,9 +52,9 @@ AutoConfig::AutoConfig(QWidget *parent) : QWizard(parent)
 
 	std::string serviceType;
 	GetServiceInfo(serviceType, serviceName, server, key);
-#if defined(_WIN32) || defined(__APPLE__)
-	setWizardStyle(QWizard::ModernStyle);
-#endif
+	if (PlatformUseModernWizardStyle()) {
+		setWizardStyle(QWizard::ModernStyle);
+	}
 	streamPage = new AutoConfigStreamPage();
 
 	setPage(StartPage, new AutoConfigStartPage());
@@ -198,17 +198,9 @@ void AutoConfig::TestHardwareEncoding()
 			hardwareEncodingAvailable = qsvAvailable = true;
 		} else if (strcmp(id, "h264_texture_amf") == 0) {
 			hardwareEncodingAvailable = vceAvailable = true;
+		} else if (PlatformSupportsAppleHardwareEncoder(id)) {
+			hardwareEncodingAvailable = appleAvailable = true;
 		}
-#ifdef __APPLE__
-		else if (strcmp(id, "com.apple.videotoolbox.videoencoder.ave.avc") == 0
-#ifndef __aarch64__
-			 && os_get_emulation_status() == true
-#endif
-		)
-			if (__builtin_available(macOS 13.0, *)) {
-				hardwareEncodingAvailable = appleAvailable = true;
-			}
-#endif
 	}
 }
 

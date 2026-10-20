@@ -528,3 +528,41 @@ bool PlatformSavesBeforeSignalQuit()
 {
 	return false;
 }
+
+/* OAuth and auto-configuration platform policy (#887). */
+bool PlatformSupportsOAuthBrowser()
+{
+	return true;
+}
+
+void ConfigureOAuthLinkMessageBox(QMessageBox &dialog)
+{
+	/* Native NSAlert cannot show the clickable OAuth link. */
+	dialog.setOption(QMessageBox::Option::DontUseNativeDialog);
+}
+
+bool PlatformUseModernWizardStyle()
+{
+	return true;
+}
+
+bool PlatformSupportsAppleHardwareEncoder(const char *id)
+{
+	if (strcmp(id, "com.apple.videotoolbox.videoencoder.ave.avc") != 0) {
+		return false;
+	}
+#ifndef __aarch64__
+	if (!os_get_emulation_status()) {
+		return false;
+	}
+#endif
+	if (__builtin_available(macOS 13.0, *)) {
+		return true;
+	}
+	return false;
+}
+
+bool PlatformNeedsQsvStreamingFallback()
+{
+	return false;
+}

@@ -262,11 +262,9 @@ static void DeleteCookies()
 
 void RegisterRestreamAuth()
 {
-#if !defined(__APPLE__) && !defined(_WIN32)
-	if (QApplication::platformName().contains("wayland")) {
+	if (!PlatformSupportsOAuthBrowser()) {
 		return;
 	}
-#endif
 
 	OAuth::RegisterOAuth(restreamDef, CreateRestreamAuth, RestreamAuth::Login, DeleteCookies);
 }

@@ -887,15 +887,13 @@ void AutoConfigTestPage::TestStreamEncoderThread()
 		wiz->streamingEncoder = AutoConfig::Encoder::x264;
 	}
 
-#ifdef __linux__
-	// On linux CBR rate control is not guaranteed so fallback to x264.
-	if (wiz->streamingEncoder == AutoConfig::Encoder::QSV) {
+	// Some platforms cannot guarantee QSV CBR rate control.
+	if (PlatformNeedsQsvStreamingFallback() && wiz->streamingEncoder == AutoConfig::Encoder::QSV) {
 		wiz->streamingEncoder = AutoConfig::Encoder::x264;
 		if (!TestSoftwareEncoding()) {
 			return;
 		}
 	}
-#endif
 
 	if (preferHardware && !softwareTested && wiz->hardwareEncodingAvailable) {
 		FindIdealHardwareResolution();
