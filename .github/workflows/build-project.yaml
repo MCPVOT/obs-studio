@@ -1318,6 +1318,7 @@ jobs:
           OBS_TIER2_PACK: ${{ runner.temp }}/tier2-pack
           ZCCACHE_CACHE_DIR: ${{ github.workspace }}/.tier2-zccache
           OBS_TIER2_COST_DIR: ${{ github.workspace }}/.tier2-cost
+          OBS_TIER2_SHARDS: 2
           OBS_TIER2_MODES: "OFF ON"
           OBS_TIER2_STAGE: build
         run: bash rust/tools/linux-validate/validate.sh
@@ -1340,7 +1341,7 @@ jobs:
           key: zccache-tier2-linux-both-${{ github.sha }}
 
   rust-linux-tier2:
-    name: Rust Tier 2 Linux 🐧 (tests ${{ matrix.mode }})
+    name: Rust Tier 2 Linux 🐧 (tests ${{ matrix.mode }}, shard ${{ matrix.shard }}/2)
     runs-on: ubuntu-26.04
     # A stock image, no Dockerfile or image build (#966): run directly on the
     # runner, two group tests failed while passing in a container with the
@@ -1352,13 +1353,14 @@ jobs:
     # A local Rust attestation can skip Fast Gate without covering Tier 2.
     # Preserve that case; failed/canceled gates and missing builds run no tests.
     if: ${{ always() && !cancelled() && needs.rust-linux-tier2-build.result == 'success' && (needs.rust-tests-linux.result == 'success' || needs.rust-tests-linux.result == 'skipped') }}
-    # Two complete suites run independently; retain 8 test binaries per runner.
-    # Avoid six shard runners and their repeated setup while removing the
-    # ~254 s serial mode from the observed ~578 s test-job critical path.
+    # Two duration-balanced shards per mode isolate serial tests on separate
+    # runners without weakening RUN_SERIAL. Measure added setup/runner cost
+    # against the previous two complete-suite runners (#1581).
     strategy:
       fail-fast: false
       matrix:
         mode: ["OFF", "ON"]
+        shard: [1, 2]
     defaults:
       run:
         shell: bash
@@ -1425,6 +1427,7 @@ jobs:
           OBS_TIER2_SRC: ${{ github.workspace }}
           OBS_TIER2_BUILD: ${{ runner.temp }}/tier2
           OBS_TIER2_MODES: ${{ matrix.mode }}
+          OBS_CTEST_SHARD: ${{ matrix.shard }}/2
           OBS_TIER2_STAGE: test
           # At most 8 test binaries at once. The two tests that failed under
           # -j8 (#938) judged timing, not playback; #1001 fixed that.
@@ -1437,7 +1440,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always() && github.event_name == 'push' && github.ref == 'refs/heads/master'
         with:
-          name: tier2-cost-${{ matrix.mode }}
+          name: tier2-cost-${{ matrix.mode }}-${{ matrix.shard }}
           path: .tier2-cost/ctest-cost-${{ matrix.mode }}.txt
           include-hidden-files: true
           retention-days: 1

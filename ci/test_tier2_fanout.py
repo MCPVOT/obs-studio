@@ -61,6 +61,16 @@ class ValidateStagesTest(unittest.TestCase):
         self.assertNotEqual(r.returncode, 0)
         self.assertIn("OBS_TIER2_STAGE", r.stdout + r.stderr)
 
+    def test_invalid_shard_never_reaches_environment_setup(self):
+        for shard in ("0/2", "3/2", "1/0", "garbage", "1/2/3"):
+            with self.subTest(shard=shard):
+                result = subprocess.run(["bash", str(VALIDATE)],
+                                        env={"OBS_TIER2_STAGE": "test", "OBS_CTEST_SHARD": shard,
+                                             "PATH": "/usr/bin:/bin"},
+                                        capture_output=True, text=True)
+                self.assertEqual(result.returncode, 2)
+                self.assertIn("OBS_CTEST_SHARD must be index/count", result.stderr)
+
 
 class WorkflowTest(unittest.TestCase):
     def test_build_job_builds_one_tree_and_uploads_it(self):
@@ -70,19 +80,20 @@ class WorkflowTest(unittest.TestCase):
         self.assertIn("name: tier2-tree\n", b)
         self.assertNotIn("tier2-tree-OFF", b)
 
-    def test_modes_run_in_parallel_without_extra_shards(self):
-        """Keep both complete suites while removing their serial wall time."""
+    def test_modes_run_in_two_isolated_shards_each(self):
+        """Keep both complete suites, partitioned once per independent runner."""
         t = job("rust-linux-tier2")
         self.assertIn("needs: [check-event, ci-mode, rust-linux-tier2-build, rust-tests-linux]", t)
         self.assertIn("fail-fast: false", t)
         self.assertIn('mode: ["OFF", "ON"]', t)
-        self.assertNotIn("OBS_CTEST_SHARD", t)
+        self.assertIn("shard: [1, 2]", t)
+        self.assertIn("OBS_CTEST_SHARD: ${{ matrix.shard }}/2", t)
         self.assertIn("OBS_TIER2_STAGE: test", t)
         self.assertIn("name: tier2-tree\n", t)
         self.assertIn("OBS_TIER2_MODES: ${{ matrix.mode }}", t)
-        self.assertIn("name: tier2-cost-${{ matrix.mode }}", t)
+        self.assertIn("name: tier2-cost-${{ matrix.mode }}-${{ matrix.shard }}", t)
         self.assertIn("path: .tier2-cost/ctest-cost-${{ matrix.mode }}.txt", t)
-        self.assertNotIn("OBS_TIER2_SHARDS", job("rust-linux-tier2-build"))
+        self.assertIn("OBS_TIER2_SHARDS: 2", job("rust-linux-tier2-build"))
 
     def test_lane_proof_waits_for_every_shard(self):
         d = job("rust-linux-tier2-done")

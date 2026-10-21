@@ -334,7 +334,7 @@ Cargo files test the workspace), on every PR. No Qt is installed there.
 | Paths | Lane |
 |---|---|
 | everything | Fast Gate: 1) fmt, clippy, Dylint; 2) unit tests of the touched crates; 3) Linux build of touched `plugins/<x>`/`shared/<x>` targets (ENABLE_FRONTEND=OFF, no Qt) |
-| `libobs/` (not platform-only files), crates linked into libobs, `test/cmocka/`, `deps/`, `rust/tools/linux-validate/`, Cargo files | Tier 2 Linux: compilation overlaps Fast Gate; OFF/ON tests wait for it |
+| `libobs/` (not platform-only files), crates linked into libobs, `test/cmocka/`, `deps/`, `rust/tools/linux-validate/`, Cargo files | Tier 2 Linux: compilation overlaps Fast Gate; OFF/ON tests wait for it, with two isolated shards per mode |
 | `frontend/`, Qt-linked tests, `shared/qt`, the Qt job's own files | Qt Frontend Linux (the only Qt). Frontend platform files start no Windows/macOS Rust or Tier 2 job; Windows/macOS Qt lanes are a follow-up |
 | files matching `/platform[/-](windows, macos, linux, posix)[/.]` (posix = linux+macos), legacy OS names, shared build files (`cmake/common`, `cmake/finders`, `libobs/cmake`, root CMake, crate-root `build.rs`, `platform/mod.rs`, C++ cmocka tests) | macOS / Windows Rust tests, Tier 2, cross lint |
 | `build-aux/`, `.gitmodules`, submodules | compiled on Linux only; no full build from a PR |
@@ -350,6 +350,17 @@ This trades possible wasted compilation and Qt tests on a red PR for a shorter
 successful queue path; independent work can finish after Fast Gate fails.
 Measure runner cost and actual gate time rather than treating the theoretical
 overlap as a proven speedup (#930, #1286).
+
+Tier 2 uses two duration-balanced shards per mode (#1581), each in its own
+runner environment with the existing `RUN_SERIAL` properties intact. The build
+job creates both mode plans from recorded costs. Each test runner verifies
+that all plans form a complete disjoint partition of its actual CTest registry
+before filtering its suite; missing plans fail rather than silently changing
+scheduling. A failed or canceled matrix member cannot publish a passing lane
+proof. Timings have unique per-mode/per-shard artifacts and merge on master.
+Four test runners replace two, increasing repeated setup and potentially
+runner-minutes. This rollout is an experiment: compare full gate time, queue
+delay, executed/skipped coverage, and runner cost before claiming a gain.
 
 Unchanged lanes are cached by the gate, so a re-run after a small fix is fast.
 

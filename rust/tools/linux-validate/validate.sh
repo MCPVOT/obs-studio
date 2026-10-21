@@ -51,6 +51,10 @@ shard_args=()
 if [ -n "${OBS_CTEST_SHARD:-}" ]; then
   shard_index=${OBS_CTEST_SHARD%/*}
   shard_count=${OBS_CTEST_SHARD#*/}
+  if ! [[ "$shard_index" =~ ^[1-9][0-9]*$ && "$shard_count" =~ ^[1-9][0-9]*$ ]] || [ "$shard_index" -gt "$shard_count" ]; then
+    echo "FAIL: OBS_CTEST_SHARD must be index/count with 1 <= index <= count" >&2
+    exit 2
+  fi
   shard_args=(-I "$shard_index,,$shard_count")
 fi
 
@@ -346,7 +350,16 @@ if [ "$stage" != build ]; then
     # carries one (#1048), else ctest -I striping.
     mode_shard_args=("${shard_args[@]}")
     plan="$build/tier2-shards/$mode/${shard_index:-}-of-${shard_count:-}.regex"
-    if [ -n "${OBS_CTEST_SHARD:-}" ] && [ -f "$plan" ]; then
+    if [ -n "${OBS_CTEST_SHARD:-}" ]; then
+      if [ ! -s "$plan" ]; then
+        echo "FAIL: missing Tier 2 shard plan: $plan" >&2
+        exit 1
+      fi
+      # Verify the union against this runner's actual CTest registry, not just
+      # the build job's names file. Never silently fall back to striped tests.
+      registry="$build/tier2-registry-$mode.json"
+      ctest --test-dir "$build" --show-only=json-v1 >"$registry"
+      uv run "$SRC/rust/tools/linux-validate/check-plan.py" "$registry" "$build/tier2-shards/$mode" "$shard_count"
       mode_shard_args=(-R "$(cat "$plan")")
     fi
 
