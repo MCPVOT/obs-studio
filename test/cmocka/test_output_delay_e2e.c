@@ -343,8 +343,12 @@ static long stop_calls(void)
 
 static void wait_event(os_event_t *event, const char *what)
 {
-	if (os_event_timedwait(event, WAIT_MS) != 0)
-		fail_msg("timed out waiting for %s", what);
+	/* The Windows cmocka library does not export the legacy diagnostic
+	 * printer used by fail_msg. Keep messages in stdio and use plain fail. */
+	if (os_event_timedwait(event, WAIT_MS) != 0) {
+		fprintf(stderr, "timed out waiting for %s\n", what);
+		fail();
+	}
 }
 
 static void wait_delivered(size_t n)
@@ -364,16 +368,21 @@ static size_t check_delivered_order(uint64_t delay_ns)
 	for (size_t i = 0; i < snap.delivered; i++) {
 		int64_t pts = snap.delivered_pts[i];
 		size_t idx = (size_t)(pts / FRAME_SIZE);
-		if (i > 0 && pts <= snap.delivered_pts[i - 1])
-			fail_msg("packet %zu has pts %lld after %lld (out of order)", i, (long long)pts,
-				 (long long)snap.delivered_pts[i - 1]);
+		if (i > 0 && pts <= snap.delivered_pts[i - 1]) {
+			fprintf(stderr, "packet %zu has pts %lld after %lld (out of order)\n", i, (long long)pts,
+				(long long)snap.delivered_pts[i - 1]);
+			fail();
+		}
 		if (i > 0)
 			missing += (size_t)((pts - snap.delivered_pts[i - 1]) / FRAME_SIZE) - 1;
 		assert_true(pts % FRAME_SIZE == 0 && idx < snap.encoded);
 		uint64_t latency = snap.delivered_ns[i] - snap.encoded_ns[idx];
-		if (latency < delay_ns)
-			fail_msg("packet %zu reached the output %llu ms after it was encoded, before the %llu ms delay",
-				 i, (unsigned long long)(latency / 1000000), (unsigned long long)(delay_ns / 1000000));
+		if (latency < delay_ns) {
+			fprintf(stderr,
+				"packet %zu reached the output %llu ms after it was encoded, before the %llu ms delay\n",
+				i, (unsigned long long)(latency / 1000000), (unsigned long long)(delay_ns / 1000000));
+			fail();
+		}
 	}
 	return missing;
 }
@@ -382,8 +391,10 @@ static size_t check_delivered_order(uint64_t delay_ns)
 static void check_delivered(uint64_t delay_ns)
 {
 	size_t missing = check_delivered_order(delay_ns);
-	if (missing)
-		fail_msg("%zu packets never reached the output", missing);
+	if (missing) {
+		fprintf(stderr, "%zu packets never reached the output\n", missing);
+		fail();
+	}
 }
 
 static void delayed_start_packets_and_stop(void **state)
@@ -432,8 +443,10 @@ static void delayed_start_packets_and_stop(void **state)
 	size_t last = snap.delivered - 1;
 	assert_true(snap.encoded_ns[last] <= after);
 	for (size_t i = last + 1; i < snap.encoded; i++) {
-		if (snap.encoded_ns[i] + 250000000ULL < before)
-			fail_msg("packet %zu, encoded before the stop, never reached the output", i);
+		if (snap.encoded_ns[i] + 250000000ULL < before) {
+			fprintf(stderr, "packet %zu, encoded before the stop, never reached the output\n", i);
+			fail();
+		}
 	}
 }
 
