@@ -28,8 +28,9 @@ you last read them (`git log -1 --format=%cs -- <file>`).
    attestation, what to do when CI fails.
 5. [docs/rust-port/troubleshooting.md](../../../docs/rust-port/troubleshooting.md):
    only when your environment errors.
-6. [SECURITY.md](../../../SECURITY.md): suspected vulnerabilities are
-   reported privately, never as a public issue or PR.
+6. [SECURITY.md](../../../SECURITY.md): low-risk security bugs are
+   normal public bugs; high-risk ones (reachable by a remote party, or
+   leaking credentials) are reported privately.
 
 ## 1. Start from current master
 
@@ -65,13 +66,14 @@ don't delete local branches you didn't create.
    **Decision needed:** and that part waits. An idea with no agreed design
    belongs in Discussions, not an issue (coordination.md section 5).
    Protocol additions (obs-websocket) are additive fields only.
-5. **Suspected vulnerability?** It is not an issue. Don't file, claim or
-   push it: report it as [SECURITY.md](../../../SECURITY.md) says (private
-   advisory), and continue on the private fork the maintainers open on the
-   advisory. The current default rule: untrusted input can reach the defect
-   (network, websocket, media files or streams, browser pages, scene or
-   profile files from others) → report privately; only a local user's own
-   actions or a test can reach it → public bug issue; unsure → report
+5. **Security bug?** Apply the two tiers in
+   [SECURITY.md](../../../SECURITY.md#two-tiers). Only trusted input can
+   reach it (the local user, their own config, plugins, scripts, tests):
+   it's a normal public bug, so file, claim and fix it as usual. A remote
+   party can reach it (a server, a web page, network media, an
+   obs-websocket client, a file someone else sent) or it leaks
+   credentials: don't file, claim or push it; report it privately and
+   continue on the private fork the maintainers open. Unsure: report it
    privately (a maintainer can move it to public).
 6. No issue yet? File one first using the bug or port template
    (coordination.md section 5), then claim it.

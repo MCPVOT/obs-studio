@@ -125,7 +125,7 @@ this document covers *who does what, and when*.
 
 ## 5. Filing issues
 
-- **Suspected vulnerability:** not an issue. Don't file, claim or push it;
+- **High-risk vulnerability** (see the two tiers in SECURITY.md): not an issue. Don't file, claim or push it;
   report it privately as [SECURITY.md](../../SECURITY.md) says, and work on
   the private fork the maintainers open on the advisory. Current default
   rule: if untrusted input can reach the defect (network, websocket, media

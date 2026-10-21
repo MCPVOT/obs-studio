@@ -121,6 +121,12 @@ you can in the same tick and record the pattern in this file.
 
 ## 3a. Security advisories
 
+Check each new advisory against the two tiers in
+[SECURITY.md](../../../SECURITY.md#two-tiers). If only trusted local
+input can reach it, list it for the maintainer to move to a public issue;
+do not post its details yourself. Never add a collaborator to an
+advisory; the maintainers decide who sees it.
+
 Advisory comments are separate from the description. Read them with
 `gh api repos/obs-rust/obs-studio/security-advisories/<GHSA>/comments`
 every tick, along with the description. Answer a reporter there while the

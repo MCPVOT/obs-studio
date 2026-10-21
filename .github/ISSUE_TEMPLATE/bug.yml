@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: >-
-        **Suspected vulnerability? Don't file it here.** Report it privately as
+        **High-risk vulnerability (a remote party can reach it, or it leaks credentials)? Don't file it here.** Report it privately as
         [SECURITY.md](https://github.com/obs-rust/obs-studio/blob/master/SECURITY.md) says.
         Default rule: untrusted input can reach it (network, websocket, media files or streams,
         browser pages, scene or profile files from others) or you are unsure → private advisory;

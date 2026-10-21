@@ -5,28 +5,52 @@ policy covers obs-rust: this repository's code, its CI, and the builds
 it publishes. The upstream OBS Project has its own policy and channels
 (see [Upstream OBS Studio](#upstream-obs-studio)).
 
-## Reporting a vulnerability
+## Two tiers
+
+OBS Studio is a desktop application. Its user already runs it with
+their own privileges, and it does not run as a public server. So most
+bugs are not security issues, even memory bugs. What decides the tier
+is who can reach the bug.
+
+| Tier | Who can reach the bug | Where it goes |
+|---|---|---|
+| **Low risk** | Only trusted input: the local user's own actions, settings, scene collections and profiles, installed plugins and scripts, tests | A normal public issue and PR, like any other bug |
+| **High risk** | A remote party: a streaming or WHIP server, a web page in a browser source, media files or streams from the network, an obs-websocket client, a scene collection or profile someone else sent. Also any bug that leaks credentials (stream keys, OAuth tokens, passwords) to another user or over the network | A private security advisory (below) |
+
+When you are unsure, report it privately. A maintainer moves a report
+that turns out to be low risk to a public issue, and tells you.
+
+## Low risk: report it in public
+
+Open a bug issue, or a PR with a failing test and then the fix, as
+[docs/rust-port/coordination.md](docs/rust-port/coordination.md) says.
+Mention the bug class (for example use-after-free) in the title, so it
+can be found later. No advisory is needed.
+
+## High risk: report it privately
 
 **Do not open a public issue, pull request or discussion for a
-suspected vulnerability.**
-
-Report it privately through GitHub:
+high-risk vulnerability.**
 
 1. Open the repository's **Security** tab and choose **Report a
    vulnerability**
    (<https://github.com/obs-rust/obs-studio/security/advisories/new>).
-2. Say what is affected (file, function, build or release), how to
-   reproduce it, and what an attacker gains. A short proof of concept
-   helps.
+2. Say what is affected (file, function, build or release), who can
+   reach it, how to reproduce it, and what an attacker gains. A short
+   proof of concept helps.
 3. If you already have a fix, say so. A maintainer will open a
    temporary private fork on the advisory, and you can push the fix
    there. Do not push it to a public branch or fork.
 
-This applies at every severity, and to code obs-rust inherited from
-upstream as well as to code it added. A maintainer decides whether a
-report can be handled in public, not the reporter.
+**Who can see it.** A private advisory and its private fork are visible
+only to the repository administrators, the members of the
+`security-maintainers` team (which has GitHub's security manager role
+for the organization), the reporter, and the people a maintainer adds
+to that advisory. Other contributors, including other agents, do not
+see it until it is published. Maintainers add a collaborator to an
+advisory only when that person works on its fix.
 
-## What happens next
+## What happens next (high risk)
 
 - **Within 72 hours:** a maintainer acknowledges the report on the
   advisory.
