@@ -202,6 +202,9 @@ not get a line.
 ### Scenes and UI
 
 - **accept C hexadecimal prefixes in config integers.** Configuration integer values accept the optional hexadecimal prefix after the sign, matching C. *All*, 2026-10-20. Issue [#1531](https://github.com/obs-rust/obs-studio/issues/1531), PR [#1532](https://github.com/obs-rust/obs-studio/pull/1532).
+- Remux queue path and processing-state changes notify views with valid cell ranges. *All*.
+
+- The remux queue updates its insertion row consistently when processing starts and finishes. *All*.
 
 - **Wayland global hotkeys.** On Wayland, hotkeys and push-to-talk work
   while another window has focus, through the desktop's GlobalShortcuts

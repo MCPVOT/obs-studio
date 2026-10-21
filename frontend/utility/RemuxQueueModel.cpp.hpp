@@ -234,7 +234,7 @@ void RemuxQueueModel::checkInputPath(int row)
 		entry.state = RemuxEntryState::Pending;
 	}
 
-	emit dataChanged(index(row, 0), index(row, RemuxEntryColumn::Count));
+	emit dataChanged(index(row, 0), index(row, RemuxEntryColumn::Count - 1));
 }
 
 QFileInfoList RemuxQueueModel::checkForOverwrites() const
@@ -312,11 +312,12 @@ void RemuxQueueModel::beginProcessing()
 
 	// Signal that the insertion point no longer exists.
 	beginRemoveRows(QModelIndex(), queue.length(), queue.length());
+	isProcessing = true;
 	endRemoveRows();
 
-	isProcessing = true;
-
-	emit dataChanged(index(0, RemuxEntryColumn::State), index(queue.length(), RemuxEntryColumn::State));
+	if (!queue.isEmpty()) {
+		emit dataChanged(index(0, RemuxEntryColumn::State), index(queue.length() - 1, RemuxEntryColumn::State));
+	}
 }
 
 void RemuxQueueModel::endProcessing()
@@ -328,13 +329,17 @@ void RemuxQueueModel::endProcessing()
 	}
 
 	// Signal that the insertion point exists again.
-	isProcessing = false;
 	if (!autoRemux) {
 		beginInsertRows(QModelIndex(), queue.length(), queue.length());
+		isProcessing = false;
 		endInsertRows();
+	} else {
+		isProcessing = false;
 	}
 
-	emit dataChanged(index(0, RemuxEntryColumn::State), index(queue.length(), RemuxEntryColumn::State));
+	if (!queue.isEmpty()) {
+		emit dataChanged(index(0, RemuxEntryColumn::State), index(queue.length() - 1, RemuxEntryColumn::State));
+	}
 }
 
 bool RemuxQueueModel::beginNextEntry(QString &inputPath, QString &outputPath)
