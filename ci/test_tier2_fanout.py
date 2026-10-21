@@ -6,8 +6,8 @@
 Builds are about 1 min of Tier 2; the two ctest runs were 9.4 min. One job
 builds one tree holding both libobs binaries (#1065: libobs and
 libobs-with-rust; it compares their exports, so a mismatch fails before any
-test runs), then hands the tree to `mode x shard` test jobs that run one
-shard of ctest against one libobs.
+test runs), then hands the tree to two mode jobs that each run the complete CTest
+suite against one libobs.
 """
 
 from __future__ import annotations
@@ -80,22 +80,24 @@ class WorkflowTest(unittest.TestCase):
         self.assertIn("name: tier2-tree\n", b)
         self.assertNotIn("tier2-tree-OFF", b)
 
-    def test_modes_run_in_two_isolated_shards_each(self):
-        """Keep both complete suites, partitioned once per independent runner."""
+    def test_modes_run_one_complete_suite_each(self):
+        """Keep both complete suites on two independent runners."""
         t = job("rust-linux-tier2")
         self.assertIn("needs: [check-event, ci-mode, rust-linux-tier2-build, rust-tests-linux]", t)
         self.assertIn("fail-fast: false", t)
         self.assertIn('mode: ["OFF", "ON"]', t)
-        self.assertIn("shard: [1, 2]", t)
-        self.assertIn("OBS_CTEST_SHARD: ${{ matrix.shard }}/2", t)
+        self.assertNotIn("shard:", t)
+        self.assertNotIn("OBS_CTEST_SHARD", t)
+        self.assertNotIn("matrix.shard", t)
+        self.assertIn("OBS_CTEST_JOBS: 8", t)
         self.assertIn("OBS_TIER2_STAGE: test", t)
         self.assertIn("name: tier2-tree\n", t)
         self.assertIn("OBS_TIER2_MODES: ${{ matrix.mode }}", t)
-        self.assertIn("name: tier2-cost-${{ matrix.mode }}-${{ matrix.shard }}", t)
+        self.assertIn("name: tier2-cost-${{ matrix.mode }}\n", t)
         self.assertIn("path: .tier2-cost/ctest-cost-${{ matrix.mode }}.txt", t)
-        self.assertIn("OBS_TIER2_SHARDS: 2", job("rust-linux-tier2-build"))
+        self.assertNotIn("OBS_TIER2_SHARDS", job("rust-linux-tier2-build"))
 
-    def test_lane_proof_waits_for_every_shard(self):
+    def test_lane_proof_waits_for_both_complete_suites(self):
         d = job("rust-linux-tier2-done")
         self.assertIn("rust-linux-tier2", d)
         self.assertIn("Upload Lane Proof", d)

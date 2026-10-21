@@ -340,7 +340,7 @@ Cargo files test the workspace), on every PR. No Qt is installed there.
 | Paths | Lane |
 |---|---|
 | everything | Fast Gate: 1) fmt, clippy, Dylint; 2) unit tests of the touched crates; 3) Linux build of touched `plugins/<x>`/`shared/<x>` targets (ENABLE_FRONTEND=OFF, no Qt) |
-| `libobs/` (not platform-only files), crates linked into libobs, `test/cmocka/`, `deps/`, `rust/tools/linux-validate/`, Cargo files | Tier 2 Linux: compilation overlaps Fast Gate; OFF/ON tests wait for it, with two isolated shards per mode |
+| `libobs/` (not platform-only files), crates linked into libobs, `test/cmocka/`, `deps/`, `rust/tools/linux-validate/`, Cargo files | Tier 2 Linux: compilation overlaps Fast Gate; OFF/ON tests wait for it, with one complete suite per mode |
 | `frontend/`, Qt-linked tests, `shared/qt`, the Qt job's own files | Qt Frontend Linux (the only Qt). Frontend platform files start no Windows/macOS Rust or Tier 2 job; Windows/macOS Qt lanes are a follow-up |
 | files matching `/platform[/-](windows, macos, linux, posix)[/.]` (posix = linux+macos), legacy OS names, shared build files (`cmake/common`, `cmake/finders`, `libobs/cmake`, root CMake, crate-root `build.rs`, `platform/mod.rs`, C++ cmocka tests) | macOS / Windows Rust tests, Tier 2, cross lint |
 | `build-aux/`, `.gitmodules`, submodules | compiled on Linux only; no full build from a PR |
@@ -357,21 +357,24 @@ successful queue path; independent work can finish after Fast Gate fails.
 Measure runner cost and actual gate time rather than treating the theoretical
 overlap as a proven speedup (#930, #1286).
 
-Tier 2 uses two duration-balanced shards per mode (#1581), each in its own
-runner environment. Deinterlacing retains `RUN_SERIAL` because CI still dropped
-fields with bounded software-renderer workers. The other nine former barriers
+Tier 2 uses one complete suite per mode (#1662), each in its own runner
+environment: two test jobs rather than four. Deinterlacing retains
+`RUN_SERIAL` because CI still dropped fields with bounded software-renderer
+workers. The other nine former barriers
 are removed: eight tests already own their resources, and XSHM now uses a
 private Xvfb (serial fallback when unavailable). Linux tests pin
 `LP_NUM_THREADS=1`; see the [concurrency audit](ci-serial-audit-2026-10-21.md).
-The build
-job creates both mode plans from recorded costs. Each test runner verifies
-that all plans form a complete disjoint partition of its actual CTest registry
-before filtering its suite; missing plans fail rather than silently changing
-scheduling. A failed or canceled matrix member cannot publish a passing lane
-proof. Timings have unique per-mode/per-shard artifacts and merge on master.
-Four test runners replace two, increasing repeated setup and potentially
-runner-minutes. This rollout is an experiment: compare full gate time, queue
-delay, executed/skipped coverage, and runner cost before claiming a gain.
+The build job produces one tree for both backends. Test jobs run the entire
+CTest registry without a shard selector, with up to eight binaries concurrent
+within each suite. A failed or canceled backend cannot publish a passing lane
+proof. Timings have unique per-mode artifacts and merge on master; recorded
+costs still order the longest tests first. Optional local sharding tools remain
+available, including their complete-partition checks.
+
+The change removes two repeated runner setups and artifact downloads. A full
+suite can take longer than an individual shard, so fewer jobs alone do not
+prove a shorter CI gate. Compare actual gate time, queue delay, coverage and
+runner cost in the broader #1581 study before claiming a workflow speedup.
 
 Unchanged lanes are cached by the gate, so a re-run after a small fix is fast.
 
