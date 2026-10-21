@@ -35,3 +35,16 @@ reason = "Inline SSE2: native emmintrin.h under MSVC/MinGW x86, else SIMDe (with
 [[exception]]
 path = "libobs/util/util_uint64.h"
 reason = "Inline util_mul_div64: MSVC x64 _umul128/_udiv128 (clang-cl __int128), portable arithmetic elsewhere"
+
+# Additional header interfaces recorded by #878 retain stricter per-file
+# counts in platform-ifdef-baseline.json; they are NOT broad exceptions:
+# libobs/graphics/device-exports.h (2): platform device texture exports.
+# libobs/media-io/audio-math.h (2): MSVC inline math warning push/pop.
+# libobs/util/base.h (1): variadic logging format attributes.
+# libobs/util/curl/curl-helper.h (1): Schannel/libcurl revocation option macro.
+# libobs/util/dstr.h (1): string formatting attributes.
+# libobs/util/pipe.h (1): process_args_add_argf format attribute.
+# libobs/util/profiler.h (1): profiler format attributes.
+# device-exports.h and curl-helper.h are not in the common installed-header
+# list. Full inventory, unchanged header blobs and ABI-preservation check:
+# docs/rust-port/public-header-conditionals.md
