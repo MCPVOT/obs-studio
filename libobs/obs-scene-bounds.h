@@ -26,3 +26,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
  * in obs-scene.c), kept free of scene items so it can be tested on its own. */
 void obs_bounds_fit_scale(enum obs_bounds_type type, const struct vec2 *bounds, uint32_t cx, uint32_t cy,
 			  struct vec2 *scale);
+
+/* The rest of that transform, once the scene has resolved `bounds` to pixels.
+ * Fits the scale, aligns `origin` in the box, optionally crops, and keeps a
+ * flipped item in place. `cx` and `cy` come in as the source size and go out
+ * as the box size. The scene passes an origin of 0, 0. */
+void obs_bounds_place(enum obs_bounds_type type, const struct vec2 *bounds, struct vec2 *origin, struct vec2 *scale,
+		      uint32_t *cx, uint32_t *cy, uint32_t align, bool crop_to_bounds, struct obs_sceneitem_crop *crop);

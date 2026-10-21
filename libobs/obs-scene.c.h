@@ -255,19 +255,6 @@ static inline void attach_sceneitem(struct obs_scene *parent, struct obs_scene_i
 	}
 }
 
-void add_alignment(struct vec2 *v, uint32_t align, int cx, int cy)
-{
-	if (align & OBS_ALIGN_RIGHT)
-		v->x += (float)cx;
-	else if ((align & OBS_ALIGN_LEFT) == 0)
-		v->x += (float)(cx / 2);
-
-	if (align & OBS_ALIGN_BOTTOM)
-		v->y += (float)cy;
-	else if ((align & OBS_ALIGN_TOP) == 0)
-		v->y += (float)(cy / 2);
-}
-
 static uint32_t scene_getwidth(void *data);
 static uint32_t scene_getheight(void *data);
 static uint32_t canvas_getwidth(obs_weak_canvas_t *weak);
@@ -369,13 +356,6 @@ static inline void item_relative_scale(struct vec2 *dst, const struct vec2 *v, c
 	vec2_mulf(dst, v, scale_factor);
 }
 
-static inline bool crop_to_bounds(const struct obs_scene_item *item)
-{
-	return item->crop_to_bounds &&
-	       (item->bounds_type == OBS_BOUNDS_SCALE_OUTER || item->bounds_type == OBS_BOUNDS_SCALE_TO_HEIGHT ||
-		item->bounds_type == OBS_BOUNDS_SCALE_TO_WIDTH);
-}
-
 static void calculate_bounds_data(struct obs_scene_item *item, struct vec2 *origin, struct vec2 *scale, uint32_t *cx,
 				  uint32_t *cy)
 {
@@ -385,79 +365,8 @@ static void calculate_bounds_data(struct obs_scene_item *item, struct vec2 *orig
 	else
 		size_to_absolute(&bounds, &item->bounds, item);
 
-	obs_bounds_fit_scale(item->bounds_type, &bounds, *cx, *cy, scale);
-
-	float width = (float)(*cx) * scale->x;
-	float height = (float)(*cy) * scale->y;
-	float width_diff, height_diff;
-
-	/* Disregards flip when calculating size diff */
-	width_diff = bounds.x - fabsf(width);
-	height_diff = bounds.y - fabsf(height);
-	*cx = (uint32_t)bounds.x;
-	*cy = (uint32_t)bounds.y;
-
-	add_alignment(origin, item->bounds_align, (int)-width_diff, (int)-height_diff);
-
-	/* Set cropping if enabled and large enough size difference exists */
-	if (crop_to_bounds(item) && ((double)width_diff < -0.1 || (double)height_diff < -0.1)) {
-		bool crop_width = (double)width_diff < -0.1;
-		bool crop_flipped = crop_width ? width < 0.0f : height < 0.0f;
-
-		float crop_diff = crop_width ? width_diff : height_diff;
-		float crop_scale = crop_width ? scale->x : scale->y;
-		float crop_origin = crop_width ? origin->x : origin->y;
-
-		/* Only get alignment for relevant axis */
-		uint32_t crop_align_mask = crop_width ? OBS_ALIGN_LEFT | OBS_ALIGN_RIGHT
-						      : OBS_ALIGN_TOP | OBS_ALIGN_BOTTOM;
-		uint32_t crop_align = item->bounds_align & crop_align_mask;
-
-		/* Cropping values need to scaled to input source */
-		float overdraw = fabsf(crop_diff / crop_scale);
-
-		/* tl = top / left, br = bottom / right */
-		float overdraw_tl;
-		if (crop_align & (OBS_ALIGN_TOP | OBS_ALIGN_LEFT))
-			overdraw_tl = 0;
-		else if (crop_align & (OBS_ALIGN_BOTTOM | OBS_ALIGN_RIGHT))
-			overdraw_tl = overdraw;
-		else
-			overdraw_tl = overdraw / 2;
-
-		float overdraw_br = overdraw - overdraw_tl;
-
-		int crop_br, crop_tl;
-		if (crop_flipped) {
-			/* Adjust origin for flips */
-			if (crop_align == OBS_ALIGN_CENTER)
-				crop_origin *= 2;
-			else if (crop_align & (OBS_ALIGN_TOP | OBS_ALIGN_LEFT))
-				crop_origin -= crop_diff;
-
-			/* Note that crops are swapped if the axis is flipped */
-			crop_br = (int)roundf(overdraw_tl);
-			crop_tl = (int)roundf(overdraw_br);
-		} else {
-			crop_origin = 0;
-			crop_br = (int)roundf(overdraw_br);
-			crop_tl = (int)roundf(overdraw_tl);
-		}
-
-		if (crop_width) {
-			item->bounds_crop.right = crop_br;
-			item->bounds_crop.left = crop_tl;
-			origin->x = crop_origin;
-		} else {
-			item->bounds_crop.bottom = crop_br;
-			item->bounds_crop.top = crop_tl;
-			origin->y = crop_origin;
-		}
-	}
-
-	/* Makes the item stay in-place in the box if flipped */
-	origin->x += (width < 0.0f) ? width : 0.0f;
-	origin->y += (height < 0.0f) ? height : 0.0f;
+	obs_bounds_place(item->bounds_type, &bounds, origin, scale, cx, cy, item->bounds_align, item->crop_to_bounds,
+			 &item->bounds_crop);
 }
 
 static inline uint32_t calc_cx(const struct obs_scene_item *item, uint32_t width)
