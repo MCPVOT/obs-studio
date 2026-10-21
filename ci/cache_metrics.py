@@ -145,6 +145,57 @@ def parse_cache_logs(text: str) -> dict:
     return result
 
 
+def parse_rust_test_logs(text: str) -> dict:
+    """Observed Cargo test phases; no extra compile, no invented missing times.
+
+    Cargo's build summary includes linking. The first Running marker to the
+    last test-result line is an observed output span, not total process time.
+    Linker-only costs and rebuild reasons are not available from these lines.
+    """
+    result = {}
+    active = {}
+    ansi = re.compile(r"(?:\x1b|\^\[)\[[0-?]*[ -/]*[@-~]")
+    for line in text.splitlines():
+        fields = line.split("\t", 2)
+        if len(fields) != 3:
+            continue
+        job, _, message = fields
+        message = ansi.sub("", message)
+        timestamp, separator, body = message.partition(" ")
+        if not separator:
+            continue
+        try:
+            now = stamp(timestamp)
+        except ValueError:
+            continue
+        if body.startswith("+ soldr cargo "):
+            active.pop(job, None)
+            if not body.startswith("+ soldr cargo test ") or "--no-run" in body.split():
+                continue
+            observation = {"command_started_at": timestamp, "cargo_build_and_link_seconds": None,
+                           "command_to_first_test_seconds": None, "observed_test_output_seconds": None,
+                           "result_summaries": 0}
+            result.setdefault(job, []).append(observation)
+            active[job] = (observation, now, None)
+        if job not in active:
+            continue
+        observation, started, first_test = active[job]
+        finished = re.search(r"Finished `test` profile .*? in ((?:\d+(?:\.\d+)?[hms]\s*)+)$", body)
+        if finished:
+            observation["cargo_build_and_link_seconds"] = sum(
+                float(number) * {"h": 3600, "m": 60, "s": 1}[unit]
+                for number, unit in re.findall(r"(\d+(?:\.\d+)?)([hms])", finished[1]))
+        if first_test is None and now >= started and re.search(r"\bRunning (?:unittests\b|tests/|benches/|examples/)", body):
+            first_test = now
+            observation["command_to_first_test_seconds"] = (now - started).total_seconds()
+            active[job] = (observation, started, first_test)
+        if "test result:" in body:
+            observation["result_summaries"] += 1
+            if first_test is not None and now >= first_test:
+                observation["observed_test_output_seconds"] = (now - first_test).total_seconds()
+    return result
+
+
 def collect_logs(repo: str, run_id: int, attempt: int, output: Path) -> dict:
     path = output / f"run-{run_id}-attempt-{attempt}.log"
     try:
@@ -152,7 +203,8 @@ def collect_logs(repo: str, run_id: int, attempt: int, output: Path) -> dict:
             command = ["gh", "run", "view", str(run_id), "-R", repo, "--attempt", str(attempt), "--log"]
             text = subprocess.run(command, check=True, capture_output=True, text=True).stdout
             path.write_text(text)
-        return {"jobs": parse_cache_logs(path.read_text()), "error": None}
+        text = path.read_text()
+        return {"jobs": parse_cache_logs(text), "rust_tests": parse_rust_test_logs(text), "error": None}
     except subprocess.CalledProcessError as error:
         return {"jobs": {}, "error": str(error)}
 

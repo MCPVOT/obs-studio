@@ -14,6 +14,33 @@ SPEC.loader.exec_module(metrics)
 
 
 class CacheMetricsTest(unittest.TestCase):
+    def test_rust_test_phases_handle_soldr_prefixes_and_ansi(self):
+        log = "\n".join([
+            "Gate\tTests\t2026-01-01T00:00:00Z + soldr cargo test --workspace --locked",
+            "Gate\tTests\t2026-01-01T00:00:35Z 35.0 \x1b[92mFinished\x1b[0m `test` profile [unoptimized] target(s) in 34.50s",
+            "Gate\tTests\t2026-01-01T00:00:36Z 36.0 ^[[92mRunning^[[0m tests/core.rs (target/debug/deps/core)",
+            "Gate\tTests\t2026-01-01T00:01:00Z test result: ok. 4 passed; 0 failed; finished in 24s",
+            "Gate\tTests\t2026-01-01T00:01:36Z test result: ok. 9 passed; 0 failed; finished in 36s",
+        ])
+        report = metrics.parse_rust_test_logs(log)["Gate"][0]
+        self.assertEqual(report["cargo_build_and_link_seconds"], 34.5)
+        self.assertEqual(report["command_to_first_test_seconds"], 36)
+        self.assertEqual(report["observed_test_output_seconds"], 60)
+        self.assertEqual(report["result_summaries"], 2)
+
+    def test_no_run_and_missing_rust_phase_markers_are_not_execution_samples(self):
+        log = "\n".join([
+            "Gate\tTests\t2026-01-01T00:00:00Z + soldr cargo test --workspace --no-run",
+            "Gate\tTests\t2026-01-01T00:00:30Z Finished `test` profile [unoptimized] target(s) in 30s",
+        ])
+        self.assertEqual(metrics.parse_rust_test_logs(log), {})
+        report = metrics.parse_rust_test_logs(
+            "Gate\tTests\t2026-01-01T00:00:00Z + soldr cargo test --workspace"
+        )["Gate"][0]
+        self.assertIsNone(report["cargo_build_and_link_seconds"])
+        self.assertIsNone(report["observed_test_output_seconds"])
+        self.assertEqual(report["result_summaries"], 0)
+
     def test_dispatch_time_uses_job_creation_not_run_creation(self):
         job = {"created_at": "2026-10-21T00:26:13Z", "started_at": "2026-10-21T00:28:29Z"}
         self.assertEqual(metrics.creation_to_start_seconds(job), 136)
