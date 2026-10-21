@@ -719,9 +719,9 @@ area.
   [#1370](https://github.com/obs-rust/obs-studio/pull/1370).
 
 - Audio timestamp differences smaller than one sample no longer leave an
-  invalid interval in the mixer. *All*, pending merge. Issue
+  invalid interval in the mixer. *All*, 2026-10-18. Issue
   [#838](https://github.com/obs-rust/obs-studio/issues/838), PR
-  [#1385](https://github.com/obs-rust/obs-studio/pull/1385).
+  [#1333](https://github.com/obs-rust/obs-studio/pull/1333).
 
 ### Encoding, streaming and recording
 
