@@ -209,3 +209,5 @@
 
 /* components/WindowCaptureToolbar.cpp */
 #include "frontend/components/WindowCaptureToolbar.hpp"
+
+#include "frontend/utility/platform.hpp"

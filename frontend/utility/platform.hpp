@@ -21,6 +21,8 @@
 #include <util/config-file.h>
 #include <obs.h>
 #include <QtCore/Qt>
+#include <QMessageBox>
+#include <QPalette>
 
 #include <ctime>
 #include <string>
@@ -212,3 +214,18 @@ const char *GetPlatformPropertiesFontFace();
 const char *GetPlatformPropertiesTextSource();
 float GetPlatformPropertiesLabelHeight(uint32_t height);
 void AdjustPlatformYouTubeDialogSize(QWidget *dialog);
+
+/* Capture toolbar and source component policy (#877). */
+enum class PlatformCaptureKind { Audio, Display, Window };
+const char *GetPlatformCaptureModuleId(PlatformCaptureKind kind);
+const char *GetPlatformCaptureLabelKey(PlatformCaptureKind kind);
+/* Only sets isInt where the original host policy did; otherwise preserves it. */
+const char *GetPlatformCaptureProperty(PlatformCaptureKind kind, bool &isInt);
+bool PlatformNeedsNonNativeFontDialog();
+void ConfigurePlatformSourceItemWidget(QWidget *widget);
+bool PlatformEndsSourceEdit();
+/* Query snap-to-default immediately before scheduling/opening properties. */
+bool PlatformNeedsDeferredSourceProperties();
+QMessageBox::ButtonRole GetPlatformStreamWarningButtonRole(bool settings);
+QPalette::ColorGroup GetPlatformVisibilityPaletteGroup(bool active);
+QPalette::ColorRole GetPlatformVisibilityHighlightRole();

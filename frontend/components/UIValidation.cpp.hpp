@@ -83,15 +83,9 @@ StreamSettingsAction UIValidation::StreamSettingsConfirmation(QWidget *parent, O
 	QPushButton *cancel;
 	QPushButton *settings;
 
-#ifdef __APPLE__
-#define ACCEPT_BUTTON QMessageBox::AcceptRole
-#define REJECT_BUTTON QMessageBox::ResetRole
-#else
-#define ACCEPT_BUTTON QMessageBox::NoRole
-#define REJECT_BUTTON QMessageBox::NoRole
-#endif
-	settings = messageBox.addButton(QTStr("Basic.Settings.Stream.StreamSettingsWarning"), ACCEPT_BUTTON);
-	cancel = messageBox.addButton(QTStr("Cancel"), REJECT_BUTTON);
+	settings = messageBox.addButton(QTStr("Basic.Settings.Stream.StreamSettingsWarning"),
+					GetPlatformStreamWarningButtonRole(true));
+	cancel = messageBox.addButton(QTStr("Cancel"), GetPlatformStreamWarningButtonRole(false));
 
 	messageBox.setDefaultButton(settings);
 	messageBox.setEscapeButton(cancel);
@@ -108,7 +102,3 @@ StreamSettingsAction UIValidation::StreamSettingsConfirmation(QWidget *parent, O
 
 	return StreamSettingsAction::ContinueStream;
 }
-
-/* File-local macros (BUILD.md): out of the next file in the unity group. */
-#undef ACCEPT_BUTTON
-#undef REJECT_BUTTON

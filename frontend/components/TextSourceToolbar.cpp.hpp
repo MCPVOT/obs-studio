@@ -48,9 +48,9 @@ void TextSourceToolbar::on_selectFont_clicked()
 	uint32_t flags;
 	bool success;
 
-#ifndef _WIN32
-	options = QFontDialog::DontUseNativeDialog;
-#endif
+	if (PlatformNeedsNonNativeFontDialog()) {
+		options = QFontDialog::DontUseNativeDialog;
+	}
 
 	font = QFontDialog::getFont(&success, font, this, QTStr("Basic.PropertiesWindow.SelectFont.WindowTitle"),
 				    options);
@@ -96,10 +96,9 @@ void TextSourceToolbar::on_selectColor_clicked()
 	QColorDialog::ColorDialogOptions options;
 
 	options |= QColorDialog::ShowAlphaChannel;
-#ifdef __linux__
-	// TODO: Revisit hang on Ubuntu with native dialog
-	options |= QColorDialog::DontUseNativeDialog;
-#endif
+	if (PlatformNeedsNonNativeColorDialog()) {
+		options |= QColorDialog::DontUseNativeDialog;
+	}
 
 	QColor newColor = QColorDialog::getColor(color, this, desc, options);
 	if (!newColor.isValid()) {

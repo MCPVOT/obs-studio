@@ -817,3 +817,84 @@ void AdjustPlatformYouTubeDialogSize(QWidget *dialog)
 {
 	(void)dialog;
 }
+
+/* Component host policy (#877). */
+const char *GetPlatformCaptureModuleId(PlatformCaptureKind kind)
+{
+	switch (kind) {
+	case PlatformCaptureKind::Audio:
+		return "win-wasapi";
+	case PlatformCaptureKind::Display:
+		return "win-capture";
+	case PlatformCaptureKind::Window:
+		return "win-capture";
+	}
+	return nullptr;
+}
+
+const char *GetPlatformCaptureLabelKey(PlatformCaptureKind kind)
+{
+	switch (kind) {
+	case PlatformCaptureKind::Audio:
+		return "Device";
+	case PlatformCaptureKind::Display:
+		return "Monitor";
+	case PlatformCaptureKind::Window:
+		return "WindowCapture.Window";
+	}
+	return nullptr;
+}
+
+const char *GetPlatformCaptureProperty(PlatformCaptureKind kind, bool &is_int)
+{
+	(void)is_int;
+	const char *prop_name = "device_id";
+	if (kind == PlatformCaptureKind::Display) {
+		prop_name = "monitor_id";
+	} else if (kind == PlatformCaptureKind::Window) {
+		prop_name = "window";
+	}
+	return prop_name;
+}
+
+bool PlatformNeedsNonNativeFontDialog()
+{
+	return false;
+}
+
+void ConfigurePlatformSourceItemWidget(QWidget *widget)
+{
+	(void)widget;
+}
+
+bool PlatformEndsSourceEdit()
+{
+	return false;
+}
+
+bool PlatformNeedsDeferredSourceProperties()
+{
+	BOOL snapEnabled = FALSE;
+	SystemParametersInfo(SPI_GETSNAPTODEFBUTTON, 0, &snapEnabled, 0);
+	return snapEnabled;
+}
+
+QMessageBox::ButtonRole GetPlatformStreamWarningButtonRole(bool settings)
+{
+	QMessageBox::ButtonRole accept, reject;
+	accept = QMessageBox::NoRole;
+	reject = QMessageBox::NoRole;
+	return settings ? accept : reject;
+}
+
+QPalette::ColorGroup GetPlatformVisibilityPaletteGroup(bool active)
+{
+	QPalette::ColorGroup group = active ? QPalette::Active : QPalette::Inactive;
+	return group;
+}
+
+QPalette::ColorRole GetPlatformVisibilityHighlightRole()
+{
+	QPalette::ColorRole highlightRole = QPalette::WindowText;
+	return highlightRole;
+}

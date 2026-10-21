@@ -656,3 +656,83 @@ void AdjustPlatformYouTubeDialogSize(QWidget *dialog)
 {
 	(void)dialog;
 }
+
+/* Component host policy (#877). */
+const char *GetPlatformCaptureModuleId(PlatformCaptureKind kind)
+{
+	switch (kind) {
+	case PlatformCaptureKind::Audio:
+		return "linux-pulseaudio";
+	case PlatformCaptureKind::Display:
+		return "linux-capture";
+	case PlatformCaptureKind::Window:
+		return "linux-capture";
+	}
+	return nullptr;
+}
+
+const char *GetPlatformCaptureLabelKey(PlatformCaptureKind kind)
+{
+	switch (kind) {
+	case PlatformCaptureKind::Audio:
+		return "Device";
+	case PlatformCaptureKind::Display:
+		return "Screen";
+	case PlatformCaptureKind::Window:
+		return "Window";
+	}
+	return nullptr;
+}
+
+const char *GetPlatformCaptureProperty(PlatformCaptureKind kind, bool &is_int)
+{
+	const char *prop_name = "device_id";
+	if (kind == PlatformCaptureKind::Display) {
+		is_int = true;
+		prop_name = "screen";
+	} else if (kind == PlatformCaptureKind::Window) {
+		prop_name = "capture_window";
+	}
+	return prop_name;
+}
+
+bool PlatformNeedsNonNativeFontDialog()
+{
+	return true;
+}
+
+void ConfigurePlatformSourceItemWidget(QWidget *widget)
+{
+	(void)widget;
+}
+
+bool PlatformEndsSourceEdit()
+{
+	return false;
+}
+
+bool PlatformNeedsDeferredSourceProperties()
+{
+	return false;
+}
+
+QMessageBox::ButtonRole GetPlatformStreamWarningButtonRole(bool settings)
+{
+	QMessageBox::ButtonRole accept, reject;
+	accept = QMessageBox::NoRole;
+	reject = QMessageBox::NoRole;
+	return settings ? accept : reject;
+}
+
+QPalette::ColorGroup GetPlatformVisibilityPaletteGroup(bool active)
+{
+	(void)active;
+	QPalette::ColorGroup group = QPalette::Active;
+	return group;
+}
+
+QPalette::ColorRole GetPlatformVisibilityHighlightRole()
+{
+	QPalette::ColorRole highlightRole = QPalette::HighlightedText;
+	return highlightRole;
+}

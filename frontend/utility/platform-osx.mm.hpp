@@ -753,3 +753,82 @@ void AdjustPlatformYouTubeDialogSize(QWidget *dialog)
 {
 	dialog->resize(dialog->width() + 200, dialog->height() + 120);
 }
+
+/* Component host policy (#877). */
+const char *GetPlatformCaptureModuleId(PlatformCaptureKind kind)
+{
+	switch (kind) {
+	case PlatformCaptureKind::Audio:
+		return "mac-capture";
+	case PlatformCaptureKind::Display:
+		return "mac-capture";
+	case PlatformCaptureKind::Window:
+		return "mac-capture";
+	}
+	return nullptr;
+}
+
+const char *GetPlatformCaptureLabelKey(PlatformCaptureKind kind)
+{
+	switch (kind) {
+	case PlatformCaptureKind::Audio:
+		return "CoreAudio.Device";
+	case PlatformCaptureKind::Display:
+		return "DisplayCapture.Display";
+	case PlatformCaptureKind::Window:
+		return "WindowUtils.Window";
+	}
+	return nullptr;
+}
+
+const char *GetPlatformCaptureProperty(PlatformCaptureKind kind, bool &is_int)
+{
+	const char *prop_name = "device_id";
+	if (kind == PlatformCaptureKind::Display) {
+		prop_name = "display_uuid";
+	} else if (kind == PlatformCaptureKind::Window) {
+		prop_name = "window";
+		is_int = true;
+	}
+	return prop_name;
+}
+
+bool PlatformNeedsNonNativeFontDialog()
+{
+	return true;
+}
+
+void ConfigurePlatformSourceItemWidget(QWidget *widget)
+{
+	widget->setAttribute(Qt::WA_LayoutUsesWidgetRect);
+}
+
+bool PlatformEndsSourceEdit()
+{
+	return true;
+}
+
+bool PlatformNeedsDeferredSourceProperties()
+{
+	return false;
+}
+
+QMessageBox::ButtonRole GetPlatformStreamWarningButtonRole(bool settings)
+{
+	QMessageBox::ButtonRole accept, reject;
+	accept = QMessageBox::AcceptRole;
+	reject = QMessageBox::ResetRole;
+	return settings ? accept : reject;
+}
+
+QPalette::ColorGroup GetPlatformVisibilityPaletteGroup(bool active)
+{
+	QPalette::ColorGroup group = active ? QPalette::Active : QPalette::Inactive;
+	return group;
+}
+
+QPalette::ColorRole GetPlatformVisibilityHighlightRole()
+{
+	QPalette::ColorRole highlightRole = QPalette::HighlightedText;
+	return highlightRole;
+}

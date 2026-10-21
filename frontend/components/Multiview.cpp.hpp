@@ -34,13 +34,7 @@ static OBSSource CreateLabel(const char *name, size_t h)
 	text += name;
 	text += " ";
 
-#if defined(_WIN32)
-	obs_data_set_string(font, "face", "Arial");
-#elif defined(__APPLE__)
-	obs_data_set_string(font, "face", "Helvetica");
-#else
-	obs_data_set_string(font, "face", "Monospace");
-#endif
+	obs_data_set_string(font, "face", GetPlatformPropertiesFontFace());
 	obs_data_set_int(font, "flags", 1); // Bold text
 	obs_data_set_int(font, "size", int(h / 9.81));
 
@@ -49,11 +43,7 @@ static OBSSource CreateLabel(const char *name, size_t h)
 	obs_data_set_bool(settings, "outline", false);
 	obs_data_set_int(settings, "opacity", 50);
 
-#ifdef _WIN32
-	const char *text_source_id = "text_gdiplus";
-#else
-	const char *text_source_id = "text_ft2_source";
-#endif
+	const char *text_source_id = GetPlatformPropertiesTextSource();
 
 	OBSSourceAutoRelease txtSource = obs_source_create_private(text_source_id, name, settings);
 

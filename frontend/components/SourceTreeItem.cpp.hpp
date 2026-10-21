@@ -88,10 +88,8 @@ SourceTreeItem::SourceTreeItem(SourceTree *tree_, OBSSceneItem sceneitem_) : tre
 		break;
 	}
 
-#ifdef __APPLE__
-	vis->setAttribute(Qt::WA_LayoutUsesWidgetRect);
-	lock->setAttribute(Qt::WA_LayoutUsesWidgetRect);
-#endif
+	ConfigurePlatformSourceItemWidget(vis);
+	ConfigurePlatformSourceItemWidget(lock);
 
 	boxLayout = new QHBoxLayout();
 
@@ -286,22 +284,12 @@ void SourceTreeItem::mouseDoubleClickEvent(QMouseEvent *event)
 		obs_source_t *source = obs_sceneitem_get_source(sceneitem);
 		OBSBasic *main = OBSBasic::Get();
 		if (obs_source_configurable(source)) {
-#if defined(_WIN32)
-			/* This timer works around a bug introduced around Qt 6.8.3 that causes
-			 * the application to hang when double clicking the sources list and the
-			 * Windows setting 'Snap mouse to default button in dialog boxes' is enabled.
-			 */
-			BOOL snapEnabled = FALSE;
-			SystemParametersInfo(SPI_GETSNAPTODEFBUTTON, 0, &snapEnabled, 0);
-
-			if (snapEnabled) {
+			// Qt 6.8.3 can hang with Windows snap-to-default enabled.
+			if (PlatformNeedsDeferredSourceProperties()) {
 				QTimer::singleShot(200, this, [=]() { main->CreatePropertiesWindow(source); });
 			} else {
 				main->CreatePropertiesWindow(source);
 			}
-#else
-			main->CreatePropertiesWindow(source);
-#endif
 		}
 	}
 }
@@ -537,9 +525,7 @@ void SourceTreeItem::Update(bool force)
 		idian::Utils::addClass(expand, "checkbox-icon");
 		idian::Utils::addClass(expand, "indicator-expand");
 		expand->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
-#ifdef __APPLE__
-		expand->setAttribute(Qt::WA_LayoutUsesWidgetRect);
-#endif
+		ConfigurePlatformSourceItemWidget(expand);
 		boxLayout->insertWidget(0, expand);
 
 		OBSDataAutoRelease data = obs_sceneitem_get_private_settings(sceneitem);

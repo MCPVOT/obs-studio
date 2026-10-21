@@ -55,10 +55,9 @@ void ColorSourceToolbar::on_choose_clicked()
 	QColorDialog::ColorDialogOptions options;
 
 	options |= QColorDialog::ShowAlphaChannel;
-#ifdef __linux__
-	// TODO: Revisit hang on Ubuntu with native dialog
-	options |= QColorDialog::DontUseNativeDialog;
-#endif
+	if (PlatformNeedsNonNativeColorDialog()) {
+		options |= QColorDialog::DontUseNativeDialog;
+	}
 
 	QColor newColor = QColorDialog::getColor(color, this, desc, options);
 	if (!newColor.isValid()) {

@@ -495,9 +495,9 @@ bool SourceTree::Edit(int row)
 	QWidget *widget = indexWidget(index);
 	SourceTreeItem *itemWidget = reinterpret_cast<SourceTreeItem *>(widget);
 	if (itemWidget->IsEditing()) {
-#ifdef __APPLE__
-		itemWidget->ExitEditMode(true);
-#endif
+		if (PlatformEndsSourceEdit()) {
+			itemWidget->ExitEditMode(true);
+		}
 		return false;
 	}
 
