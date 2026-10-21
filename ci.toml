@@ -70,9 +70,11 @@ uv = { via = "setup-uv", max = "50MB" }
 # Queue OFF/ON objects share one measured ~475 MB archive. Independent LRU
 # protection prevents newer nightly writes from evicting that queue seed.
 zccache-tier2 = { prefix = "zccache-tier2-linux-", max = "550MB", evict = "lru" }
-# Nightly Ubuntu/AppImage/sanitizer objects keep their pooled allowance.
-# Combined with Tier 2 this is 1650 MiB, down from the old 1700 MiB.
-zccache = { prefix = "zccache-", max = "500MB", evict = "lru", shapes = { ubuntu = { max = "400MB" }, appimage = { max = "400MB" }, sanitize = { max = "300MB" } } }
+# Compatible Ubuntu OFF/ON archives measured 712,847,430 + 795,699,586 B.
+# Separate first-match LRU from AppImage/sanitizer writes; both modes fit.
+# Capacity comes from the measured native/dependency allowances below (#1269).
+zccache-ubuntu = { prefix = "zccache-ubuntu-", max = "1.6GB", evict = "lru" }
+zccache = { prefix = "zccache-", max = "500MB", evict = "lru", shapes = { appimage = { max = "400MB" }, sanitize = { max = "300MB" } } }
 # Windows compiler cache: ccache as cl.exe (build-project.yaml windows-build).
 windows-ccache = { prefix = "windows-ccache-", max = "800MB", evict = "lru" }
 # macOS: Xcode's compilation cache (build-project.yaml macos-build).
@@ -100,13 +102,15 @@ targets-ccache = { prefix = "targets-ccache-linux-", max = "300MB" }
 targets-apt = { prefix = "targets-apt-", max = "200MB", evict = "lru" }
 # Added on master after #957 was written.
 tier2-ctest-cost = { prefix = "tier2-ctest-cost-", max = "1MB" }
-windows-tier2-ccache = { prefix = "windows-tier2-ccache-", max = "800MB", evict = "lru" }
-macos-tier2-xcas = { prefix = "macos-tier2-xcas-", max = "500MB", evict = "lru" }
+# October 21 snapshot: 41.4 MB Windows and 44.3 MB macOS; >3x growth room.
+windows-tier2-ccache = { prefix = "windows-tier2-ccache-", max = "128MB", evict = "lru" }
+macos-tier2-xcas = { prefix = "macos-tier2-xcas-", max = "128MB", evict = "lru" }
 # Measured warm archive ~1.11 GB; the job bounds ccache to 1200M before save.
 qt-ccache = { prefix = "qt-ccache-linux-", max = "1.3GB", evict = "lru" }
 vcpkg-cmocka = { prefix = "vcpkg-bin-cmocka-", max = "100MB" }
-libs-qt = { prefix = "libs-qt-", max = "1GB" }
-libs-ffmpeg = { prefix = "libs-ffmpeg-", max = "500MB" }
+# Immutable dependency archives measured 25.3/66.3 MB; each allowance >2x.
+libs-qt = { prefix = "libs-qt-", max = "64MB" }
+libs-ffmpeg = { prefix = "libs-ffmpeg-", max = "128MB" }
 appimage-ccache = { prefix = "ccache-appimage-", max = "100MB" }
 
 # -- Local runs (local-gate.toml) --------------------------------------------
