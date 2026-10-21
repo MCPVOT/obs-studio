@@ -90,6 +90,19 @@ class FlatpakCacheWriterTest(unittest.TestCase):
         self.assertIn("steps.flatpak-compiler-cache.outputs.cache-hit != 'true'", save)
 
 
+class RetiredCacheFamilyTest(unittest.TestCase):
+    def test_pre_zccache_reservations_have_no_remaining_consumer(self):
+        families = load()["cache"]["family"]
+        keys = cache_keys()
+        for name, prefix in (("tier2-ccache", "tier2-ccache-linux-"),
+                             ("appimage-apt", "apt-appimage-"),
+                             ("appimage-ccache", "ccache-appimage-")):
+            with self.subTest(family=name):
+                self.assertFalse([path for path, key in keys if key.startswith(prefix)],
+                                 "retire a family only after its consumers are removed")
+                self.assertNotIn(name, families, "obsolete reservation must not consume declared capacity")
+
+
 def family_prefixes(ci: dict) -> list[str]:
     out = []
     for fam in ci["cache"]["family"].values():

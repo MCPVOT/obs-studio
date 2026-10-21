@@ -82,9 +82,10 @@ xcode = { prefix = "macOS-xcode-", max = "500MB", evict = "lru" }
 # Flatpak: flatpak-builder's dependency cache and its SDK ccache.
 flatpak-builder = { prefix = "flatpak-builder-", max = "2.5GB", evict = "lru" }
 flatpak-ccache = { prefix = "flatpak-ccache-", max = "200MB" }
-# AppImage (appimage.yaml): cargo, apt and the test images' packages.
+# AppImage (appimage.yaml): cargo and the test images' packages.
+# Legacy apt-appimage- and ccache-appimage- have no consumers or live entries;
+# they deliberately have no retention family (#1269).
 appimage-cargo = { prefix = "cargo-appimage-", max = "500MB", evict = "lru" }
-appimage-apt = { prefix = "apt-appimage-", max = "250MB" }
 appimage-testpkgs = { prefix = "testpkgs-", max = "250MB" }
 # Known CodeQL overlay bases: observed C++ ~131 MB and Python ~11 MB.
 # Automatic default setup is disabled; scans run nightly in scheduled.yaml.
@@ -92,9 +93,7 @@ appimage-testpkgs = { prefix = "testpkgs-", max = "250MB" }
 codeql-overlay = { prefix = "codeql-overlay-base-database-", max = "200MB", evict = "lru" }
 # services-validator action.
 service-check = { prefix = "service-check-", max = "1MB" }
-# Transitional: the ccache keys master's Tier 2 and AppImage jobs restore
-# until #957 (zccache) merges. Delete both once master saves zccache-*.
-tier2-ccache = { prefix = "tier2-ccache-linux-", max = "110MB" }
+# Pre-zccache tier2-ccache-linux- has no consumer or live entry; no family.
 # Tier 2's apt downloads (#1055) and the per-target Linux plugin builds' ccache.
 tier2-apt = { prefix = "tier2-apt-", max = "400MB" }
 targets-ccache = { prefix = "targets-ccache-linux-", max = "300MB" }
@@ -111,7 +110,6 @@ vcpkg-cmocka = { prefix = "vcpkg-bin-cmocka-", max = "100MB" }
 # Immutable dependency archives measured 25.3/66.3 MB; each allowance >2x.
 libs-qt = { prefix = "libs-qt-", max = "64MB" }
 libs-ffmpeg = { prefix = "libs-ffmpeg-", max = "128MB" }
-appimage-ccache = { prefix = "ccache-appimage-", max = "100MB" }
 
 # -- Local runs (local-gate.toml) --------------------------------------------
 [local]
