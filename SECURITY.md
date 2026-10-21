@@ -24,8 +24,9 @@ that turns out to be low risk to a public issue, and tells you.
 
 Open a bug issue, or a PR with a failing test and then the fix, as
 [docs/rust-port/coordination.md](docs/rust-port/coordination.md) says.
-Mention the bug class (for example use-after-free) in the title, so it
-can be found later. No advisory is needed.
+Use the title `bug: <component>: <symptom>` with the bug class (for
+example use-after-free) in the symptom, so it can be found later. It may
+carry the `security` label. No advisory is needed.
 
 ## High risk: report it privately
 
@@ -83,7 +84,8 @@ advisory only when that person works on its fix.
 
 After disclosure, any public follow-up work (hardening, regression
 tests, release notes) is tracked in normal issues with the `security`
-label. The label is never used for an undisclosed vulnerability.
+label. The label is never used for an undisclosed high-risk
+vulnerability.
 
 ## Upstream OBS Studio
 

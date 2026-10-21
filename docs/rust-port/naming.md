@@ -30,11 +30,15 @@ One name per thing, so releases, crates and tags can't be confused (#320).
   `libobs/obs-host/` for the libobs core, with one header per capability
   (`com.h`, `graphics-thread.h`, `shared-texture.h`, ...). A host that has
   the capability defines it in its own file (`obs-windows.c`, `obs-nix.c`,
-  `obs-cocoa.m`). A host that lacks it builds `obs-host/noop/<capability>.c`,
-  listed in `libobs/cmake/os-<os>.cmake`, so no `#ifdef` picks between them.
+  `obs-cocoa.m`). A host that lacks it includes `obs-host/noop/<capability>.hpp`
+  at the end of its host file (`obs-nix.c.h`, ...; see [BUILD.md](../../BUILD.md)),
+  so no `#ifdef` picks between them.
   This is the C form of a crate's `src/platform/mod.rs`.
 - **When a C component is fully ported**, its C sources are deleted and its
-  CMake target links the Rust staticlib. No moved copy of the C is kept.
+  CMake target links the Rust staticlib. No moved copy of the C is kept in
+  the product tree; the one exception is the differential-test oracle copy
+  under `rust/obs-c-oracle/legacy/` that the
+  [testing policy](testing-policy.md) (Tier 3) requires.
 - **Later, not now:** once we stop merging upstream, the remaining C/C++
   (mostly `frontend/` and `plugins/`) may move under one root directory in a
   single mechanical PR (only `git mv` plus CMake, CI and docs paths), landed

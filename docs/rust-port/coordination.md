@@ -96,6 +96,11 @@ this document covers *who does what, and when*.
   queue reruns PR CI on the merge result with current master, and the
   required `CI Gate ✅` check decides. You do not need to rebase by hand for
   unrelated master changes; rebase only when GitHub reports a conflict.
+  The coordinator (obs-coordinator skill, §2) acts for the maintainer and
+  also rebases a PR that was ejected from the queue, a stacked PR whose base
+  landed, a PR about to go in behind the queue head that touches the same
+  files, and a `docs/features.md` ledger conflict. A rebase changes the head,
+  so it drops a local-gate stamp and PR CI runs the full Linux suite again.
 - **Submodules move forward only.** PR CI fails when a PR moves a submodule
   pointer (for example `plugins/obs-websocket`) to a commit that does not
   descend from master's pointer, which usually means a stale checkout. Run
@@ -120,21 +125,22 @@ this document covers *who does what, and when*.
   tick the tracking-issue checkbox when it merges.
 - **Draft status:** mark the PR ready when it is ready. If you move a PR back
   to draft, say why in a comment.
-- **Rebasing someone else's PR** (maintainers may): push with
-  `--force-with-lease`, and name the replaced head SHA in a comment.
+- **Rebasing someone else's PR** (maintainers, and the coordinator acting
+  for them, may, for the rebases above and for mechanical fixups such as
+  lint or formatting): push with `--force-with-lease`, and name the replaced
+  head SHA in a comment.
 
 ## 5. Filing issues
 
-- **High-risk vulnerability** (see the two tiers in SECURITY.md): not an issue. Don't file, claim or push it;
-  report it privately as [SECURITY.md](../../SECURITY.md) says, and work on
-  the private fork the maintainers open on the advisory. Current default
-  rule: if untrusted input can reach the defect (network, websocket, media
-  files or streams, browser pages, scene or profile files from others),
-  report privately; if only a local user's own actions or a test can reach
-  it, file a public bug; if unsure, report privately (a maintainer can move
-  it to public).
-- **Bug:** use the bug template. Title `bug: <component>: <symptom>` (or
-  `[crash] <component>: …`). Include file:line, a short excerpt, the class
+- **Security bugs:** apply the tiers in
+  [SECURITY.md](../../SECURITY.md) ("Two tiers"). A high-risk one (a remote
+  party can reach it, or it leaks credentials) is not an issue: don't file,
+  claim or push it; report it privately and work on the private fork the
+  maintainers open on the advisory. If unsure, report privately. A low-risk
+  one is a normal public bug and may carry the `security` label.
+- **Bug:** use the bug template. Title `bug: <component>: <symptom>`; for a
+  security bug, name the class in the symptom (`bug: obs-ffmpeg:
+  use-after-free on seek`). Include file:line, a short excerpt, the class
   (OOB read, UAF, overflow, …), how it is reached, a proposed fix and a
   failing-test sketch.
 - **Upstream OBS bugs:** add `(upstream #N)` to the title and credit the reporter.
@@ -171,10 +177,11 @@ this document covers *who does what, and when*.
 `master` blocks force pushes and deletion, including for administrators.
 
 By default, changes reach master through GitHub's merge queue (ruleset "master
-merge queue (#692)", squash merges). Queue a green PR with
-`gh pr merge <N>`. Agents and contributors do not use `gh pr merge --admin`
-without explicit maintainer authorization under the bypass policy below,
-and never push to master.
+merge queue (#692)", whose merge method is squash: each PR lands as one
+commit). Queue a green PR with `gh pr merge <N>`. Workers and contributors
+do not use `gh pr merge --admin` without explicit maintainer authorization
+under the bypass policy below, and never push to master. The coordinator
+never merges outside the queue, with `--admin` or otherwise.
 The queue reruns PR CI on the merge result with current master, and the one
 required check is `CI Gate ✅` (`ci.yml`). That job always reports: it
 passes when every required job passed or was skipped (out of scope, attested by
@@ -194,7 +201,8 @@ which gets slower with each agent added. So the queue is the normal path,
 and lane proofs (docs/ci-tooling.md) let a rebuilt group skip the lanes whose
 inputs did not change.
 
-**Maintainer bypass.** The ruleset lets the repository admin role bypass it
+**Maintainer bypass.** It belongs to the maintainer, or to a worker the
+maintainer explicitly authorizes; never to the coordinator. The ruleset lets the repository admin role bypass it
 for pull requests only (`gh pr merge <N> --admin --squash`; direct pushes
 stay blocked). It is for a maintainer landing a small, low-risk PR (docs, a
 bot or CI tweak) that should not wait for a CI run. It skips CI, and it moves
@@ -223,7 +231,9 @@ rebuild. If rebuilds after bypasses show up there, tighten this rule.
 In an emergency an administrator may set the ruleset's enforcement to
 "disabled", land the fix, and enable it again, saying so in the PR.
 
-Do not require linear history while the project uses merge commits for PRs.
+The queue squash-merges, but the repository still allows merge commits
+(older history and an admin bypass may use them), so do not require linear
+history.
 Review this policy again if direct pushes are retired or the gate's CI
 reporting changes. Every PR still targets `master` as section 4 requires;
 GitHub branch protection cannot prevent an author from choosing another

@@ -2,8 +2,9 @@
 
 **Status:** Mandatory. Every change that ports C/C++ code to Rust MUST follow
 this policy exactly. If a rule cannot be followed for a specific unit, stop and
-record the exception in the tracking issue under `## Decisions` before writing
-code; do not silently deviate.
+record the exception on the tracking issue under **Decisions:** (the format
+[coordination.md](coordination.md) §2 uses) before writing code; do not
+silently deviate.
 
 ## Goal
 
@@ -87,7 +88,8 @@ cannot prove both, so every ported unit carries the four tiers below.
   no missing C symbols or leaked Rust internals. Keep platform export controls.
 - Run `rust/tools/linux-validate/run.sh` to check both requirements. It builds
   once in Docker, runs the cmocka tests against each libobs, and diffs the
-  exported symbols. Paste its summary into the PR.
+  exported symbols. PR CI's Tier 2 jobs run it and satisfy this requirement;
+  paste its summary into the PR only if you ran it locally.
 - Tests for the C boundary are written in C (they already are). Do not add
   C++ tests for C APIs.
 - Memory that C code later frees or resizes (e.g. darray buffers) MUST be
@@ -141,7 +143,8 @@ cannot prove both, so every ported unit carries the four tiers below.
   listed in the test file and in the tracking issue, and the property test
   must exclude exactly those inputs, no more.
 - When a C source is removed from the production tree, move that original
-  source to `rust/obs-c-oracle/legacy/` in the same change and update its
+  source to `rust/obs-c-oracle/legacy/` (created by the first such removal;
+  it is the one allowed copy of ported C) in the same change and update its
   oracle wrapper. Keep Tier 3 parity running; the production source's
   deletion does not end the behavioral baseline. See
   [release-criteria.md](release-criteria.md) for the release and rollback
@@ -151,8 +154,9 @@ cannot prove both, so every ported unit carries the four tiers below.
 
 - Applies to obs-websocket and any other network-facing surface.
 - Written against the running server over the wire, independent of the
-  implementation language. Keep the existing C++ obs-websocket plugin unchanged
-  and run the same suite against the reference and hybrid libobs applications.
+  implementation language. The suite MUST pass against the unchanged C++
+  obs-websocket plugin loaded by both libobs builds (the C reference and
+  hybrid). The plugin is never ported (AGENTS.md).
 
 ## Required workflow for each ported unit
 
@@ -289,8 +293,8 @@ Tier 2 checks.
 - Inputs that trigger C UB are excluded and listed. The `get_ue_golomb` UB is
   already fixed in C (#11, #17).
 - obs-websocket gets a Tier 4 black-box suite covering every v5 request type,
-  events, the auth handshake and error codes. It MUST pass against the current
-  C++ server before any port.
+  events, the auth handshake and error codes. It MUST pass against the
+  unchanged C++ plugin on both libobs builds; the plugin is never ported.
 
 ## Header-inline code (static inline functions and macros)
 
@@ -347,7 +351,8 @@ rust/
     src/ffi/bitstream.rs      # extern "C" shim, #[repr(C)] types (Tier 2)
     src/ffi/*.rs              # matching shims for the cores above
     src/platform/             # the only host-specific code (cfg_select!, unix/, windows/)
-    tests/containers/main.rs  # shared component test binary; see Test binary budget
+    tests/suite.rs            # the one obs-util test binary (Utilities category; see Test binary budget)
+    tests/containers/main.rs  # a module of suite.rs, like config/, memory/, threading/, ...
     tests/containers/bitstream.rs        # Tier 1: 1:1 port of test/cmocka/test_bitstream.c
     tests/containers/bitstream_layout.rs # Tier 2: struct layout vs. C header
     tests/containers/bitstream_parity.rs # Tier 3: proptest vs. C oracle

@@ -44,7 +44,7 @@ not get a line.
 
 - **Hybrid Rust/C application build.** Completed Rust ports replace their C
   equivalents in the normal application; unported components remain available.
-  *All*, pending merge and release approval. Issue
+  *All*, 2026-10-21. Issue
   [#1587](https://github.com/obs-rust/obs-studio/issues/1587), PR
   [#1588](https://github.com/obs-rust/obs-studio/pull/1588).
 
@@ -348,11 +348,12 @@ not get a line.
   for example on Debian 13. *Linux*, 2026-10-16. Issue
   [#1015](https://github.com/obs-rust/obs-studio/issues/1015), PR
   [#1017](https://github.com/obs-rust/obs-studio/pull/1017).
-- **Rust libobs (opt-in).** Every build also makes `libobs-with-rust`, with
-  parts of libobs ported to Rust and the same exported symbols as the C
-  libobs. Packages still ship the C libobs until the [release
-  criteria](rust-port/release-criteria.md) are met; a build can load the
-  Rust one in its place. *All*, 2026-10-13. Issues
+- **Rust libobs.** Parts of libobs are ported to Rust with the same
+  exported symbols as the C libobs. It began as an opt-in
+  `libobs-with-rust` build; since #1588 the hybrid Rust/C `libobs` is the
+  application default (see "Hybrid Rust/C application build"), and the
+  C-only `libobs-c-reference` is built only on request for tests. *All*,
+  2026-10-13. Issues
   [#4](https://github.com/obs-rust/obs-studio/issues/4),
   [#453](https://github.com/obs-rust/obs-studio/issues/453),
   [#1065](https://github.com/obs-rust/obs-studio/issues/1065), PRs

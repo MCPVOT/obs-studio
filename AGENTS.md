@@ -94,7 +94,7 @@ errors (soldr permissions, disk, Docker, host FFmpeg): see
 - To let CI skip the Linux unit-test jobs, commit, then run
   `uvx --from git+https://github.com/zackees/ci.yml@1a970f01574447d681571ff3d0b8de56cb983dcc ci-lint local-gate run`.
   It runs every lane in `local-gate.toml` (unchanged lanes are cached) and stamps HEAD with attestation trailers. Push the stamped commit as-is; any later change invalidates the stamp.
-- A PR runs only the lanes its changed paths select (the `LANES` table in `ci/ci_scope.py`: Fast Gate always, Tier 2 for libobs/linked crates/`test/cmocka/`, Qt for `frontend/`, a Linux build of only the touched `plugins/<x>`/`shared/<x>` targets; macOS/Windows only for their own platform files). The full OBS app builds never run from a PR path. No label changes what runs. A master push adds every lane a PR defers (Tier 2, Qt, the workspace tests) but builds macOS, Windows and Flatpak only for paths that select them; schedule, workflow_dispatch, tags and the release gate run everything (#436).
+- A PR runs only the lanes its changed paths select (the `LANES` table in `ci/ci_scope.py`: Fast Gate always, Tier 2 for libobs/linked crates/`test/cmocka/`, Qt for `frontend/`, a Linux build of only the touched `plugins/<x>`/`shared/<x>` targets; macOS/Windows only for their own platform files). The full OBS app builds never run from a PR path. No label changes what runs. A master push adds every lane a PR defers (Tier 2, Qt, the workspace tests) and runs the macOS/Windows Rust tests and Tier 2 only for paths that select them; it builds no OBS app. Schedule, workflow_dispatch, tags, release branches and the release gate run everything, including the macOS, Windows, Ubuntu and Flatpak app builds (#436).
 
 ## Quick rules
 
@@ -108,7 +108,9 @@ errors (soldr permissions, disk, Docker, host FFmpeg): see
   checks crates): `obs-<area>` ports, product slug `obs-studio-rust`.
 - Don't move upstream C/C++ files to restructure: the upstream tree
   stays in place, Rust goes in the `rust/` workspace, and a fully ported C
-  component is deleted, not moved. See the layout section of
+  component is deleted, not moved. The one allowed copy of its C is the
+  differential-test oracle under `rust/obs-c-oracle/legacy/` that the
+  testing policy requires (Tier 3). See the layout section of
   [docs/rust-port/naming.md](docs/rust-port/naming.md) (#1051). The one
   rename allowed is in place, to the build-role names of
   [BUILD.md](BUILD.md) (`foo.c` to `foo.c.h`).
@@ -123,8 +125,8 @@ errors (soldr permissions, disk, Docker, host FFmpeg): see
   new host conditional or OS header in a shared file, and a platform file that
   names another OS. Shared libobs core calls host code through one interface
   per capability in `libobs/obs-host/<capability>.h` (`OBS_HOST_EXTERN`); a
-  host implements it in its OS file or builds `obs-host/noop/<capability>.c`,
-  picked in `libobs/cmake/os-<os>.cmake`.
+  host implements it in its OS file, or its host file (`obs-nix.c.h`, ...)
+  includes `obs-host/noop/<capability>.hpp` for a capability it lacks.
 - Host-specific code (`#[cfg(windows|unix|target_os..)]`, `cfg!()`, `std::os::*`,
   `libc::`, Win32) goes only in the crate's `src/platform/` (single
   `cfg_select!` in `platform/mod.rs`) or `src/ffi/`. A pre-expansion Dylint
@@ -140,7 +142,7 @@ errors (soldr permissions, disk, Docker, host FFmpeg): see
   decides what ships in a release artifact) must be covered by a test that runs
   the packaged artifact the way a user does, including a saved profile with the
   sources users depend on (screen capture, camera, microphone), not only a first
-  start with an empty profile. `test-appimage.sh` is that test for the AppImage;
+  start with an empty profile. `build-aux/appimage/test-appimage.sh` is that test for the AppImage;
   extend it when a change adds something loaded at runtime, and show it failing
   without the change (obs-rust/obs-studio#426).
 

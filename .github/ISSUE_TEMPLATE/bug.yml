@@ -6,11 +6,10 @@ body:
   - type: markdown
     attributes:
       value: >-
-        **High-risk vulnerability (a remote party can reach it, or it leaks credentials)? Don't file it here.** Report it privately as
-        [SECURITY.md](https://github.com/obs-rust/obs-studio/blob/master/SECURITY.md) says.
-        Default rule: untrusted input can reach it (network, websocket, media files or streams,
-        browser pages, scene or profile files from others) or you are unsure → private advisory;
-        only a local user's own actions or a test can reach it → this form.
+        **Security bug?** Apply the two tiers in
+        [SECURITY.md](https://github.com/obs-rust/obs-studio/blob/master/SECURITY.md#two-tiers).
+        High risk (a remote party can reach it, or it leaks credentials) or unsure: don't file it here,
+        report it privately. Low risk: use this form, put the bug class in the title's symptom.
   - type: markdown
     attributes:
       value: Read docs/rust-port/coordination.md first. Search open issues and PRs for duplicates.

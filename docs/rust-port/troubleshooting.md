@@ -41,9 +41,14 @@ then fail in confusing ways (truncated objects, linker errors, Docker layer
 errors).
 
 **Fix:** run `soldr gc` to review and remove stale Rust target directories,
-and prune old Docker data (`docker system df`, then
-`docker volume ls --filter name=obs-rust-linux-validate-` for the Tier 2
-build volumes). Keep at least 10 GiB free.
+and remove only your own old Tier 2 build volumes: list them with
+`docker volume ls --filter name=obs-rust-linux-validate-` and
+`docker volume rm` the ones your clone created. Never run
+`docker system prune` or `docker volume prune`: on a shared machine they
+destroy everyone's warm caches. Check `bosn jobs` before heavy Docker work,
+and leave bosn-owned volumes to bosn
+([ci-tooling.md](../ci-tooling.md#bosn-docker-under-supervision)). Keep at
+least 10 GiB free.
 
 ## Tier 2 fails against host packages (FFmpeg 7.1 and libobs needs 8.0)
 

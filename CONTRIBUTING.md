@@ -41,8 +41,8 @@ To reduce possible friction of the review process, a simple set of rules should 
     * It is entirely the reviewer's decision whether they would consider the changes to be sufficient to address their concerns. Just having addressed a comment, does not resolve it.
     * As a reviewer, make sure to regularly review the comments received on your reviews, check the code changes, and resolve your comments once they have been addressed. **Don't leave pull request authors hanging.**
     * Project members will usually ping reviewers about unresolved review comments and resolve such comments themselves to unblock PRs from being merged.
-* When addressing review comments through code changes, try to avoid force-pushes and use temporary commits which can be squashed later (see below).
-    * Unless necessary, avoid rebasing a pull request branch unless it is absolutely necessary. Rebasing will pull in changes from the base branch into the "changes since last push" of the pull request, making it harder for reviewers to check what changes have been pushed.
+* When addressing review comments through code changes, prefer adding commits over force-pushing rewritten history, so reviewers can see what changed since their review.
+    * This is about the history reviewers read, not about keeping the PR branch current: rebasing onto master when GitHub reports a conflict, and the coordinator's rebases of ejected, stacked or about-to-land PRs, are expected (see [coordination.md](docs/rust-port/coordination.md), section 4). The merge queue squash-merges each PR, so master gets one commit per PR either way.
 
 ## Commit Authoring Guidelines
 
@@ -100,7 +100,7 @@ To help with the formatting of code, the project contains configuration files fo
 
 #### Commit Contents
 
-The changes contained in a commit should attempt to represent logical “units of change” that make sense in isolation and do not necessarily require any preceding or following commits to work. Indeed if a single commit would potentially leave the project in a broken state (e.g., the project cannot be compiled, the application not run, or basic application functionality cannot function) then it is not a full “unit of change”.
+The changes contained in a commit should attempt to represent logical “units of change” that make sense in isolation and do not necessarily require any preceding or following commits to work. Indeed if a single commit would potentially leave the project in a broken state (e.g., the project cannot be compiled, the application not run, or basic application functionality cannot function) then it is not a full “unit of change”. The accepted exception is a RED commit: under the [testing policy](docs/rust-port/testing-policy.md) a port or fix first commits a failing test, then the GREEN commit that makes it pass.
 
 * Changes to misspelled words or purely aesthetic changes should in principle not be individually capable of breaking the project in such a way and are permitted to be grouped into a single “large” commit
 * If a larger change requires some foundation of fixes to the existing code to make sense, those fixes represent a “unit of change” that should be decoupled from the functional changes made on top of them. Even better, such a change should be encapsulated in its own, separate, pull request.
@@ -108,7 +108,7 @@ The changes contained in a commit should attempt to represent logical “units o
 > [!IMPORTANT]
 > During review and collaboration the need for additional changes can arise quickly. It is permitted (and preferred) to temporarily ignore these guidelines to quickly provide changes required to address review comments and add many small, iterative, commits to the pull request.
 >
-> Once all review comments have been addressed, the changes need to be squashed into existing commits or alternatively a new set of commits can be created from all accumulated changes to restore compliance with the guidelines again.
+> Once all review comments have been addressed, fold the review fixups into the commits they belong to, but keep the RED and GREEN commits separate; do not squash them together. The merge queue squashes the PR into one commit on master.
 
 #### Co-Authorship
 

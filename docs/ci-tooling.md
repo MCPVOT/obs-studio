@@ -43,8 +43,9 @@ win.
    `rustc`, `rustup` or `rustfmt`. Run it from the repository root (the cargo
    workspace), not from `rust/`. Python goes through `uv run` / `uvx`, never
    bare `python`.
-2. **Prove changes locally, once, with the local gate**, then push the stamped
-   commit unchanged. A valid stamp lets PR CI skip the Linux test jobs.
+2. **The local gate is optional.** If you run it, push the stamped commit
+   unchanged: a valid stamp lets PR CI skip the Linux test jobs. Without a
+   stamp, PR CI runs them itself.
 3. **Don't use GitHub as your test runner.** Don't push to "see if CI passes",
    don't re-run whole workflows to debug, and don't look for a label to
    force more CI: no label changes what runs, only the changed paths do.
@@ -298,8 +299,9 @@ the paths that select them, so a change only triggers the tests it can affect.
     Linux with soldr;
   - `tier2-linux`: the cmocka suite against libobs and libobs-c-reference, in
     Docker.
-- **`ci/ci_scope.py`** maps changed paths to jobs, by path alone (#897). Linux
-  Rust tests and Tier 2 always run. A changed file that belongs to a platform
+- **`ci/ci_scope.py`** maps changed paths to jobs, by path alone (#897). The
+  Fast Gate always runs; Linux Tier 2 runs for the paths in its `LANES` row
+  (table below). A changed file that belongs to a platform
   (`ci/platform_paths.py`: path tokens such as `win-capture/`,
   `platform-osx.mm`, `rust/*/src/platform/windows/`, or extensions such as
   `.m`, `.rc`) starts that platform's Rust tests and Tier 2. POSIX/Unix files
@@ -316,8 +318,12 @@ the paths that select them, so a change only triggers the tests it can affect.
   CMake files, crate-root `rust/<crate>/build.rs`, `platform/mod.rs`,
   `test/cmocka/CMakeLists.txt` and the C++
   cmocka tests with their `tests.d` registrations (#610). Pushes and the
-  merge queue are scoped the same way; every platform runs on master pushes, schedule, workflow_dispatch, tags,
-  release branches and in the release gate; no PR path selects the full builds.
+  merge queue are scoped the same way. A master push adds the lanes a PR
+  defers (Linux Tier 2, Qt, the workspace tests) and runs macOS/Windows
+  Rust tests and Tier 2 only for paths that select them; it builds no OBS
+  app. Every platform and every app build runs on schedule,
+  workflow_dispatch, tags, release branches and in the release gate; no PR
+  path selects the full builds.
   Packaging and submodule moves are still compiled on Linux (touched targets)
   on the PR. `.github/` edits start no platform job.
 
@@ -442,12 +448,14 @@ spending runner time on an already-fixed failure; see
 4. Check `git diff --cached` for an unintended `plugins/obs-websocket` pointer
    change. A pointer that doesn't descend from master's is rejected, and stale
    pointers have reverted merged fixes before.
-5. Run the local gate from a clean, committed tree. If it reports another gate
-   running for this clone, wait and retry.
-6. Push the stamped commit as-is: no amend, no rebase, no "Update branch"
-   afterwards. Rebase before stamping, not after.
-7. There is no label to force CI: a `build-aux/` or submodule change selects
-   the full builds by path.
+5. Optional: run the local gate from a clean, committed tree. If it reports
+   another gate running for this clone, wait and retry.
+6. If you ran it, push the stamped commit as-is: no amend, no rebase, no
+   "Update branch" afterwards. Rebase before stamping, not after. If you
+   didn't, just push; PR CI runs the Linux jobs itself.
+7. There is no label to force CI. A `build-aux/` or submodule change is
+   compiled on Linux only; the full builds run on schedule,
+   workflow_dispatch, tags and the release gate.
 
 ## When CI fails
 

@@ -35,7 +35,10 @@ gh api graphql -f query='{repository(owner:"obs-rust",name:"obs-studio"){mergeQu
 A green PR that is not in the queue is a backlog, and clearing it is the
 coordinator's first job. The merge gate is PR CI and the queue
 ([AGENTS.md](../../../AGENTS.md#merge-gate-pr-ci)), so a green PR has passed
-the gate. Never merge around the queue.
+the gate. Never merge around the queue, not even with `--admin`: the
+maintainer bypass in [coordination.md](../../../docs/rust-port/coordination.md)
+§8 belongs to the maintainer, or to a worker the maintainer explicitly
+authorizes.
 
 ## 2. Unstick PRs
 
@@ -44,7 +47,8 @@ the gate. Never merge around the queue.
     doesn't touch that passed in the sibling job): `gh run rerun <run> --failed`.
   - A master regression that a later merge fixed: rebase the PR
     (`gh pr update-branch <N> --rebase`).
-  - A real failure in the PR's own change: comment the cause and the log line
+  - A lint or formatting failure: push the fix as a mechanical fixup (below).
+  - A real failure in the PR's own logic: comment the cause and the log line
     for the author. Do not take the fix over.
 - **`UNMERGEABLE` in the queue, or `DIRTY`:** usually a `docs/features.md`
   ledger conflict with an entry ahead of it. After that entry lands, rebase,
@@ -68,7 +72,11 @@ the gate. Never merge around the queue.
   `fixup:` commit, and say so in a comment.
 
 Push to a fork branch only when the PR allows maintainer edits, and always
-with `--force-with-lease=<branch>:<old head sha>`.
+with `--force-with-lease=<branch>:<old head sha>`. These rebases are the
+exceptions [coordination.md](../../../docs/rust-port/coordination.md) §4
+makes to "rebase only on conflict"; you act for the maintainer. A rebase
+changes the head, so it drops a local-gate stamp and PR CI runs the full
+Linux suite again.
 
 ## 2a. Review
 
@@ -150,3 +158,4 @@ Publishing closed the comments and made the open path public.
 - Push to someone else's branch for anything other than a rebase, a ledger
   conflict, or a mechanical fixup (§2).
 - Open new issues for problems you notice. Report them to the maintainer.
+  Filing a follow-up that someone already agreed to (§4) is allowed.

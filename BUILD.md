@@ -213,10 +213,14 @@ merge PR.
 - Windows and macOS from Linux: `cmake/cross` (soldr's clang with the
   Windows SDK and the Apple SDK) builds libobs and the platform plugins
   through the same groups. Extend it when a component converts.
-- A change to `cmake/common/`, `cmake/pch/` or any group or precompiled
-  header must pass a full Windows and macOS build
-  (`gh workflow run ci.yml --ref <branch>`) before it merges: PR CI is
-  path-scoped and does not build those apps.
+- A change to `cmake/common/`, `cmake/pch/` or a precompiled header itself
+  must pass a full Windows and macOS build
+  (`gh workflow run ci.yml --ref <branch>`, which runs every build) before
+  it merges. PR CI never builds the OBS apps: `cmake/common/` starts only
+  the macOS and Windows Rust tests and Tier 2, `cmake/pch/` starts nothing
+  beyond the Fast Gate, and a `libobs/build/` file starts Linux Tier 2. A
+  port that only adds its source's `#include` to a `ported-*` group does
+  not need the manual run.
 
 ## Transition
 

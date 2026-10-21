@@ -12,13 +12,15 @@ Lanes:
            the diff touches, ci/rust_scope.py): the Fast Gate job;
 - tier2:   libobs, the crates linked into libobs (derived from
            rust/libobs-rust/Cargo.toml), test/cmocka, deps, the validate
-           tooling -> Tier 2 Linux (cmocka against libobs and libobs-with-rust);
+           tooling -> Tier 2 Linux (cmocka against hybrid libobs and
+           libobs-c-reference);
 - linux_targets: plugins/<x>/ and shared/<x>/ touched -> the Linux CMake
            targets of those modules (one configure, ENABLE_FRONTEND=OFF, no
            Qt); untouched modules are not built, nothing touched skips the job;
 - full:    never from a PR path: every OBS app build (Ubuntu, macOS, Windows,
            Flatpak) runs on schedule, workflow_dispatch, tags and the release gate
-           (#436); a master push builds them only for paths that select them. Platform and Qt files are costly: macOS and
+           (#436); a master push builds none of them. Platform and Qt files
+           are costly: macOS and
            Windows start only for a file of that platform or a shared build
            file (cmake/common, cmake/finders, libobs/cmake, root CMake; NOT
            .github/, whose edits run the ci/ self-tests and the changed jobs
