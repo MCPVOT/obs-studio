@@ -51,29 +51,6 @@ static enum gs_shader_param_type get_effect_param_type(const char *type)
 	return GS_SHADER_PARAM_UNKNOWN;
 }
 
-void ep_free(struct effect_parser *ep)
-{
-	size_t i;
-	for (i = 0; i < ep->params.num; i++)
-		ep_param_free(ep->params.array + i);
-	for (i = 0; i < ep->structs.num; i++)
-		ep_struct_free(ep->structs.array + i);
-	for (i = 0; i < ep->funcs.num; i++)
-		ep_func_free(ep->funcs.array + i);
-	for (i = 0; i < ep->samplers.num; i++)
-		ep_sampler_free(ep->samplers.array + i);
-	for (i = 0; i < ep->techniques.num; i++)
-		ep_technique_free(ep->techniques.array + i);
-
-	ep->cur_pass = NULL;
-	cf_parser_free(&ep->cfp);
-	da_free(ep->params);
-	da_free(ep->structs);
-	da_free(ep->funcs);
-	da_free(ep->samplers);
-	da_free(ep->techniques);
-}
-
 static inline struct ep_func *ep_getfunc(struct effect_parser *ep, const char *name)
 {
 	size_t i;

@@ -2,6 +2,7 @@
 
 #include "libobs/build/libobs.pch.h"
 
+#include "libobs/graphics/effect-parser-lifecycle.c.h"
 #include "libobs/graphics/effect-parser.c.h"
 #include "libobs/graphics/effect.c.h"
 #include "libobs/graphics/graphics-imports.c.h"
