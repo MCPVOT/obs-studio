@@ -32,9 +32,6 @@ class QWidget;
 #if defined(_WIN32) || defined(ENABLE_SPARKLE_UPDATER)
 #define OBS_PLATFORM_HAS_UPDATE_BRANCHES 1
 #endif
-#ifndef _WIN32
-#define OBS_PLATFORM_POSIX_SIGNALS 1
-#endif
 
 #ifdef __APPLE__
 bool InitializeMacApplicationIcon();
@@ -188,3 +185,18 @@ MacPermissionStatus CheckPermissionWithPrompt(MacPermissionType type, bool promp
 #define RequestPermission(x) CheckPermissionWithPrompt(x, true)
 void OpenMacOSPrivacyPreferences(const char *tab);
 #endif
+
+/* Theme policy and application signal transport (#885). */
+class QStyle;
+class OBSApp;
+enum class PlatformAppSignal { Interrupt, Terminate, Abort, Quit };
+const char *GetPlatformThemePrefix();
+QStyle *CreatePlatformThemeStyle();
+void ApplyPlatformThemeDarkMode(bool dark);
+const char *GetPlatformFallbackTheme(const char *defaultTheme);
+void InstallPlatformAppSignalHandlers();
+void ConnectPlatformAppSignals(OBSApp *app);
+bool ConsumePlatformAppSignal(PlatformAppSignal signal);
+void DisconnectPlatformAppSignals();
+void InstallPlatformDllBlocklist();
+void LogPlatformBlockedDlls();

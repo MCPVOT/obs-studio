@@ -266,13 +266,6 @@ string CurrentDateTimeString()
 
 #define DEFAULT_LANG "en-US"
 
-#ifdef OBS_PLATFORM_POSIX_SIGNALS
-std::array<int, 2> OBSApp::sigIntFileDescriptor{0, 0};
-std::array<int, 2> OBSApp::sigTermFileDescriptor{0, 0};
-std::array<int, 2> OBSApp::sigAbrtFileDescriptor{0, 0};
-std::array<int, 2> OBSApp::sigQuitFileDescriptor{0, 0};
-#endif
-
 bool OBSApp::InitGlobalConfigDefaults()
 {
 	config_set_default_uint(appConfig, "General", "MaxLogs", 10);
@@ -968,27 +961,7 @@ OBSApp::OBSApp(int &argc, char **argv, profiler_name_store_t *store)
 	}
 #endif
 
-#ifdef OBS_PLATFORM_POSIX_SIGNALS
-	// Add POSIX signal handlers:
-	// * SIGINT
-	// * SIGTERM
-	// * SIGABRT
-	// * SIGQUIT
-
-	using SignalCallback = decltype(&OBSApp::processSigInt);
-
-	auto connectSignal = [this](std::array<int, 2> &fileDescriptor, QPointer<QSocketNotifier> &notifier,
-				    SignalCallback callback) -> void {
-		socketpair(AF_UNIX, SOCK_STREAM, 0, fileDescriptor.data());
-		notifier = new QSocketNotifier(fileDescriptor[1], QSocketNotifier::Read, this);
-		connect(notifier, &QSocketNotifier::activated, this, callback);
-	};
-
-	connectSignal(sigIntFileDescriptor, sigIntNotifier, &OBSApp::processSigInt);
-	connectSignal(sigTermFileDescriptor, sigTermNotifier, &OBSApp::processSigTerm);
-	connectSignal(sigAbrtFileDescriptor, sigAbrtNotifier, &OBSApp::processSigAbrt);
-	connectSignal(sigQuitFileDescriptor, sigQuitNotifier, &OBSApp::processSigQuit);
-#endif
+	ConnectPlatformAppSignals(this);
 	connect(qApp, &QGuiApplication::commitDataRequest, this, &OBSApp::commitData, Qt::DirectConnection);
 
 #ifndef OBS_RUST_VERSION
@@ -1730,45 +1703,11 @@ bool WindowPositionValid(QRect rect)
 	return false;
 }
 
-#ifdef OBS_PLATFORM_POSIX_SIGNALS
-// Static signal handlers
-void OBSApp::sigIntSignalHandler(int)
-{
-	char tmp = 1;
-	::send(sigIntFileDescriptor[0], &tmp, sizeof(tmp), 0);
-}
-
-void OBSApp::sigTermSignalHandler(int)
-{
-	char tmp = 1;
-	::send(sigTermFileDescriptor[0], &tmp, sizeof(tmp), 0);
-}
-
-void OBSApp::sigAbrtSignalHandler(int)
-{
-	char tmp = 1;
-	::send(sigAbrtFileDescriptor[0], &tmp, sizeof(tmp), 0);
-}
-
-void OBSApp::sigQuitSignalHandler(int)
-{
-	char tmp = 1;
-	::send(sigQuitFileDescriptor[0], &tmp, sizeof(tmp), 0);
-}
-
-// App instance signal processors
 void OBSApp::processSigInt()
 {
-	if (!sigIntNotifier->isEnabled()) {
+	if (!ConsumePlatformAppSignal(PlatformAppSignal::Interrupt)) {
 		return;
 	}
-
-	sigIntNotifier->setEnabled(false);
-
-	char tmp;
-	::recv(sigIntFileDescriptor[1], &tmp, sizeof(tmp), 0);
-
-	sigIntNotifier->setEnabled(true);
 
 	if (PlatformSavesBeforeSignalQuit()) {
 		OBSBasic *main = OBSBasic::Get();
@@ -1783,16 +1722,9 @@ void OBSApp::processSigInt()
 
 void OBSApp::processSigTerm()
 {
-	if (!sigTermNotifier->isEnabled()) {
+	if (!ConsumePlatformAppSignal(PlatformAppSignal::Terminate)) {
 		return;
 	}
-
-	sigTermNotifier->setEnabled(false);
-
-	char tmp;
-	::recv(sigTermFileDescriptor[1], &tmp, sizeof(tmp), 0);
-
-	sigTermNotifier->setEnabled(true);
 
 	OBSBasic *main = OBSBasic::Get();
 	if (main) {
@@ -1834,16 +1766,9 @@ void OBSApp::processSigTerm()
 
 void OBSApp::processSigAbrt()
 {
-	if (!sigAbrtNotifier->isEnabled()) {
+	if (!ConsumePlatformAppSignal(PlatformAppSignal::Abort)) {
 		return;
 	}
-
-	sigAbrtNotifier->setEnabled(false);
-
-	char tmp;
-	::recv(sigAbrtFileDescriptor[1], &tmp, sizeof(tmp), 0);
-
-	sigAbrtNotifier->setEnabled(true);
 
 	if (PlatformSavesBeforeSignalQuit()) {
 		OBSBasic *main = OBSBasic::Get();
@@ -1856,16 +1781,9 @@ void OBSApp::processSigAbrt()
 
 void OBSApp::processSigQuit()
 {
-	if (!sigQuitNotifier->isEnabled()) {
+	if (!ConsumePlatformAppSignal(PlatformAppSignal::Quit)) {
 		return;
 	}
-
-	sigQuitNotifier->setEnabled(false);
-
-	char tmp;
-	::recv(sigQuitFileDescriptor[1], &tmp, sizeof(tmp), 0);
-
-	sigQuitNotifier->setEnabled(true);
 
 	if (PlatformSavesBeforeSignalQuit()) {
 		OBSBasic *main = OBSBasic::Get();
@@ -1875,28 +1793,6 @@ void OBSApp::processSigQuit()
 	}
 	quit();
 }
-#else
-// App instance signal processor stub methods used on Windows for OBSApp API compliance
-void OBSApp::processSigInt()
-{
-	return;
-}
-
-void OBSApp::processSigTerm()
-{
-	return;
-}
-
-void OBSApp::processSigAbrt()
-{
-	return;
-}
-
-void OBSApp::processSigQuit()
-{
-	return;
-}
-#endif
 
 void OBSApp::commitData(QSessionManager &manager)
 {
@@ -1914,21 +1810,7 @@ void OBSApp::applicationShutdown() noexcept
 {
 	RevertPlatformAppSettings(appConfig);
 
-#ifdef OBS_PLATFORM_POSIX_SIGNALS
-	auto disconnectSignal = [this](std::array<int, 2> &fileDescriptor,
-				       QPointer<QSocketNotifier> &notifier) -> void {
-		notifier->setEnabled(false);
-
-		std::array<int, 2> tempFileDescriptor = std::exchange(fileDescriptor, {0, 0});
-		::close(tempFileDescriptor[0]);
-		::close(tempFileDescriptor[1]);
-	};
-
-	disconnectSignal(sigIntFileDescriptor, sigIntNotifier);
-	disconnectSignal(sigTermFileDescriptor, sigTermNotifier);
-	disconnectSignal(sigAbrtFileDescriptor, sigAbrtNotifier);
-	disconnectSignal(sigQuitFileDescriptor, sigQuitNotifier);
-#endif
+	DisconnectPlatformAppSignals();
 
 	os_inhibit_sleep_set_active(sleepInhibitor, false);
 	os_inhibit_sleep_destroy(sleepInhibitor);

@@ -665,3 +665,27 @@ void TranslatePlatformImportedSource(json11::Json &value)
 #undef DirectTranslation
 #undef ClearTranslation
 }
+
+/* Theme policy (#885). */
+const char *GetPlatformThemePrefix()
+{
+	return "os_mac_";
+}
+
+QStyle *CreatePlatformThemeStyle()
+{
+	return new OBSProxyStyle();
+}
+
+void ApplyPlatformThemeDarkMode(bool dark)
+{
+	SetMacOSDarkMode(dark);
+}
+
+const char *GetPlatformFallbackTheme(const char *defaultTheme)
+{
+	return defaultTheme;
+}
+
+void InstallPlatformDllBlocklist() {}
+void LogPlatformBlockedDlls() {}

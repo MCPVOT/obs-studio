@@ -30,3 +30,5 @@
 
 #include "json11.hpp"
 #include <util/platform.h>
+
+#include "frontend/utility/OBSProxyStyle.hpp"

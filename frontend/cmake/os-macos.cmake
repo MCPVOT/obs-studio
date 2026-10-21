@@ -22,6 +22,7 @@ macro(obs_frontend_platform_whatsnew)
 endmacro()
 
 macro(obs_frontend_platform_sources)
+  target_sources(obs-studio PRIVATE build/frontend.signal-posix+.hpp.cpp)
   include(cmake/feature-sparkle.cmake)
 
   target_sources(

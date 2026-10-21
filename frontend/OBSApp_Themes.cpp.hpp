@@ -330,13 +330,7 @@ static vector<OBSThemeVariable> ParseThemeVariables(const char *themeData)
 		OBSThemeVariable var;
 		var.name = key;
 
-#ifdef _WIN32
-		const QString osPrefix = "os_win_";
-#elif __APPLE__
-		const QString osPrefix = "os_mac_";
-#else
-		const QString osPrefix = "os_lin_";
-#endif
+		const QString osPrefix = GetPlatformThemePrefix();
 
 		if (key.startsWith(osPrefix) && key.length() > osPrefix.length()) {
 			var.name = key.sliced(osPrefix.length());
@@ -996,9 +990,7 @@ bool OBSApp::SetTheme(const QString &name)
 	}
 #endif
 
-#ifdef __APPLE__
-	SetMacOSDarkMode(theme->isDark);
-#endif
+	ApplyPlatformThemeDarkMode(theme->isDark);
 
 	emit StyleChanged();
 
@@ -1031,13 +1023,7 @@ static map<string, string> themeMigrations = {
 bool OBSApp::InitTheme()
 {
 	defaultPalette = palette();
-#if !defined(_WIN32) && !defined(__APPLE__)
-	setStyle(new OBSProxyStyle("Fusion"));
-#elif defined(_WIN32)
-	setStyle(new OBSProxyStyle("windowsvista"));
-#else
-	setStyle(new OBSProxyStyle());
-#endif
+	setStyle(CreatePlatformThemeStyle());
 
 	/* Set search paths for custom 'theme:' URI prefix */
 	string searchDir;
@@ -1074,11 +1060,7 @@ bool OBSApp::InitTheme()
 			     "default theme (\"%s\").",
 			     QT_TO_UTF8(themeName), DEFAULT_THEME);
 		}
-#ifdef _WIN32
-		themeName = HighContrastEnabled() ? "com.obsproject.System" : DEFAULT_THEME;
-#else
-		themeName = DEFAULT_THEME;
-#endif
+		themeName = GetPlatformFallbackTheme(DEFAULT_THEME);
 	}
 
 	if (config_get_bool(userConfig, "Appearance", "AutoReload")) {

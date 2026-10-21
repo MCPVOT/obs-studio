@@ -869,39 +869,7 @@ static void set_process_mitigation_policies()
 
 int main(int argc, char *argv[])
 {
-#ifndef _WIN32
-	using SignalHandlerCallback = decltype(OBSApp::sigIntSignalHandler);
-
-	auto setupSignalHandler = [](SignalHandlerCallback &callback, int signal) {
-		struct sigaction signalHandler{};
-		signalHandler.sa_handler = callback;
-		sigemptyset(&signalHandler.sa_mask);
-		signalHandler.sa_flags = 0;
-
-		sigaction(signal, &signalHandler, nullptr);
-	};
-
-	setupSignalHandler(OBSApp::sigIntSignalHandler, SIGINT);
-	setupSignalHandler(OBSApp::sigTermSignalHandler, SIGTERM);
-	setupSignalHandler(OBSApp::sigTermSignalHandler, SIGHUP);
-	setupSignalHandler(OBSApp::sigAbrtSignalHandler, SIGABRT);
-	setupSignalHandler(OBSApp::sigQuitSignalHandler, SIGQUIT);
-
-	// Block SIGPIPE in all threads, this can happen if a thread calls write on a closed pipe.
-	// Supposedly this can happen when OBS tries to write to a closed RTMP socket.
-	sigset_t sigpipeMask{};
-	sigemptyset(&sigpipeMask);
-	sigaddset(&sigpipeMask, SIGPIPE);
-	sigset_t savedMask{};
-
-	// pthread_sigmask returns 0 on success
-	bool signalMaskChanged = pthread_sigmask(SIG_BLOCK, &sigpipeMask, &savedMask) == 0;
-
-	if (!signalMaskChanged) {
-		perror("Unexpected failure to add 'SIG_BLOCK' to 'SIGPIPE' signal mask.");
-		exit(1);
-	}
-#endif
+	InstallPlatformAppSignalHandlers();
 
 #ifdef _WIN32
 	// Abort as early as possible if MSVC runtime is outdated
@@ -910,7 +878,7 @@ int main(int argc, char *argv[])
 	}
 
 	// Try to keep this as early as possible
-	install_dll_blocklist_hook();
+	InstallPlatformDllBlocklist();
 
 	set_process_mitigation_policies();
 
@@ -1089,7 +1057,7 @@ int main(int argc, char *argv[])
 		FreeLibrary(hRtwq);
 	}
 
-	log_blocked_dlls();
+	LogPlatformBlockedDlls();
 #endif
 
 	blog(LOG_INFO, "Number of memory leaks: %ld", bnum_allocs());

@@ -39,14 +39,6 @@
 #endif
 
 #include <QSessionManager>
-#ifdef OBS_PLATFORM_POSIX_SIGNALS
-#include <QSocketNotifier>
-#endif
 
 #include <chrono>
 #include <sstream>
-
-#ifdef OBS_PLATFORM_POSIX_SIGNALS
-#include <unistd.h>
-#include <sys/socket.h>
-#endif

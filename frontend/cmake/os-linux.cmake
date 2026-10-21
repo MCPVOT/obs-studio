@@ -53,6 +53,7 @@ macro(obs_frontend_platform_whatsnew)
 endmacro()
 
 macro(obs_frontend_platform_sources)
+  target_sources(obs-studio PRIVATE build/frontend.signal-posix+.hpp.cpp)
   target_sources(
     obs-studio
     PRIVATE build/frontend.linux+.hpp.cpp build/frontend.native-event-filter+.hpp.cpp build/frontend.x11+.hpp.cpp

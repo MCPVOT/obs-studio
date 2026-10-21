@@ -128,18 +128,6 @@ private:
 
 	bool notify(QObject *receiver, QEvent *e) override;
 
-#ifndef _WIN32
-	static std::array<int, 2> sigIntFileDescriptor;
-	static std::array<int, 2> sigTermFileDescriptor;
-	static std::array<int, 2> sigAbrtFileDescriptor;
-	static std::array<int, 2> sigQuitFileDescriptor;
-
-	QPointer<QSocketNotifier> sigIntNotifier{};
-	QPointer<QSocketNotifier> sigTermNotifier{};
-	QPointer<QSocketNotifier> sigAbrtNotifier{};
-	QPointer<QSocketNotifier> sigQuitNotifier{};
-#endif
-
 private slots:
 	void commitData(QSessionManager &manager);
 	void themeFileChanged(const QString &);
@@ -234,12 +222,6 @@ public:
 	inline void PushUITranslation(obs_frontend_translate_ui_cb cb) { translatorHooks.emplace_front(cb); }
 
 	inline void PopUITranslation() { translatorHooks.pop_front(); }
-#ifndef _WIN32
-	static void sigIntSignalHandler(int);
-	static void sigTermSignalHandler(int);
-	static void sigAbrtSignalHandler(int);
-	static void sigQuitSignalHandler(int);
-#endif
 	/* SIGTERM arrived while a dialog was waiting, possibly before the main
 	 * event loop started: main() quits as soon as that loop runs. */
 	inline bool quitRequested() const { return quitRequested_; }
@@ -293,11 +275,6 @@ bool GetFileSafeName(const char *name, std::string &file);
 bool GetClosestUnusedFileName(std::string &path, const char *extension);
 
 bool WindowPositionValid(QRect rect);
-
-#ifdef _WIN32
-extern "C" void install_dll_blocklist_hook(void);
-extern "C" void log_blocked_dlls(void);
-#endif
 
 std::string CurrentDateTimeString();
 std::string GetFormatString(const char *format, const char *prefix, const char *suffix);

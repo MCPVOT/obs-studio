@@ -571,3 +571,27 @@ void TranslatePlatformImportedSource(json11::Json &value)
 #undef DirectTranslation
 #undef ClearTranslation
 }
+
+/* Theme policy (#885). */
+const char *GetPlatformThemePrefix()
+{
+	return "os_lin_";
+}
+
+QStyle *CreatePlatformThemeStyle()
+{
+	return new OBSProxyStyle("Fusion");
+}
+
+void ApplyPlatformThemeDarkMode(bool dark)
+{
+	(void)dark;
+}
+
+const char *GetPlatformFallbackTheme(const char *defaultTheme)
+{
+	return defaultTheme;
+}
+
+void InstallPlatformDllBlocklist() {}
+void LogPlatformBlockedDlls() {}
