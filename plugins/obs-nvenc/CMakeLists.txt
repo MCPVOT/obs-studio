@@ -67,6 +67,7 @@ if(TARGET libobs-with-rust)
   if(OS_LINUX)
     target_link_options(obs-nvenc-with-rust PRIVATE "LINKER:--exclude-libs,ALL")
   endif()
+  # Windows import libraries and .exp files must not race the installed twin.
   set_target_properties(
     obs-nvenc-with-rust
     PROPERTIES
@@ -74,6 +75,7 @@ if(TARGET libobs-with-rust)
       PREFIX ""
       OUTPUT_NAME obs-nvenc
       LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/obs-nvenc-with-rust"
+      ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/obs-nvenc-with-rust"
   )
 endif()
 
