@@ -2284,8 +2284,10 @@ static void *end_data_capture_thread(void *data)
 	if (output->active_delay_ns)
 		obs_output_cleanup_delay(output);
 
-	do_output_signal(output, "deactivate");
 	os_atomic_set_bool(&output->active, false);
+	/* Signal consumers may run immediately on another thread. Publish the
+	 * completed teardown state before waking them. */
+	do_output_signal(output, "deactivate");
 	os_event_signal(output->stopping_event);
 	os_atomic_set_bool(&output->end_data_capture_thread_active, false);
 

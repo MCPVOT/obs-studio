@@ -27,11 +27,11 @@
  * window is closing.
  *
  * A graceful stop of an active output signals "stop" while the output is
- * still flushing its encoders, then "deactivate" when it is done, just
- * before it reports inactive; an output that never began capturing signals
+ * still flushing its encoders, then "deactivate" after it reports inactive;
+ * an output that never began capturing signals
  * only "stop", and is already inactive. Signals trigger an active-state
- * check. After "deactivate", queued timer checks bridge the interval before
- * the output reports inactive, bounded by the same timeout. libobs signals
+ * check. Queued timer checks also tolerate a producer that signals before
+ * its active predicate changes, bounded by the same timeout. libobs signals
  * on its own threads; callbacks queue checks to the UI thread. */
 inline bool WaitForOutputToStop(signal_handler_t *output_signals, uint64_t timeout_ms,
 				const std::function<bool()> &active)
@@ -49,7 +49,7 @@ inline bool WaitForOutputToStop(signal_handler_t *output_signals, uint64_t timeo
 			if (Stopped()) {
 				loop.quit();
 			} else if (deactivated.load() && !retry_pending) {
-				/* deactivate precedes the inactive store on the output thread. */
+				/* Keep checking the predicate if notification arrived early. */
 				retry_pending = true;
 				QTimer::singleShot(1, &receiver, [this]() {
 					retry_pending = false;

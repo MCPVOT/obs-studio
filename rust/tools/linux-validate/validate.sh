@@ -86,7 +86,10 @@ test_home="$BUILD/test-home"
 rm -rf "$test_home"
 mkdir -p "$test_home"
 test_env=(env HOME="$test_home" XDG_CONFIG_HOME="$test_home/.config"
-  XDG_DATA_HOME="$test_home/.local/share" XDG_CACHE_HOME="$test_home/.cache")
+  XDG_DATA_HOME="$test_home/.local/share" XDG_CACHE_HOME="$test_home/.cache"
+  # Eight test processes share the runner's CPUs; each software renderer must
+  # not start another full-machine worker pool (#1634). Hardware drivers ignore it.
+  LP_NUM_THREADS=1)
 echo "== environment: user=$(id -un) nproc=$(nproc) locale=$LC_ALL" \
   "cmake=$(cmake --version | head -1 | awk '{print $3}')" \
   "cc=$(cc --version | head -1)" "kernel=$(uname -r)"

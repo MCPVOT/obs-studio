@@ -14,6 +14,8 @@ fingerprint so any remaining difference shows in the log.
 from __future__ import annotations
 
 import re
+import os
+import subprocess
 import unittest
 from pathlib import Path
 
@@ -44,6 +46,17 @@ class PinnedEnvTest(unittest.TestCase):
         self.assertIn("== environment:", self.text)
         for probe in ("id -un", "nproc", "cmake --version", "cc --version"):
             self.assertIn(probe, self.text)
+
+    def test_parallel_tests_do_not_inherit_an_oversized_software_renderer_pool(self):
+        # Exercise the actual Bash environment array: an inherited renderer
+        # pool must not multiply across all eight concurrent test processes.
+        block = re.search(r"test_env=\([\s\S]*?\)\n", self.text)[0]
+        result = subprocess.run(["bash", "-c", 'test_home=/fixture-home\n' + block +
+                                 '"${test_env[@]}" /usr/bin/env'],
+                                env={**os.environ, "LP_NUM_THREADS": "128"}, capture_output=True, text=True, check=True)
+        environment = dict(line.split("=", 1) for line in result.stdout.splitlines() if "=" in line)
+        self.assertEqual(environment["LP_NUM_THREADS"], "1")
+        self.assertEqual(environment["HOME"], "/fixture-home")
 
 
 if __name__ == "__main__":

@@ -358,7 +358,12 @@ Measure runner cost and actual gate time rather than treating the theoretical
 overlap as a proven speedup (#930, #1286).
 
 Tier 2 uses two duration-balanced shards per mode (#1581), each in its own
-runner environment with the existing `RUN_SERIAL` properties intact. The build
+runner environment. Deinterlacing retains `RUN_SERIAL` because CI still dropped
+fields with bounded software-renderer workers. The other nine former barriers
+are removed: eight tests already own their resources, and XSHM now uses a
+private Xvfb (serial fallback when unavailable). Linux tests pin
+`LP_NUM_THREADS=1`; see the [concurrency audit](ci-serial-audit-2026-10-21.md).
+The build
 job creates both mode plans from recorded costs. Each test runner verifies
 that all plans form a complete disjoint partition of its actual CTest registry
 before filtering its suite; missing plans fail rather than silently changing

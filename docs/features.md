@@ -1376,6 +1376,10 @@ area.
   longer permits premature shutdown. The UI keeps processing events within
   the existing timeout. *All*, 2026-10-18. Issue
   [#1391](https://github.com/obs-rust/obs-studio/issues/1391).
+- Output deactivation publishes the inactive state before notifying signal
+  consumers, preventing a shutdown observer from seeing an active output
+  after deactivation. *All*, 2026-10-21. PR
+  [#1643](https://github.com/obs-rust/obs-studio/pull/1643).
 - Exit in the tray menu quits OBS when it was started with
   `--minimize-to-tray` and its window was never shown; before, nothing
   happened. *Linux (Wayland)*, 2026-10-18. Issue
