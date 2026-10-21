@@ -52,10 +52,18 @@ also affects upstream OBS Studio:
 
 - Report it to obs-rust as described above. You do not need to report
   it upstream yourself.
-- The obs-rust maintainers report it to the OBS Project through its
-  official channel (security@obsproject.com) and coordinate disclosure,
-  so that neither project publishes the details before the other has a
-  fix. You are credited in both reports unless you ask us not to.
+- obs-rust does not hold its own disclosure for upstream. When the
+  advisory is published, a maintainer adds it to the upstream to-do list
+  in Discussion
+  [#1629](https://github.com/obs-rust/obs-studio/discussions/1629),
+  with a ready-to-send report for the OBS Project's official channel
+  (security@obsproject.com). Anyone can send the report and tick off the
+  entry with the date and channel. You are credited in the report unless
+  you ask us not to.
+- Advisories still in triage are never listed there.
+- obs-rust does not follow the OBS Project's 120-day confidentiality
+  request. We disclose on our own timeline (above), whether or not the
+  report has been sent upstream yet.
 - If you have already reported it upstream, tell us, so that we follow
   the same disclosure timeline.
 
