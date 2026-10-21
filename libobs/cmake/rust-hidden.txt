@@ -5,6 +5,11 @@ base_begin_crash
 profiler_name_store_push
 utf8_to_wchar
 wchar_to_utf8
+# platform-nix-dbus.c: called only by the Linux/FreeBSD sleep inhibitor;
+# the C functions have no EXPORT and stay hidden in the Rust variant.
+dbus_sleep_info_create
+dbus_inhibit_sleep
+dbus_sleep_info_destroy
 # platform-nix.c: obs-module.c calls this inside libobs. The C file is not
 # exported (no EXPORT). The unix shim is hidden the same way.
 get_plugin_info

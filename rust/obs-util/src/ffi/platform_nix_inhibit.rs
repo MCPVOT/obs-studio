@@ -2,10 +2,10 @@
 //! The core is [`crate::platform::unix::nix_inhibit`]; macOS has its own in
 //! `platform_cocoa`, Windows in `platform_windows`.
 //!
-//! The portal and session D-Bus inhibitors stay C
-//! (`util/platform-nix-portal.c`, `util/platform-nix-dbus.c`, unity group
-//! `libobs.nix-dbus`). With the `gio` feature, which CMake sets when GIO is
-//! found (`GIO_FOUND`), [`CHost`] calls them; without it libobs has no such
+//! The portal inhibitor stays C (`util/platform-nix-portal.c`), while the
+//! session D-Bus inhibitor is Rust (`ffi::dbus_inhibit`). With the `gio`
+//! feature, which CMake sets when GIO is found (`GIO_FOUND`), [`CHost`]
+//! calls them; without it libobs has no such
 //! symbols, and the core only uses the xdg-screensaver fallback, as the C
 //! compiled without GIO does.
 
@@ -22,7 +22,7 @@ unsafe extern "C" {
 
 /// The C inhibitors. Without GIO libobs has no such symbols; the core never
 /// calls these then (`CHost::GIO` is false), and they do nothing.
-#[cfg(feature = "gio")]
+#[cfg(all(feature = "gio", not(test)))]
 mod gio {
     use core::ffi::{c_char, c_void};
 
@@ -32,6 +32,27 @@ mod gio {
         pub fn portal_inhibit_info_destroy(portal: *mut c_void);
         pub fn dbus_sleep_info_create() -> *mut c_void;
         pub fn dbus_inhibit_sleep(dbus: *mut c_void, sleep: *const c_char, active: bool);
+        pub fn dbus_sleep_info_destroy(dbus: *mut c_void);
+    }
+}
+
+// The original platform-nix-inhibit Tier 3 test drives its C oracle and
+// this Rust shim through the same counted inhibitor stand-ins. Production
+// builds call the ported D-Bus shim above; the direct D-Bus port has its own
+// differential test and the unchanged C test exercises the production path.
+#[cfg(all(feature = "gio", test))]
+mod gio {
+    use core::ffi::{c_char, c_void};
+
+    unsafe extern "C" {
+        pub fn portal_inhibit_info_create() -> *mut c_void;
+        pub fn portal_inhibit(portal: *mut c_void, reason: *const c_char, active: bool);
+        pub fn portal_inhibit_info_destroy(portal: *mut c_void);
+        #[link_name = "oracle_stub_dbus_sleep_info_create"]
+        pub fn dbus_sleep_info_create() -> *mut c_void;
+        #[link_name = "oracle_stub_dbus_inhibit_sleep"]
+        pub fn dbus_inhibit_sleep(dbus: *mut c_void, reason: *const c_char, active: bool);
+        #[link_name = "oracle_stub_dbus_sleep_info_destroy"]
         pub fn dbus_sleep_info_destroy(dbus: *mut c_void);
     }
 }

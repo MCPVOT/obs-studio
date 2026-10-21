@@ -14,13 +14,15 @@ unsafe extern "C" {
     pub fn oracle_gio_os_inhibit_sleep_set_active(info: *mut c_void, active: bool) -> bool;
     pub fn oracle_gio_os_inhibit_sleep_destroy(info: *mut c_void);
 
-    /// Stand-ins for `util/platform-nix-portal.c` and `util/platform-nix-dbus.c`,
-    /// under their real names.
+    /// Counted stand-ins for the portal and session D-Bus inhibitors.
     pub fn portal_inhibit_info_create() -> *mut c_void;
     pub fn portal_inhibit(portal: *mut c_void, reason: *const c_char, active: bool);
     pub fn portal_inhibit_info_destroy(portal: *mut c_void);
+    #[link_name = "oracle_stub_dbus_sleep_info_create"]
     pub fn dbus_sleep_info_create() -> *mut c_void;
+    #[link_name = "oracle_stub_dbus_inhibit_sleep"]
     pub fn dbus_inhibit_sleep(dbus: *mut c_void, sleep: *const c_char, active: bool);
+    #[link_name = "oracle_stub_dbus_sleep_info_destroy"]
     pub fn dbus_sleep_info_destroy(dbus: *mut c_void);
 
     /// `access(path, mode)` as the oracle sees it.

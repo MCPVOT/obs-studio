@@ -904,8 +904,9 @@ jobs:
       # Qt. The full workspace tests and the windows-gnu link run on master.
       # platform-nix.c includes uuid/uuid.h. This runner does not ship it.
       # The oracle compile and the Rust libuuid link both need the package.
-      - name: Install libuuid
-        run: sudo apt-get update && sudo apt-get install -y uuid-dev
+      # The obs-util D-Bus inhibitor links GIO when Rust tests enable it.
+      - name: Install libuuid and GIO
+        run: sudo apt-get update && sudo apt-get install -y uuid-dev libglib2.0-dev
 
       # Same soldr-wrapped commands as docs/rust-port/testing-policy.md.
       # setup-soldr provisions the toolchain (with the clippy/rustfmt

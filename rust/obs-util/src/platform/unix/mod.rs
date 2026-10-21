@@ -3,6 +3,8 @@
 #[cfg(target_os = "macos")]
 pub mod cocoa;
 pub mod crt;
+#[cfg(not(target_os = "macos"))]
+pub mod dbus_inhibit;
 pub mod event;
 pub mod file;
 pub mod nix;

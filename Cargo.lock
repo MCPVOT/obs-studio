@@ -473,6 +473,7 @@ dependencies = [
  "obs-codec",
  "obs-graphics",
  "obs-util",
+ "pkg-config",
 ]
 
 [[package]]
@@ -653,6 +654,7 @@ dependencies = [
  "libc",
  "memchr",
  "obs-c-oracle",
+ "pkg-config",
  "proptest",
 ]
 

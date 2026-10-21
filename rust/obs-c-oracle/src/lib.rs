@@ -45,6 +45,8 @@ pub mod cf_tokenizer;
 pub mod config_file;
 pub mod crc32;
 pub mod darray;
+#[cfg(any(target_os = "linux", target_os = "freebsd"))]
+pub mod dbus_inhibit;
 pub mod decl;
 pub mod deque;
 pub mod dstr;

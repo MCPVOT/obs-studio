@@ -248,6 +248,11 @@ fn main() {
 
     let unix = std::env::var_os("CARGO_CFG_UNIX").is_some();
     let windows = std::env::var_os("CARGO_CFG_WINDOWS").is_some();
+    let gio = if unix && std::env::var("CARGO_CFG_TARGET_OS").ok().as_deref() != Some("macos") {
+        pkg_config::Config::new().probe("gio-2.0").ok()
+    } else {
+        None
+    };
     let mut oracle = cc::Build::new();
     // Rust never fuses `a * b + c` into an FMA, but GCC/Clang may (clang's
     // default -ffp-contract=on does so on aarch64), which would make float
@@ -340,6 +345,9 @@ fn main() {
         .filter(|p| p.extension().is_some_and(|e| e == "c"))
         .filter(|p| unix || !p.to_string_lossy().ends_with("_posix.c"))
         .filter(|p| windows || !p.to_string_lossy().ends_with("_windows.c"))
+        // Only the D-Bus oracle needs GIO headers. Keep other oracle
+        // families testable on hosts where GIO is not installed.
+        .filter(|p| gio.is_some() || p.file_name().is_none_or(|n| n != "dbus_inhibit_posix.c"))
         // The original platform-windows.c has only ever been an MSVC
         // translation unit; under MinGW -Wall -Werror (#516) it fails on
         // headers and format checks, not on anything the port compares.
@@ -348,6 +356,11 @@ fn main() {
         .collect();
     sources.sort();
     oracle.files(sources);
+    if let Some(gio) = &gio {
+        for include in &gio.include_paths {
+            oracle.include(include);
+        }
+    }
     // Keep the oracle's threading helpers private. The Rust obs-util crate
     // exports the real libobs os_event/os_sem/os_set_thread_name symbols;
     // the C oracle must call its renamed copy so both implementations can link

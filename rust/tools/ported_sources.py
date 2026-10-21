@@ -20,6 +20,8 @@ def ported_objects(root: Path, host: str, hevc: bool = True, pulse: bool = True,
     # ENABLE_PULSEAUDIO, Linux (and FreeBSD) only.
     if pulse and host == "linux":
         names.append("LIBOBS_PULSE_PORTED_SOURCES")
+    if gio and host == "linux":
+        names.append("LIBOBS_NIX_GIO_PORTED_SOURCES")
     # ENABLE_WAYLAND, Linux (and FreeBSD) only.
     if wayland and host == "linux":
         names.append("LIBOBS_WAYLAND_PORTED_SOURCES")

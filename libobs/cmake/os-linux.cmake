@@ -67,11 +67,12 @@ endif()
 
 if(TARGET gio::gio)
   target_sources(libobs-objects PRIVATE build/libobs.nix-dbus+.h.c)
+  obs_libobs_add_c_sources(${LIBOBS_NIX_GIO_PORTED_SOURCES})
   target_link_libraries(libobs-objects PUBLIC gio::gio)
 endif()
 
 # GIO_FOUND reaches the Rust os_inhibit_sleep_* as the libobs-rust feature
-# gio (#1500): the portal and session D-Bus inhibitors above with it, only
+# gio (#1500): the C portal and Rust session D-Bus inhibitors with it, only
 # the xdg-screensaver fallback without, as in util/platform-nix-inhibit.c.
 if(TARGET libobs_rust)
   corrosion_set_features(libobs_rust NO_DEFAULT_FEATURES)

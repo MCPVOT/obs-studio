@@ -2,9 +2,9 @@
 //! (obs-rust/obs-studio#1500). macOS is in [`super::cocoa`] and Windows in the
 //! Windows host module.
 //!
-//! The desktop inhibitors stay C, because they need GIO: the
-//! xdg-desktop-portal Inhibit request (`util/platform-nix-portal.c`) and the
-//! session D-Bus screensaver and power services (`util/platform-nix-dbus.c`).
+//! The xdg-desktop-portal Inhibit request stays C
+//! (`util/platform-nix-portal.c`); the session D-Bus screensaver and power
+//! services are in [`super::dbus_inhibit`].
 //! This core picks one of them for each inhibitor, in the C's order, and runs
 //! the `xdg-screensaver reset` thread when there is neither. It reaches the C
 //! and the OS through [`Host`]: the C ABI shim's host calls the C functions,

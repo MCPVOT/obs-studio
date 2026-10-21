@@ -10,6 +10,8 @@ pub mod cf_tokenizer;
 pub mod config_file;
 pub mod crc32;
 pub mod darray;
+#[cfg(all(unix, not(target_os = "macos"), feature = "gio"))]
+pub mod dbus_inhibit;
 pub mod deque;
 pub mod dstr;
 pub mod file_serializer;

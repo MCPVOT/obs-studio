@@ -27,9 +27,9 @@ struct dbus_sleep_info;
 struct portal_inhibit_info *portal_inhibit_info_create(void);
 void portal_inhibit(struct portal_inhibit_info *portal, const char *reason, bool active);
 void portal_inhibit_info_destroy(struct portal_inhibit_info *portal);
-struct dbus_sleep_info *dbus_sleep_info_create(void);
-void dbus_inhibit_sleep(struct dbus_sleep_info *dbus, const char *sleep, bool active);
-void dbus_sleep_info_destroy(struct dbus_sleep_info *dbus);
+struct dbus_sleep_info *oracle_stub_dbus_sleep_info_create(void);
+void oracle_stub_dbus_inhibit_sleep(struct dbus_sleep_info *dbus, const char *sleep, bool active);
+void oracle_stub_dbus_sleep_info_destroy(struct dbus_sleep_info *dbus);
 int oracle_stub_inhibit_access(const char *path, int mode);
 int oracle_stub_inhibit_posix_spawnp(pid_t *pid, const char *file, const posix_spawn_file_actions_t *actions,
 				     const posix_spawnattr_t *attr, char *const argv[], char *const envp[]);
@@ -133,19 +133,19 @@ void portal_inhibit_info_destroy(struct portal_inhibit_info *portal)
 	append("portal_destroy %ld", handle_number(portal));
 }
 
-struct dbus_sleep_info *dbus_sleep_info_create(void)
+struct dbus_sleep_info *oracle_stub_dbus_sleep_info_create(void)
 {
 	void *handle = new_handle(dbus_ok);
 	append("dbus_create %ld", handle_number(handle));
 	return handle;
 }
 
-void dbus_inhibit_sleep(struct dbus_sleep_info *dbus, const char *sleep, bool active)
+void oracle_stub_dbus_inhibit_sleep(struct dbus_sleep_info *dbus, const char *sleep, bool active)
 {
 	append("dbus_inhibit %ld [%s] %d", handle_number(dbus), text(sleep), active);
 }
 
-void dbus_sleep_info_destroy(struct dbus_sleep_info *dbus)
+void oracle_stub_dbus_sleep_info_destroy(struct dbus_sleep_info *dbus)
 {
 	append("dbus_destroy %ld", handle_number(dbus));
 }

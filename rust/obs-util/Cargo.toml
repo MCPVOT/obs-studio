@@ -10,8 +10,8 @@ publish.workspace = true
 
 [features]
 # GIO_FOUND: os_inhibit_sleep_* on Linux and FreeBSD calls the portal and
-# session D-Bus inhibitors in libobs's C (util/platform-nix-portal.c,
-# util/platform-nix-dbus.c). Set by libobs-rust, which CMake drives (#1500).
+# session D-Bus inhibitors (Rust) and portal inhibitor (C). Set by
+# libobs-rust, which CMake drives (#1500, #1576).
 gio = []
 
 [dependencies]
@@ -26,3 +26,4 @@ proptest = "1"
 
 [build-dependencies]
 cc = "1"
+pkg-config = "0.3"

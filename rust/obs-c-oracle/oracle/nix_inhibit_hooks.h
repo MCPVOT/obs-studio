@@ -2,10 +2,13 @@
  * original libobs/util/platform-nix-inhibit.c, so that what it calls outside
  * itself goes to the counted stand-ins in nix_inhibit_stubs_posix.c. Defined
  * before any header, so the system and libobs prototypes take the new names
- * too. The portal and D-Bus inhibitors keep their real names: the stand-ins
- * define them, because the Rust shim built with the gio feature calls them
- * by those names. */
+ * too. The portal stand-ins keep their real names. The D-Bus stand-ins
+ * have separate names because the new Rust shim owns the original symbols. */
 #pragma once
+
+#define dbus_sleep_info_create oracle_stub_dbus_sleep_info_create
+#define dbus_inhibit_sleep oracle_stub_dbus_inhibit_sleep
+#define dbus_sleep_info_destroy oracle_stub_dbus_sleep_info_destroy
 
 /* The Flatpak check, access("/.flatpak-info", F_OK). */
 #define access oracle_stub_inhibit_access
