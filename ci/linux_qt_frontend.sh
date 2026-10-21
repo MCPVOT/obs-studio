@@ -66,6 +66,9 @@ printf 'qt-phase phase=build seconds=%d\n' "$((SECONDS - phase_start))"
 
 export LD_LIBRARY_PATH="$qt/lib:$LD_LIBRARY_PATH"
 export QT_PLUGIN_PATH="$qt/plugins"
+# Exercise the shared Qt facade using the same real Qt prefix, offscreen.
+# Supplying the prefix makes missing Qt a failure rather than a local skip.
+OBS_QT_TEST_PREFIX="$qt" uv run python -m unittest ci.test_shared_qt_platform.SharedQtPlatformTest.test_real_qt_offscreen
 regex="^($(echo $tests | sed 's/ /|/g'))\$"
 phase_start=$SECONDS
 xvfb-run -a ctest --test-dir "$build" --output-on-failure -j "${CTEST_JOBS:-4}" -R "$regex"

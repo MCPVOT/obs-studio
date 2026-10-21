@@ -60,3 +60,5 @@
 
 /* The classes' own headers, which their moc output used to include. */
 #include "shared/properties-view/properties-view.hpp"
+
+#include "shared/qt/platform/qt-platform.hpp"

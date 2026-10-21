@@ -92,34 +92,7 @@ void OBSMessageBox::critical(QWidget *parent, const QString &title, const QStrin
 
 uint32_t TranslateQtKeyboardEventModifiers(Qt::KeyboardModifiers mods)
 {
-	int obsModifiers = INTERACT_NONE;
-
-	if (mods.testFlag(Qt::ShiftModifier)) {
-		obsModifiers |= INTERACT_SHIFT_KEY;
-	}
-	if (mods.testFlag(Qt::AltModifier)) {
-		obsModifiers |= INTERACT_ALT_KEY;
-	}
-#ifdef __APPLE__
-	// Mac: Meta = Control, Control = Command
-	if (mods.testFlag(Qt::ControlModifier)) {
-		obsModifiers |= INTERACT_COMMAND_KEY;
-	}
-	if (mods.testFlag(Qt::MetaModifier)) {
-		obsModifiers |= INTERACT_CONTROL_KEY;
-	}
-#else
-	// Handle windows key? Can a browser even trap that key?
-	if (mods.testFlag(Qt::ControlModifier)) {
-		obsModifiers |= INTERACT_CONTROL_KEY;
-	}
-	if (mods.testFlag(Qt::MetaModifier)) {
-		obsModifiers |= INTERACT_COMMAND_KEY;
-	}
-
-#endif
-
-	return obsModifiers;
+	return qt_platform::translate_modifiers(mods);
 }
 
 QDataStream &operator<<(QDataStream &out, const std::vector<std::shared_ptr<OBSSignal>> &)

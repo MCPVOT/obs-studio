@@ -21,3 +21,5 @@
 
 /* The classes' own headers, which their moc output used to include. */
 #include "shared/qt/wrappers/qt-wrappers.hpp"
+
+#include "shared/qt/platform/qt-platform.hpp"

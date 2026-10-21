@@ -60,3 +60,7 @@ target_link_libraries(
     Qt::Core
     Qt::Widgets
 )
+
+# The comparison helpers in properties-view.moc.hpp are intentionally static;
+# MSVC may not need every helper in each interface consumer.
+target_compile_options(properties-view INTERFACE "$<$<CXX_COMPILER_ID:MSVC>:/wd4505>")

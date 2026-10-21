@@ -252,9 +252,7 @@ QWidget *OBSPropertiesView::AddCheckbox(obs_property_t *prop)
 	help->setIcon(QIcon(file));
 	help->setToolTip(long_desc);
 
-#ifdef __APPLE__
-	checkbox->setAttribute(Qt::WA_LayoutUsesWidgetRect);
-#endif
+	qt_platform::tweak_checkbox(checkbox);
 
 	widget = new QWidget();
 	QHBoxLayout *layout = new QHBoxLayout(widget);
@@ -1823,10 +1821,7 @@ bool WidgetInfo::PathChanged(const char *setting)
 		return false;
 	}
 
-#ifdef __APPLE__
-	// TODO: Revisit when QTBUG-42661 is fixed
-	widget->window()->raise();
-#endif
+	qt_platform::raise_after_dialog(widget);
 
 	if (path.isEmpty()) {
 		return false;
@@ -1890,19 +1885,13 @@ bool WidgetInfo::ColorChangedInternal(const char *setting, bool supportAlpha)
 		options |= QColorDialog::ShowAlphaChannel;
 	}
 
-#ifdef __linux__
-	// TODO: Revisit hang on Ubuntu with native dialog
-	options |= QColorDialog::DontUseNativeDialog;
-#endif
+	options |= qt_platform::color_dialog_options();
 
 	if (!RunDialog([&]() { color = QColorDialog::getColor(color, view, QT_UTF8(desc), options); })) {
 		return false;
 	}
 
-#ifdef __APPLE__
-	// TODO: Revisit when QTBUG-42661 is fixed
-	widget->window()->raise();
-#endif
+	qt_platform::raise_after_dialog(widget);
 
 	if (!color.isValid()) {
 		return false;
@@ -1945,11 +1934,7 @@ bool WidgetInfo::FontChanged(const char *setting)
 	uint32_t flags;
 	QFont font;
 
-	QFontDialog::FontDialogOptions options;
-
-#ifndef _WIN32
-	options = QFontDialog::DontUseNativeDialog;
-#endif
+	QFontDialog::FontDialogOptions options = qt_platform::font_dialog_options();
 
 	bool alive = RunDialog([&]() {
 		if (!font_obj) {
@@ -2309,10 +2294,7 @@ void WidgetInfo::EditListAddFiles()
 	if (!RunDialog([&]() { files = OpenFiles(list, title, QT_UTF8(default_path), QT_UTF8(filter)); })) {
 		return;
 	}
-#ifdef __APPLE__
-	// TODO: Revisit when QTBUG-42661 is fixed
-	widget->window()->raise();
-#endif
+	qt_platform::raise_after_dialog(widget);
 
 	if (files.count() == 0) {
 		return;
@@ -2339,10 +2321,7 @@ void WidgetInfo::EditListAddDir()
 	if (!RunDialog([&]() { dir = SelectDirectory(list, title, QT_UTF8(default_path)); })) {
 		return;
 	}
-#ifdef __APPLE__
-	// TODO: Revisit when QTBUG-42661 is fixed
-	widget->window()->raise();
-#endif
+	qt_platform::raise_after_dialog(widget);
 
 	if (dir.isEmpty()) {
 		return;

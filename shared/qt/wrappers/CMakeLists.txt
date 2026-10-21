@@ -9,3 +9,13 @@ target_sources(qt-wrappers INTERFACE build/qt-wrappers.core+.hpp.cpp qt-wrappers
 target_include_directories(qt-wrappers INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}")
 
 target_link_libraries(qt-wrappers INTERFACE Qt::Core Qt::Widgets OBS::libobs)
+
+# The selected implementation is compiled once by each interface consumer,
+# alongside the existing shared wrapper group.
+if(OS_WINDOWS)
+  target_sources(qt-wrappers INTERFACE build/qt-wrappers.host-windows+.hpp.cpp)
+elseif(OS_MACOS)
+  target_sources(qt-wrappers INTERFACE build/qt-wrappers.host-macos+.hpp.cpp)
+else()
+  target_sources(qt-wrappers INTERFACE build/qt-wrappers.host-posix+.hpp.cpp)
+endif()

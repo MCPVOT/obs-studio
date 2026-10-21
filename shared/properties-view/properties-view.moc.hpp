@@ -11,10 +11,6 @@
 
 #include <vector>
 
-#ifdef _MSC_VER
-#pragma warning(disable : 4505)
-#endif
-
 static bool operator!=(const media_frames_per_second &a, const media_frames_per_second &b)
 {
 	// Compare fractions via cross multiplication, to avoid rounding or division
