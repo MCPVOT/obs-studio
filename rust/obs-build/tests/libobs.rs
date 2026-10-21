@@ -1307,3 +1307,85 @@ fn captures_audio() -> bool {
     std::env::var_os("OBS_BUILD_JACK_CAPTURE").is_some()
         || std::env::var_os("OBS_BUILD_SNDIO_CAPTURE_DEVICE").is_some()
 }
+
+#[test]
+fn macos_core_builds_from_the_canonical_manifest() {
+    let Some(dependencies) = std::env::var_os("OBS_BUILD_MACOS_DEPENDENCIES") else {
+        return; // Explicit SDK-dependent integration, including cross compilation.
+    };
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let output = PathBuf::from(
+        std::env::var_os("OBS_BUILD_MACOS_OUTPUT").expect("set OBS_BUILD_MACOS_OUTPUT"),
+    );
+    let build = NativeBuild {
+        host: obs_build::BUILD_HOST.into(),
+        target: std::env::var("OBS_BUILD_MACOS_TARGET")
+            .unwrap_or_else(|_| obs_build::BUILD_TARGET.into()),
+        output,
+    };
+    assert!(build.target.contains("apple-darwin"));
+    let options = libobs::Options {
+        native_dependencies: Some(dependencies.into()),
+        hevc: std::env::var_os("OBS_BUILD_DISABLE_HEVC").is_none(),
+        pulseaudio: false,
+        gio: false,
+        wayland: false,
+        unity: std::env::var_os("OBS_BUILD_MACOS_SEPARATE").is_none(),
+        pch: std::env::var_os("OBS_BUILD_MACOS_PCH").is_some(),
+        ..libobs::Options::default()
+    };
+    let library = if let Some(archive) = std::env::var_os("OBS_BUILD_MACOS_RUST_ARCHIVE") {
+        let pair = libobs::build_pair(&build, &root, &options, &PathBuf::from(archive)).unwrap();
+        let exports = |path: &std::path::Path| {
+            let result = std::process::Command::new(
+                std::env::var_os("OBS_BUILD_MACOS_NM").unwrap_or_else(|| "nm".into()),
+            )
+            .args(["-gUj"])
+            .arg(path)
+            .output()
+            .unwrap();
+            assert!(
+                result.status.success(),
+                "{}",
+                String::from_utf8_lossy(&result.stderr)
+            );
+            String::from_utf8(result.stdout)
+                .unwrap()
+                .lines()
+                .map(str::to_owned)
+                .collect::<std::collections::BTreeSet<_>>()
+        };
+        let reference = exports(&pair.reference);
+        let hybrid = exports(&pair.with_rust);
+        assert!(!reference.is_empty());
+        assert_eq!(reference, hybrid);
+        if let Some(original) = std::env::var_os("OBS_BUILD_MACOS_REFERENCE") {
+            assert_eq!(
+                reference,
+                exports(&PathBuf::from(original)),
+                "Cargo must preserve the actual CMake reference exports"
+            );
+        }
+        std::fs::write(
+            build.output.join("macos-symbols.json"),
+            serde_json::to_vec_pretty(&reference).unwrap(),
+        )
+        .unwrap();
+        pair.with_rust
+    } else {
+        libobs::build_c_reference_with_options(&build, &root, &options).unwrap()
+    };
+    assert!(library.is_file());
+    let framework = library.parent().unwrap().join("libobs.framework");
+    let bytes = std::fs::read(&library).unwrap();
+    assert_eq!(
+        bytes,
+        std::fs::read(framework.join("Versions/A/libobs")).unwrap()
+    );
+    assert_eq!(bytes, std::fs::read(framework.join("libobs")).unwrap());
+    std::fs::write(
+        build.output.join("macos-core-path.txt"),
+        library.to_str().unwrap(),
+    )
+    .unwrap();
+}

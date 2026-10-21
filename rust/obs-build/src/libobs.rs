@@ -17,6 +17,8 @@ pub struct Options {
     pub pulseaudio: bool,
     pub gio: bool,
     pub core_modules: Vec<String>,
+    /// Prebuilt OBS dependency bundle for targets without pkg-config metadata.
+    pub native_dependencies: Option<PathBuf>,
 }
 
 impl Default for Options {
@@ -29,6 +31,7 @@ impl Default for Options {
             pulseaudio: true,
             gio: true,
             core_modules: vec![],
+            native_dependencies: None,
         }
     }
 }
@@ -125,31 +128,12 @@ fn prepare(build: &NativeBuild, root: &Path, options: &Options) -> Result<Plan, 
         library.definitions.push(("ENABLE_HEVC".into(), None));
     }
     crate::platform::configure_libobs(&build.target, &root, options, &sets, &mut library)?;
-    for package in [
-        "libavformat",
-        "libavcodec",
-        "libavutil",
-        "libswscale",
-        "libswresample",
-        "jansson",
-        "zlib",
-        "simde",
-    ] {
-        add_package(&mut library, &build.target, package)?;
-    }
+    crate::platform::configure_core_dependencies(&build.target, options, &mut library)?;
     library.dependencies.push(build_caption(build, &root)?);
     let mut header = String::from(
         "#pragma once\n#define OBS_DATA_PATH \"share/obs\"\n#define OBS_PLUGIN_PATH \"lib64/obs-modules/core\"\n#define OBS_PLUGIN_DESTINATION \"lib64/obs-modules\"\n#define OBS_RELEASE_CANDIDATE 0\n#define OBS_BETA 6\n",
     );
-    for (enabled, name) in [
-        (options.gio, "GIO_FOUND"),
-        (options.pulseaudio, "PULSEAUDIO_FOUND"),
-        (options.wayland, "ENABLE_WAYLAND"),
-    ] {
-        if enabled {
-            header.push_str(&format!("#define {name}\n"));
-        }
-    }
+    crate::platform::configure_core_features(&build.target, options, &mut header);
     write_if_changed(&config.join("obsconfig.h"), &header)?;
     let version = fs::read_to_string(root.join("libobs/obsversion.c.in"))
         .map_err(|e| e.to_string())?
@@ -177,7 +161,7 @@ fn prepare(build: &NativeBuild, root: &Path, options: &Options) -> Result<Plan, 
     write_if_changed(&module_source, &modules)?;
     library.sources.push(module_source);
     if !options.unity {
-        library.sources = build.separate_group_sources(&root, &library.sources)?;
+        build.separate_target_sources(&root, &mut library)?;
     }
     if options.pch {
         library.precompiled_headers = crate::groups::headers(&root, &library.sources)?;
@@ -197,6 +181,7 @@ fn finish(build: &NativeBuild, library: &SharedLibrary) -> Result<PathBuf, Strin
         fs::copy(&artifact, &linker_name)
             .map_err(|e| format!("create {}: {e}", linker_name.display()))?;
     }
+    crate::platform::stage_core_identity(&build.target, &artifact)?;
     Ok(artifact)
 }
 
@@ -218,7 +203,7 @@ fn add_variant(
     }
     crate::platform::configure_libobs_variant(build, root, options, sets, library, rust_archive)?;
     if !options.unity {
-        library.sources = build.separate_group_sources(root, &library.sources)?;
+        build.separate_target_sources(root, library)?;
     }
     if options.pch {
         library.precompiled_headers = crate::groups::headers(root, &library.sources)?;
@@ -348,6 +333,7 @@ pub fn build_pair(
     let (_, _, objects) = build.objects(&common)?;
     common.sources.clear();
     common.precompiled_headers.clear();
+    common.source_compile_options.clear();
     common.precompiled_objects = objects;
     let mut reference = common.clone();
     reference.name = "obs-c-reference".into();

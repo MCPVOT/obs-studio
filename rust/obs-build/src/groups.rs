@@ -43,6 +43,17 @@ pub(crate) fn separate(
     output: &Path,
     sources: &[PathBuf],
 ) -> Result<Vec<PathBuf>, String> {
+    Ok(expand(root, output, sources)?
+        .into_iter()
+        .flat_map(|(_, members)| members)
+        .collect())
+}
+
+pub(crate) fn expand(
+    root: &Path,
+    output: &Path,
+    sources: &[PathBuf],
+) -> Result<Vec<(PathBuf, Vec<PathBuf>)>, String> {
     let root = dunce::canonicalize(root).map_err(|e| e.to_string())?;
     let mut result = Vec::new();
     let mut seen = HashSet::new();
@@ -60,7 +71,7 @@ pub(crate) fn separate(
         } else if name.ends_with("+.hpp.mm") {
             (".mm.hpp", "mm")
         } else {
-            result.push(source.clone());
+            result.push((source.clone(), vec![source.clone()]));
             continue;
         };
         println!("cargo:rerun-if-changed={}", source.display());
@@ -105,6 +116,7 @@ pub(crate) fn separate(
                 source.display()
             ));
         }
+        let mut expanded = Vec::new();
         for member in members {
             if !seen.insert(member.clone()) {
                 return Err(format!(
@@ -138,8 +150,9 @@ pub(crate) fn separate(
                     .map_err(|e| e.to_string())?;
                 fs::write(&wrapper, unit).map_err(|e| e.to_string())?;
             }
-            result.push(wrapper);
+            expanded.push(wrapper);
         }
+        result.push((source.clone(), expanded));
     }
     Ok(result)
 }

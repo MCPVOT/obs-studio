@@ -7,7 +7,11 @@ and `cc::Build`, including shared libraries, plugins, generated files, graphics,
 Qt, resources, tests and platform packaging. A core-only archive or test fixture
 does not complete the conversion.
 
-## Maintainer-directed wrap-up
+## Earlier prototype wrap-up
+
+Full conversion work resumed at the maintainer's request on October 21, 2026.
+The following records the earlier prototype deferral, not a limit on the resumed
+scope: all requirements in #1332 still apply.
 
 The maintainer requested stopping further expansion and deferring remaining
 C/Rust parity validation when it delays prototype launch. Follow-up
@@ -21,6 +25,33 @@ The user selected **unity on, compiled PCH off**. Keep both settings optional.
 `libobs::Options::default()` uses that mode; bundled `obs-sys` exposes the same
 choice as `OBS_SYS_UNITY=1` and `OBS_SYS_PCH=0` when no override is supplied.
 Components that already list explicit unity groups preserve those boundaries.
+
+## macOS core graph
+
+The native engine selects macOS core sources from the same
+`libobs/build/source-sets.json` used by CMake. It builds an explicit C reference
+and the production Rust/C hybrid, retaining the framework install name and
+macOS 13 deployment target. The generated development framework lookup layout
+does not supply release metadata, signing, or application packaging.
+
+Set `libobs::Options::native_dependencies` to an explicit prebuilt OBS dependency
+bundle. Bundled `obs-sys` accepts the same root through
+`OBS_SYS_NATIVE_DEPENDENCIES`, tracking that input for Cargo rebuilds. The outer
+Cargo invocation supplies the release Rust archive via `OBS_BUILD_RUST_ARCHIVE`.
+Cross compilation additionally needs a target compiler, Apple sysroot and Darwin
+linker; the graph does not infer these from host package discovery.
+
+`SourceCompileOptions` applies source overrides after target/language flags and
+before PCH generation. `NativeBuild::separate_target_sources` carries those
+overrides and explicit PCH assignments to individual group members. This keeps
+ARC cocoa groups separate from the non-ARC loader even when they share a header.
+Clang PCH now supports macOS as well as Linux; both unity and PCH remain optional.
+
+The existing macOS Tier 2 script also builds the Cargo core pair, compares its
+exports to the actual CMake reference, proves dyld selected each Cargo core, and
+runs the unchanged CTest suite against each. It checks the bundled crate's build
+path separately. These are core checks: they do not establish the macOS frontend,
+graphics backends, plugins, complete application, or release package conversion.
 
 ## Requirements carried forward
 

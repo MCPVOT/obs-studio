@@ -170,8 +170,8 @@ const EXPORT: &str = "\n#if defined(_WIN32)\n__declspec(dllexport)\n#endif\n";
 
 #[test]
 fn pch_preserves_mixed_languages_unity_and_header_flag_invalidation() {
-    if !obs_build::BUILD_TARGET.contains("linux") {
-        eprintln!("compiled PCH integration currently covers Linux GCC and Clang");
+    if !obs_build::BUILD_TARGET.contains("linux") && !obs_build::BUILD_TARGET.contains("apple") {
+        eprintln!("compiled PCH integration covers Linux GCC/Clang and Apple Clang");
         return;
     }
     let directory = tempfile::tempdir().unwrap();
@@ -438,6 +438,9 @@ fn objective_groups_expand_to_individual_language_correct_sources() {
 
 #[test]
 fn mixed_objective_languages_compile_load_and_rebuild_with_unity_and_pch() {
+    if native_answer_probe() {
+        return;
+    }
     if !obs_build::BUILD_TARGET.contains("linux") && !obs_build::BUILD_TARGET.contains("apple") {
         return; // The fixture requires an Objective-C-capable Clang toolchain.
     }
@@ -479,10 +482,6 @@ fn mixed_objective_languages_compile_load_and_rebuild_with_unity_and_pch() {
     fs::write(&cpp, "#include \"fixture.pch.h\"\n#if defined(__OBJC__) || !defined(__cplusplus)\n#error wrong C++ language\n#endif\nextern \"C\" int fixture_c(void);\nextern \"C\" int fixture_objc(void);\nextern \"C\" int fixture_objcpp(void);\nextern \"C\" int obs_fixture_languages(void) { return fixture_c() + fixture_objc() + fixture_objcpp() + 2 * VALUE; }\n").unwrap();
     for unity in [false, true] {
         for pch in [false, true] {
-            // Compiled PCH currently supports Linux; macOS still exercises both unity modes.
-            if pch && !obs_build::BUILD_TARGET.contains("linux") {
-                continue;
-            }
             write_header(1);
             let build = NativeBuild {
                 host: obs_build::BUILD_HOST.into(),
@@ -517,32 +516,188 @@ fn mixed_objective_languages_compile_load_and_rebuild_with_unity_and_pch() {
                     });
             }
             let artifact = build.shared_library(&library).unwrap();
-            // SAFETY: the fixture defines this no-argument C ABI function.
-            assert_eq!(
-                unsafe { answer(&artifact, b"obs_fixture_languages", &[]) },
-                15
-            );
+            assert_native_answer_fresh(&artifact, "obs_fixture_languages", 15, &selector);
             write_header(2);
             let artifact = build.shared_library(&library).unwrap();
-            // SAFETY: changing the header macro preserves the fixture ABI.
-            assert_eq!(
-                unsafe { answer(&artifact, b"obs_fixture_languages", &[]) },
-                30
-            );
+            assert_native_answer_fresh(&artifact, "obs_fixture_languages", 30, &selector);
             library.objc_compile_options[2] = "-DOBJC_ONLY=2".into();
             let artifact = build.shared_library(&library).unwrap();
-            // SAFETY: changing a language-specific macro preserves the fixture ABI.
-            assert_eq!(
-                unsafe { answer(&artifact, b"obs_fixture_languages", &[]) },
-                38
-            );
+            assert_native_answer_fresh(&artifact, "obs_fixture_languages", 38, &selector);
             library.objcpp_compile_options[2] = "-DOBJCPP_ONLY=2".into();
             let artifact = build.shared_library(&library).unwrap();
-            // SAFETY: changing the second language's macro preserves the fixture ABI.
-            assert_eq!(
-                unsafe { answer(&artifact, b"obs_fixture_languages", &[]) },
-                54
-            );
+            assert_native_answer_fresh(&artifact, "obs_fixture_languages", 54, &selector);
         }
     }
+}
+
+#[test]
+fn arc_and_manual_groups_keep_source_flags_through_expansion_and_pch() {
+    if native_answer_probe() {
+        return;
+    }
+    if !obs_build::BUILD_TARGET.contains("linux") && !obs_build::BUILD_TARGET.contains("apple") {
+        return;
+    }
+    let selector = format!(
+        "{}::arc_and_manual_groups_keep_source_flags_through_expansion_and_pch",
+        module_path!().split_once("::").unwrap().1
+    );
+    if std::env::var_os("OBS_BUILD_SOURCE_FLAGS_CHILD").is_none() {
+        let result = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", &selector, "--nocapture"])
+            .env("OBS_BUILD_SOURCE_FLAGS_CHILD", "1")
+            .env("CC", "clang")
+            .env("CXX", "clang++")
+            .output()
+            .unwrap();
+        assert!(
+            result.status.success(),
+            "{}\n{}",
+            String::from_utf8_lossy(&result.stdout),
+            String::from_utf8_lossy(&result.stderr)
+        );
+        assert!(String::from_utf8_lossy(&result.stdout).contains("1 passed"));
+        return;
+    }
+    let directory = tempfile::tempdir().unwrap();
+    let root = directory.path();
+    let header = root.join("fixture.pch.h");
+    fs::write(&header, "#pragma once\n#ifndef SOURCE_VALUE\n#error source flags missing from PCH\n#endif\n#define HEADER_ARC __has_feature(objc_arc)\n").unwrap();
+    let arc_member = root.join("arc.m.h");
+    let manual_member = root.join("manual.m.h");
+    fs::write(&arc_member, "#include \"fixture.pch.h\"\n#if !HEADER_ARC\n#error ARC disabled for ARC member\n#endif\nint fixture_arc(void) { return SOURCE_VALUE; }\n").unwrap();
+    fs::write(&manual_member, "#include \"fixture.pch.h\"\n#if HEADER_ARC\n#error ARC enabled for manual member\n#endif\nint fixture_arc(void);\nint obs_fixture_source_flags(void) { return SOURCE_VALUE + fixture_arc(); }\n").unwrap();
+    let arc = root.join("arc+.h.m");
+    let manual = root.join("manual+.h.m");
+    fs::write(&arc, "#include \"fixture.pch.h\"\n#include \"arc.m.h\"\n").unwrap();
+    fs::write(
+        &manual,
+        "#include \"fixture.pch.h\"\n#include \"manual.m.h\"\n",
+    )
+    .unwrap();
+    for separate in [false, true] {
+        for pch in [false, true] {
+            let build = NativeBuild {
+                host: obs_build::BUILD_HOST.into(),
+                target: obs_build::BUILD_TARGET.into(),
+                output: root.join(format!("output-{separate}-{pch}")),
+            };
+            let mut library = target("fixture-source-flags", &arc, vec![]);
+            library.sources.push(manual.clone());
+            library.include_dirs.push(root.into());
+            library.objc_compile_options =
+                vec!["-fobjc-runtime=macosx-10.12".into(), "-fno-objc-arc".into()];
+            library.source_compile_options = vec![
+                obs_build::SourceCompileOptions {
+                    sources: vec![arc.clone()],
+                    options: vec!["-fobjc-arc".into(), "-DSOURCE_VALUE=17".into()],
+                },
+                obs_build::SourceCompileOptions {
+                    sources: vec![manual.clone()],
+                    options: vec!["-DSOURCE_VALUE=25".into()],
+                },
+            ];
+            if pch {
+                library
+                    .precompiled_headers
+                    .push(obs_build::PrecompiledHeader {
+                        header: header.clone(),
+                        sources: library.sources.clone(),
+                    });
+            }
+            if separate {
+                build.separate_target_sources(root, &mut library).unwrap();
+            }
+            let artifact = build.shared_library(&library).unwrap();
+            assert_native_answer_fresh(&artifact, "obs_fixture_source_flags", 42, &selector);
+            library.source_compile_options[0].options[1] = "-DSOURCE_VALUE=35".into();
+            let artifact = build.shared_library(&library).unwrap();
+            assert_native_answer_fresh(&artifact, "obs_fixture_source_flags", 60, &selector);
+        }
+    }
+}
+
+#[test]
+fn native_source_options_reject_ambiguous_or_orphan_assignments() {
+    let dir = tempfile::tempdir().unwrap();
+    let source = dir.path().join("source.c");
+    let other = dir.path().join("other.c");
+    fs::write(&source, "int fixture(void) { return 1; }\n").unwrap();
+    fs::write(&other, "int other(void) { return 2; }\n").unwrap();
+    let build = NativeBuild {
+        host: obs_build::BUILD_HOST.into(),
+        target: obs_build::BUILD_TARGET.into(),
+        output: dir.path().join("artifacts"),
+    };
+    let mut library = target("fixture-options", &source, vec![]);
+    let entry = obs_build::SourceCompileOptions {
+        sources: vec![source.clone()],
+        options: vec!["-DVALUE=1".into()],
+    };
+    library.source_compile_options = vec![entry.clone(), entry];
+    assert!(
+        build
+            .shared_library(&library)
+            .unwrap_err()
+            .contains("duplicate compiler options")
+    );
+    library.source_compile_options = vec![obs_build::SourceCompileOptions {
+        sources: vec![other],
+        options: vec![],
+    }];
+    assert!(
+        build
+            .shared_library(&library)
+            .unwrap_err()
+            .contains("outside this target")
+    );
+    assert!(
+        build
+            .separate_target_sources(dir.path(), &mut library)
+            .unwrap_err()
+            .contains("annotation outside target")
+    );
+    assert_eq!(
+        library.sources,
+        vec![source],
+        "an invalid expansion must not mutate the target"
+    );
+}
+
+// dyld retains Objective-C dylibs after dlclose. Probe rebuilt images in fresh
+// processes so compiler/header invalidation is observed independently of that
+// loader lifetime policy. The probe reuses its owning test in this category.
+fn native_answer_probe() -> bool {
+    let Some(library) = std::env::var_os("OBS_NATIVE_ANSWER_LIBRARY") else {
+        return false;
+    };
+    let symbol = std::env::var("OBS_NATIVE_ANSWER_SYMBOL").unwrap();
+    let expected: i32 = std::env::var("OBS_NATIVE_ANSWER_EXPECTED")
+        .unwrap()
+        .parse()
+        .unwrap();
+    // SAFETY: these self-built fixtures define a no-argument C ABI function;
+    // answer keeps the library alive throughout the call.
+    assert_eq!(
+        unsafe { answer(Path::new(&library), symbol.as_bytes(), &[]) },
+        expected
+    );
+    true
+}
+
+fn assert_native_answer_fresh(library: &Path, symbol: &str, expected: i32, selector: &str) {
+    let result = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", selector, "--nocapture"])
+        .env("OBS_NATIVE_ANSWER_LIBRARY", library)
+        .env("OBS_NATIVE_ANSWER_SYMBOL", symbol)
+        .env("OBS_NATIVE_ANSWER_EXPECTED", expected.to_string())
+        .output()
+        .unwrap();
+    assert!(
+        result.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&result.stdout),
+        String::from_utf8_lossy(&result.stderr)
+    );
+    assert!(String::from_utf8_lossy(&result.stdout).contains("1 passed"));
 }

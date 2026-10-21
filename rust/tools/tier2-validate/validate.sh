@@ -140,3 +140,53 @@ for mode in OFF ON; do
       --repeat "until-fail:$repeat" ${tests:+-R "$tests"}
   fi
 done
+
+# Exercise the Cargo native graph on the same macOS machine and dependency
+# bundle as the reference. Build the Rust archive outside build.rs, into an
+# explicit output directory, so no source-tree or stale archive is selected.
+case "$(uname -m)" in
+  arm64) native_target=aarch64-apple-darwin ;;
+  x86_64) native_target=x86_64-apple-darwin ;;
+  *) echo "unsupported macOS native architecture" >&2; exit 1 ;;
+esac
+native_output="$PWD/$build/cargo-native-core"
+native_rust="$PWD/$build/cargo-native-rust"
+native_tests="$PWD/$build/cargo-native-tests"
+soldr cargo build -p libobs-rust --release --target "$native_target" --target-dir "$native_rust"
+OBS_BUILD_MACOS_DEPENDENCIES="$(dirname "$(dirname "$avcodec")")" \
+  OBS_BUILD_MACOS_TARGET="$native_target" \
+  OBS_BUILD_MACOS_OUTPUT="$native_output" \
+  OBS_BUILD_MACOS_RUST_ARCHIVE="$native_rust/$native_target/release/liblibobs_rust.a" \
+  OBS_BUILD_MACOS_REFERENCE="$PWD/$c_lib" \
+  soldr cargo test -p obs-studio-rust --features libobs-integration \
+    --target "$native_target" --target-dir "$native_tests" \
+    --test obs-tests-app native_libobs::macos_core_builds_from_the_canonical_manifest -- --exact
+
+OBS_SYS_NATIVE_DEPENDENCIES="$(dirname "$(dirname "$avcodec")")" \
+  OBS_BUILD_RUST_ARCHIVE="$native_rust/$native_target/release/liblibobs_rust.a" \
+  soldr cargo check -p obs-sys --features bundled --target "$native_target" --target-dir "$native_tests"
+
+# Check each generated development framework contains the newly linked core.
+# This is not release packaging. Existing test binaries and their
+# assertions remain unchanged; dyld must prove they loaded the selected core.
+for native_variant in obs-c-reference obs; do
+  native_framework="$native_output/$native_variant/libobs.framework"
+  cmp "$native_output/$native_variant/libobs.dylib" "$native_framework/Versions/A/libobs"
+  cmp "$native_output/$native_variant/libobs.dylib" "$native_framework/libobs"
+  native_dyld=(env DYLD_FRAMEWORK_PATH="$native_output/$native_variant" DYLD_LIBRARY_PATH="$(dirname "$avcodec")")
+  native_probe_log="$native_output/$native_variant/loader.log"
+  if ! "${native_dyld[@]}" DYLD_PRINT_LIBRARIES=1 "$probe" >"$native_probe_log" 2>&1; then
+    tail -40 "$native_probe_log"
+    exit 1
+  fi
+  if ! grep -qF "$native_framework/" "$native_probe_log"; then
+    echo "FAIL: Cargo [$native_variant] did not load $native_framework" >&2
+    exit 1
+  fi
+  echo "== Cargo [$native_variant] unchanged ctest suite"
+  if ! "${native_dyld[@]}" ctest --test-dir "$build" -C RelWithDebInfo --output-on-failure; then
+    DYLD_FRAMEWORK_PATH="$native_output/$native_variant" DYLD_LIBRARY_PATH="$(dirname "$avcodec")" \
+      show_crash_stacks "$build"
+    exit 1
+  fi
+done

@@ -37,8 +37,14 @@ fn main() {
         let options = obs_build::libobs::Options {
             unity: modes.unity,
             pch: modes.pch,
+            native_dependencies: std::env::var_os("OBS_SYS_NATIVE_DEPENDENCIES")
+                .map(std::path::PathBuf::from),
             ..obs_build::libobs::Options::default()
         };
+        println!("cargo:rerun-if-env-changed=OBS_SYS_NATIVE_DEPENDENCIES");
+        if let Some(root) = &options.native_dependencies {
+            println!("cargo:rerun-if-changed={}", root.display());
+        }
         println!("cargo:rerun-if-env-changed=OBS_BUILD_RUST_ARCHIVE");
         println!("cargo:rerun-if-env-changed=OBS_SYS_C_ROLLBACK");
         if let Some(archive) = std::env::var_os("OBS_BUILD_RUST_ARCHIVE") {

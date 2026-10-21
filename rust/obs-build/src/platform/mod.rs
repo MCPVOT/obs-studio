@@ -7,6 +7,32 @@ use std::{
 };
 
 mod libobs_linux;
+mod libobs_macos;
+
+pub fn stage_core_identity(target: &str, artifact: &Path) -> Result<(), String> {
+    if target.contains("apple-darwin") {
+        libobs_macos::stage_identity(artifact)?;
+    }
+    Ok(())
+}
+
+pub fn configure_core_features(
+    target: &str,
+    options: &crate::libobs::Options,
+    header: &mut String,
+) {
+    if target.contains("linux") {
+        for (enabled, name) in [
+            (options.gio, "GIO_FOUND"),
+            (options.pulseaudio, "PULSEAUDIO_FOUND"),
+            (options.wayland, "ENABLE_WAYLAND"),
+        ] {
+            if enabled {
+                header.push_str(&format!("#define {name}\n"));
+            }
+        }
+    }
+}
 
 pub(crate) enum PchKind {
     Gnu,
@@ -14,15 +40,15 @@ pub(crate) enum PchKind {
 }
 
 pub(crate) fn pch_kind(target: &str, compiler: &cc::Tool) -> Result<PchKind, String> {
-    if !target.contains("linux") {
+    if !target.contains("linux") && !target.contains("apple-darwin") {
         return Err(format!("compiled PCH for {target} is not implemented yet"));
     }
     if compiler.is_like_clang() && !compiler.is_like_msvc() {
         Ok(PchKind::Clang)
-    } else if compiler.is_like_gnu() {
+    } else if target.contains("linux") && compiler.is_like_gnu() {
         Ok(PchKind::Gnu)
     } else {
-        Err("compiled PCH requires Linux GCC or Clang".into())
+        Err("compiled PCH requires Linux GCC or a Clang driver".into())
     }
 }
 
@@ -35,11 +61,36 @@ pub fn configure_libobs(
 ) -> Result<(), String> {
     if target.contains("linux") {
         libobs_linux::configure(target, root, options, sets, library)
+    } else if target.contains("apple-darwin") {
+        libobs_macos::configure(root, sets, library)
     } else {
         Err(format!(
             "real libobs native graph for {target} is not implemented yet"
         ))
     }
+}
+
+pub fn configure_core_dependencies(
+    target: &str,
+    options: &crate::libobs::Options,
+    library: &mut crate::SharedLibrary,
+) -> Result<(), String> {
+    if target.contains("apple-darwin") {
+        return libobs_macos::dependencies(options, library);
+    }
+    for package in [
+        "libavformat",
+        "libavcodec",
+        "libavutil",
+        "libswscale",
+        "libswresample",
+        "jansson",
+        "zlib",
+        "simde",
+    ] {
+        crate::libobs::add_package(library, target, package)?;
+    }
+    Ok(())
 }
 
 pub fn shared_filename(target: &str, name: &str) -> String {
@@ -125,6 +176,15 @@ pub fn configure_libobs_variant(
 ) -> Result<(), String> {
     if build.target.contains("linux") {
         libobs_linux::configure_variant(
+            root,
+            options,
+            sets,
+            library,
+            rust_archive,
+            &build.output.join("config"),
+        )
+    } else if build.target.contains("apple-darwin") {
+        libobs_macos::configure_variant(
             root,
             options,
             sets,
@@ -276,7 +336,12 @@ pub fn configure_executable_link(
 }
 
 pub fn configure_caption(target: &str, library: &mut crate::SharedLibrary) -> Result<(), String> {
-    configure_module(target, library)?;
+    if target.contains("apple-darwin") {
+        library.c_compile_options.push("-std=gnu17".into());
+        library.compile_options.push("-fvisibility=hidden".into());
+    } else {
+        configure_module(target, library)?;
+    }
     library.compile_options.push("-fopenmp-simd".into());
     Ok(())
 }

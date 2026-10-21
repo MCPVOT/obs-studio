@@ -24,6 +24,13 @@ pub struct PrecompiledHeader {
     pub sources: Vec<PathBuf>,
 }
 
+#[derive(Clone, Debug)]
+pub struct SourceCompileOptions {
+    pub sources: Vec<PathBuf>,
+    /// Applied after target and language defaults, including when building PCH.
+    pub options: Vec<String>,
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct SharedLibrary {
     pub name: String,
@@ -43,6 +50,7 @@ pub struct SharedLibrary {
     pub objc_compile_options: Vec<String>,
     /// Extra flags for Objective-C++, in addition to the C++-family options.
     pub objcpp_compile_options: Vec<String>,
+    pub source_compile_options: Vec<SourceCompileOptions>,
     pub link_options: Vec<String>,
     pub file_name: Option<String>,
 }
@@ -89,6 +97,7 @@ impl Language {
 struct CompilationBatch {
     language: Language,
     header: Option<PathBuf>,
+    options: Vec<String>,
     sources: Vec<PathBuf>,
 }
 
@@ -100,6 +109,67 @@ impl NativeBuild {
         sources: &[PathBuf],
     ) -> Result<Vec<PathBuf>, String> {
         groups::separate(root, &self.output.join("individual-sources"), sources)
+    }
+
+    /// Expand groups and carry per-source flags and PCH assignments to their members.
+    pub fn separate_target_sources(
+        &self,
+        root: &std::path::Path,
+        library: &mut SharedLibrary,
+    ) -> Result<(), String> {
+        let expanded = groups::expand(
+            root,
+            &self.output.join("individual-sources"),
+            &library.sources,
+        )?;
+        let mut members = std::collections::BTreeMap::new();
+        for (source, outputs) in &expanded {
+            let source = dunce::canonicalize(source).map_err(|e| e.to_string())?;
+            if members.insert(source.clone(), outputs).is_some() {
+                return Err(format!("duplicate target source: {}", source.display()));
+            }
+        }
+        let remap = |sources: &[PathBuf]| -> Result<Vec<PathBuf>, String> {
+            let mut result = Vec::new();
+            for source in sources {
+                let source = dunce::canonicalize(source).map_err(|e| e.to_string())?;
+                result.extend(
+                    members
+                        .get(&source)
+                        .ok_or_else(|| format!("annotation outside target: {}", source.display()))?
+                        .iter()
+                        .cloned(),
+                );
+            }
+            Ok(result)
+        };
+        let options = library
+            .source_compile_options
+            .iter()
+            .map(|entry| {
+                Ok(SourceCompileOptions {
+                    sources: remap(&entry.sources)?,
+                    options: entry.options.clone(),
+                })
+            })
+            .collect::<Result<Vec<_>, String>>()?;
+        let headers = library
+            .precompiled_headers
+            .iter()
+            .map(|entry| {
+                Ok(PrecompiledHeader {
+                    sources: remap(&entry.sources)?,
+                    header: entry.header.clone(),
+                })
+            })
+            .collect::<Result<Vec<_>, String>>()?;
+        library.sources = expanded
+            .into_iter()
+            .flat_map(|(_, outputs)| outputs)
+            .collect();
+        library.source_compile_options = options;
+        library.precompiled_headers = headers;
+        Ok(())
     }
 
     /// Compile through cc::Build, then link a native shared library.
@@ -212,9 +282,28 @@ impl NativeBuild {
             }
         }
         let mut batches: Vec<CompilationBatch> = Vec::new();
+        let mut target_sources = std::collections::HashSet::new();
+        let mut source_options = std::collections::BTreeMap::new();
+        for entry in &library.source_compile_options {
+            for source in &entry.sources {
+                let source = dunce::canonicalize(source).map_err(|e| e.to_string())?;
+                if source_options
+                    .insert(source.clone(), entry.options.clone())
+                    .is_some()
+                {
+                    return Err(format!(
+                        "duplicate compiler options for {}",
+                        source.display()
+                    ));
+                }
+            }
+        }
         for source in &library.sources {
             let absolute =
                 dunce::canonicalize(source).map_err(|e| format!("{}: {e}", source.display()))?;
+            if !target_sources.insert(absolute.clone()) {
+                return Err(format!("duplicate target source: {}", source.display()));
+            }
             let language = match source.extension().and_then(|e| e.to_str()) {
                 Some("c") => Language::C,
                 Some("cpp" | "cc" | "cxx") => Language::Cpp,
@@ -228,15 +317,21 @@ impl NativeBuild {
                 }
             };
             let header = assignments.remove(&absolute);
+            let options = source_options.remove(&absolute).unwrap_or_default();
             // Keep translation-unit and constructor order. Combining all users
             // of the same header would move interleaved source files around.
             match batches.last_mut() {
-                Some(previous) if previous.language == language && previous.header == header => {
+                Some(previous)
+                    if previous.language == language
+                        && previous.header == header
+                        && previous.options == options =>
+                {
                     previous.sources.push(absolute);
                 }
                 _ => batches.push(CompilationBatch {
                     language,
                     header,
+                    options,
                     sources: vec![absolute],
                 }),
             }
@@ -244,12 +339,16 @@ impl NativeBuild {
         if !assignments.is_empty() {
             return Err("PCH assignment refers to sources outside this target".into());
         }
+        if !source_options.is_empty() {
+            return Err("compiler options refer to sources outside this target".into());
+        }
         let cpp_link = batches.iter().any(|batch| batch.language.cpp());
         let mut objects = Vec::new();
         for (index, batch) in batches.into_iter().enumerate() {
             let CompilationBatch {
                 language,
                 header,
+                options,
                 sources,
             } = batch;
             let mut compiler = self.compiler(library, &output, language.cpp());
@@ -258,6 +357,7 @@ impl NativeBuild {
                 Language::ObjectiveCpp => library.objcpp_compile_options.as_slice(),
                 Language::C | Language::Cpp => &[],
             });
+            compiler.flags(&options);
             if let Some(header) = header {
                 pch::apply(self, &mut compiler, language, &header)?;
             }
