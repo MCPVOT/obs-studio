@@ -14,6 +14,29 @@ SPEC.loader.exec_module(metrics)
 
 
 class CacheMetricsTest(unittest.TestCase):
+    def test_dispatch_time_uses_job_creation_not_run_creation(self):
+        job = {"created_at": "2026-10-21T00:26:13Z", "started_at": "2026-10-21T00:28:29Z"}
+        self.assertEqual(metrics.creation_to_start_seconds(job), 136)
+        self.assertIsNone(metrics.creation_to_start_seconds({"started_at": job["started_at"]}))
+        self.assertIsNone(metrics.creation_to_start_seconds({**job, "conclusion": "skipped"}))
+        self.assertIsNone(metrics.creation_to_start_seconds({**job, "started_at": "2026-10-21T00:26:12Z"}))
+
+    def test_lane_tail_and_creation_to_start_samples_keep_unknowns_out(self):
+        jobs = [
+            {"name": "Gate", "conclusion": "success", "created_at": "2026-01-01T00:00:00Z",
+             "started_at": "2026-01-01T00:00:10Z", "completed_at": "2026-01-01T00:00:30Z"},
+            {"name": "Gate", "conclusion": "success", "started_at": "2026-01-01T00:01:00Z",
+             "completed_at": "2026-01-01T00:02:00Z"},
+        ]
+        record = {"event": "merge_group", "cohort": "code", "conclusion": "success", "jobs": jobs}
+        lane = metrics.lane_summaries([record])["merge_group/code/Gate"]
+        self.assertEqual(lane["median_job_seconds"], 40)
+        self.assertEqual(lane["p95_job_seconds"], 60)
+        self.assertEqual(lane["creation_to_start_samples"], 1)
+        self.assertEqual(lane["median_creation_to_start_seconds"], 10)
+        self.assertEqual(lane["p95_creation_to_start_seconds"], 10)
+        self.assertIsNone(metrics.p95([]))
+
     def test_archive_restore_is_distinct_from_compiler_hits(self):
         log = "\n".join([
             "Tier2\tRestore cache\t2026-10-17T18:39:59Z Cache Size: ~266 MB (278493433 B)",

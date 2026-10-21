@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import concurrent.futures
 import json
+import math
 import re
 import statistics
 import subprocess
@@ -29,6 +30,19 @@ def stamp(value: str) -> datetime:
 
 def seconds(start: str | None, end: str | None) -> float:
     return max(0.0, (stamp(end) - stamp(start)).total_seconds()) if start and end else 0.0
+
+
+def creation_to_start_seconds(job: dict) -> float | None:
+    """Observed creation to start; may include dependency waiting, not pure dispatch latency."""
+    if job.get("conclusion") == "skipped" or not job.get("created_at") or not job.get("started_at"):
+        return None
+    duration = (stamp(job["started_at"]) - stamp(job["created_at"])).total_seconds()
+    return duration if duration >= 0 else None
+
+
+def p95(values: list[float]) -> float | None:
+    """Nearest-rank sample p95; small samples usually return their maximum."""
+    return sorted(values)[math.ceil(len(values) * 0.95) - 1] if values else None
 
 
 def cohort(files: list[str]) -> str:
@@ -62,6 +76,8 @@ def lane_summaries(records: list[dict]) -> dict:
     result = {}
     for key, samples in buckets.items():
         steps = defaultdict(list)
+        durations = [seconds(job['started_at'], job['completed_at']) for _, job in samples]
+        dispatch = [value for _, job in samples if (value := creation_to_start_seconds(job)) is not None]
         for _, job in samples:
             for step in job.get('steps', []):
                 if step.get('conclusion') == 'success' and step.get('started_at') and step.get('completed_at'):
@@ -69,7 +85,11 @@ def lane_summaries(records: list[dict]) -> dict:
         result[key] = {
             'successful_job_samples': len(samples),
             'parent_run_outcomes': dict(Counter(record['conclusion'] for record, _ in samples)),
-            'median_job_seconds': statistics.median(seconds(job['started_at'], job['completed_at']) for _, job in samples),
+            'median_job_seconds': statistics.median(durations),
+            'p95_job_seconds': p95(durations),
+            'creation_to_start_samples': len(dispatch),
+            'median_creation_to_start_seconds': statistics.median(dispatch) if dispatch else None,
+            'p95_creation_to_start_seconds': p95(dispatch),
             'steps': {name: {'samples': len(values), 'median_seconds': statistics.median(values)}
                       for name, values in sorted(steps.items())},
         }
@@ -237,7 +257,9 @@ def collect(repo: str, start: str, end: str, output: Path, per_group: int, inclu
                                "Markdown and docs/ci-evidence JSON are documentation; other JSON can be product code.",
                                "Unknown changed-file comparisons are not classified as docs.",
                                "Master pushes without PR metadata have an unknown source cohort.",
-                               "Per-workflow listing limit is 2000; inspect coverage for larger windows."]}
+                               "Per-workflow listing limit is 2000; inspect coverage for larger windows.",
+                               "Creation-to-start intervals may include dependency waiting; they do not isolate runner dispatch latency or prove capacity exhaustion.",
+                               "p95 uses nearest rank; sparse samples often return their maximum, not a stable population tail."]}
     buckets = defaultdict(list)
     outcomes = defaultdict(lambda: defaultdict(int))
     lanes = defaultdict(list)
@@ -261,6 +283,7 @@ def collect(repo: str, start: str, end: str, output: Path, per_group: int, inclu
         summary["cohorts"][name] = {
             "sampled_runs": len(bucket), "successful_gate_samples": len(passing),
             "median_successful_gate_seconds": statistics.median(passing) if passing else None,
+            "p95_successful_gate_seconds": p95(passing),
             "canceled_runner_minutes": round(sum(r["runner_minutes"] for r in bucket if r["conclusion"] == "cancelled"), 3),
         }
     for name, samples in lanes.items():

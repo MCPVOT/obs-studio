@@ -24,6 +24,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from cancel_superseded import queue_pr  # noqa: E402
+from cache_metrics import creation_to_start_seconds  # noqa: E402
 
 
 def _t(stamp: str) -> datetime:
@@ -51,7 +52,8 @@ def _minutes(job: dict) -> float | None:
 
 def summary(current: dict, jobs: list[dict], att: tuple[int, list[int]], now: str) -> str:
     wall = (_t(now) - _t(current["created_at"])).total_seconds() / 60
-    timed = [(m, j["name"]) for j in jobs if (m := _minutes(j)) is not None]
+    timed = [(m, j["name"]) for j in jobs
+             if j.get("conclusion") != "skipped" and (m := _minutes(j)) is not None]
     n, earlier = att
     lines = [
         f"### Merge queue: PR #{queue_pr(current['head_branch'])}, attempt {n}",
@@ -63,6 +65,15 @@ def summary(current: dict, jobs: list[dict], att: tuple[int, list[int]], now: st
         lines.append(f"- rebuilt: master moved under this PR; earlier queue runs: {', '.join(map(str, earlier))}")
     lines += ["", "| Job | min |", "|---|---|"]
     lines += [f"| {name} | {m:.1f} |" for m, name in sorted(timed, reverse=True)[:8]]
+    dispatch = [(duration, job["name"]) for job in jobs
+                if (duration := creation_to_start_seconds(job)) is not None]
+    if dispatch:
+        lines += ["", "### Job creation-to-start elapsed time", "",
+                  "Elapsed job creation to runner start; this may include dependency waiting "
+                  "and cannot isolate runner dispatch latency. Missing timestamps remain unknown.", "",
+                  "| Job | seconds |", "|---|---:|"]
+        lines += [f"| {name} | {duration:.1f} |"
+                  for duration, name in sorted(dispatch, reverse=True)[:8]]
     setup_steps = []
     for job in jobs:
         for step in job.get("steps", []):
