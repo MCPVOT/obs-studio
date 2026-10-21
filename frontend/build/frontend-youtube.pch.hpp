@@ -53,3 +53,5 @@
 
 #include <QFile>
 #include <QMimeDatabase>
+
+#include "frontend/utility/platform.hpp"

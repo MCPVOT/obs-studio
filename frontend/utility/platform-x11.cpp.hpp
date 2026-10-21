@@ -595,3 +595,64 @@ const char *GetPlatformFallbackTheme(const char *defaultTheme)
 
 void InstallPlatformDllBlocklist() {}
 void LogPlatformBlockedDlls() {}
+
+/* Shared dialog platform policy (#879). */
+const char *GetPlatformAuthorsFile()
+{
+	return "authors/AUTHORS";
+}
+
+Qt::Key GetPlatformFilterRenameKey()
+{
+	return Qt::Key_F2;
+}
+
+void HandlePlatformDialogNativeEvent(QWidget *dialog, void *message)
+{
+	(void)dialog;
+	(void)message;
+}
+
+int TranslatePlatformInteractionModifiers(Qt::KeyboardModifiers mods, bool mouseEvent)
+{
+	int obsModifiers = INTERACT_NONE;
+
+	if (mods.testFlag(Qt::ShiftModifier)) {
+		obsModifiers |= INTERACT_SHIFT_KEY;
+	}
+	if (mods.testFlag(Qt::AltModifier)) {
+		obsModifiers |= INTERACT_ALT_KEY;
+	}
+	// Handle windows key? Can a browser even trap that key?
+	if (mods.testFlag(Qt::ControlModifier)) {
+		obsModifiers |= INTERACT_CONTROL_KEY;
+	}
+
+	if (!mouseEvent) {
+		if (mods.testFlag(Qt::KeypadModifier)) {
+			obsModifiers |= INTERACT_IS_KEY_PAD;
+		}
+	}
+
+	return obsModifiers;
+}
+
+const char *GetPlatformPropertiesFontFace()
+{
+	return "Monospace";
+}
+
+const char *GetPlatformPropertiesTextSource()
+{
+	return "text_ft2_source";
+}
+
+float GetPlatformPropertiesLabelHeight(uint32_t height)
+{
+	return height * 0.8;
+}
+
+void AdjustPlatformYouTubeDialogSize(QWidget *dialog)
+{
+	(void)dialog;
+}

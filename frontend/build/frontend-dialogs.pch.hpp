@@ -111,3 +111,5 @@
 #include <QHBoxLayout>
 #include <QPushButton>
 #include <QVBoxLayout>
+
+#include "frontend/utility/platform.hpp"

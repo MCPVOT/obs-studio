@@ -150,58 +150,13 @@ void OBSBasicInteraction::closeEvent(QCloseEvent *event)
 
 bool OBSBasicInteraction::nativeEvent(const QByteArray &, void *message, qintptr *)
 {
-#ifdef _WIN32
-	const MSG &msg = *static_cast<MSG *>(message);
-	switch (msg.message) {
-	case WM_MOVE:
-		for (OBSQTDisplay *const display : findChildren<OBSQTDisplay *>()) {
-			display->OnMove();
-		}
-		break;
-	case WM_DISPLAYCHANGE:
-		for (OBSQTDisplay *const display : findChildren<OBSQTDisplay *>()) {
-			display->OnDisplayChange();
-		}
-	}
-#else
-	UNUSED_PARAMETER(message);
-#endif
-
+	HandlePlatformDialogNativeEvent(this, message);
 	return false;
 }
 
 static int TranslateQtKeyboardEventModifiers(QInputEvent *event, bool mouseEvent)
 {
-	int obsModifiers = INTERACT_NONE;
-
-	if (event->modifiers().testFlag(Qt::ShiftModifier)) {
-		obsModifiers |= INTERACT_SHIFT_KEY;
-	}
-	if (event->modifiers().testFlag(Qt::AltModifier)) {
-		obsModifiers |= INTERACT_ALT_KEY;
-	}
-#ifdef __APPLE__
-	// Mac: Meta = Control, Control = Command
-	if (event->modifiers().testFlag(Qt::ControlModifier)) {
-		obsModifiers |= INTERACT_COMMAND_KEY;
-	}
-	if (event->modifiers().testFlag(Qt::MetaModifier)) {
-		obsModifiers |= INTERACT_CONTROL_KEY;
-	}
-#else
-	// Handle windows key? Can a browser even trap that key?
-	if (event->modifiers().testFlag(Qt::ControlModifier)) {
-		obsModifiers |= INTERACT_CONTROL_KEY;
-	}
-#endif
-
-	if (!mouseEvent) {
-		if (event->modifiers().testFlag(Qt::KeypadModifier)) {
-			obsModifiers |= INTERACT_IS_KEY_PAD;
-		}
-	}
-
-	return obsModifiers;
+	return TranslatePlatformInteractionModifiers(event->modifiers(), mouseEvent);
 }
 
 static int TranslateQtMouseEventModifiers(QMouseEvent *event)

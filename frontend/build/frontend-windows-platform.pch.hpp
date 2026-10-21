@@ -32,3 +32,5 @@
 #include <util/platform.h>
 
 #include "frontend/utility/OBSProxyStyle.hpp"
+
+#include "frontend/widgets/OBSQTDisplay.hpp"

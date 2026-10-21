@@ -227,10 +227,7 @@ OBSYoutubeActions::OBSYoutubeActions(QWidget *parent, Auth *auth, bool broadcast
 		selectedBroadcast = apiYouTube->GetBroadcastId();
 	}
 
-#ifdef __APPLE__
-	// MacOS theming issues
-	this->resize(this->width() + 200, this->height() + 120);
-#endif
+	AdjustPlatformYouTubeDialogSize(this);
 	valid = true;
 }
 

@@ -127,11 +127,7 @@ void OBSAbout::ShowAuthors()
 	std::string path;
 	QString error = QTStr("About.Error").arg("https://github.com/obsproject/obs-studio/blob/master/AUTHORS");
 
-#ifdef __APPLE__
-	if (!GetDataFilePath("AUTHORS", path)) {
-#else
-	if (!GetDataFilePath("authors/AUTHORS", path)) {
-#endif
+	if (!GetDataFilePath(GetPlatformAuthorsFile(), path)) {
 		ui->textBrowser->setPlainText(error);
 		return;
 	}

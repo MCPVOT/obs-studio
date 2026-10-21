@@ -20,6 +20,7 @@
 #include <util/c99defs.h>
 #include <util/config-file.h>
 #include <obs.h>
+#include <QtCore/Qt>
 
 #include <ctime>
 #include <string>
@@ -200,3 +201,14 @@ bool ConsumePlatformAppSignal(PlatformAppSignal signal);
 void DisconnectPlatformAppSignals();
 void InstallPlatformDllBlocklist();
 void LogPlatformBlockedDlls();
+
+/* Shared dialog policy (#879). Interaction Meta handling intentionally differs
+ * from the generic Qt wrapper on non-macOS hosts. */
+const char *GetPlatformAuthorsFile();
+Qt::Key GetPlatformFilterRenameKey();
+void HandlePlatformDialogNativeEvent(QWidget *dialog, void *message);
+int TranslatePlatformInteractionModifiers(Qt::KeyboardModifiers mods, bool mouseEvent);
+const char *GetPlatformPropertiesFontFace();
+const char *GetPlatformPropertiesTextSource();
+float GetPlatformPropertiesLabelHeight(uint32_t height);
+void AdjustPlatformYouTubeDialogSize(QWidget *dialog);

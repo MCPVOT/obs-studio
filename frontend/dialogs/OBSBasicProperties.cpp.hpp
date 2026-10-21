@@ -158,13 +158,7 @@ static obs_source_t *CreatePropertiesLabel(const char *name, size_t h)
 	text += name;
 	text += " ";
 
-#if defined(_WIN32)
-	obs_data_set_string(font, "face", "Arial");
-#elif defined(__APPLE__)
-	obs_data_set_string(font, "face", "Helvetica");
-#else
-	obs_data_set_string(font, "face", "Monospace");
-#endif
+	obs_data_set_string(font, "face", GetPlatformPropertiesFontFace());
 	obs_data_set_int(font, "flags", 1); // Bold text
 	obs_data_set_int(font, "size", min(int(h), 300));
 
@@ -172,11 +166,7 @@ static obs_source_t *CreatePropertiesLabel(const char *name, size_t h)
 	obs_data_set_string(settings, "text", text.c_str());
 	obs_data_set_bool(settings, "outline", false);
 
-#ifdef _WIN32
-	const char *text_source_id = "text_gdiplus";
-#else
-	const char *text_source_id = "text_ft2_source";
-#endif
+	const char *text_source_id = GetPlatformPropertiesTextSource();
 
 	obs_source_t *txtSource = obs_source_create_private(text_source_id, name, settings);
 
@@ -198,12 +188,7 @@ static void CreateTransitionScene(OBSSource scene, const char *text, uint32_t co
 	obs_sceneitem_t *item = obs_scene_add(obs_scene_from_source(scene), label);
 
 	vec2 size;
-	vec2_set(&size, obs_source_get_width(scene),
-#ifdef _WIN32
-		 obs_source_get_height(scene));
-#else
-		 obs_source_get_height(scene) * 0.8);
-#endif
+	vec2_set(&size, obs_source_get_width(scene), GetPlatformPropertiesLabelHeight(obs_source_get_height(scene)));
 
 	obs_sceneitem_set_bounds(item, &size);
 	obs_sceneitem_set_bounds_type(item, OBS_BOUNDS_SCALE_INNER);
@@ -425,23 +410,7 @@ void OBSBasicProperties::closeEvent(QCloseEvent *event)
 
 bool OBSBasicProperties::nativeEvent(const QByteArray &, void *message, qintptr *)
 {
-#ifdef _WIN32
-	const MSG &msg = *static_cast<MSG *>(message);
-	switch (msg.message) {
-	case WM_MOVE:
-		for (OBSQTDisplay *const display : findChildren<OBSQTDisplay *>()) {
-			display->OnMove();
-		}
-		break;
-	case WM_DISPLAYCHANGE:
-		for (OBSQTDisplay *const display : findChildren<OBSQTDisplay *>()) {
-			display->OnDisplayChange();
-		}
-	}
-#else
-	UNUSED_PARAMETER(message);
-#endif
-
+	HandlePlatformDialogNativeEvent(this, message);
 	return false;
 }
 

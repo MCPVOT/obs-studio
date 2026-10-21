@@ -120,11 +120,7 @@ OBSBasicFilters::OBSBasicFilters(QWidget *parent, OBSSource source_)
 		ui->preview->hide();
 	}
 
-#ifdef __APPLE__
-	ui->actionRenameFilter->setShortcut({Qt::Key_Return});
-#else
-	ui->actionRenameFilter->setShortcut({Qt::Key_F2});
-#endif
+	ui->actionRenameFilter->setShortcut({GetPlatformFilterRenameKey()});
 
 	UpdateFilters();
 }
@@ -592,23 +588,7 @@ void OBSBasicFilters::closeEvent(QCloseEvent *event)
 
 bool OBSBasicFilters::nativeEvent(const QByteArray &, void *message, qintptr *)
 {
-#ifdef _WIN32
-	const MSG &msg = *static_cast<MSG *>(message);
-	switch (msg.message) {
-	case WM_MOVE:
-		for (OBSQTDisplay *const display : findChildren<OBSQTDisplay *>()) {
-			display->OnMove();
-		}
-		break;
-	case WM_DISPLAYCHANGE:
-		for (OBSQTDisplay *const display : findChildren<OBSQTDisplay *>()) {
-			display->OnDisplayChange();
-		}
-	}
-#else
-	UNUSED_PARAMETER(message);
-#endif
-
+	HandlePlatformDialogNativeEvent(this, message);
 	return false;
 }
 
