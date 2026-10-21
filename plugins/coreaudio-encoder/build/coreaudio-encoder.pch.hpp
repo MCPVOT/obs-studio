@@ -1,5 +1,5 @@
 /* Precompiled header (BUILD.md) for the plugins/coreaudio-encoder unity groups
- * coreaudio-encoder.core. C++. Every implementation file in them includes this header and
+ * coreaudio-encoder.windows and coreaudio-encoder.macos. C++. Every implementation file in them includes this header and
  * nothing else: the includes and macro setup below are theirs, in group and
  * file order. */
 
@@ -16,11 +16,6 @@
 #include <mutex>
 #include <vector>
 
-#ifndef _WIN32
-#include <AudioToolbox/AudioToolbox.h>
-#include <util/apple/cfstring-utils.h>
-#endif
-
 #define CA_LOG(level, format, ...) blog(level, "[CoreAudio encoder]: " format, ##__VA_ARGS__)
 #define CA_LOG_ENCODER(format_name, encoder, level, format, ...) \
 	blog(level, "[CoreAudio %s: '%s']: " format, format_name, obs_encoder_get_name(encoder), ##__VA_ARGS__)
@@ -33,6 +28,7 @@
 			CA_LOG(level, format, ##__VA_ARGS__);  \
 	} while (false)
 
-#ifdef _WIN32
-#include "plugins/coreaudio-encoder/windows-imports.h"
-#endif
+/* Selected by the target's host include directory. Keep this after CA_LOG:
+ * the unchanged Windows imports header uses that macro in its loader. */
+#include <coreaudio-platform-types.hpp>
+#include "plugins/coreaudio-encoder/coreaudio-platform.hpp"

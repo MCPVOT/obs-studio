@@ -10,9 +10,21 @@ endif()
 add_library(coreaudio-encoder MODULE)
 add_library(OBS::coreaudio-encoder ALIAS coreaudio-encoder)
 
+# SDK types and deleters belong to one host; the Windows imports/functions
+# must share a translation unit with the encoder that calls them.
+target_include_directories(
+  coreaudio-encoder
+  PRIVATE
+    "$<$<PLATFORM_ID:Windows>:${CMAKE_CURRENT_SOURCE_DIR}/hosts/windows>"
+    "$<$<PLATFORM_ID:Darwin>:${CMAKE_CURRENT_SOURCE_DIR}/hosts/macos>"
+)
+
 target_sources(
   coreaudio-encoder
-  PRIVATE build/coreaudio-encoder.core+.hpp.cpp $<$<PLATFORM_ID:Windows>:windows-imports.h>
+  PRIVATE
+    $<$<PLATFORM_ID:Windows>:build/coreaudio-encoder.windows+.hpp.cpp>
+    $<$<PLATFORM_ID:Darwin>:build/coreaudio-encoder.macos+.hpp.cpp>
+    $<$<PLATFORM_ID:Windows>:windows-imports.h>
 )
 
 target_link_libraries(

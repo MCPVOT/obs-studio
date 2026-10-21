@@ -40,6 +40,13 @@ _MACOS_TOO = {"libobs/util/platform-nix.c.h"}
 # (ci/test_ci_scope.py checks every PLATFORMS row against this classifier), and
 # directories only a Windows build adds.
 _MODULES = {
+    # #856: "coreaudio" in a new filename otherwise looks macOS-only. Keep
+    # exact host files narrow and the shared API/PCH on both plugin hosts.
+    "plugins/coreaudio-encoder/build/coreaudio-encoder.windows+.hpp.cpp": frozenset({WINDOWS}),
+    "plugins/coreaudio-encoder/hosts/windows/coreaudio-platform.cpp.hpp": frozenset({WINDOWS}),
+    "plugins/coreaudio-encoder/hosts/windows/coreaudio-platform-types.hpp": frozenset({WINDOWS}),
+    "plugins/coreaudio-encoder/coreaudio-platform.hpp": frozenset({MACOS, WINDOWS}),
+    "plugins/coreaudio-encoder/build/coreaudio-encoder.pch.hpp": frozenset({MACOS, WINDOWS}),
     "plugins/coreaudio-encoder/": frozenset({MACOS, WINDOWS}),
     "plugins/nv-filters/": frozenset({WINDOWS}),
     "plugins/obs-nvenc/": frozenset({LINUX, WINDOWS}),

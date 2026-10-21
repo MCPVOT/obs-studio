@@ -77,7 +77,6 @@
   "libobs/util/profiler-io.c.h": 2,
   "libobs/util/profiler.h": 1,
   "libobs/util/utf8.c.h": 1,
-  "plugins/coreaudio-encoder/build/coreaudio-encoder.pch.hpp": 2,
   "plugins/obs-ffmpeg/build/obs-ffmpeg-amf.pch.hpp": 3,
   "plugins/obs-ffmpeg/build/obs-ffmpeg-mux.pch.h": 1,
   "plugins/obs-ffmpeg/build/obs-ffmpeg.pch.h": 3,

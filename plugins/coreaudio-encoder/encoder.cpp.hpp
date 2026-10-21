@@ -98,16 +98,6 @@ typedef struct ca_encoder ca_encoder;
 
 namespace std {
 
-#ifndef _WIN32
-template<> struct default_delete<remove_pointer<CFErrorRef>::type> {
-	void operator()(remove_pointer<CFErrorRef>::type *err) { CFRelease(err); }
-};
-
-template<> struct default_delete<remove_pointer<CFStringRef>::type> {
-	void operator()(remove_pointer<CFStringRef>::type *str) { CFRelease(str); }
-};
-#endif
-
 template<> struct default_delete<remove_pointer<AudioConverterRef>::type> {
 	void operator()(AudioConverterRef converter) { AudioConverterDispose(converter); }
 };
@@ -116,6 +106,7 @@ template<> struct default_delete<remove_pointer<AudioConverterRef>::type> {
 
 template<typename T> using cf_ptr = unique_ptr<typename remove_pointer<T>::type>;
 
+/* Compiler-only format checking is retained (#856). */
 #ifndef _MSC_VER
 __attribute__((__format__(__printf__, 3, 4)))
 #endif
@@ -214,14 +205,9 @@ static DStr osstatus_to_dstr(OSStatus code)
 {
 	DStr result;
 
-#ifndef _WIN32
-	cf_ptr<CFErrorRef> err{CFErrorCreate(kCFAllocatorDefault, kCFErrorDomainOSStatus, code, NULL)};
-	cf_ptr<CFStringRef> str{CFErrorCopyDescription(err.get())};
-
-	if (cfstr_copy_dstr(str.get(), kCFStringEncodingUTF8, result)) {
+	if (ca_platform_describe_status(code, result)) {
 		return result;
 	}
-#endif
 
 	const char *code_str = code_to_str(code);
 	dstr_printf(result, "%s%s%d%s", code_str ? code_str : "", code_str ? " (" : "", static_cast<int>(code),
@@ -1258,15 +1244,9 @@ MODULE_EXPORT const char *obs_module_description(void)
 
 bool obs_module_load(void)
 {
-#ifdef _WIN32
-	if (!load_core_audio()) {
-		CA_LOG(LOG_WARNING, "CoreAudio AAC encoder not installed on "
-				    "the system or couldn't be loaded");
+	if (!ca_platform_load()) {
 		return true;
 	}
-
-	CA_LOG(LOG_INFO, "Adding CoreAudio AAC encoder");
-#endif
 
 	struct obs_encoder_info aac_info{};
 	aac_info.id = "CoreAudio_AAC";
@@ -1286,13 +1266,6 @@ bool obs_module_load(void)
 	obs_register_encoder(&aac_info);
 	return true;
 }
-
-#ifdef _WIN32
-void obs_module_unload(void)
-{
-	unload_core_audio();
-}
-#endif
 
 /* File-local macros (BUILD.md): out of the next file in the unity group. */
 #undef CA_CO_DLOG_
