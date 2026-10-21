@@ -602,9 +602,8 @@ jobs:
       # saves under a manifest-hash key, so that ccache froze at its first
       # save. Restore a commit-keyed copy of just that directory first; the
       # action's restore then extracts its snapshot on top (ccache entries are
-      # content-addressed, so the union is safe). Every full run saves, so a
-      # full PR is warm from its second push on (a PR restores its own
-      # newest entry before master's); only master prunes.
+      # content-addressed, so the union is safe). Non-master runs restore;
+      # only master publishes both snapshots and prunes the compiler cache.
       - uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         id: flatpak-compiler-cache
         with:
@@ -617,7 +616,7 @@ jobs:
         run: echo "epoch=$(date +%s)" >> "${GITHUB_OUTPUT}"
 
       - name: Build Flatpak Manifest 🧾
-        uses: flatpak/flatpak-github-actions/flatpak-builder@401fe28a8384095fc1531b9d320b292f0ee45adb # v6.7
+        uses: flatpak/flatpak-github-actions/flatpak-builder@79327416609af08178ad73b352877e51450790b3 # v6.8
         with:
           # `flatpak build-bundle` takes ~4 of the ~16 minutes and only testers
           # download the result (#651). Routine master pushes skip it; the
@@ -635,6 +634,7 @@ jobs:
           # source checksums are unchanged.
           cache: true
           restore-cache: true
+          save-cache: ${{ github.ref == 'refs/heads/master' }}
           cache-key: ${{ steps.setup.outputs.cacheKey }}
           mirror-screenshots-url: https://dl.flathub.org/media
 
@@ -665,7 +665,7 @@ jobs:
           du -sh "${ccache_dir}"
 
       - uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        if: steps.ccache-stats.outcome == 'success' && steps.flatpak-compiler-cache.outputs.cache-hit != 'true'
+        if: github.ref == 'refs/heads/master' && steps.ccache-stats.outcome == 'success' && steps.flatpak-compiler-cache.outputs.cache-hit != 'true'
         with:
           path: .flatpak-builder/ccache
           key: flatpak-ccache-x86_64-${{ github.sha }}

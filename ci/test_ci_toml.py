@@ -69,6 +69,27 @@ class UvCacheWriterTest(unittest.TestCase):
         self.assertGreater(calls, 0)
 
 
+class FlatpakCacheWriterTest(unittest.TestCase):
+    def test_dependency_saves_are_master_only_without_disabling_compiler_cache(self):
+        workflow = (WORKFLOWS / "build-project.yaml").read_text()
+        block = workflow.split("      - name: Build Flatpak Manifest", 1)[1].split("      # The SDK", 1)[0]
+        # v6.8 adds a save switch independent of cache/restore. v6.7
+        # ignores this input, so the pin is part of the writer contract.
+        self.assertIn("flatpak-builder@79327416609af08178ad73b352877e51450790b3", block)
+        self.assertIn("save-cache: ${{ github.ref == 'refs/heads/master' }}", block)
+        self.assertRegex(block, r"(?m)^          cache: true$")
+        self.assertRegex(block, r"(?m)^          restore-cache: true$")
+
+    def test_separate_compiler_snapshot_saves_only_on_master(self):
+        workflow = (WORKFLOWS / "build-project.yaml").read_text()
+        marker = "key: flatpak-ccache-x86_64-${{ github.sha }}"
+        save = workflow[workflow.index(marker) + len(marker):].split(marker, 1)[0]
+        save = save[save.rfind("      - uses: actions/cache/save@"):]
+        self.assertIn("github.ref == 'refs/heads/master'", save)
+        self.assertIn("steps.ccache-stats.outcome == 'success'", save)
+        self.assertIn("steps.flatpak-compiler-cache.outputs.cache-hit != 'true'", save)
+
+
 def family_prefixes(ci: dict) -> list[str]:
     out = []
     for fam in ci["cache"]["family"].values():
