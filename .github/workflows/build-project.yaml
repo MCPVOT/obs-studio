@@ -1450,7 +1450,10 @@ jobs:
     name: Rust Tier 2 Linux 🐧
     runs-on: ubuntu-latest
     needs: [ci-mode, rust-linux-tier2]
-    if: needs.rust-linux-tier2.result == 'success'
+    # Surface changes can disable lane proofs; PRs never save timing caches.
+    # Skip before requesting a runner when every work step would be skipped.
+    # Matrix failures still fail the reusable workflow and required CI Gate.
+    if: ${{ needs.rust-linux-tier2.result == 'success' && ((needs.ci-mode.outputs.tier2-linux_name != '' && needs.ci-mode.outputs.tier2-linux_hit != 'true') || (github.event_name == 'push' && github.ref == 'refs/heads/master')) }}
     timeout-minutes: 5
     steps:
       # Publish the pass as a lane proof (ci/lane_proof.py), only for a lane

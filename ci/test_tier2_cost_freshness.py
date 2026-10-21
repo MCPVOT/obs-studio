@@ -14,6 +14,7 @@ and caches the result on master, and the build job restores it.
 from __future__ import annotations
 
 import re
+import itertools
 import subprocess
 import tempfile
 import unittest
@@ -62,6 +63,30 @@ class MergeCostsTest(unittest.TestCase):
 
 
 class WorkflowTest(unittest.TestCase):
+    def test_publisher_runs_only_for_successful_suites_with_work(self):
+        condition = re.search(r"(?m)^    if: (.+)$", job("rust-linux-tier2-done")).group(1)
+        condition = condition.removeprefix("${{ ").removesuffix(" }}")
+        for result, name, hit, event, ref in itertools.product(
+            ("success", "failure", "cancelled", "skipped"), ("", "proof-key"),
+            ("true", "false"), ("pull_request", "merge_group", "push"),
+            ("refs/heads/master", "refs/heads/feature")
+        ):
+            with self.subTest(result=result, name=name, hit=hit, event=event, ref=ref):
+                expression = condition
+                for field, value in {
+                    "needs.rust-linux-tier2.result == 'success'": result == "success",
+                    "needs.ci-mode.outputs.tier2-linux_name != ''": name != "",
+                    "needs.ci-mode.outputs.tier2-linux_hit != 'true'": hit != "true",
+                    "github.event_name == 'push'": event == "push",
+                    "github.ref == 'refs/heads/master'": ref == "refs/heads/master",
+                }.items():
+                    expression = expression.replace(field, str(value))
+                expression = expression.replace("&&", " and ").replace("||", " or ")
+                self.assertRegex(expression, r"^(?:True|False|and|or|\s|\(|\))+$")
+                actual = eval(expression, {"__builtins__": {}})
+                work = (bool(name) and hit != "true") or (event == "push" and ref == "refs/heads/master")
+                self.assertEqual(actual, result == "success" and work)
+
     def test_upload_includes_hidden_timings_and_rejects_missing_files(self):
         j = job("rust-linux-tier2")
         upload = j[j.index("- name: Upload Test Timings"):]

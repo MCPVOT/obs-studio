@@ -377,6 +377,10 @@ commit. Lane proofs (`ci/lane_proof.py`, #699) are keyed by a lane's
   the non-Linux graphics backends and CI-only files. `lint` reads everything.
 - When `Rust Tests (Linux)`, `Rust Cross Lint` or `Rust Tier 2 Linux` pass, the
   job uploads an empty artifact named after the lane and its input key.
+  Tier 2's publishing job requests a runner only when a lane proof can be
+  published or a master push must merge/save test timings (#1581). If neither
+  operation applies, it skips at job level; the OFF/ON test results still
+  determine the reusable workflow's result and required gate.
 - On a PR or merge-queue run, `Lane Proofs 🧾` recomputes each key, with the
   lane declarations read from the base commit, and skips a lane whose key
   has a proof from a trusted run: this repository's PR workflow on a branch
