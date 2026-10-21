@@ -16,7 +16,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "libobs/build/libobs-scene-coords.pch.h"
+#include "libobs/build/libobs-ported-scene-coords.pch.h"
 
 bool obs_scene_coords_nudge(bool is_group, bool parent_is_group)
 {

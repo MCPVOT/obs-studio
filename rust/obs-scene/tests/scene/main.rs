@@ -2,3 +2,4 @@
 
 mod blend;
 mod bounds;
+mod coords;

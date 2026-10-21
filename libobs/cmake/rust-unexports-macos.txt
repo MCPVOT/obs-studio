@@ -35,6 +35,16 @@ _obs_bounds_fit_scale
 # obs-scene-blend.c: the blend mode table, data. obs-scene.c reads it inside
 # libobs. Not EXPORT.
 _obs_blend_mode_params
+# obs-scene-coords.c: obs-scene.c calls them inside libobs. Not EXPORT.
+_obs_scene_coords_nudge
+_obs_scene_coords_keep_scale
+_obs_scene_nudge_abs
+_obs_scene_pos_to_absolute
+_obs_scene_pos_from_absolute
+_obs_scene_size_to_absolute
+_obs_scene_size_from_absolute
+_obs_scene_item_canvas_scale
+_obs_scene_item_relative_scale
 # obs-output-caption-text.c: obs-output.c calls it inside libobs. Not EXPORT.
 _obs_output_caption_text_page
 # obs-output-delay.c: obs-output.c calls them inside libobs. Not EXPORT.
