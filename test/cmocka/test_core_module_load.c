@@ -13,6 +13,9 @@
  *   does not fail as a whole (OBS refused to start: obs-rust/obs-studio#404).
  * - missing_file: one core module is not installed at all (left out by a
  *   package split): every other core module still loads.
+ * - same_libobs: the child runs on the libobs this process runs on. Tier 2
+ *   mode ON picks libobs-with-rust through LD_LIBRARY_PATH; a child that falls
+ *   back to the C libobs from its RUNPATH tests the C build in both modes.
  */
 
 #include <stdarg.h>
@@ -21,6 +24,7 @@
 #include <cmocka.h>
 
 #include <errno.h>
+#include <limits.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -37,6 +41,30 @@
 
 #define SKIP_CODE 77
 
+/* The libobs.so this process mapped, as the loader opened it; false if none. */
+static bool mapped_libobs(char *path, size_t size)
+{
+	FILE *maps = fopen("/proc/self/maps", "r");
+	if (!maps)
+		return false;
+
+	char line[4096];
+	bool found = false;
+	while (!found && fgets(line, sizeof(line), maps)) {
+		char *file = strchr(line, '/');
+		if (!file)
+			continue;
+		file[strcspn(file, "\n")] = '\0';
+		const char *base = strrchr(file, '/') + 1;
+		if (strncmp(base, "libobs.so", 9) == 0) {
+			snprintf(path, size, "%s", file);
+			found = true;
+		}
+	}
+	fclose(maps);
+	return found;
+}
+
 /* ------------------------------------------------------------------ child */
 
 static int run_child(void)
@@ -45,6 +73,10 @@ static int run_child(void)
 		printf("startup-failed\n");
 		return SKIP_CODE;
 	}
+
+	char libobs[4096];
+	if (mapped_libobs(libobs, sizeof(libobs)))
+		printf("libobs %s\n", libobs);
 
 	bool ok = obs_load_core_modules();
 	printf("result %d\n", ok ? 1 : 0);
@@ -69,6 +101,7 @@ struct child_result {
 	int load_result;
 	bool loaded[256];
 	bool disabled[256];
+	char libobs[4096];
 };
 
 static bool copy_file(const char *from, const char *to, mode_t mode)
@@ -114,6 +147,9 @@ static void parse_child_output(FILE *f, struct child_result *res)
 		int loaded, failed;
 		if (strncmp(line, "startup-failed", 14) == 0) {
 			res->skipped = true;
+		} else if (strncmp(line, "libobs ", 7) == 0) {
+			snprintf(res->libobs, sizeof(res->libobs), "%s", line + 7);
+			res->libobs[strcspn(res->libobs, "\n")] = '\0';
 		} else if (sscanf(line, "result %d", &res->load_result) == 1) {
 			continue;
 		} else if (sscanf(line, "module %511s loaded=%d disabled=%d", name, &loaded, &failed) == 3) {
@@ -179,6 +215,12 @@ static void run_scenario(enum scenario scenario, struct child_result *res)
 		dstr_free(&dst);
 	}
 
+	/* The directory of the libobs this process runs on: Tier 2 mode ON
+	 * selects libobs-with-rust through LD_LIBRARY_PATH. */
+	char libobs_dir[4096];
+	assert_true(mapped_libobs(libobs_dir, sizeof(libobs_dir)));
+	*strrchr(libobs_dir, '/') = '\0';
+
 	int fds[2];
 	assert_int_equal(pipe(fds), 0);
 	pid_t pid = fork();
@@ -187,8 +229,10 @@ static void run_scenario(enum scenario scenario, struct child_result *res)
 		dup2(fds[1], STDOUT_FILENO);
 		close(fds[0]);
 		close(fds[1]);
-		/* The dependency must stay out of reach, as libcef.so was. */
-		unsetenv("LD_LIBRARY_PATH");
+		/* The dependency must stay out of reach, as libcef.so was, and
+		 * the child must run on the same libobs: LD_LIBRARY_PATH names
+		 * that libobs's directory and nothing else. */
+		setenv("LD_LIBRARY_PATH", libobs_dir, 1);
 		char *argv[] = {exe.array, "--child", NULL};
 		execv(exe.array, argv);
 		_exit(127);
@@ -263,6 +307,26 @@ static void missing_file(void **state)
 	check_others_loaded(&res);
 }
 
+static void same_libobs(void **state)
+{
+	UNUSED_PARAMETER(state);
+	struct child_result res;
+	run_scenario(ALL_PRESENT, &res);
+	if (res.skipped)
+		skip();
+
+	char parent[4096];
+	assert_true(mapped_libobs(parent, sizeof(parent)));
+	assert_true(res.libobs[0] != '\0');
+
+	char parent_real[PATH_MAX], child_real[PATH_MAX];
+	assert_non_null(realpath(parent, parent_real));
+	assert_non_null(realpath(res.libobs, child_real));
+	if (strcmp(parent_real, child_real) != 0)
+		print_error("child loaded %s, this process runs on %s\n", child_real, parent_real);
+	assert_string_equal(child_real, parent_real);
+}
+
 int main(int argc, char **argv)
 {
 	if (argc > 1 && strcmp(argv[1], "--child") == 0)
@@ -277,6 +341,7 @@ int main(int argc, char **argv)
 		cmocka_unit_test(all_present),
 		cmocka_unit_test(missing_dependency),
 		cmocka_unit_test(missing_file),
+		cmocka_unit_test(same_libobs),
 	};
 	return cmocka_run_group_tests(tests, NULL, NULL);
 }
