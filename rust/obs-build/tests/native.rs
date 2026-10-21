@@ -406,3 +406,114 @@ fn production_hybrid_requires_a_real_rust_archive_before_native_compilation() {
     assert!(error.contains("Rust archive does not exist"), "{error}");
     assert!(!build.output.exists(), "must not silently start a C build");
 }
+
+#[test]
+fn objective_groups_expand_to_individual_language_correct_sources() {
+    let directory = tempfile::tempdir().unwrap();
+    let root = directory.path();
+    let build = NativeBuild {
+        host: obs_build::BUILD_HOST.into(),
+        target: obs_build::BUILD_TARGET.into(),
+        output: root.join("artifacts"),
+    };
+    for (suffix, implementation, extension) in
+        [("+.h.m", ".m.h", "m"), ("+.hpp.mm", ".mm.hpp", "mm")]
+    {
+        let member = format!("member{implementation}");
+        fs::write(root.join(&member), "/* fixture */\n").unwrap();
+        let group = root.join(format!("fixture{suffix}"));
+        fs::write(&group, format!("#include \"{member}\"\n")).unwrap();
+        let sources = build
+            .separate_group_sources(root, std::slice::from_ref(&group))
+            .unwrap();
+        assert_eq!(sources.len(), 1);
+        assert_ne!(
+            sources[0], group,
+            "unity-off must expand Objective-C groups"
+        );
+        assert_eq!(sources[0].extension().unwrap(), extension);
+        assert!(fs::read_to_string(&sources[0]).unwrap().contains(&member));
+    }
+}
+
+#[test]
+fn mixed_objective_languages_compile_load_and_rebuild_with_unity_and_pch() {
+    if !obs_build::BUILD_TARGET.contains("linux") && !obs_build::BUILD_TARGET.contains("apple") {
+        return; // The fixture requires an Objective-C-capable Clang toolchain.
+    }
+    let selector = format!(
+        "{}::mixed_objective_languages_compile_load_and_rebuild_with_unity_and_pch",
+        module_path!().split_once("::").unwrap().1
+    );
+    if std::env::var_os("OBS_BUILD_OBJC_CHILD").is_none() {
+        let result = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", &selector, "--nocapture"])
+            .env("OBS_BUILD_OBJC_CHILD", "1")
+            .env("CC", "clang")
+            .env("CXX", "clang++")
+            .output()
+            .unwrap();
+        assert!(
+            result.status.success(),
+            "{}\n{}",
+            String::from_utf8_lossy(&result.stdout),
+            String::from_utf8_lossy(&result.stderr)
+        );
+        assert!(String::from_utf8_lossy(&result.stdout).contains("1 passed"));
+        return;
+    }
+    let directory = tempfile::tempdir().unwrap();
+    let root = directory.path();
+    let header = root.join("fixture.pch.h");
+    fs::write(&header, "#define VALUE 1\n").unwrap();
+    let c = root.join("part.c");
+    let cpp = root.join("part.cpp");
+    let objc = root.join("part.m");
+    let objcpp = root.join("part.mm");
+    fs::write(&c, "#include \"fixture.pch.h\"\n#if defined(__OBJC__) || defined(__cplusplus)\n#error wrong C language\n#endif\nint fixture_c(void) { return VALUE; }\n").unwrap();
+    fs::write(&objc, "#include \"fixture.pch.h\"\n#if !defined(__OBJC__) || defined(__cplusplus)\n#error wrong Objective-C language\n#endif\nint fixture_objc(void) { return 4 * VALUE * (@encode(int)[0] == 'i'); }\n").unwrap();
+    fs::write(&objcpp, "#include \"fixture.pch.h\"\n#if !defined(__OBJC__) || !defined(__cplusplus)\n#error wrong Objective-C++ language\n#endif\ntemplate<int N> constexpr int value() { return N; }\nextern \"C\" int fixture_objcpp(void) { return value<8>() * VALUE * (@encode(int)[0] == 'i'); }\n").unwrap();
+    fs::write(&cpp, "#include \"fixture.pch.h\"\n#if defined(__OBJC__) || !defined(__cplusplus)\n#error wrong C++ language\n#endif\nextern \"C\" int fixture_c(void);\nextern \"C\" int fixture_objc(void);\nextern \"C\" int fixture_objcpp(void);\nextern \"C\" int obs_fixture_languages(void) { return fixture_c() + fixture_objc() + fixture_objcpp() + 2 * VALUE; }\n").unwrap();
+    for unity in [false, true] {
+        for pch in [false, true] {
+            // Compiled PCH currently supports Linux; macOS still exercises both unity modes.
+            if pch && !obs_build::BUILD_TARGET.contains("linux") {
+                continue;
+            }
+            fs::write(&header, "#define VALUE 1\n").unwrap();
+            let build = NativeBuild {
+                host: obs_build::BUILD_HOST.into(),
+                target: obs_build::BUILD_TARGET.into(),
+                output: root.join(format!("output-{unity}-{pch}")),
+            };
+            let mut library = target("fixture-languages", &c, vec![]);
+            library
+                .sources
+                .extend([objc.clone(), cpp.clone(), objcpp.clone()]);
+            library.include_dirs.push(root.into());
+            library.unity = unity;
+            library.cpp_compile_options.push("-fno-exceptions".into());
+            if pch {
+                library
+                    .precompiled_headers
+                    .push(obs_build::PrecompiledHeader {
+                        header: header.clone(),
+                        sources: library.sources.clone(),
+                    });
+            }
+            let artifact = build.shared_library(&library).unwrap();
+            // SAFETY: the fixture defines this no-argument C ABI function.
+            assert_eq!(
+                unsafe { answer(&artifact, b"obs_fixture_languages", &[]) },
+                15
+            );
+            fs::write(&header, "#define VALUE 2\n").unwrap();
+            let artifact = build.shared_library(&library).unwrap();
+            // SAFETY: changing the header macro preserves the fixture ABI.
+            assert_eq!(
+                unsafe { answer(&artifact, b"obs_fixture_languages", &[]) },
+                30
+            );
+        }
+    }
+}

@@ -55,6 +55,10 @@ pub(crate) fn separate(
             (".c.h", "c")
         } else if name.ends_with("+.hpp.cpp") {
             (".cpp.hpp", "cpp")
+        } else if name.ends_with("+.h.m") {
+            (".m.h", "m")
+        } else if name.ends_with("+.hpp.mm") {
+            (".mm.hpp", "mm")
         } else {
             result.push(source.clone());
             continue;

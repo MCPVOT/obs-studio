@@ -9,7 +9,7 @@ use std::{
 pub(crate) fn apply(
     build: &NativeBuild,
     compiler: &mut cc::Build,
-    cpp: bool,
+    language: crate::Language,
     header: &Path,
 ) -> Result<(), String> {
     let tool = compiler.get_compiler();
@@ -19,7 +19,7 @@ pub(crate) fn apply(
         &build.host,
         &build.target,
         header,
-        cpp,
+        language,
         tool.path(),
         tool.args(),
         tool.env(),
@@ -47,7 +47,7 @@ pub(crate) fn apply(
     });
     let mut command = tool.to_command();
     command
-        .args(["-x", if cpp { "c++-header" } else { "c-header" }, "-c"])
+        .args(["-x", language.header_language(), "-c"])
         .arg(&source)
         .arg("-o")
         .arg(&artifact);
