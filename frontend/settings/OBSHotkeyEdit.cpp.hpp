@@ -49,15 +49,12 @@ void OBSHotkeyEdit::keyPressEvent(QKeyEvent *event)
 		new_key.key = OBS_KEY_NONE;
 		break;
 
-#ifdef __APPLE__
-	case Qt::Key_CapsLock:
-		// kVK_CapsLock == 57
-		new_key.key = obs_key_from_virtual_key(57);
-		break;
-#endif
-
-	default:
-		new_key.key = obs_key_from_virtual_key(event->nativeVirtualKey());
+	default: {
+		bool pressed;
+		if (!GetPlatformHotkeyOverride(event->key(), new_key.key, pressed)) {
+			new_key.key = obs_key_from_virtual_key(event->nativeVirtualKey());
+		}
+	}
 	}
 
 	new_key.modifiers = TranslateQtKeyboardEventModifiers(event->modifiers());
@@ -75,26 +72,24 @@ QVariant OBSHotkeyEdit::inputMethodQuery(Qt::InputMethodQuery query) const
 	}
 }
 
-#ifdef __APPLE__
 void OBSHotkeyEdit::keyReleaseEvent(QKeyEvent *event)
 {
+	if (!PlatformHotkeyEditHandlesKeyRelease()) {
+		QLineEdit::keyReleaseEvent(event);
+		return;
+	}
 	if (event->isAutoRepeat()) {
 		return;
 	}
 
-	if (event->key() != Qt::Key_CapsLock) {
+	obs_key_combination_t new_key;
+	bool pressed;
+	if (!GetPlatformHotkeyOverride(event->key(), new_key.key, pressed)) {
 		return;
 	}
-
-	obs_key_combination_t new_key;
-
-	// kVK_CapsLock == 57
-	new_key.key = obs_key_from_virtual_key(57);
 	new_key.modifiers = TranslateQtKeyboardEventModifiers(event->modifiers());
-
 	HandleNewKey(new_key);
 }
-#endif
 
 void OBSHotkeyEdit::mousePressEvent(QMouseEvent *event)
 {

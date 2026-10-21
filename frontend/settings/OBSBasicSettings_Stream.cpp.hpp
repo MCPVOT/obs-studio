@@ -1817,14 +1817,15 @@ void OBSBasicSettings::ResetEncoders(bool streamOnly)
 #define ENCODER_STR(str) QTStr("Basic.Settings.Output.Simple.Encoder." str)
 
 	ui->simpleOutStrEncoder->addItem(ENCODER_STR("Software"), QString(SIMPLE_ENCODER_X264));
-#ifdef _WIN32
-	if (service_supports_encoder(vcodecs, "obs_qsv11")) {
-		ui->simpleOutStrEncoder->addItem(ENCODER_STR("Hardware.QSV.H264"), QString(SIMPLE_ENCODER_QSV));
+	if (PlatformSupportsSimpleQsvEncoders()) {
+		if (service_supports_encoder(vcodecs, "obs_qsv11")) {
+			ui->simpleOutStrEncoder->addItem(ENCODER_STR("Hardware.QSV.H264"), QString(SIMPLE_ENCODER_QSV));
+		}
+		if (service_supports_encoder(vcodecs, "obs_qsv11_av1")) {
+			ui->simpleOutStrEncoder->addItem(ENCODER_STR("Hardware.QSV.AV1"),
+							 QString(SIMPLE_ENCODER_QSV_AV1));
+		}
 	}
-	if (service_supports_encoder(vcodecs, "obs_qsv11_av1")) {
-		ui->simpleOutStrEncoder->addItem(ENCODER_STR("Hardware.QSV.AV1"), QString(SIMPLE_ENCODER_QSV_AV1));
-	}
-#endif
 	if (service_supports_encoder(vcodecs, "ffmpeg_nvenc")) {
 		ui->simpleOutStrEncoder->addItem(ENCODER_STR("Hardware.NVENC.H264"), QString(SIMPLE_ENCODER_NVENC));
 	}
@@ -1846,31 +1847,18 @@ void OBSBasicSettings::ResetEncoders(bool streamOnly)
 	if (service_supports_encoder(vcodecs, "av1_texture_amf")) {
 		ui->simpleOutStrEncoder->addItem(ENCODER_STR("Hardware.AMD.AV1"), QString(SIMPLE_ENCODER_AMD_AV1));
 	}
-/* Preprocessor guard required for the macOS version check */
-#ifdef __APPLE__
-	if (service_supports_encoder(vcodecs, "com.apple.videotoolbox.videoencoder.ave.avc")
-#ifndef __aarch64__
-	    && os_get_emulation_status() == true
-#endif
-	) {
-		if (__builtin_available(macOS 13.0, *)) {
+	if (PlatformSupportsSimpleAppleEncoders()) {
+		if (service_supports_encoder(vcodecs, "com.apple.videotoolbox.videoencoder.ave.avc")) {
 			ui->simpleOutStrEncoder->addItem(ENCODER_STR("Hardware.Apple.H264"),
 							 QString(SIMPLE_ENCODER_APPLE_H264));
 		}
-	}
 #ifdef ENABLE_HEVC
-	if (service_supports_encoder(vcodecs, "com.apple.videotoolbox.videoencoder.ave.hevc")
-#ifndef __aarch64__
-	    && os_get_emulation_status() == true
-#endif
-	) {
-		if (__builtin_available(macOS 13.0, *)) {
+		if (service_supports_encoder(vcodecs, "com.apple.videotoolbox.videoencoder.ave.hevc")) {
 			ui->simpleOutStrEncoder->addItem(ENCODER_STR("Hardware.Apple.HEVC"),
 							 QString(SIMPLE_ENCODER_APPLE_HEVC));
 		}
+#endif
 	}
-#endif
-#endif
 	if (service_supports_encoder(acodecs, "CoreAudio_AAC") || service_supports_encoder(acodecs, "libfdk_aac") ||
 	    service_supports_encoder(acodecs, "ffmpeg_aac")) {
 		ui->simpleOutStrAEncoder->addItem(QTStr("Basic.Settings.Output.Simple.Codec.AAC.Default"), "aac");

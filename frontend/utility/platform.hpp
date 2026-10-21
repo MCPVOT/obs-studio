@@ -102,6 +102,12 @@ bool PlatformUseModernWizardStyle();
 bool PlatformSupportsAppleHardwareEncoder(const char *id);
 bool PlatformNeedsQsvStreamingFallback();
 
+/* Settings and hotkey editor platform policy (#869). */
+bool PlatformNeedsNonNativeColorDialog();
+bool PlatformSupportsSimpleQsvEncoders();
+bool PlatformSupportsSimpleAppleEncoders();
+bool PlatformHotkeyEditHandlesKeyRelease();
+
 enum TaskbarOverlayStatus {
 	TaskbarOverlayStatusInactive,
 	TaskbarOverlayStatusActive,

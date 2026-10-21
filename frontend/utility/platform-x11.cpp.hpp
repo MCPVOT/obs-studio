@@ -467,3 +467,29 @@ bool PlatformNeedsQsvStreamingFallback()
 	return false;
 #endif
 }
+
+/* Settings and hotkey editor platform policy (#869). */
+bool PlatformNeedsNonNativeColorDialog()
+{
+#ifdef __linux__
+	// Native color dialogs can hang on Ubuntu.
+	return true;
+#else
+	return false;
+#endif
+}
+
+bool PlatformSupportsSimpleQsvEncoders()
+{
+	return false;
+}
+
+bool PlatformSupportsSimpleAppleEncoders()
+{
+	return false;
+}
+
+bool PlatformHotkeyEditHandlesKeyRelease()
+{
+	return false;
+}

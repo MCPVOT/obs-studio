@@ -24,10 +24,9 @@ QColor OBSBasicSettings::GetColor(uint32_t colorVal, QString label)
 {
 	QColorDialog::ColorDialogOptions options;
 
-#ifdef __linux__
-	// TODO: Revisit hang on Ubuntu with native dialog
-	options |= QColorDialog::DontUseNativeDialog;
-#endif
+	if (PlatformNeedsNonNativeColorDialog()) {
+		options |= QColorDialog::DontUseNativeDialog;
+	}
 
 	QColor color = a11y_color_from_int(colorVal);
 

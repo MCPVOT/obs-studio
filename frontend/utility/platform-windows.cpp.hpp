@@ -600,3 +600,24 @@ bool PlatformNeedsQsvStreamingFallback()
 {
 	return false;
 }
+
+/* Settings and hotkey editor platform policy (#869). */
+bool PlatformNeedsNonNativeColorDialog()
+{
+	return false;
+}
+
+bool PlatformSupportsSimpleQsvEncoders()
+{
+	return true;
+}
+
+bool PlatformSupportsSimpleAppleEncoders()
+{
+	return false;
+}
+
+bool PlatformHotkeyEditHandlesKeyRelease()
+{
+	return false;
+}

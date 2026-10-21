@@ -566,3 +566,25 @@ bool PlatformNeedsQsvStreamingFallback()
 {
 	return false;
 }
+
+/* Settings and hotkey editor platform policy (#869). */
+bool PlatformNeedsNonNativeColorDialog()
+{
+	return false;
+}
+
+bool PlatformSupportsSimpleQsvEncoders()
+{
+	return false;
+}
+
+bool PlatformSupportsSimpleAppleEncoders()
+{
+	// H.264 and HEVC use the same architecture and OS availability policy.
+	return PlatformSupportsAppleHardwareEncoder("com.apple.videotoolbox.videoencoder.ave.avc");
+}
+
+bool PlatformHotkeyEditHandlesKeyRelease()
+{
+	return true;
+}
