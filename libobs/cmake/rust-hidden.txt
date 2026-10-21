@@ -87,3 +87,5 @@ obs_nix_hotkey_state_is_pressed
 obs_nix_portal_shortcut_id
 obs_nix_portal_shortcut_combo
 obs_nix_portal_shortcut_trigger
+# effect-parser lifecycle: internal entry point, not EXPORT.
+ep_free

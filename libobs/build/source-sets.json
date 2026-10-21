@@ -118,6 +118,7 @@
     "build/libobs.scene-bounds-place+.h.c"
   ],
   "LIBOBS_PORTED_SOURCES": [
+    "build/libobs.ported-effect-lifecycle+.h.c",
     "build/libobs.ported-util+.h.c",
     "build/libobs.ported-util-io+.h.c",
     "build/libobs.ported-platform+.h.c",

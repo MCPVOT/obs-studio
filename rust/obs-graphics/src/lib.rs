@@ -11,6 +11,7 @@ use obs_c_oracle as _; // links the test bmalloc/bfree (oracle/test_bmem.c)
 
 pub mod axisang;
 pub mod bounds;
+pub mod effect_parser_lifecycle;
 #[allow(unsafe_code)] // the C ABI shims
 pub mod ffi;
 pub mod math_extra;

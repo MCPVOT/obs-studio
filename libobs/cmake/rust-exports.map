@@ -3,6 +3,7 @@
  * shims are #[no_mangle] and stay global. libobs exports no C++ symbols. */
 {
   local:
+    ep_free;
     _ZN*;
     _R*;
     rust_eh_personality;

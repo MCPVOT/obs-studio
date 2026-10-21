@@ -50,6 +50,7 @@ pub mod dbus_inhibit;
 pub mod decl;
 pub mod deque;
 pub mod dstr;
+pub mod effect_parser_lifecycle;
 pub mod encoder_packet;
 pub mod file_serializer;
 pub mod format_conversion;

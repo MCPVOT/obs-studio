@@ -88,6 +88,25 @@ fn extract_c(src: &Path, start: &str, end: &str) -> String {
     }
     out
 }
+
+/// Keep an implementation verbatim after its native build PCH. The oracle
+/// supplies the unit's own headers instead of unrelated libobs dependencies
+/// (notably zlib, which the Windows Rust test runners do not install).
+fn extract_after_libobs_pch(src: &Path) -> String {
+    let text = std::fs::read_to_string(src).expect("read lifecycle implementation");
+    let (prefix, body) = text
+        .split_once("#include \"libobs/build/libobs.pch.h\"")
+        .expect("lifecycle implementation must include its libobs PCH");
+    let body = body
+        .strip_prefix("\r\n")
+        .or_else(|| body.strip_prefix('\n'))
+        .expect("libobs PCH include must occupy its own line");
+    format!(
+        "#line {} \"{}\"\n{body}",
+        prefix.lines().count() + 2,
+        src.display().to_string().replace('\\', "/")
+    )
+}
 /// The strict GCC/Clang warnings enabled so far (obs-rust/obs-studio#516).
 /// Add a flag once every target builds clean under it.
 const STRICT_FLAGS: &[&str] = &[
@@ -413,6 +432,14 @@ fn main() {
         ),
     ] {
         std::fs::write(extract_dir.join(name), extract_c(src, start, end)).expect("write extract");
+    }
+    for stem in ["effect-parser-lifecycle", "effect-parser-lifecycle-adapter"] {
+        let src = libobs.join("graphics").join(format!("{stem}.c.h"));
+        std::fs::write(
+            extract_dir.join(format!("{stem}.inc")),
+            extract_after_libobs_pch(&src),
+        )
+        .expect("write lifecycle extract");
     }
     oracle.include(&extract_dir);
 

@@ -85,3 +85,5 @@ _obs_nix_portal_shortcut_trigger
 # __isPlatformVersionAtLeast) that Rust's compiler_builtins brings in; the C
 # build does not export them. Wildcards: no error if absent.
 ___is*VersionAtLeast
+# effect-parser lifecycle: preserve the internal symbol boundary.
+_ep_free
