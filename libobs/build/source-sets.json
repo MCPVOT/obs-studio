@@ -30,6 +30,7 @@
     "obs-properties.h",
     "obs-scene-blend.h",
     "obs-scene-bounds.h",
+    "obs-scene-coords.h",
     "obs-scene.h",
     "obs-service.h",
     "obs-source.h",
@@ -114,7 +115,8 @@
     "build/libobs.media+.h.c",
     "build/libobs.nsgif+.h.c",
     "build/libobs.platform+.h.c",
-    "build/libobs.scene-bounds-place+.h.c"
+    "build/libobs.scene-bounds-place+.h.c",
+    "build/libobs.scene-coords+.h.c"
   ],
   "LIBOBS_PORTED_SOURCES": [
     "build/libobs.ported-util+.h.c",

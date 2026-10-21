@@ -74,6 +74,10 @@
 
 #include "obs-scene-bounds.h"
 
+/* obs-scene-coords.c */
+
+#include "obs-scene-coords.h"
+
 /* obs-scene.c */
 #include "graphics/math-defs.h"
 #include "obs-scene-blend.h"

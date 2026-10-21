@@ -275,54 +275,37 @@ static inline void get_scene_dimensions(const obs_sceneitem_t *item, float *x, f
 	}
 }
 
-/* Rounds absolute pixel values to next .5. */
-static inline void nudge_abs_values(struct vec2 *dst, const struct vec2 *v)
-{
-	dst->x = floorf(v->x * 2.0f + 0.5f) / 2.0f;
-	dst->y = floorf(v->y * 2.0f + 0.5f) / 2.0f;
-}
+/* The conversion itself is obs-scene-coords.c.h. The scene still reads the
+ * canvas and still decides nudge and keep-scale. */
 
 static inline void pos_from_absolute(struct vec2 *dst, const struct vec2 *v, const obs_sceneitem_t *item)
 {
 	float x, y;
 	get_scene_dimensions(item, &x, &y);
-	/* Scaled so that height (y) is [-1, 1]. */
-	dst->x = (2 * v->x - x) / y;
-	dst->y = 2 * v->y / y - 1.0f;
+	obs_scene_pos_from_absolute(dst, v, x, y);
 }
 
 static inline void pos_to_absolute(struct vec2 *dst, const struct vec2 *v, const obs_sceneitem_t *item)
 {
 	float x, y;
 	get_scene_dimensions(item, &x, &y);
-	dst->x = (v->x * y + x) / 2;
-	dst->y = (v->y * y + y) / 2;
-
-	/* In order for group resizing to behave properly they need all the precision
-	 * they can get, so do not nudge their values. */
-	if (!item->is_group && !(item->parent && item->parent->is_group))
-		nudge_abs_values(dst, dst);
+	obs_scene_pos_to_absolute(dst, v, x, y,
+				  obs_scene_coords_nudge(item->is_group, item->parent && item->parent->is_group));
 }
 
 static inline void size_from_absolute(struct vec2 *dst, const struct vec2 *v, const obs_sceneitem_t *item)
 {
 	float x, y;
 	get_scene_dimensions(item, &x, &y);
-	/* The height of the canvas is from [-1, 1], so 2.0f * aspect is the
-	 * full width (depending on aspect ratio). */
-	dst->x = (2 * v->x) / y;
-	dst->y = 2 * v->y / y;
+	obs_scene_size_from_absolute(dst, v, y);
 }
 
 static inline void size_to_absolute(struct vec2 *dst, const struct vec2 *v, const obs_sceneitem_t *item)
 {
 	float x, y;
 	get_scene_dimensions(item, &x, &y);
-	dst->x = (v->x * y) / 2;
-	dst->y = (v->y * y) / 2;
-
-	if (!item->is_group && !(item->parent && item->parent->is_group))
-		nudge_abs_values(dst, dst);
+	obs_scene_size_to_absolute(dst, v, y,
+				   obs_scene_coords_nudge(item->is_group, item->parent && item->parent->is_group));
 }
 
 /* Return item's scale value scaled from original to current canvas size. */
@@ -331,29 +314,27 @@ static inline void item_canvas_scale(struct vec2 *dst, const obs_sceneitem_t *it
 	/* Groups will themselves resize so their items do not need to be
 	 * rescaled manually. Nested scenes will use the updated canvas
 	 * resolution, so they also don't need manual adjustment. */
-	if (item->is_group || item->is_scene) {
+	if (obs_scene_coords_keep_scale(item->is_group, item->is_scene)) {
 		vec2_copy(dst, &item->scale);
 		return;
 	}
 
 	float x, y;
 	get_scene_dimensions(item, &x, &y);
-	float scale_factor = y / item->scale_ref.y;
-	vec2_mulf(dst, &item->scale, scale_factor);
+	obs_scene_item_canvas_scale(dst, &item->scale, y, item->scale_ref.y);
 }
 
 /* Return scale value scaled to original canvas size. */
 static inline void item_relative_scale(struct vec2 *dst, const struct vec2 *v, const obs_sceneitem_t *item)
 {
-	if (item->is_group || item->is_scene) {
+	if (obs_scene_coords_keep_scale(item->is_group, item->is_scene)) {
 		vec2_copy(dst, v);
 		return;
 	}
 
 	float x, y;
 	get_scene_dimensions(item, &x, &y);
-	float scale_factor = item->scale_ref.y / y;
-	vec2_mulf(dst, v, scale_factor);
+	obs_scene_item_relative_scale(dst, v, y, item->scale_ref.y);
 }
 
 static void calculate_bounds_data(struct obs_scene_item *item, struct vec2 *origin, struct vec2 *scale, uint32_t *cx,
