@@ -103,6 +103,47 @@ class RetiredCacheFamilyTest(unittest.TestCase):
                 self.assertNotIn(name, families, "obsolete reservation must not consume declared capacity")
 
 
+class CacheWriterPolicyTest(unittest.TestCase):
+    @staticmethod
+    def blocks(path):
+        lines = path.read_text().splitlines()
+        starts = [i for i, line in enumerate(lines) if re.match(r"\s+- ", line)] + [len(lines)]
+        return [(start + 1, "\n".join(lines[start:end])) for start, end in zip(starts, starts[1:])]
+
+    def test_owned_cache_steps_restore_independently_and_publish_only_on_master(self):
+        files = sorted(WORKFLOWS.glob("*.y*ml")) + sorted(GITHUB.glob("actions/*/action.y*ml"))
+        writers = 0
+        for path in files:
+            for line, block in self.blocks(path):
+                if re.search(r"uses: actions/cache@", block):
+                    self.fail(f"{path.relative_to(ROOT)}:{line}: separate restore/save to control publication")
+                if not re.search(r"uses: actions/cache/save@", block):
+                    continue
+                writers += 1
+                with self.subTest(path=path.relative_to(ROOT), line=line):
+                    condition = re.search(r"(?m)^\s+if:\s*(.+)$", block)
+                    self.assertIsNotNone(condition, "cache publication must have an explicit guard")
+                    self.assertIn("github.ref == 'refs/heads/master'", condition[1])
+        self.assertGreater(writers, 0)
+
+    def test_split_dependency_and_timestamp_caches_preserve_keys_and_paths(self):
+        cases = [(WORKFLOWS / "build-project.yaml", key)
+                 for key in ("libs-qt-", "libs-ffmpeg-", "vcpkg-bin-cmocka-")]
+        cases.append((GITHUB / "actions/services-validator/action.yaml", "service-check-"))
+        for path, prefix in cases:
+            with self.subTest(prefix=prefix):
+                selected = [block for _, block in self.blocks(path)
+                            if re.search(rf"(?m)^\s+key: {re.escape(prefix)}", block)]
+                restore = [block for block in selected if "uses: actions/cache/restore@" in block]
+                save = [block for block in selected if "uses: actions/cache/save@" in block]
+                self.assertEqual(len(restore), 1)
+                self.assertEqual(len(save), 1)
+                for field in ("path", "key"):
+                    pattern = rf"(?m)^\s+{field}: (.+)$"
+                    self.assertEqual(re.search(pattern, restore[0])[1], re.search(pattern, save[0])[1])
+                self.assertIn("outputs.cache-hit != 'true'", save[0])
+
+
 def family_prefixes(ci: dict) -> list[str]:
     out = []
     for fam in ci["cache"]["family"].values():

@@ -72,8 +72,9 @@ runs:
         input: ${{ inputs.workingDirectory }}/validation_errors.json
 
     - name: Restore Timestamp Cache ⏳
+      id: timestamp-cache
       if: fromJSON(inputs.runServiceChecks)
-      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
       with:
         path: ${{ github.workspace }}/other
         key: service-check-${{ github.run_id }}
@@ -111,3 +112,10 @@ runs:
         branch: 'automated/clean-services'
         body: ${{ fromJSON(steps.services-check.outputs.pr_message) }}
         delete-branch: true
+
+    - name: Save Timestamp Cache ⏳
+      if: fromJSON(inputs.runServiceChecks) && github.ref == 'refs/heads/master' && steps.timestamp-cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      with:
+        path: ${{ github.workspace }}/other
+        key: service-check-${{ github.run_id }}

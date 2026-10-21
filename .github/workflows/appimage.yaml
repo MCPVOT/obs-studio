@@ -130,14 +130,14 @@ jobs:
         run: build-aux/appimage/manylinux/run.sh uv run build-aux/appimage/build.py --base manylinux --steps build
 
       - name: Save zccache
-        if: always()
+        if: always() && github.ref == 'refs/heads/master'
         uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: .zccache
           key: zccache-appimage-${{ github.run_id }}
 
       - name: Save cargo
-        if: always()
+        if: always() && github.ref == 'refs/heads/master'
         uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: |
@@ -321,7 +321,7 @@ jobs:
         run: sudo chown -R "$(id -u):$(id -g)" pkgcache
 
       - name: Save test-infrastructure packages
-        if: always() && steps.pkgcache.outputs.cache-hit != 'true'
+        if: always() && github.ref == 'refs/heads/master' && steps.pkgcache.outputs.cache-hit != 'true'
         uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: pkgcache

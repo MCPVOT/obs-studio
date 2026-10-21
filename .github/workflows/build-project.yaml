@@ -1567,12 +1567,14 @@ jobs:
       # Unpacked prefixes, keyed on the pinned sha256: a warm run skips the
       # download.
       - name: Cache Prebuilt Qt 💾
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        id: qt-libs-cache
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ${{ runner.temp }}/qt
           key: libs-qt-${{ env.QT_SHA256 }}
       - name: Cache Prebuilt FFmpeg 💾
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        id: ffmpeg-libs-cache
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ${{ runner.temp }}/ffmpeg
           key: libs-ffmpeg-${{ env.FFMPEG_SHA256 }}
@@ -1646,6 +1648,20 @@ jobs:
         with:
           path: ${{ github.workspace }}/.qt-ccache
           key: qt-ccache-linux-inputs-v1-${{ steps.qt-cache-identity.outputs.digest }}
+
+      - name: Save Prebuilt Qt 💾
+        if: github.ref == 'refs/heads/master' && steps.qt-libs-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ runner.temp }}/qt
+          key: libs-qt-${{ env.QT_SHA256 }}
+
+      - name: Save Prebuilt FFmpeg 💾
+        if: github.ref == 'refs/heads/master' && steps.ffmpeg-libs-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ runner.temp }}/ffmpeg
+          key: libs-ffmpeg-${{ env.FFMPEG_SHA256 }}
 
   rust-tier2:
     name: Rust Tier 2 ${{ matrix.os }}
@@ -1747,8 +1763,9 @@ jobs:
 
       # cmocka took 37 s to build from source through vcpkg every run.
       - name: Cache vcpkg Binaries 🗄️
+        id: cmocka-cache
         if: runner.os == 'Windows'
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ${{ github.workspace }}/.vcpkg-bin
           key: vcpkg-bin-cmocka-x64-windows-v1
@@ -1771,3 +1788,10 @@ jobs:
         with:
           path: ${{ github.workspace }}/.ccache
           key: windows-tier2-ccache-${{ github.sha }}
+
+      - name: Save vcpkg Binaries 💾
+        if: runner.os == 'Windows' && github.ref == 'refs/heads/master' && steps.cmocka-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ github.workspace }}/.vcpkg-bin
+          key: vcpkg-bin-cmocka-x64-windows-v1
