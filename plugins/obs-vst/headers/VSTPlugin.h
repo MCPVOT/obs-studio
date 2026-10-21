@@ -30,9 +30,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "vst-plugin-callbacks.hpp"
 #include "EditorWidget.h"
 
-#ifdef __APPLE__
-#include <CoreFoundation/CoreFoundation.h>
-#endif
+#include "vst-platform-types.hpp"
 
 class EditorWidget;
 
@@ -70,13 +68,7 @@ class VSTPlugin : public QObject {
 
 	VstTimeInfo mTimeInfo;
 
-#ifdef __APPLE__
-	CFBundleRef bundle = NULL;
-#elif WIN32
-	HINSTANCE dllHandle = nullptr;
-#elif __linux__
-	void *soHandle = nullptr;
-#endif
+#include "vst-module-members.inc"
 
 	void unloadLibrary();
 

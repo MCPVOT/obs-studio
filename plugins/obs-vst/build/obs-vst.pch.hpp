@@ -15,3 +15,5 @@
 
 /* obs-vst.cpp */
 #include <QCryptographicHash>
+
+#include "plugins/obs-vst/headers/vst-platform.hpp"

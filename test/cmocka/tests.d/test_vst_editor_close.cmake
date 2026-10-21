@@ -22,7 +22,7 @@ if(OS_LINUX)
       "${_vst_dir}/headers/EditorWidget.h"
       "${_vst_dir}/headers/VSTPlugin.h"
     )
-    target_include_directories(test_vst_editor_close_module PRIVATE "${_vst_dir}/vst_header")
+    target_include_directories(test_vst_editor_close_module PRIVATE "${_vst_dir}/vst_header" "${_vst_dir}/hosts/linux")
     target_link_libraries(test_vst_editor_close_module PRIVATE OBS::libobs Qt6::Widgets)
     set_target_properties(test_vst_editor_close_module PROPERTIES PREFIX "" AUTOMOC ON)
 

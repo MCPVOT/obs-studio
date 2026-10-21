@@ -21,13 +21,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <QWidget>
 
-#if defined(_WIN32)
-#include <QWindow>
-#include <Windows.h>
-#elif defined(__linux__)
-#include <QWindow>
-#include <xcb/xcb.h>
-#endif
+#include "vst-platform-types.hpp"
 
 #include "aeffectx.h"
 #include "VSTPlugin.h"
@@ -47,11 +41,7 @@ class EditorWidget : public QWidget {
 
 	VSTPlugin *plugin;
 
-#if defined(__APPLE__)
-	QWidget *cocoaViewContainer = NULL;
-#elif defined(_WIN32)
-	HWND windowHandle = NULL;
-#endif
+#include "vst-editor-members.inc"
 
 public:
 	EditorWidget(QWidget *parent, VSTPlugin *plugin);

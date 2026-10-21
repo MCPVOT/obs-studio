@@ -753,6 +753,9 @@ pub fn configure_vst(
     library
         .sources
         .push(root.join("plugins/obs-vst/build/obs-vst.linux+.hpp.cpp"));
+    library
+        .include_dirs
+        .push(root.join("plugins/obs-vst/hosts/linux"));
     crate::libobs::add_package(library, target, "xcb")?;
     Ok(())
 }

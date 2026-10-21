@@ -12,3 +12,6 @@
 #include "plugins/obs-vst/headers/VSTPlugin.h"
 
 #include <util/platform.h>
+
+#include "plugins/obs-vst/headers/vst-platform.hpp"
+#include <QFile>

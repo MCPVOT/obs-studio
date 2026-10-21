@@ -1,0 +1,1 @@
+QWidget *cocoaViewContainer = NULL;

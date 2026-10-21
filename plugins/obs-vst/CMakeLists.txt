@@ -24,7 +24,14 @@ target_sources(
     vst_header/aeffectx.h
 )
 
-target_include_directories(obs-vst PRIVATE vst_header)
+target_include_directories(
+  obs-vst
+  PRIVATE
+    vst_header
+    "$<$<PLATFORM_ID:Windows>:${CMAKE_CURRENT_SOURCE_DIR}/hosts/windows>"
+    "$<$<PLATFORM_ID:Darwin>:${CMAKE_CURRENT_SOURCE_DIR}/hosts/macos>"
+    "$<$<PLATFORM_ID:Linux,FreeBSD,OpenBSD>:${CMAKE_CURRENT_SOURCE_DIR}/hosts/linux>"
+)
 
 target_link_libraries(
   obs-vst

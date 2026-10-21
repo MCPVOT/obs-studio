@@ -2,5 +2,6 @@
 
 #include "plugins/obs-vst/build/obs-vst-macos.pch.hpp"
 
+#include "plugins/obs-vst/hosts/macos/vst-platform.mm.hpp"
 #include "plugins/obs-vst/mac/EditorWidget-osx.mm.hpp"
 #include "plugins/obs-vst/mac/VSTPlugin-osx.mm.hpp"

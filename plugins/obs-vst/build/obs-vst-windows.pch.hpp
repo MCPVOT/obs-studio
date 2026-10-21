@@ -15,3 +15,6 @@
 
 #include <util/platform.h>
 #include <windows.h>
+
+#include "plugins/obs-vst/headers/vst-platform.hpp"
+#include <QFile>

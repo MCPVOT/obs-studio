@@ -2,5 +2,6 @@
 
 #include "plugins/obs-vst/build/obs-vst-linux.pch.hpp"
 
+#include "plugins/obs-vst/hosts/linux/vst-platform.cpp.hpp"
 #include "plugins/obs-vst/linux/EditorWidget-linux.cpp.hpp"
 #include "plugins/obs-vst/linux/VSTPlugin-linux.cpp.hpp"

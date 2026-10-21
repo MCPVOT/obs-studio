@@ -102,15 +102,7 @@ static void vst_update(void *data, obs_data_t *settings)
 
 	const char *path = obs_data_get_string(settings, "plugin_path");
 
-#ifdef __linux__
-	// Migrate freedesktop.org Flatpak runtime 21.08 VST paths to 22.08.
-	if (QFile::exists("/.flatpak-info") && QString(path).startsWith("/app/extensions/Plugins/lxvst")) {
-		QString newPath(path);
-		newPath.replace("/app/extensions/Plugins/lxvst", "/app/extensions/Plugins/vst");
-		obs_data_set_string(settings, "plugin_path", newPath.toStdString().c_str());
-		path = obs_data_get_string(settings, "plugin_path");
-	}
-#endif
+	path = VstPlatformMigratePath(settings, path);
 
 	if (!*path) {
 		vstPlugin->unloadEffect();
@@ -160,74 +152,8 @@ static struct obs_audio_data *vst_filter_audio(void *data, struct obs_audio_data
 
 static void fill_out_plugins(obs_property_t *list)
 {
-	QStringList dir_list;
-
-#ifdef __APPLE__
-	dir_list << "/Library/Audio/Plug-Ins/VST/"
-		 << "~/Library/Audio/Plug-ins/VST/";
-#elif WIN32
-#ifndef _WIN64
-	HANDLE hProcess = GetCurrentProcess();
-
-	BOOL isWow64;
-	IsWow64Process(hProcess, &isWow64);
-
-	if (!isWow64) {
-#endif
-		dir_list << qEnvironmentVariable("ProgramFiles") + "/Steinberg/VstPlugins/"
-			 << qEnvironmentVariable("CommonProgramFiles") + "/Steinberg/Shared Components/"
-			 << qEnvironmentVariable("CommonProgramFiles") + "/VST2"
-			 << qEnvironmentVariable("CommonProgramFiles") + "/Steinberg/VST2"
-			 << qEnvironmentVariable("CommonProgramFiles") + "/VSTPlugins/"
-			 << qEnvironmentVariable("ProgramFiles") + "/VSTPlugins/";
-#ifndef _WIN64
-	} else {
-		dir_list << qEnvironmentVariable("ProgramFiles(x86)") + "/Steinberg/VstPlugins/"
-			 << qEnvironmentVariable("CommonProgramFiles(x86)") + "/Steinberg/Shared Components/"
-			 << qEnvironmentVariable("CommonProgramFiles(x86)") + "/VST2"
-			 << qEnvironmentVariable("CommonProgramFiles(x86)") + "/VSTPlugins/"
-			 << qEnvironmentVariable("ProgramFiles(x86)") + "/VSTPlugins/";
-	}
-#endif
-#elif __linux__
-	// If the user has set the VST_PATH environmental
-	// variable, then use it. Else default to a list
-	// of common locations.
-	QString vstPathEnv(getenv("VST_PATH"));
-	if (!vstPathEnv.isNull()) {
-		dir_list.append(vstPathEnv.split(":"));
-	} else {
-		QString home(getenv("HOME"));
-		// Choose the most common locations
-		// clang-format off
-		dir_list << "/usr/lib/vst/"
-		         << "/usr/lib/lxvst/"
-		         << "/usr/lib/linux_vst/"
-		         << "/usr/lib64/vst/"
-		         << "/usr/lib64/lxvst/"
-		         << "/usr/lib64/linux_vst/"
-		         << "/usr/local/lib/vst/"
-		         << "/usr/local/lib/lxvst/"
-		         << "/usr/local/lib/linux_vst/"
-		         << "/usr/local/lib64/vst/"
-		         << "/usr/local/lib64/lxvst/"
-		         << "/usr/local/lib64/linux_vst/"
-		         << home + "/.vst/"
-		         << home + "/.lxvst/";
-		// clang-format on
-	}
-#endif
-
-	QStringList filters;
-
-#ifdef __APPLE__
-	filters << "*.vst";
-#elif WIN32
-	filters << "*.dll";
-#elif __linux__
-	filters << "*.so"
-		<< "*.o";
-#endif
+	QStringList dir_list = VstPlatformSearchDirs();
+	QStringList filters = VstPlatformFileFilters();
 
 	QStringList vst_list;
 
@@ -240,14 +166,7 @@ static void fill_out_plugins(obs_property_t *list)
 			QString path = it.next();
 			QString name = it.fileName();
 
-#ifdef __APPLE__
-			name.remove(".vst", Qt::CaseInsensitive);
-#elif WIN32
-			name.remove(".dll", Qt::CaseInsensitive);
-#elif __linux__
-			name.remove(".so", Qt::CaseInsensitive);
-			name.remove(".o", Qt::CaseInsensitive);
-#endif
+			name = VstPlatformStripExtension(name);
 
 			name.append("=").append(path);
 			vst_list << name;

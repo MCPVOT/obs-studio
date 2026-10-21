@@ -12,3 +12,6 @@
 #include <QWindow>
 
 #import "plugins/obs-vst/headers/VSTPlugin.h"
+
+#include "plugins/obs-vst/headers/vst-platform.hpp"
+#include <QFile>
