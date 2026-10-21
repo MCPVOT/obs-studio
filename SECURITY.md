@@ -36,6 +36,22 @@ report can be handled in public, not the reporter.
   fork. It follows the normal rules for this repository: a failing test
   that shows the bug first, then the fix (see
   [docs/rust-port/testing-policy.md](docs/rust-port/testing-policy.md)).
+- **Before publishing:** a maintainer checks each of these and records
+  it on the advisory:
+  1. **Read the whole comment thread**, not only the description. The
+     reporter may have added findings since the report. Comments close
+     when the advisory is published, so this is the last chance to
+     answer them privately.
+  2. **Every path in the report is fixed**, not only the first one. Run
+     each reproduction in the report (every variant: each function,
+     each code path) against current master, and name the PR that fixes
+     each one. A fix that landed outside the advisory, in a public PR,
+     counts only after this check.
+  3. **The reporter confirms the fix** on the advisory. If they have not
+     answered within 72 hours of being asked, publish anyway and say
+     so.
+  If any check fails, the advisory stays private and the remaining
+  part is fixed first.
 - **Release and disclosure:** we merge the fix, publish the advisory
   (requesting a CVE where it applies), and credit you unless you ask us
   not to. We aim to disclose within 90 days of the report, sooner once

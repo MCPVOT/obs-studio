@@ -119,6 +119,24 @@ but not queued, stacked PRs that needed a rebase, queue ejections, PRs
 without a review, and follow-ups that were decided but never done. Fix what
 you can in the same tick and record the pattern in this file.
 
+## 3a. Security advisories
+
+Advisory comments are separate from the description. Read them with
+`gh api repos/obs-rust/obs-studio/security-advisories/<GHSA>/comments`
+every tick, along with the description. Answer a reporter there while the
+advisory is private (`POST` to the same path).
+
+Never publish an advisory, or tell a reporter it is fixed, until the
+three checks under "Before publishing" in [SECURITY.md](../../../SECURITY.md)
+are done: the thread is read, every reproduction in the report fails
+on master, and the reporter has confirmed. A merged PR whose title
+matches the report is not proof that every path is fixed.
+
+On 2026-10-21 GHSA-rjwf was published as fixed by #1556. The coordinator
+had not read the reporter's comment, which said the global-callback path
+was still open, and believed the API had no endpoint for comments.
+Publishing closed the comments and made the open path public.
+
 ## Never
 
 - Claim, port or take over an issue or another person's fix.
