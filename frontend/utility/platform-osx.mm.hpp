@@ -832,3 +832,37 @@ QPalette::ColorRole GetPlatformVisibilityHighlightRole()
 	QPalette::ColorRole highlightRole = QPalette::HighlightedText;
 	return highlightRole;
 }
+
+/* Widget graphics handles and policy (#875). */
+void ApplyPlatformPreviewTextOutline(obs_data_t *settings)
+{
+	(void)settings;
+}
+
+void SetPlatformWidgetIcon(QWidget *widget)
+{
+	(void)widget;
+}
+
+void ConfigurePlatformProjectorWindow(QWidget *widget)
+{
+	(void)widget;
+}
+
+bool FillPlatformGraphicsWindow(QWindow *window, gs_window &gswindow)
+{
+	// Qt owns the NSView; this bridge must not retain or release it.
+	gswindow.view = (__bridge id)(void *)window->winId();
+	return true;
+}
+
+bool PlatformResetsHiddenDisplay()
+{
+	return false;
+}
+
+void HandlePlatformDisplayNativeEvent(OBSQTDisplay *display, void *message)
+{
+	(void)display;
+	(void)message;
+}

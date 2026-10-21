@@ -2492,26 +2492,15 @@ static obs_source_t *CreateLabel(float pixelRatio, int i)
 	OBSDataAutoRelease settings = obs_data_create();
 	OBSDataAutoRelease font = obs_data_create();
 
-#if defined(_WIN32)
-	obs_data_set_string(font, "face", "Arial");
-#elif defined(__APPLE__)
-	obs_data_set_string(font, "face", "Helvetica");
-#else
-	obs_data_set_string(font, "face", "Monospace");
-#endif
+	obs_data_set_string(font, "face", GetPlatformPropertiesFontFace());
 	obs_data_set_int(font, "flags", 1); // Bold text
 	obs_data_set_int(font, "size", 16 * pixelRatio);
 
 	obs_data_set_obj(settings, "font", font);
 	obs_data_set_bool(settings, "outline", true);
 
-#ifdef _WIN32
-	obs_data_set_int(settings, "outline_color", 0x000000);
-	obs_data_set_int(settings, "outline_size", 3);
-	const char *text_source_id = "text_gdiplus";
-#else
-	const char *text_source_id = "text_ft2_source";
-#endif
+	ApplyPlatformPreviewTextOutline(settings);
+	const char *text_source_id = GetPlatformPropertiesTextSource();
 
 	DStr name;
 	dstr_printf(name, "Preview spacing label %d", i);

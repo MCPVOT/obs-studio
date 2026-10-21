@@ -1577,7 +1577,7 @@ jobs:
             libpulse-dev libasound2-dev libpipewire-0.3-dev libpci-dev libdrm-dev libudev-dev \
             libv4l-dev libva-dev libfontconfig-dev libfreetype-dev libspeexdsp-dev libsimde-dev \
             uthash-dev nlohmann-json3-dev libwebsocketpp-dev libasio-dev libqrcodegencpp-dev \
-            libcmocka-dev libxss-dev extra-cmake-modules xvfb xauth libdbus-1-dev \
+            libcmocka-dev libxss-dev extra-cmake-modules xvfb xauth weston libdbus-1-dev \
             libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 \
             libxcb-xkb1 libxkbcommon-x11-0 libxcb-shape0 libxcb-sync1 libegl1
 

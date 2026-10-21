@@ -74,3 +74,5 @@ extern "C" {
 #include "json11.hpp"
 
 #include "frontend/utility/OBSProxyStyle.hpp"
+
+#include <QWindow>

@@ -291,3 +291,5 @@
 #include <QDir>
 #endif
 #include <random>
+
+#include "frontend/utility/platform.hpp"

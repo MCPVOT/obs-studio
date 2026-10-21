@@ -34,3 +34,5 @@
 #include "frontend/utility/OBSProxyStyle.hpp"
 
 #include "frontend/widgets/OBSQTDisplay.hpp"
+
+#include <QWindow>

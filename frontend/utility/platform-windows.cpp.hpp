@@ -898,3 +898,40 @@ QPalette::ColorRole GetPlatformVisibilityHighlightRole()
 	QPalette::ColorRole highlightRole = QPalette::WindowText;
 	return highlightRole;
 }
+
+/* Widget graphics handles and policy (#875). */
+void ApplyPlatformPreviewTextOutline(obs_data_t *settings)
+{
+	obs_data_set_int(settings, "outline_color", 0x000000);
+	obs_data_set_int(settings, "outline_size", 3);
+}
+
+void SetPlatformWidgetIcon(QWidget *widget)
+{
+	widget->setWindowIcon(QIcon::fromTheme("obs", QIcon(":/res/images/obs.png")));
+}
+
+void ConfigurePlatformProjectorWindow(QWidget *widget)
+{
+	(void)widget;
+}
+
+bool FillPlatformGraphicsWindow(QWindow *window, gs_window &gswindow)
+{
+	gswindow.hwnd = (HWND)window->winId();
+	return true;
+}
+
+bool PlatformResetsHiddenDisplay()
+{
+	return false;
+}
+
+void HandlePlatformDisplayNativeEvent(OBSQTDisplay *display, void *message)
+{
+	const MSG &msg = *static_cast<MSG *>(message);
+	switch (msg.message) {
+	case WM_DISPLAYCHANGE:
+		display->OnDisplayChange();
+	}
+}

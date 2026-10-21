@@ -736,3 +736,56 @@ QPalette::ColorRole GetPlatformVisibilityHighlightRole()
 	QPalette::ColorRole highlightRole = QPalette::HighlightedText;
 	return highlightRole;
 }
+
+/* Widget graphics handles and policy (#875). */
+void ApplyPlatformPreviewTextOutline(obs_data_t *settings)
+{
+	(void)settings;
+}
+
+void SetPlatformWidgetIcon(QWidget *widget)
+{
+	widget->setWindowIcon(QIcon::fromTheme("obs", QIcon(":/res/images/obs.png")));
+}
+
+void ConfigurePlatformProjectorWindow(QWidget *widget)
+{
+	(void)widget;
+#if defined(__linux__) || defined(__FreeBSD__) || defined(__DragonFly__)
+	// Prevents resizing of projector windows
+	widget->setAttribute(Qt::WA_PaintOnScreen, false);
+#endif
+}
+
+bool FillPlatformGraphicsWindow(QWindow *window, gs_window &gswindow)
+{
+	bool success = true;
+	switch (obs_get_nix_platform()) {
+	case OBS_NIX_PLATFORM_X11_EGL:
+		gswindow.id = window->winId();
+		gswindow.display = obs_get_nix_platform_display();
+		break;
+#ifdef ENABLE_WAYLAND
+	case OBS_NIX_PLATFORM_WAYLAND: {
+		gswindow.display = (void *)window->winId();
+		success = gswindow.display != nullptr;
+		break;
+	}
+#endif
+	default:
+		success = false;
+		break;
+	}
+	return success;
+}
+
+bool PlatformResetsHiddenDisplay()
+{
+	return true;
+}
+
+void HandlePlatformDisplayNativeEvent(OBSQTDisplay *display, void *message)
+{
+	(void)display;
+	(void)message;
+}

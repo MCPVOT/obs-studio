@@ -11,16 +11,6 @@
 #include <utility/display-helpers.hpp>
 #include <utility/SurfaceEventFilter.hpp>
 
-#if !defined(_WIN32) && !defined(__APPLE__)
-#include <obs-nix-platform.h>
-#endif
-
 #include <QWindow>
-#ifdef ENABLE_WAYLAND
-#include <QApplication>
-#endif
 
-#ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
-#endif
+#include "frontend/utility/platform.hpp"

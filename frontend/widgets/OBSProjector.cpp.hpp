@@ -24,15 +24,10 @@ OBSProjector::OBSProjector(QWidget *widget, obs_source_t *source_, int monitor, 
 	// can skip it
 	windowHandle()->setProperty("isOBSProjectorWindow", true);
 
-#if defined(__linux__) || defined(__FreeBSD__) || defined(__DragonFly__)
-	// Prevents resizing of projector windows
-	setAttribute(Qt::WA_PaintOnScreen, false);
-#endif
+	ConfigurePlatformProjectorWindow(this);
 
 	type = type_;
-#ifndef __APPLE__
-	setWindowIcon(QIcon::fromTheme("obs", QIcon(":/res/images/obs.png")));
-#endif
+	SetPlatformWidgetIcon(this);
 
 	if (monitor == -1) {
 		resize(480, 270);

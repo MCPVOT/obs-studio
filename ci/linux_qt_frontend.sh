@@ -72,7 +72,8 @@ OBS_QT_TEST_PREFIX="$qt" uv run python -m unittest \
   ci.test_shared_qt_platform.SharedQtPlatformTest.test_real_qt_offscreen \
   ci.test_obsapp_theme_platform.OBSAppThemePlatformTest.test_real_qt_signal_delivery \
   ci.test_dialog_platform_facade.DialogPlatformFacadeTest.test_real_qt_display_notifications \
-  ci.test_vst_platform_facade.VstPlatformFacadeTest.test_real_qt_policy
+  ci.test_vst_platform_facade.VstPlatformFacadeTest.test_real_qt_policy \
+  ci.test_widget_platform_facade.WidgetPlatformFacadeTest.test_live_x11_wayland_window_handles
 regex="^($(echo $tests | sed 's/ /|/g'))\$"
 phase_start=$SECONDS
 xvfb-run -a ctest --test-dir "$build" --output-on-failure -j "${CTEST_JOBS:-4}" -R "$regex"

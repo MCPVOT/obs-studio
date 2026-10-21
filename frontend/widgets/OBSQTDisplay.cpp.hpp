@@ -16,31 +16,7 @@ static inline QColor rgba_to_color(uint32_t rgba)
 
 static bool QTToGSWindow(QWindow *window, gs_window &gswindow)
 {
-	bool success = true;
-
-#ifdef _WIN32
-	gswindow.hwnd = (HWND)window->winId();
-#elif __APPLE__
-	gswindow.view = (id)window->winId();
-#else
-	switch (obs_get_nix_platform()) {
-	case OBS_NIX_PLATFORM_X11_EGL:
-		gswindow.id = window->winId();
-		gswindow.display = obs_get_nix_platform_display();
-		break;
-#ifdef ENABLE_WAYLAND
-	case OBS_NIX_PLATFORM_WAYLAND: {
-		gswindow.display = (void *)window->winId();
-		success = gswindow.display != nullptr;
-		break;
-	}
-#endif
-	default:
-		success = false;
-		break;
-	}
-#endif
-	return success;
+	return FillPlatformGraphicsWindow(window, gswindow);
 }
 
 OBSQTDisplay::OBSQTDisplay(QWidget *parent, Qt::WindowFlags flags) : QWidget(parent, flags)
@@ -54,9 +30,9 @@ OBSQTDisplay::OBSQTDisplay(QWidget *parent, Qt::WindowFlags flags) : QWidget(par
 
 	auto windowVisible = [this](bool visible) {
 		if (!visible) {
-#if !defined(_WIN32) && !defined(__APPLE__)
-			display = nullptr;
-#endif
+			if (PlatformResetsHiddenDisplay()) {
+				display = nullptr;
+			}
 			return;
 		}
 
@@ -148,16 +124,7 @@ void OBSQTDisplay::moveEvent(QMoveEvent *event)
 
 bool OBSQTDisplay::nativeEvent(const QByteArray &, void *message, qintptr *)
 {
-#ifdef _WIN32
-	const MSG &msg = *static_cast<MSG *>(message);
-	switch (msg.message) {
-	case WM_DISPLAYCHANGE:
-		OnDisplayChange();
-	}
-#else
-	UNUSED_PARAMETER(message);
-#endif
-
+	HandlePlatformDisplayNativeEvent(this, message);
 	return false;
 }
 

@@ -229,3 +229,14 @@ bool PlatformNeedsDeferredSourceProperties();
 QMessageBox::ButtonRole GetPlatformStreamWarningButtonRole(bool settings);
 QPalette::ColorGroup GetPlatformVisibilityPaletteGroup(bool active);
 QPalette::ColorRole GetPlatformVisibilityHighlightRole();
+
+/* Native window/display policy (#875). gs_window handles remain borrowed. */
+class QWindow;
+class OBSQTDisplay;
+struct gs_window;
+void ApplyPlatformPreviewTextOutline(obs_data_t *settings);
+void SetPlatformWidgetIcon(QWidget *widget);
+void ConfigurePlatformProjectorWindow(QWidget *widget);
+bool FillPlatformGraphicsWindow(QWindow *window, gs_window &gswindow);
+bool PlatformResetsHiddenDisplay();
+void HandlePlatformDisplayNativeEvent(OBSQTDisplay *display, void *message);
