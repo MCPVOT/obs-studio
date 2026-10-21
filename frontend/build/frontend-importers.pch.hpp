@@ -43,9 +43,6 @@
 #include <memory>
 
 /* importers/studio.cpp */
-#if !defined(_WIN32) && !defined(__APPLE__)
-#include <obs-nix-platform.h>
-#endif
 
 /* importers/xsplit.cpp */
 #include <ctype.h>

@@ -545,10 +545,8 @@ OBSImporterFiles ClassicImporter::FindFiles()
 {
 	OBSImporterFiles res;
 
-#ifdef _WIN32
 	char dst[512];
-	int found = os_get_config_path(dst, 512, "OBS\\sceneCollection\\");
-	if (found == -1) {
+	if (!GetPlatformClassicImportDirectory(dst, sizeof(dst))) {
 		return res;
 	}
 
@@ -561,14 +559,13 @@ OBSImporterFiles ClassicImporter::FindFiles()
 
 		string name = ent->d_name;
 		size_t pos = name.find(".xconfig");
-		if (pos != -1 && pos == name.length() - 8) {
+		if (pos != string::npos && pos == name.length() - 8) {
 			string path = dst + name;
 			res.push_back(path);
 		}
 	}
 
 	os_closedir(dir);
-#endif
 
 	return res;
 }

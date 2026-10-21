@@ -499,11 +499,8 @@ bool XSplitImporter::Check(const string &path)
 OBSImporterFiles XSplitImporter::FindFiles()
 {
 	OBSImporterFiles res;
-#ifdef _WIN32
 	char dst[512];
-	int found = os_get_program_data_path(dst, 512, "SplitMediaLabs\\XSplit\\Presentation2.0\\");
-
-	if (found == -1) {
+	if (!GetPlatformXSplitImportDirectory(dst, sizeof(dst))) {
 		return res;
 	}
 
@@ -525,6 +522,5 @@ OBSImporterFiles XSplitImporter::FindFiles()
 		}
 	}
 	os_closedir(dir);
-#endif
 	return res;
 }

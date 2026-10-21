@@ -27,3 +27,6 @@
 #include <sstream>
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+
+#include "json11.hpp"
+#include <util/platform.h>

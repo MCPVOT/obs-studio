@@ -493,3 +493,81 @@ bool PlatformHotkeyEditHandlesKeyRelease()
 {
 	return false;
 }
+
+/* Importer platform policy (#881). Translation behavior is retained from
+ * frontend/importers/studio.cpp, Copyright (C) 2019-2020 Dillon Pentz. */
+size_t PlatformImporterLastSeparator(const std::string &path)
+{
+	return path.find_last_of('/');
+}
+
+bool GetPlatformClassicImportDirectory(char *, size_t)
+{
+	return false;
+}
+
+bool GetPlatformStreamlabsImportDirectory(char *, size_t)
+{
+	return false;
+}
+
+bool GetPlatformXSplitImportDirectory(char *, size_t)
+{
+	return false;
+}
+
+void TranslatePlatformImportedSource(json11::Json &value)
+{
+	using json11::Json;
+	Json::object source = value.object_items();
+	Json::object settings = source["settings"].object_items();
+	std::string id = source["id"].string_value();
+
+#define DirectTranslation(before, after)                                      \
+	if (id == before) {                                                   \
+		source["id"] = after;                                         \
+		source["versioned_id"] = obs_get_latest_input_type_id(after); \
+	}
+
+#define ClearTranslation(before, after)                                       \
+	if (id == before) {                                                   \
+		source["id"] = after;                                         \
+		source["settings"] = Json::object{};                          \
+		source["versioned_id"] = obs_get_latest_input_type_id(after); \
+	}
+
+	DirectTranslation("text_gdiplus", "text_ft2_source");
+
+	ClearTranslation("coreaudio_input_capture", "pulse_input_capture");
+	ClearTranslation("coreaudio_output_capture", "pulse_output_capture");
+	ClearTranslation("wasapi_input_capture", "pulse_input_capture");
+	ClearTranslation("wasapi_output_capture", "pulse_output_capture");
+
+	ClearTranslation("av_capture_input", "v4l2_input");
+	ClearTranslation("dshow_input", "v4l2_input");
+
+	if (obs_get_nix_platform() == OBS_NIX_PLATFORM_X11_EGL) {
+		ClearTranslation("game_capture", "xcomposite_input");
+		ClearTranslation("window_capture", "xcomposite_input");
+	} else {
+		ClearTranslation("game_capture", "pipewire-screen-capture-source");
+		ClearTranslation("window_capture", "pipewire-screen-capture-source");
+	}
+
+	if (id == "monitor_capture") {
+		source["id"] = "xshm_input";
+
+		if (settings["show_cursor"].is_null() && !settings["capture_cursor"].is_null()) {
+			bool cursor = settings["capture_cursor"].bool_value();
+
+			settings["show_cursor"] = cursor;
+		}
+	}
+
+	// Preserve the original final settings assignment, including its legacy
+	// interaction with ClearTranslation and null cursor-property lookups.
+	source["settings"] = settings;
+	value = source;
+#undef DirectTranslation
+#undef ClearTranslation
+}

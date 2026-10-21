@@ -32,3 +32,5 @@
 
 #include <QMessageBox>
 #include <util/platform.h>
+
+#include "json11.hpp"

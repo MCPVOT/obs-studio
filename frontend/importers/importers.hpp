@@ -19,6 +19,7 @@
 
 #include "obs.hpp"
 #include "json11.hpp"
+#include "frontend/utility/platform.hpp"
 #include <util/platform.h>
 #include <util/util.hpp>
 #include <string>
@@ -101,14 +102,7 @@ void TranslatePaths(json11::Json &data, const std::string &rootDir);
 
 static inline std::string GetFilenameFromPath(const std::string &path)
 {
-#ifdef _WIN32
-	size_t pos = path.find_last_of('\\');
-	if (pos == -1 || pos < path.find_last_of('/')) {
-		pos = path.find_last_of('/');
-	}
-#else
-	size_t pos = path.find_last_of('/');
-#endif
+	size_t pos = PlatformImporterLastSeparator(path);
 	size_t ext = path.find_last_of('.');
 
 	if (ext < pos) {
@@ -120,14 +114,7 @@ static inline std::string GetFilenameFromPath(const std::string &path)
 
 static inline std::string GetFolderFromPath(const std::string &path)
 {
-#ifdef _WIN32
-	size_t pos = path.find_last_of('\\');
-	if (pos == -1 || pos < path.find_last_of('/')) {
-		pos = path.find_last_of('/');
-	}
-#else
-	size_t pos = path.find_last_of('/');
-#endif
+	size_t pos = PlatformImporterLastSeparator(path);
 	return path.substr(0, pos + 1);
 }
 

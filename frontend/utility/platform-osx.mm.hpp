@@ -588,3 +588,80 @@ bool PlatformHotkeyEditHandlesKeyRelease()
 {
 	return true;
 }
+
+/* Importer platform policy (#881). Translation behavior is retained from
+ * frontend/importers/studio.cpp, Copyright (C) 2019-2020 Dillon Pentz. */
+size_t PlatformImporterLastSeparator(const std::string &path)
+{
+	return path.find_last_of('/');
+}
+
+bool GetPlatformClassicImportDirectory(char *, size_t)
+{
+	return false;
+}
+
+bool GetPlatformStreamlabsImportDirectory(char *directory, size_t size)
+{
+	return os_get_config_path(directory, size, "slobs-client/SceneCollections/") != -1;
+}
+
+bool GetPlatformXSplitImportDirectory(char *, size_t)
+{
+	return false;
+}
+
+void TranslatePlatformImportedSource(json11::Json &value)
+{
+	using json11::Json;
+	Json::object source = value.object_items();
+	Json::object settings = source["settings"].object_items();
+	std::string id = source["id"].string_value();
+
+#define DirectTranslation(before, after)                                      \
+	if (id == before) {                                                   \
+		source["id"] = after;                                         \
+		source["versioned_id"] = obs_get_latest_input_type_id(after); \
+	}
+
+#define ClearTranslation(before, after)                                       \
+	if (id == before) {                                                   \
+		source["id"] = after;                                         \
+		source["settings"] = Json::object{};                          \
+		source["versioned_id"] = obs_get_latest_input_type_id(after); \
+	}
+
+	DirectTranslation("text_gdiplus", "text_ft2_source");
+
+	ClearTranslation("game_capture", "syphon-input");
+
+	ClearTranslation("wasapi_input_capture", "coreaudio_input_capture");
+	ClearTranslation("wasapi_output_capture", "coreaudio_output_capture");
+	ClearTranslation("pulse_input_capture", "coreaudio_input_capture");
+	ClearTranslation("pulse_output_capture", "coreaudio_output_capture");
+
+	ClearTranslation("jack_output_capture", "coreaudio_output_capture");
+	ClearTranslation("alsa_input_capture", "coreaudio_input_capture");
+
+	ClearTranslation("dshow_input", "av_capture_input");
+	ClearTranslation("v4l2_input", "av_capture_input");
+
+	ClearTranslation("xcomposite_input", "window_capture");
+
+	if (id == "monitor_capture") {
+		if (settings["show_cursor"].is_null() && !settings["capture_cursor"].is_null()) {
+			bool cursor = settings["capture_cursor"].bool_value();
+
+			settings["show_cursor"] = cursor;
+		}
+	}
+
+	DirectTranslation("xshm_input", "monitor_capture");
+
+	// Preserve the original final settings assignment, including its legacy
+	// interaction with ClearTranslation and null cursor-property lookups.
+	source["settings"] = settings;
+	value = source;
+#undef DirectTranslation
+#undef ClearTranslation
+}

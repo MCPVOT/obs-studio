@@ -494,12 +494,9 @@ bool SLImporter::Check(const string &path)
 OBSImporterFiles SLImporter::FindFiles()
 {
 	OBSImporterFiles res;
-#if defined(_WIN32) || defined(__APPLE__)
 	char dst[512];
 
-	int found = os_get_config_path(dst, 512, "slobs-client/SceneCollections/");
-
-	if (found == -1) {
+	if (!GetPlatformStreamlabsImportDirectory(dst, sizeof(dst))) {
 		return res;
 	}
 
@@ -520,6 +517,5 @@ OBSImporterFiles SLImporter::FindFiles()
 		}
 	}
 	os_closedir(dir);
-#endif
 	return res;
 }

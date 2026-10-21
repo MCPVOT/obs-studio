@@ -70,3 +70,5 @@
 extern "C" {
 #include "pci/pci.h"
 }
+
+#include "json11.hpp"

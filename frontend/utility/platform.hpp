@@ -108,6 +108,16 @@ bool PlatformSupportsSimpleQsvEncoders();
 bool PlatformSupportsSimpleAppleEncoders();
 bool PlatformHotkeyEditHandlesKeyRelease();
 
+/* Importer platform policy (#881). */
+namespace json11 {
+class Json;
+}
+size_t PlatformImporterLastSeparator(const std::string &path);
+bool GetPlatformClassicImportDirectory(char *directory, size_t size);
+bool GetPlatformStreamlabsImportDirectory(char *directory, size_t size);
+bool GetPlatformXSplitImportDirectory(char *directory, size_t size);
+void TranslatePlatformImportedSource(json11::Json &source);
+
 enum TaskbarOverlayStatus {
 	TaskbarOverlayStatusInactive,
 	TaskbarOverlayStatusActive,
