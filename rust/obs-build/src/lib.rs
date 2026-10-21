@@ -39,6 +39,10 @@ pub struct SharedLibrary {
     pub compile_options: Vec<String>,
     pub c_compile_options: Vec<String>,
     pub cpp_compile_options: Vec<String>,
+    /// Extra flags for Objective-C, in addition to the C-family options.
+    pub objc_compile_options: Vec<String>,
+    /// Extra flags for Objective-C++, in addition to the C++-family options.
+    pub objcpp_compile_options: Vec<String>,
     pub link_options: Vec<String>,
     pub file_name: Option<String>,
 }
@@ -249,6 +253,11 @@ impl NativeBuild {
                 sources,
             } = batch;
             let mut compiler = self.compiler(library, &output, language.cpp());
+            compiler.flags(match language {
+                Language::ObjectiveC => library.objc_compile_options.as_slice(),
+                Language::ObjectiveCpp => library.objcpp_compile_options.as_slice(),
+                Language::C | Language::Cpp => &[],
+            });
             if let Some(header) = header {
                 pch::apply(self, &mut compiler, language, &header)?;
             }
