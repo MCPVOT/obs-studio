@@ -11,6 +11,15 @@ add_library(OBS::decklink ALIAS decklink)
 add_library(decklink-sdk INTERFACE)
 add_library(Decklink::SDK ALIAS decklink-sdk)
 
+# platform.hpp is a shared shim; SDK types/includes come from one host file.
+target_include_directories(
+  decklink-sdk
+  INTERFACE
+    "$<$<PLATFORM_ID:Windows>:${CMAKE_CURRENT_SOURCE_DIR}/hosts/windows>"
+    "$<$<PLATFORM_ID:Darwin>:${CMAKE_CURRENT_SOURCE_DIR}/hosts/macos>"
+    "$<$<PLATFORM_ID:Linux,FreeBSD,OpenBSD>:${CMAKE_CURRENT_SOURCE_DIR}/hosts/linux>"
+)
+
 target_sources(
   decklink-sdk
   INTERFACE
