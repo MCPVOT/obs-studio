@@ -1,7 +1,7 @@
 #!/bin/bash
 # Tier 2 validation (docs/rust-port/testing-policy.md) on macOS, run directly
 # on the host (no Docker). One build makes the cmocka tests and both libobs
-# frameworks, libobs (C) and libobs-with-rust (#1065); it runs the unchanged
+# frameworks, libobs (C) and libobs-c-reference (#1065); it runs the unchanged
 # C tests against each and fails unless both export exactly the same symbols.
 # Mirrors rust/tools/linux-validate/validate.sh.
 #
@@ -77,21 +77,21 @@ mkdir -p "$XCODE_CAS_PATH"
 cmocka_prefix="$(brew --prefix cmocka)"
 
 build="build_rust"
-echo "== configure + build (libobs and libobs-with-rust)"
+echo "== configure + build (libobs and libobs-c-reference)"
 cmake --preset macos-ci -B "$build" \
-  -DENABLE_UNIT_TESTS=ON \
+  -DENABLE_UNIT_TESTS=ON -DOBS_BUILD_C_REFERENCE=ON -DOBS_LIBOBS_BACKEND=HYBRID \
   -DENABLE_FRONTEND=OFF -DENABLE_SCRIPTING=OFF -DENABLE_BROWSER=OFF \
   -DENABLE_WEBSOCKET=OFF \
   -DCMAKE_PREFIX_PATH="$cmocka_prefix" \
   >"$build.configure.log" 2>&1 || { tail -40 "$build.configure.log"; exit 1; }
 cmake --build "$build" --config RelWithDebInfo \
-  --target libobs libobs-with-rust cmocka-tests \
+  --target libobs libobs-c-reference cmocka-tests \
   >"$build.build.log" 2>&1 || { grep -E ": (fatal )?error|BUILD FAILED" "$build.build.log" | sort -u | head -40; exit 1; }
 
 # libobs.framework twice: libobs (C, what the tests link) and its Rust twin
-# in $build/libobs-with-rust (#1065), same install name.
-c_lib=$(find "$build" -path "$build/libobs-with-rust" -prune -o -path '*libobs.framework*' -name libobs -type f -print | head -1)
-rust_lib=$(find "$build/libobs-with-rust" -path '*libobs.framework*' -name libobs -type f | head -1)
+# in $build/libobs-c-reference (#1065), same install name.
+c_lib=$(find "$build/libobs-c-reference" -path '*libobs.framework*' -name libobs -type f | head -1)
+rust_lib=$(find "$build" -path "$build/libobs-c-reference" -prune -o -path '*libobs.framework*' -name libobs -type f -print | head -1)
 if [ -z "$c_lib" ] || [ -z "$rust_lib" ]; then
   echo "FAIL: libobs.framework not found (C: '${c_lib}', with Rust: '${rust_lib}') in $build"
   exit 1

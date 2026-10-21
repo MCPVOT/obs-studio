@@ -114,7 +114,7 @@ target_sources(
 
 # The Rust build names itself OBS-Studio-Rust and shows its own version, read from
 # the libobs-rust crate, next to the upstream OBS version it is based on.
-if(ENABLE_RUST_LIBOBS)
+if(OBS_BRAND_RUST)
   file(STRINGS "${CMAKE_SOURCE_DIR}/rust/libobs-rust/Cargo.toml" _obs_rust_version_line REGEX "^version = \"[^\"]+\"")
   string(REGEX REPLACE "^version = \"([^\"]+)\"" "\\1" OBS_RUST_VERSION "${_obs_rust_version_line}")
   # CI release builds embed the full release string instead (#631).

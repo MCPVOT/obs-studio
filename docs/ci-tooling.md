@@ -296,7 +296,7 @@ the paths that select them, so a change only triggers the tests it can affect.
   - `cross`: clippy, dylint, and a link of every test binary
     (`test --no-run`) for the Windows and macOS targets, cross-compiled from
     Linux with soldr;
-  - `tier2-linux`: the cmocka suite against libobs and libobs-with-rust, in
+  - `tier2-linux`: the cmocka suite against libobs and libobs-c-reference, in
     Docker.
 - **`ci/ci_scope.py`** maps changed paths to jobs, by path alone (#897). Linux
   Rust tests and Tier 2 always run. A changed file that belongs to a platform

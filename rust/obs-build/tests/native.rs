@@ -387,3 +387,22 @@ fn pch_batches_preserve_constructor_order_with_interleaved_headers() {
         assert_eq!(unsafe { answer(&artifact, b"obs_fixture_order", &[]) }, 123);
     }
 }
+
+#[test]
+fn production_hybrid_requires_a_real_rust_archive_before_native_compilation() {
+    let directory = tempfile::tempdir().unwrap();
+    let build = NativeBuild {
+        host: obs_build::BUILD_HOST.into(),
+        target: obs_build::BUILD_TARGET.into(),
+        output: directory.path().join("build"),
+    };
+    let error = obs_build::libobs::build_hybrid_with_options(
+        &build,
+        directory.path(),
+        &obs_build::libobs::Options::default(),
+        &directory.path().join("missing-rust.a"),
+    )
+    .unwrap_err();
+    assert!(error.contains("Rust archive does not exist"), "{error}");
+    assert!(!build.output.exists(), "must not silently start a C build");
+}

@@ -160,30 +160,25 @@ fn long_messages_are_truncated_and_terminated() {
 }
 
 #[test]
-fn plugin_cmake_builds_the_c_loader_and_a_rust_twin() {
-    // obs-nvenc (installed) keeps the C loader; obs-nvenc-with-rust, built
-    // beside it and never installed, swaps in the shim (#1065).
+fn plugin_cmake_defaults_to_rust_and_keeps_an_explicit_c_reference() {
     let cmake = std::fs::read_to_string(
         std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../plugins/obs-nvenc/CMakeLists.txt"),
     )
     .unwrap();
+    assert!(cmake.contains("if(OBS_LIBOBS_BACKEND STREQUAL HYBRID)"));
     assert!(
-        cmake.contains(
-            "target_sources(obs-nvenc PRIVATE ${_obs_nvenc_sources} build/obs-nvenc.cuda-load+.h.c)"
-        ),
-        "the installed plugin must build cuda-load.c.h"
+        cmake.contains("target_sources(obs-nvenc PRIVATE build/obs-nvenc.cuda-load-rust+.h.c)"),
+        "the production hybrid plugin must build the Rust loader adapter"
+    );
+    assert!(cmake.contains("if(OBS_BUILD_C_REFERENCE)"));
+    assert!(
+        cmake.contains("add_library(obs-nvenc-c-reference MODULE EXCLUDE_FROM_ALL ${_obs_nvenc_sources} build/obs-nvenc.cuda-load+.h.c)"),
+        "the C baseline must be explicit and excluded from default builds"
     );
     assert!(
-        cmake.contains(
-            "add_library(obs-nvenc-with-rust MODULE ${_obs_nvenc_sources} build/obs-nvenc.cuda-load-rust+.h.c)"
-        ),
-        "the Rust twin must build cuda-load-rust.c.h"
-    );
-    assert!(
-        cmake
-            .contains("target_link_libraries(obs-nvenc-with-rust PRIVATE obs_nvenc_plugin-static)"),
-        "only the Rust twin links the obs-nvenc-plugin staticlib"
+        cmake.contains("target_link_libraries(obs-nvenc PRIVATE obs_nvenc_plugin-static)"),
+        "the installed hybrid plugin must link the Rust loader"
     );
 }
 

@@ -91,7 +91,7 @@ don't delete local branches you didn't create.
   were green when #846 shipped with llvmpipe showing green (#929). If you
   cannot run it, use `Refs #N`, not `Fixes #N`, and say what is missing.
 - Ports need every applicable tier: Tier 1 Rust unit, Tier 2 unchanged C
-  tests against `libobs` and `libobs-with-rust`, Tier 3 differential, Tier 4 for
+  tests against `libobs` and `libobs-c-reference`, Tier 3 differential, Tier 4 for
   protocol code.
 - Never edit an existing C test or public C header to make a port pass.
 - Host-specific code goes only in `src/platform/` or `src/ffi/`.

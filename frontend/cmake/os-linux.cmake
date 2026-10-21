@@ -90,12 +90,12 @@ macro(obs_frontend_platform_sources)
 
   # The Rust build's release is its own version, linked to its own release page (#631).
   set(_obs_metainfo_version "${OBS_VERSION}")
-  if(ENABLE_RUST_LIBOBS)
+  if(OBS_BRAND_RUST)
     set(OBS_VERSION "${OBS_RUST_VERSION}")
   endif()
   configure_file(cmake/linux/com.obsproject.Studio.metainfo.xml.in ${OBS_DESKTOP_ID}.metainfo.xml @ONLY)
   set(OBS_VERSION "${_obs_metainfo_version}")
-  if(ENABLE_RUST_LIBOBS)
+  if(OBS_BRAND_RUST)
     file(READ "${CMAKE_CURRENT_BINARY_DIR}/${OBS_DESKTOP_ID}.metainfo.xml" _obs_metainfo)
     string(
       REPLACE

@@ -129,7 +129,7 @@ zccache() { echo "daemon diagnostic: $*"; }
 
     def test_unhealthy_cache_is_not_published(self):
         workflow = (ROOT / '.github/workflows/build-project.yaml').read_text()
-        build = workflow.split('- name: Build Tier 2 (libobs and libobs-with-rust)', 1)[1].split('\n      - ', 1)[0]
+        build = workflow.split('- name: Build Tier 2 (libobs and libobs-c-reference)', 1)[1].split('\n      - ', 1)[0]
         save = workflow.split('- name: Save Tier 2 zccache', 1)[1].split('\n      - ', 1)[0]
         self.assertIn('id: tier2-build', build)
         self.assertIn("steps.tier2-build.outputs.cache-healthy != 'false'", save)

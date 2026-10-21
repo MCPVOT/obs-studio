@@ -21,7 +21,7 @@ Lanes:
 Cargo runs with SOLDR_RUSTC_WRAPPER=none (soldr's zccache has replayed stale
 rustc output; #134). Set OBS_GATE_ZCCACHE=1 to keep the cache locally.
   tier2-linux  rust/tools/linux-validate/run.sh: libobs + cmocka with
-               libobs and libobs-with-rust in Docker, exported-symbol diff.
+               libobs and libobs-c-reference in Docker, exported-symbol diff.
 """
 
 from __future__ import annotations

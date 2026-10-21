@@ -9,7 +9,7 @@ inputs:
     required: false
     default: RelWithDebInfo
   rustLibobs:
-    description: Select Rust libobs explicitly (ON or OFF); empty inherits the caller environment
+    description: Product identity only (ON or OFF); backend defaults to hybrid independently
     required: false
     default: ''
   codesign:

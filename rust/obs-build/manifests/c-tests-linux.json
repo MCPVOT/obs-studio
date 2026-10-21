@@ -509,7 +509,8 @@
   {
     "name": "test_output_delay",
     "sources": [
-      "test/cmocka/test_output_delay.c"
+      "test/cmocka/test_output_delay.c",
+      "test/cmocka/output_delay_fields_stub.c"
     ]
   },
   {

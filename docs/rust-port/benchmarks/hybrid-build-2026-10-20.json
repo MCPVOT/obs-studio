@@ -1,0 +1,355 @@
+{
+  "baseline_revision": "90e4edc41",
+  "hybrid_revision": "174109fad",
+  "jobs": 4,
+  "scope": "libobs production/default pair only; no frontend or plugins",
+  "cache_policy": "separate initially empty compiler caches and output trees per backend; crate downloads may be warm",
+  "host_load": "shared host; single sample per rebuild type, three no-change samples",
+  "runs": [
+    {
+      "label": "baseline-configure",
+      "command": [
+        "cmake",
+        "-S",
+        "/baseline",
+        "-B",
+        "/build/isolated-baseline",
+        "-G",
+        "Ninja",
+        "-DCMAKE_BUILD_TYPE=RelWithDebInfo",
+        "-DOBS_BUILD_NUMBER=1",
+        "-DOBS_VERSION_OVERRIDE=33.0.0",
+        "-DENABLE_FRONTEND=OFF",
+        "-DENABLE_SCRIPTING=OFF",
+        "-DENABLE_BROWSER=OFF",
+        "-DENABLE_WEBSOCKET=OFF",
+        "-DENABLE_AJA=OFF",
+        "-DENABLE_WEBRTC=OFF",
+        "-DENABLE_NVENC=OFF",
+        "-DENABLE_QSV11=OFF",
+        "-DENABLE_VST=OFF",
+        "-DENABLE_WAYLAND=OFF",
+        "-DENABLE_UNIT_TESTS=OFF",
+        "-DCMAKE_C_COMPILER_LAUNCHER=zccache",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=zccache"
+      ],
+      "wall_seconds": 8.222931447904557,
+      "cpu_seconds": 7.0921769999999995,
+      "returncode": 0,
+      "load_average": [
+        10.2568359375,
+        11.6015625,
+        11.81103515625
+      ]
+    },
+    {
+      "label": "baseline-cold",
+      "command": [
+        "cmake",
+        "--build",
+        "/build/isolated-baseline",
+        "--target",
+        "libobs",
+        "libobs-with-rust",
+        "--parallel",
+        "4"
+      ],
+      "wall_seconds": 11.405509375035763,
+      "cpu_seconds": 23.950571000000004,
+      "returncode": 0,
+      "load_average": [
+        10.150390625,
+        11.52099609375,
+        11.78173828125
+      ]
+    },
+    {
+      "label": "baseline-no-change-1",
+      "command": [
+        "cmake",
+        "--build",
+        "/build/isolated-baseline",
+        "--target",
+        "libobs",
+        "libobs-with-rust",
+        "--parallel",
+        "4"
+      ],
+      "wall_seconds": 0.11527501605451107,
+      "cpu_seconds": 0.11291199999999613,
+      "returncode": 0,
+      "load_average": [
+        10.150390625,
+        11.52099609375,
+        11.78173828125
+      ]
+    },
+    {
+      "label": "baseline-no-change-2",
+      "command": [
+        "cmake",
+        "--build",
+        "/build/isolated-baseline",
+        "--target",
+        "libobs",
+        "libobs-with-rust",
+        "--parallel",
+        "4"
+      ],
+      "wall_seconds": 0.11069659306667745,
+      "cpu_seconds": 0.10812499999999936,
+      "returncode": 0,
+      "load_average": [
+        10.150390625,
+        11.52099609375,
+        11.78173828125
+      ]
+    },
+    {
+      "label": "baseline-no-change-3",
+      "command": [
+        "cmake",
+        "--build",
+        "/build/isolated-baseline",
+        "--target",
+        "libobs",
+        "libobs-with-rust",
+        "--parallel",
+        "4"
+      ],
+      "wall_seconds": 0.11655124207027256,
+      "cpu_seconds": 0.11426400000000214,
+      "returncode": 0,
+      "load_average": [
+        10.150390625,
+        11.52099609375,
+        11.78173828125
+      ]
+    },
+    {
+      "label": "baseline-warm-rebuild",
+      "command": [
+        "cmake",
+        "--build",
+        "/build/isolated-baseline",
+        "--target",
+        "libobs",
+        "libobs-with-rust",
+        "--parallel",
+        "4"
+      ],
+      "wall_seconds": 7.969873548019677,
+      "cpu_seconds": 1.967375999999998,
+      "returncode": 0,
+      "load_average": [
+        12.62109375,
+        12.0107421875,
+        11.93896484375
+      ]
+    },
+    {
+      "label": "baseline-edited-input",
+      "command": [
+        "cmake",
+        "--build",
+        "/build/isolated-baseline",
+        "--target",
+        "libobs",
+        "libobs-with-rust",
+        "--parallel",
+        "4"
+      ],
+      "wall_seconds": 11.183946843957528,
+      "cpu_seconds": 1.7462050000000033,
+      "returncode": 0,
+      "load_average": [
+        16.5908203125,
+        12.8828125,
+        12.22412109375
+      ]
+    },
+    {
+      "label": "hybrid-configure",
+      "command": [
+        "cmake",
+        "-S",
+        "/source",
+        "-B",
+        "/build/isolated-hybrid",
+        "-G",
+        "Ninja",
+        "-DCMAKE_BUILD_TYPE=RelWithDebInfo",
+        "-DOBS_BUILD_NUMBER=1",
+        "-DOBS_VERSION_OVERRIDE=33.0.0",
+        "-DENABLE_FRONTEND=OFF",
+        "-DENABLE_SCRIPTING=OFF",
+        "-DENABLE_BROWSER=OFF",
+        "-DENABLE_WEBSOCKET=OFF",
+        "-DENABLE_AJA=OFF",
+        "-DENABLE_WEBRTC=OFF",
+        "-DENABLE_NVENC=OFF",
+        "-DENABLE_QSV11=OFF",
+        "-DENABLE_VST=OFF",
+        "-DENABLE_WAYLAND=OFF",
+        "-DENABLE_UNIT_TESTS=OFF",
+        "-DCMAKE_C_COMPILER_LAUNCHER=zccache",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=zccache"
+      ],
+      "wall_seconds": 7.5444858549162745,
+      "cpu_seconds": 6.710957999999998,
+      "returncode": 0,
+      "load_average": [
+        15.208984375,
+        12.70556640625,
+        12.1728515625
+      ]
+    },
+    {
+      "label": "hybrid-cold",
+      "command": [
+        "cmake",
+        "--build",
+        "/build/isolated-hybrid",
+        "--target",
+        "libobs",
+        "--parallel",
+        "4"
+      ],
+      "wall_seconds": 14.0407111691311,
+      "cpu_seconds": 26.863833,
+      "returncode": 0,
+      "load_average": [
+        22.2431640625,
+        14.32080078125,
+        12.70703125
+      ]
+    },
+    {
+      "label": "hybrid-no-change-1",
+      "command": [
+        "cmake",
+        "--build",
+        "/build/isolated-hybrid",
+        "--target",
+        "libobs",
+        "--parallel",
+        "4"
+      ],
+      "wall_seconds": 0.13740802998654544,
+      "cpu_seconds": 0.1211909999999925,
+      "returncode": 0,
+      "load_average": [
+        22.2431640625,
+        14.32080078125,
+        12.70703125
+      ]
+    },
+    {
+      "label": "hybrid-no-change-2",
+      "command": [
+        "cmake",
+        "--build",
+        "/build/isolated-hybrid",
+        "--target",
+        "libobs",
+        "--parallel",
+        "4"
+      ],
+      "wall_seconds": 0.11687097907997668,
+      "cpu_seconds": 0.11362099999998776,
+      "returncode": 0,
+      "load_average": [
+        22.2431640625,
+        14.32080078125,
+        12.70703125
+      ]
+    },
+    {
+      "label": "hybrid-no-change-3",
+      "command": [
+        "cmake",
+        "--build",
+        "/build/isolated-hybrid",
+        "--target",
+        "libobs",
+        "--parallel",
+        "4"
+      ],
+      "wall_seconds": 0.11986128310672939,
+      "cpu_seconds": 0.11745200000000722,
+      "returncode": 0,
+      "load_average": [
+        22.2431640625,
+        14.32080078125,
+        12.70703125
+      ]
+    },
+    {
+      "label": "hybrid-warm-rebuild",
+      "command": [
+        "cmake",
+        "--build",
+        "/build/isolated-hybrid",
+        "--target",
+        "libobs",
+        "--parallel",
+        "4"
+      ],
+      "wall_seconds": 5.995123042026535,
+      "cpu_seconds": 0.5909240000000047,
+      "returncode": 0,
+      "load_average": [
+        22.1435546875,
+        14.43212890625,
+        12.751953125
+      ]
+    },
+    {
+      "label": "hybrid-edited-input",
+      "command": [
+        "cmake",
+        "--build",
+        "/build/isolated-hybrid",
+        "--target",
+        "libobs",
+        "--parallel",
+        "4"
+      ],
+      "wall_seconds": 5.7792471488937736,
+      "cpu_seconds": 0.6468409999999984,
+      "returncode": 0,
+      "load_average": [
+        26.37646484375,
+        15.43798828125,
+        13.08642578125
+      ]
+    }
+  ],
+  "cpu_scope": "RUSAGE_CHILDREN of build driver; excludes work performed by detached compiler-cache daemons. Not total compiler CPU.",
+  "sample_policy": "One fresh-output, warm-rebuild, and edited-input sample per variant; three no-change samples. Shared host; insufficient for general performance claims.",
+  "warm_rebuild": "Touch generated config/obsconfig.h without changing contents; compiler cache is warm.",
+  "edited_input": "Append a comment to generated config/obsconfig.h, rebuilding dependent native objects.",
+  "cpu_model": "AMD Ryzen 7 3700X 8-Core Processor, 16 logical CPUs",
+  "image": "obs-rust-linux-validate:1168f7ef88e6e8d2",
+  "image_id": "sha256:a940f574d451edb626742846cf2368cc99e3af34a3f6868dccc234de09a688e5",
+  "compiler": "GCC 15.2.0 (Ubuntu 15.2.0-16ubuntu1)",
+  "cmake": "4.2.3",
+  "rust": "1.98.1",
+  "native_profile": "RelWithDebInfo",
+  "rust_profile": "release (panic=abort)",
+  "tier2": {
+    "reference": {
+      "registered": 341,
+      "skipped": 3,
+      "failed": 0,
+      "wall_seconds": 392.31
+    },
+    "hybrid": {
+      "registered": 341,
+      "skipped": 3,
+      "failed": 0,
+      "wall_seconds": 390.62
+    },
+    "note": "Same unchanged suite and same hybrid-build test executables, backend selected and verified by loader path. Not a before/after test-speed measurement."
+  }
+}

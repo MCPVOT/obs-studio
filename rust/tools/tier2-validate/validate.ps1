@@ -1,6 +1,6 @@
 # Tier 2 validation (docs/rust-port/testing-policy.md) on Windows. One build
 # makes the cmocka tests and both obs.dll files, libobs (C) and
-# libobs-with-rust (#1065); it runs the unchanged C tests against each and
+# libobs-c-reference (#1065); it runs the unchanged C tests against each and
 # fails unless both export exactly the same symbols. Mirrors
 # rust/tools/linux-validate/validate.sh.
 #
@@ -83,26 +83,26 @@ function Get-Exports($dll) {
 }
 
 $build = 'build_rust'
-Write-Host '== configure + build (libobs and libobs-with-rust)'
+Write-Host '== configure + build (libobs and libobs-c-reference)'
 cmake --preset windows-ci-x64 -B $build `
-  -DENABLE_UNIT_TESTS=ON `
+  -DENABLE_UNIT_TESTS=ON -DOBS_BUILD_C_REFERENCE=ON -DOBS_LIBOBS_BACKEND=HYBRID `
   -DENABLE_FRONTEND=OFF -DENABLE_SCRIPTING=OFF -DENABLE_BROWSER=OFF `
   -DENABLE_WEBSOCKET=OFF `
   "-DCMAKE_PREFIX_PATH=$CMockaPrefix"
 if ($LASTEXITCODE -ne 0) { throw "cmake configure failed ($LASTEXITCODE)" }
 
 cmake --build $build --config RelWithDebInfo `
-  --target libobs libobs-with-rust cmocka-tests
+  --target libobs libobs-c-reference cmocka-tests
 if ($LASTEXITCODE -ne 0) { throw "cmake build failed ($LASTEXITCODE)" }
 
 # obs.dll twice: libobs (C, what the tests link) and its Rust twin in
-# $build/libobs-with-rust (#1065), same name.
-$rustDir = (Resolve-Path (Join-Path $build 'libobs-with-rust')).Path
-$cDll = Get-ChildItem -Path $build -Recurse -Filter obs.dll |
-  Where-Object { $_.FullName -match 'libobs' -and -not $_.FullName.StartsWith($rustDir) } | Select-Object -First 1
-$rustDll = Get-ChildItem -Path $rustDir -Recurse -Filter obs.dll | Select-Object -First 1
+# $build/libobs-c-reference (#1065), same name.
+$cDir = (Resolve-Path (Join-Path $build 'libobs-c-reference')).Path
+$rustDll = Get-ChildItem -Path $build -Recurse -Filter obs.dll |
+  Where-Object { $_.FullName -match 'libobs' -and -not $_.FullName.StartsWith($cDir) } | Select-Object -First 1
+$cDll = Get-ChildItem -Path $cDir -Recurse -Filter obs.dll | Select-Object -First 1
 if (-not $cDll) { throw "obs.dll (C) not found under $build" }
-if (-not $rustDll) { throw "obs.dll (with Rust) not found under $rustDir" }
+if (-not $rustDll) { throw "obs.dll (with Rust) not found under $build" }
 
 Write-Host '== libobs exported symbols, C vs Rust'
 $off = Get-Exports $cDll
@@ -112,7 +112,7 @@ $on | Set-Content exports-ON.txt
 $diff = Compare-Object $off $on
 if ($diff) {
   $diff | Format-Table | Out-String | Write-Host
-  throw 'FAIL: exported symbols differ between libobs and libobs-with-rust'
+  throw 'FAIL: exported symbols differ between libobs and libobs-c-reference'
 }
 Write-Host "IDENTICAL ($($on.Count) symbols)"
 

@@ -1,8 +1,7 @@
 name: Release OBS-Studio-Rust
 run-name: Daily OBS-Studio-Rust beta 🦀
-# Daily beta: builds OBS-Studio-Rust (ENABLE_RUST_LIBOBS=ON: the identity; libobs
-# is the C build, the Rust ports are built and tested but not shipped, #1065) for Linux, macOS
-# and Windows from master, plus the Linux AppImage (appimage.yaml), and
+# Daily beta: builds the production Rust/C hybrid for Linux, macOS and Windows
+# from master, plus the Linux AppImage (appimage.yaml), and
 # publishes a GitHub pre-release (macOS signed/notarized when credentials exist) tagged
 # obs-studio-rust-v<rust/libobs-rust version>-beta.<YYYYMMDD>.
 #   gh workflow run release-rust.yaml      # today's release now
@@ -277,12 +276,10 @@ jobs:
             cp "$symbols" "pkg/OBS-Studio-Rust-$VERSION-windows-$TARGET-symbols.zip"
           fi
 
-          # Rust must actually be linked into libobs-with-rust, the
-          # never-installed twin of libobs: the package ships the C libobs
-          # (#1065, #1086).
-          lib=$(find build_* -path '*libobs-with-rust/*' \( -name obs.dll -o -name 'libobs.so*' -o -path '*libobs.framework/Versions/A/libobs' \) -type f | head -1)
-          echo "libobs-with-rust: $lib"
-          [ -n "$lib" ] || { echo "::error::libobs-with-rust was not built"; exit 1; }
+          # Rust must actually be linked into the production library, never the C reference.
+          lib=$(find build_* -not -path '*libobs-c-reference/*' \( -name obs.dll -o -name 'libobs.so*' -o -path '*libobs.framework/Versions/A/libobs' \) -type f | head -1)
+          echo "libobs: $lib"
+          [ -n "$lib" ] || { echo "::error::libobs was not built"; exit 1; }
           grep -a -q '/rustc/' "$lib" || { echo "::error::no Rust code in $lib"; exit 1; }
 
           # The build must name itself OBS-Studio-Rust <full release version> (#112, #631).
@@ -539,6 +536,9 @@ jobs:
         with:
           name: obs-studio-appimage
           path: appimage
+
+      - name: Verify hybrid implementation release approval
+        run: uv run --no-project ci/hybrid_release_gate.py
 
       - name: Create or repair release 🛫
         env:

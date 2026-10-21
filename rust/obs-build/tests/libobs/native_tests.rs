@@ -10,6 +10,10 @@ pub fn exercise(
     tests: &[Executable],
     suite: &str,
 ) {
+    assert_ne!(
+        core, rust_core,
+        "compatibility runs require distinct C and Rust libraries"
+    );
     let mut results = Vec::new();
     let mut failures = Vec::new();
     for selected in [core, rust_core] {

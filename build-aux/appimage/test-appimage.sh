@@ -306,6 +306,12 @@ if [ ! -e "$LOADER" ]; then
     LOADER=/lib64/ld-linux-x86-64.so.2
     [ -e "$LOADER" ] || LOADER="$(find /lib /lib64 /usr/lib /usr/lib64 -maxdepth 2 -name ld-linux-x86-64.so.2 2>/dev/null | head -1)"
 fi
+# Check the actual bundled implementation, independently of product identity.
+PACKAGED_LIBOBS=$(find "$APPDIR/usr" -name 'libobs.so.*' -type f -print -quit)
+if [ -z "$PACKAGED_LIBOBS" ] || ! grep -a -q '/rustc/' "$PACKAGED_LIBOBS"; then
+    fail "packaged libobs does not contain the production Rust implementation"
+fi
+
 PACKAGE_DATA="$APPDIR/usr/share/obs"
 PACKAGE_MODULES="$APPDIR/usr/lib/obs-modules"
 if [[ "$VERSION_LINE" == OBS-Studio-Rust* ]]; then
@@ -1048,7 +1054,8 @@ for i in $(seq 1 $((RECORD_SECONDS + 5))); do
     OBS_PID="$(obs_pid_of "$APP_PID")"
     if [ "$i" -ge 5 ] && [ "$MAPS_CHECKED" -eq 0 ] && [ -n "$OBS_PID" ]; then
         # Once the captures run: their client libraries come from the AppImage.
-        require_mapped_from_appimage "$OBS_PID" libpipewire-0.3.so libpulse.so libglib-2.0.so libgio-2.0.so
+        require_mapped_from_appimage "$OBS_PID" libobs.so libpipewire-0.3.so libpulse.so libglib-2.0.so libgio-2.0.so
+        cat "/proc/$OBS_PID/maps" >"$OUT/obs-maps.txt"
         require_one_libsrt_mapped "$OBS_PID"
         MAPS_CHECKED=1
     fi

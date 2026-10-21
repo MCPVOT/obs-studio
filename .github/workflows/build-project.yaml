@@ -307,10 +307,9 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-26.04]
-        # ON builds the app as OBS-Studio-Rust (ENABLE_RUST_LIBOBS: name, app ID,
-        # paths). Both legs link the C libobs and build libobs-with-rust beside
-        # it without shipping it (#1065).
-        rust: ['OFF', 'ON']
+        # One production application: hybrid libobs, with OBS-Studio-Rust identity.
+        # C reference coverage remains in the explicit Tier 2 jobs.
+        rust: ['ON']
     runs-on: ${{ matrix.os }}
     needs: check-event
     # The full OBS app build is release-gating, not dev-cycle CI: it runs in
@@ -576,6 +575,15 @@ jobs:
           cache_key='flatpak-builder-${{ hashFiles('build-aux/com.obsproject.Studio.json') }}'
 
           echo "cacheKey=${cache_key}" >> $GITHUB_OUTPUT
+
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+      - name: Prepare offline Flatpak Rust dependencies
+        run: |
+          # Supply the pinned compiler in the manifest; soldr vendors Cargo inputs
+          # before flatpak-builder enters its network-isolated build sandbox.
+          cmake -P cmake/common/prepare-flatpak-soldr.cmake
+      - name: Vendor Flatpak Cargo sources
+        run: build-aux/prepare-flatpak-rust.sh
 
       - name: Validate Flatpak manifest
         uses: ./.github/actions/flatpak-builder-lint
@@ -1181,10 +1189,10 @@ jobs:
         run: soldr cargo fmt --all --check
 
   # Tier 2 Linux builds once and fans the tests out (#937, #1065): the build
-  # job builds libobs (C) and libobs-with-rust in one tree, runs the checks
+  # job explicitly builds hybrid libobs and the C reference in one tree, runs the checks
   # (including the enforced C/Rust export comparison, so a mismatch fails
   # before any test) and uploads the tree; mode x shard jobs run one ctest
-  # slice each against one libobs (OFF: C as linked, ON: libobs-with-rust via
+  # slice each against one libobs (OFF: C reference, ON: hybrid libobs via
   # LD_LIBRARY_PATH) on the same paths; rust-linux-tier2-done publishes the
   # lane proof.
   rust-linux-tier2-build:
@@ -1272,7 +1280,7 @@ jobs:
             rm -rf "$dir"
           fi
 
-      # libobs-with-rust builds the Rust ports with cargo through Corrosion;
+      # Production hybrid libobs builds the Rust ports through Corrosion;
       # the shims put soldr's cargo/rustc (rust-toolchain.toml) on PATH.
       - name: Set Up soldr 🦀
         uses: zackees/setup-soldr@b782f606a2f3beadc35b9e3bf5b4565e005f52ed # v0.9.86
@@ -1310,7 +1318,7 @@ jobs:
           sh rust/tools/linux-validate/install-zccache.sh "$HOME/.local/bin"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
-      - name: Build Tier 2 (libobs and libobs-with-rust) 🧱
+      - name: Build Tier 2 (libobs and libobs-c-reference) 🧱
         id: tier2-build
         env:
           OBS_TIER2_SRC: ${{ github.workspace }}
@@ -1638,7 +1646,7 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
-      # libobs-with-rust builds Rust ports through Corrosion; shims select
+      # Production hybrid libobs builds Rust ports through Corrosion; shims select
       # pinned soldr. Native C/C++ caches remain separate from the Rust bypass.
       - name: Set Up soldr 🦀
         uses: zackees/setup-soldr@b782f606a2f3beadc35b9e3bf5b4565e005f52ed # v0.9.86

@@ -33,7 +33,7 @@ impl Default for Options {
     }
 }
 
-/// Build the real C libobs, including generated configuration and native dependencies.
+/// Build production hybrid libobs using the externally built release Rust archive.
 pub fn build(build: &NativeBuild, root: &Path) -> Result<PathBuf, String> {
     build_with_options(build, root, &Options::default())
 }
@@ -43,9 +43,47 @@ pub fn build_with_options(
     root: &Path,
     options: &Options,
 ) -> Result<PathBuf, String> {
+    let archive = std::env::var_os("OBS_BUILD_RUST_ARCHIVE")
+        .map(PathBuf::from)
+        .ok_or("set OBS_BUILD_RUST_ARCHIVE to the release libobs-rust staticlib; C rollback uses build_c_reference_with_options explicitly")?;
+    build_hybrid_with_options(build, root, options, &archive)
+}
+
+/// Explicit C baseline for migration testing and temporary rollback.
+pub fn build_c_reference_with_options(
+    build: &NativeBuild,
+    root: &Path,
+    options: &Options,
+) -> Result<PathBuf, String> {
     let plan = prepare(build, root, options)?;
     let mut library = plan.common;
     add_variant(build, &plan.root, &plan.sets, options, &mut library, None)?;
+    finish(build, &library)
+}
+
+/// Build only the production hybrid; never compile its replaced C sources.
+pub fn build_hybrid_with_options(
+    build: &NativeBuild,
+    root: &Path,
+    options: &Options,
+    rust_archive: &Path,
+) -> Result<PathBuf, String> {
+    if !rust_archive.is_file() {
+        return Err(format!(
+            "Rust archive does not exist: {}",
+            rust_archive.display()
+        ));
+    }
+    let plan = prepare(build, root, options)?;
+    let mut library = plan.common;
+    add_variant(
+        build,
+        &plan.root,
+        &plan.sets,
+        options,
+        &mut library,
+        Some(rust_archive),
+    )?;
     finish(build, &library)
 }
 
@@ -282,7 +320,7 @@ fn write_if_changed(path: &Path, text: &str) -> Result<(), String> {
     Ok(())
 }
 
-/// Both ABI-compatible variants; only the C reference is installed.
+/// Explicit ABI-validation pair; production installs the hybrid only.
 #[derive(Debug)]
 pub struct Libraries {
     pub reference: PathBuf,
@@ -312,10 +350,10 @@ pub fn build_pair(
     common.precompiled_headers.clear();
     common.precompiled_objects = objects;
     let mut reference = common.clone();
-    reference.name = "obs".into();
+    reference.name = "obs-c-reference".into();
     add_variant(build, &plan.root, &plan.sets, options, &mut reference, None)?;
     let mut with_rust = common;
-    with_rust.name = "obs-with-rust".into();
+    with_rust.name = "obs".into();
     add_variant(
         build,
         &plan.root,

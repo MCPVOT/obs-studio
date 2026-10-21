@@ -4,7 +4,7 @@ include_guard(GLOBAL)
 
 # Set default global CPack variables
 set(CPACK_PACKAGE_NAME obs-studio)
-if(OS_LINUX AND ENABLE_RUST_LIBOBS)
+if(OS_LINUX AND OBS_BRAND_RUST)
   set(CPACK_PACKAGE_NAME obs-studio-rust)
 endif()
 set(CPACK_PACKAGE_VENDOR "${OBS_WEBSITE}")

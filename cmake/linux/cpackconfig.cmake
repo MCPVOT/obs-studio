@@ -29,7 +29,7 @@ set(CPACK_ARCHIVE_THREADS 0)
 if(OS_LINUX)
   set(CPACK_GENERATOR "DEB")
   set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS TRUE)
-  if(ENABLE_RUST_LIBOBS)
+  if(OBS_BRAND_RUST)
     # dpkg-shlibdeps runs from the package staging directory. Imported plugins
     # such as obs-browser do not have a relative RPATH to our private libraries.
     set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS ".${CMAKE_INSTALL_PREFIX}/${OBS_LIBRARY_DESTINATION}")

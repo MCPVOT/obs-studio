@@ -1,14 +1,9 @@
 #!/bin/bash
 # Tier 2 validation (docs/rust-port/testing-policy.md), run inside the
-# container built from ./Dockerfile; see run.sh. One build makes both libobs
-# binaries (#1065): libobs (C, what the tests link) and libobs-with-rust (the
-# Rust ports in place of the ported C, same file name and SONAME, in
-# <build>/libobs-with-rust/). It runs the unchanged C tests once per libobs:
-# mode OFF as linked, mode ON with LD_LIBRARY_PATH pointing the loader at
-# libobs-with-rust. It fails unless both export exactly the same dynamic
-# symbols. With --repeat N it then reruns the tests (or the --tests REGEX
-# subset) up to N times per mode to catch flakes, as testing-policy.md
-# requires for threading and task.
+# container built from ./Dockerfile; see run.sh. The explicit test build makes
+# hybrid libobs and libobs-c-reference from shared unported objects. OFF loads
+# the C reference; ON loads production hybrid libobs. Both export identical
+# public symbols and run the unchanged tests. --repeat catches flakes.
 set -euo pipefail
 
 repeat=0
@@ -132,10 +127,10 @@ if [ "$(wc -w <<<"$ported_objs")" -lt 20 ]; then
   echo "FAIL: derived only $(wc -w <<<"$ported_objs") ported objects from libobs/build/source-sets.json"
   exit 1
 fi
-echo "== ported objects checked out of libobs-with-rust: $(wc -w <<<"$ported_objs")"
+echo "== ported C objects excluded from production libobs: $(wc -w <<<"$ported_objs")"
 
 # OBS_TIER2_MODES: which libobs the tests run against (default both): OFF is
-# libobs as linked, ON is libobs-with-rust. CI runs each mode as its own test
+# libobs-c-reference, ON is the installed hybrid libobs. CI runs each mode as its own test
 # jobs from the one build tree.
 modes="${OBS_TIER2_MODES:-OFF ON}"
 for mode in $modes; do
@@ -143,10 +138,11 @@ for mode in $modes; do
 done
 
 build="$BUILD/tree"
-rust_libdir="$build/libobs-with-rust"
+rust_libdir="$build/libobs"
+c_libdir="$build/libobs-c-reference"
 # RUNPATH whatever the toolchain's default: the loader searches a DT_RPATH
 # before LD_LIBRARY_PATH, which would keep mode ON from putting
-# libobs-with-rust in front of the libobs the tests link.
+# libobs-c-reference in front of the libobs the tests link.
 runpath_flags=(-DCMAKE_EXE_LINKER_FLAGS=-Wl,--enable-new-dtags
   -DCMAKE_SHARED_LINKER_FLAGS=-Wl,--enable-new-dtags -DCMAKE_MODULE_LINKER_FLAGS=-Wl,--enable-new-dtags)
 
@@ -154,10 +150,10 @@ if [ "$stage" = test ]; then
   [ -f "$build/CTestTestfile.cmake" ] || { echo "FAIL: no build tree at $build for OBS_TIER2_STAGE=test"; exit 1; }
 else
   reset_stale_build "$build" "$rustc_version"
-  echo "== configure + build (libobs and libobs-with-rust)"
+  echo "== configure + build (libobs and libobs-c-reference)"
   cmake -S "$SRC" -B "$build" -G Ninja \
     -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-    -DENABLE_UNIT_TESTS=ON \
+    -DENABLE_UNIT_TESTS=ON -DOBS_BUILD_C_REFERENCE=ON -DOBS_LIBOBS_BACKEND=HYBRID \
     -DCMAKE_C_COMPILER_LAUNCHER=zccache -DCMAKE_CXX_COMPILER_LAUNCHER=zccache \
     ${OBS_EXTRA_CFLAGS:+"-DCMAKE_C_FLAGS=$OBS_EXTRA_CFLAGS" "-DCMAKE_CXX_FLAGS=$OBS_EXTRA_CFLAGS"} \
     "${runpath_flags[@]}" \
@@ -177,7 +173,7 @@ else
   # (wrap/ipc/lost_request.rs) and leaves the replay to the build tool.
   # Restart the daemon and rebuild once; ninja redoes only the failed edges,
   # and a real compile error fails the second time too.
-  tier2_targets=(libobs libobs-with-rust cmocka-tests decklink obs-nvenc obs-nvenc-with-rust)
+  tier2_targets=(libobs libobs-c-reference cmocka-tests decklink obs-nvenc obs-nvenc-c-reference)
   if ! cmake --build "$build" --target "${tier2_targets[@]}" -- -k 0 >"$build.build.log" 2>&1; then
     # Ninja colors its log (\e[31mFAILED: ...), so strip the escapes first.
     launcher_failed=$(sed 's/\x1b\[[0-9;]*m//g' "$build.build.log" | grep -c '^FAILED: \[code=125\]' || true)
@@ -216,12 +212,12 @@ else
 
   # Through the libobs.so link this build wrote: the /build volume persists,
   # so an older libobs.so.* (another SONAME) can still sit beside it.
-  [ -e "$rust_libdir/libobs.so" ] || { echo "FAIL: libobs-with-rust was not built"; exit 1; }
-  c_lib=$(realpath "$build/libobs/libobs.so")
+  [ -e "$rust_libdir/libobs.so" ] || { echo "FAIL: libobs-c-reference was not built"; exit 1; }
+  c_lib=$(realpath "$c_libdir/libobs.so")
   rust_lib=$(realpath "$rust_libdir/libobs.so")
   soname() { readelf -d "$1" | sed -nE 's/.*\(SONAME\).*\[(.*)\]/\1/p'; }
   if [ "$(soname "$c_lib")" != "$(soname "$rust_lib")" ]; then
-    echo "FAIL: libobs-with-rust's SONAME $(soname "$rust_lib") is not libobs's $(soname "$c_lib")"
+    echo "FAIL: libobs-c-reference's SONAME $(soname "$rust_lib") is not libobs's $(soname "$c_lib")"
     exit 1
   fi
   nm -D --defined-only "$c_lib" | awk '{print $3}' | sort >"$BUILD/exports-OFF.txt"
@@ -257,12 +253,12 @@ else
   }
   for obj in $ported_objs; do
     src="libobs/${obj%.o}"
-    if compiles libobs-with-rust "$src" "$obj"; then
-      echo "FAIL: $obj was compiled into libobs-with-rust"
+    if compiles libobs "$src" "$obj"; then
+      echo "FAIL: $obj was compiled into hybrid libobs"
       exit 1
     fi
-    if ! compiles libobs "$src" "$obj"; then
-      echo "FAIL: $obj was not compiled into libobs"
+    if ! compiles libobs-c-reference "$src" "$obj"; then
+      echo "FAIL: $obj was not compiled into libobs-c-reference"
       exit 1
     fi
   done
@@ -271,18 +267,18 @@ else
   nm -D --undefined-only "$plugin" | grep bitstream_reader
 
   # Issue #645: obs-nvenc uses cuda-load.c, its never-installed twin
-  # obs-nvenc-with-rust cuda-load-rust.c (#592, #1065). Both must link.
-  for target in obs-nvenc obs-nvenc-with-rust; do
+  # obs-nvenc-c-reference cuda-load-rust.c (#592, #1065). Both must link.
+  for target in obs-nvenc obs-nvenc-c-reference; do
     # Each loader is a unity group of its own (BUILD.md).
-    if [ "$target" = obs-nvenc ]; then want=cuda-load not=cuda-load-rust; else want=cuda-load-rust not=cuda-load; fi
+    if [ "$target" = obs-nvenc ]; then want=cuda-load-rust not=cuda-load; else want=cuda-load not=cuda-load-rust; fi
     if ! compiles "$target" - "build/obs-nvenc.$want+.h.c.o" || compiles "$target" - "build/obs-nvenc.$not+.h.c.o"; then
       echo "FAIL: $target must compile $want and not $not"
       exit 1
     fi
   done
   [ -n "$(find "$build/plugins" -name 'obs-nvenc.so' | head -1)" ] || { echo "FAIL: obs-nvenc.so was not built"; exit 1; }
-  [ -f "$build/obs-nvenc-with-rust/obs-nvenc.so" ] || { echo "FAIL: obs-nvenc-with-rust was not built"; exit 1; }
-  echo "== obs-nvenc.so built with cuda-load.c.h, obs-nvenc-with-rust with cuda-load-rust.c.h"
+  [ -f "$build/obs-nvenc-c-reference/obs-nvenc.so" ] || { echo "FAIL: obs-nvenc-c-reference was not built"; exit 1; }
+  echo "== obs-nvenc.so built with cuda-load-rust.c.h, obs-nvenc-c-reference with cuda-load.c.h"
 
   # OBS_TIER2_SHARDS=<n>: plan n shards per mode by recorded test duration
   # (ctest-cost-<mode>.txt in the zccache dir, #931) into the tree (#1048).
@@ -311,15 +307,13 @@ fi
 
 if [ "$stage" != build ]; then
   for mode in $modes; do
-    # Which libobs the loader picks: libobs as linked, or libobs-with-rust
-    # first on LD_LIBRARY_PATH (the tests' RUNPATH yields to it). Check it on
+    # Select the reference or production library through LD_LIBRARY_PATH.
+    # The tests' RUNPATH yields to it. Check it on
     # one test binary, so a silent fallback to the C library fails here.
     mode_env=("${test_env[@]}")
-    want_dir="$build/libobs"
-    if [ "$mode" = ON ]; then
-      mode_env+=(LD_LIBRARY_PATH="$rust_libdir${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}")
-      want_dir="$rust_libdir"
-    fi
+    want_dir="$c_libdir"
+    if [ "$mode" = ON ]; then want_dir="$rust_libdir"; fi
+    mode_env+=(LD_LIBRARY_PATH="$want_dir${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}")
     probe=$(find "$build/test/cmocka" -maxdepth 1 -type f -name 'test_bitstream' | head -1)
     resolved=$("${mode_env[@]}" ldd "$probe" | awk '$1 ~ /^libobs\.so/ {print $3}')
     if [ "$(dirname "$(realpath "$resolved")")" != "$(realpath "$want_dir")" ]; then
@@ -393,7 +387,7 @@ if [ "$stage" = test ]; then
 fi
 
 # Issue #80: panic=abort is set only for [profile.release], so
-# libobs-with-rust must link the release-profile staticlib even for Debug
+# libobs-c-reference must link the release-profile staticlib even for Debug
 # builds; a dev-profile (panic=unwind) archive would let a shim panic unwind
 # across the C ABI. Configure-only check: inspect which archive the Debug link
 # line uses.
@@ -410,7 +404,7 @@ cmake -S "$SRC" -B "$dbg" -G Ninja -DCMAKE_BUILD_TYPE=Debug \
 rust_archives=$(grep -ohE '/cargo/build/[^ $]*/liblibobs_rust\.a' "$dbg/build.ninja" | sort -u)
 echo "$rust_archives"
 if [ -z "$rust_archives" ] || grep -qv '/release/liblibobs_rust\.a$' <<<"$rust_archives"; then
-  echo "FAIL: Debug libobs-with-rust links a non-release (panic=unwind) Rust staticlib"
+  echo "FAIL: Debug libobs-c-reference links a non-release (panic=unwind) Rust staticlib"
   exit 1
 fi
 

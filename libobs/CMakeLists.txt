@@ -22,32 +22,16 @@ if(NOT TARGET OBS::caption)
   add_subdirectory("${CMAKE_SOURCE_DIR}/deps/libcaption" "${CMAKE_BINARY_DIR}/deps/libcaption")
 endif()
 
-# Two libobs binaries share one compile of every unported source (#1065):
-# - libobs: those objects + the C of each ported unit. The one everything links
-#   against, installs and packages.
-# - libobs-with-rust: those objects + the rust/libobs-rust staticlib in place
-#   of the ported C (cmake/rust.cmake). Same file name and SONAME, in its own
-#   directory, never installed or linked: Tier 2 runs the unchanged C tests
-#   against it by pointing the loader at that directory. Built whenever cargo is
-#   available (the Flatpak sandbox has none).
-add_library(libobs-objects OBJECT)
-add_library(libobs SHARED)
-add_library(OBS::libobs ALIAS libobs)
-
-find_program(OBS_LIBOBS_CARGO cargo)
-if(OBS_LIBOBS_CARGO)
-  add_library(libobs-with-rust SHARED)
-  set(LIBOBS_SHARED_TARGETS libobs libobs-with-rust)
-else()
-  message(WARNING "cargo not found: building libobs without its Rust-linked twin (libobs-with-rust, #1065)")
-  set(LIBOBS_SHARED_TARGETS libobs)
-endif()
+# The public/installed target is the hybrid. Build the C reference only when
+# explicitly requested by migration tests (or select C for temporary rollback).
+include(cmake/implementation.cmake)
+obs_libobs_create_targets()
 
 include(cmake/sources.cmake)
 
 set_target_properties(libobs-objects PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
 target_sources(libobs-objects PRIVATE ${LIBOBS_SOURCES})
-target_sources(libobs PRIVATE ${LIBOBS_PORTED_SOURCES})
+obs_libobs_add_c_sources(${LIBOBS_PORTED_SOURCES})
 # libobs-version and libobs-core-modules are object libraries too, and CMake
 # adds an object library's objects only to targets that link it directly, so
 # each shared library links them itself (libobs-objects gets their headers).
@@ -105,8 +89,9 @@ target_link_libraries(
 )
 target_link_libraries(libobs INTERFACE SIMDe::SIMDe Threads::Threads)
 
-if(TARGET libobs-with-rust)
-  target_sources(libobs-with-rust PRIVATE ${LIBOBS_RUST_SOURCES})
+if(OBS_LIBOBS_RUST_TARGET)
+  find_program(OBS_LIBOBS_CARGO cargo REQUIRED)
+  target_sources(${OBS_LIBOBS_RUST_TARGET} PRIVATE ${LIBOBS_RUST_SOURCES})
   include(cmake/rust.cmake)
 endif()
 
@@ -246,10 +231,10 @@ set_target_properties_obs(
 
 target_export(libobs)
 
-# libobs-with-rust takes libobs's final file name and ABI version, which each
+# The opt-in C reference takes the production file name and ABI version, which each
 # platform's set_target_properties_obs decides (Linux: SOVERSION 30, not the
 # OBS major version), so it loads in libobs's place (#1065).
-if(TARGET libobs-with-rust)
+if(TARGET libobs-c-reference)
   foreach(
     property
     VERSION
@@ -268,7 +253,14 @@ if(TARGET libobs-with-rust)
       set(value libobs)
     endif()
     if(NOT value MATCHES "-NOTFOUND$")
-      set_property(TARGET libobs-with-rust PROPERTY ${property} "${value}")
+      set_property(TARGET libobs-c-reference PROPERTY ${property} "${value}")
     endif()
   endforeach()
+  set_target_properties(
+    libobs-c-reference
+    PROPERTIES
+      LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/libobs-c-reference"
+      RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/libobs-c-reference"
+      ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/libobs-c-reference"
+  )
 endif()

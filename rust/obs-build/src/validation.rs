@@ -78,7 +78,7 @@ pub fn build_graphics_tests(
         dependencies: vec![core.into(), crate::libobs::build_caption(build, &root)?],
         ..SharedLibrary::default()
     };
-    crate::platform::configure_c_tests(build, &mut library, None)?;
+    crate::platform::configure_c_tests(build, &mut library, None, core)?;
     for package in ["cmocka", "simde"] {
         add_package(&mut library, &build.target, package)?;
     }
@@ -113,7 +113,7 @@ pub fn build_vlc_tests(
         dependencies: vec![core.into()],
         ..SharedLibrary::default()
     };
-    crate::platform::configure_c_tests(build, &mut base, None)?;
+    crate::platform::configure_c_tests(build, &mut base, None, core)?;
     for package in ["cmocka", "simde"] {
         add_package(&mut base, &build.target, package)?;
     }
@@ -206,7 +206,7 @@ pub fn build_c_tests(
             .per_target_sanitizers
             .then(|| spec["sanitizers"].as_str())
             .flatten();
-        crate::platform::configure_c_tests(build, &mut library, sanitizer)?;
+        crate::platform::configure_c_tests(build, &mut library, sanitizer, core)?;
         for source in strings(&spec, "sources")? {
             // Watch each selected component, including its group headers, rather
             // than the repository root (which may contain native build output).
@@ -275,6 +275,10 @@ pub fn build_c_tests(
                 .into_iter()
                 .map(String::from),
         );
+        // Resolve native archive references before shared libobs. With GNU
+        // --as-needed, placing libobs first can drop it before happy-eyeballs
+        // introduces its allocator/event imports (test_rtmp_error).
+        let mut static_dependencies = Vec::new();
         for archive in strings(&spec, "archives")? {
             if !archives.contains_key(archive) {
                 let path = if archive == "caption" {
@@ -284,8 +288,10 @@ pub fn build_c_tests(
                 };
                 archives.insert(archive.to_string(), path);
             }
-            library.dependencies.push(archives[archive].clone());
+            static_dependencies.push(archives[archive].clone());
         }
+        static_dependencies.append(&mut library.dependencies);
+        library.dependencies = static_dependencies;
         result.push(Executable {
             name: name.into(),
             path: build.executable(&library)?,

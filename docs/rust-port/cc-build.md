@@ -93,9 +93,9 @@ Native dependencies are discovered using pkg-config; local Nix verification used
 
 `libobs::build_pair` accepts the release `libobs-rust` static archive from an
 outer Cargo invocation. It compiles common C objects once, then links the C
-reference and `libobs-with-rust` into separate directories with the same SONAME.
+reference and production hybrid into separate directories with the same SONAME.
 The Rust archive is whole-archive linked and its internal symbols are hidden by
-the existing export map. The twin is never installed.
+the existing export map. Only the hybrid is installed; the C reference is explicit testing infrastructure.
 
 Build the release archive with `soldr cargo build -p libobs-rust --release`.
 With native dependencies available, set `OBS_BUILD_RUST_ARCHIVE` to the absolute

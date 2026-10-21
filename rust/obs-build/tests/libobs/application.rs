@@ -25,7 +25,13 @@ pub struct Variant<'a> {
 
 pub fn exercise(inputs: Inputs<'_>, variants: &[Variant<'_>]) -> Result<(), String> {
     let inspector = inspector(inputs.build)?;
-    for variant in variants {
+    for (index, variant) in variants.iter().enumerate() {
+        assert!(
+            variants[..index]
+                .iter()
+                .all(|previous| previous.core != variant.core),
+            "application compatibility variants must select distinct libraries"
+        );
         let core = variant.core;
         // Retain this owned runtime, profile, log and screenshot as evidence.
         let runtime = tempfile::Builder::new()

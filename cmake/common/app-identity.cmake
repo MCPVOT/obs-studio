@@ -6,7 +6,11 @@ set(OBS_MACOS_BUNDLE_NAME OBS)
 set(OBS_UNIX_GUI_NAME obs)
 set(OBS_APP_DISPLAY_NAME "OBS Studio")
 
-if(ENABLE_RUST_LIBOBS)
+if(NOT DEFINED OBS_BRAND_RUST)
+  set(OBS_BRAND_RUST "${ENABLE_RUST_LIBOBS}")
+endif()
+
+if(OBS_BRAND_RUST)
   set(OBS_DESKTOP_ID io.github.obs_rust.OBSStudioRust)
   set(OBS_MACOS_BUNDLE_ID io.github.obs_rust.OBSStudioRust)
   set(OBS_MACOS_BUNDLE_NAME OBS-Studio-Rust)

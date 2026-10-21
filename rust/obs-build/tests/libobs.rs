@@ -155,11 +155,21 @@ fn c_and_rust_twins_preserve_public_data_lifecycle_and_module_apis() {
     .unwrap();
     assert_ne!(libraries.reference, libraries.with_rust);
     assert_eq!(exports(&libraries.reference), exports(&libraries.with_rust));
+    // Exercise the normal bundled/native entry point too: the explicit pair
+    // above must not be the only route that can produce a working hybrid.
+    let production = NativeBuild {
+        host: build.host.clone(),
+        target: build.target.clone(),
+        output: build.output.join("production"),
+    };
+    let production_core = libobs::build_with_options(&production, &root, &options).unwrap();
+    assert_eq!(exports(&production_core), exports(&libraries.with_rust));
+    assert!(!production.output.join("obs-c-reference").exists());
     if std::env::var_os("OBS_BUILD_C_TESTS").is_some() {
         let executables = obs_build::validation::build_c_tests(
             &build,
             &root,
-            &libraries.reference,
+            &libraries.with_rust,
             &obs_build::validation::Options {
                 hevc: options.hevc,
                 per_target_sanitizers: std::env::var_os("OBS_BUILD_DISABLE_C_TEST_SANITIZERS")
@@ -167,7 +177,7 @@ fn c_and_rust_twins_preserve_public_data_lifecycle_and_module_apis() {
             },
         )
         .unwrap();
-        assert_eq!(executables.len(), if options.hevc { 52 } else { 51 });
+        assert_eq!(executables.len(), if options.hevc { 59 } else { 58 });
         let mut results = Vec::new();
         for core in [&libraries.reference, &libraries.with_rust] {
             let variant = core
@@ -251,7 +261,7 @@ fn c_and_rust_twins_preserve_public_data_lifecycle_and_module_apis() {
         let nvenc = plugins::build_nvenc_pair(
             &build,
             &root,
-            &libraries.reference,
+            &libraries.with_rust,
             &archive,
             std::env::var_os("OBS_BUILD_DISABLE_NVENC_FFMPEG_IDS").is_none(),
         )
@@ -283,12 +293,12 @@ fn c_and_rust_twins_preserve_public_data_lifecycle_and_module_apis() {
         && std::env::var_os("OBS_BUILD_DISABLE_SCRIPTING").is_none();
     let scripting_api = (scripting_enabled
         && (std::env::var_os("OBS_BUILD_SCRIPTING_FRONTEND").is_some() || tools_enabled))
-        .then(|| frontend::build_api(&build, &root, &libraries.reference).unwrap());
+        .then(|| frontend::build_api(&build, &root, &libraries.with_rust).unwrap());
     let script_artifacts = if scripting_enabled {
         let artifacts = scripting::build(
             &build,
             &root,
-            &libraries.reference,
+            &libraries.with_rust,
             scripting_api.as_deref(),
             &scripting::Options {
                 lua: std::env::var_os("OBS_BUILD_DISABLE_LUA").is_none(),
@@ -309,8 +319,8 @@ fn c_and_rust_twins_preserve_public_data_lifecycle_and_module_apis() {
         None
     };
     let mut modules = vec![
-        plugins::build_transitions(&build, &root, &libraries.reference).unwrap(),
-        plugins::build_filters(&build, &root, &libraries.reference, &filters).unwrap(),
+        plugins::build_transitions(&build, &root, &libraries.with_rust).unwrap(),
+        plugins::build_filters(&build, &root, &libraries.with_rust, &filters).unwrap(),
     ];
     for (flag, source) in [
         ("OBS_BUILD_JACK", plugins::SourceModule::Jack),
@@ -318,18 +328,18 @@ fn c_and_rust_twins_preserve_public_data_lifecycle_and_module_apis() {
     ] {
         if std::env::var_os(flag).is_some() {
             modules
-                .push(plugins::build_source(&build, &root, &libraries.reference, source).unwrap());
+                .push(plugins::build_source(&build, &root, &libraries.with_rust, source).unwrap());
         }
     }
     if std::env::var_os("OBS_BUILD_FDK").is_some() {
-        modules.push(plugins::build_fdk(&build, &root, &libraries.reference).unwrap());
+        modules.push(plugins::build_fdk(&build, &root, &libraries.with_rust).unwrap());
     }
     let qsv_enabled = std::env::var_os("OBS_BUILD_QSV").is_some();
     if std::env::var_os("OBS_BUILD_WEBRTC").is_some() {
         let mut module = plugins::build_webrtc(
             &build,
             &root,
-            &libraries.reference,
+            &libraries.with_rust,
             &plugins::DataChannelSdk {
                 include_dir: std::env::var_os("OBS_DATACHANNEL_INCLUDE_DIR")
                     .map(PathBuf::from)
@@ -366,7 +376,7 @@ fn c_and_rust_twins_preserve_public_data_lifecycle_and_module_apis() {
         let module = plugins::build_qsv(
             &build,
             &root,
-            &libraries.reference,
+            &libraries.with_rust,
             &plugins::QsvOptions {
                 hevc: options.hevc,
                 unity: std::env::var_os("OBS_BUILD_DISABLE_QSV_UNITY").is_none(),
@@ -383,7 +393,7 @@ fn c_and_rust_twins_preserve_public_data_lifecycle_and_module_apis() {
         let vlc = plugins::build_source(
             &build,
             &root,
-            &libraries.reference,
+            &libraries.with_rust,
             plugins::SourceModule::Vlc,
         )
         .unwrap();
@@ -413,7 +423,7 @@ fn c_and_rust_twins_preserve_public_data_lifecycle_and_module_apis() {
             plugins::SourceModule::RtmpServices { updates: false },
         ] {
             modules
-                .push(plugins::build_source(&build, &root, &libraries.reference, source).unwrap());
+                .push(plugins::build_source(&build, &root, &libraries.with_rust, source).unwrap());
         }
     }
     if enabled("OBS_BUILD_PIPEWIRE") {
@@ -421,7 +431,7 @@ fn c_and_rust_twins_preserve_public_data_lifecycle_and_module_apis() {
             plugins::build_source(
                 &build,
                 &root,
-                &libraries.reference,
+                &libraries.with_rust,
                 plugins::SourceModule::PipeWire,
             )
             .unwrap(),
@@ -431,16 +441,16 @@ fn c_and_rust_twins_preserve_public_data_lifecycle_and_module_apis() {
     let frontend =
         (enabled("OBS_BUILD_QT") || enabled("OBS_BUILD_APP") || browser_enabled).then(|| {
             qt::exercise(&build, &root);
-            modules.push(plugins::build_vst(&build, &root, &libraries.reference).unwrap());
+            modules.push(plugins::build_vst(&build, &root, &libraries.with_rust).unwrap());
             scripting_api.clone().unwrap_or_else(|| {
-                frontend::build_api(&build, &root, &libraries.reference).unwrap()
+                frontend::build_api(&build, &root, &libraries.with_rust).unwrap()
             })
         });
     let frontend_tools = tools_enabled.then(|| {
         plugins::build_frontend_tools(
             &build,
             &root,
-            &libraries.reference,
+            &libraries.with_rust,
             frontend
                 .as_deref()
                 .expect("frontend Tools test requires OBS_BUILD_APP_GUI=1"),
@@ -452,7 +462,7 @@ fn c_and_rust_twins_preserve_public_data_lifecycle_and_module_apis() {
         plugins::build_websocket(
             &build,
             &root,
-            &libraries.reference,
+            &libraries.with_rust,
             frontend
                 .as_deref()
                 .expect("websocket requires the frontend API"),
@@ -466,7 +476,7 @@ fn c_and_rust_twins_preserve_public_data_lifecycle_and_module_apis() {
         let artifacts = plugins::build_browser(
             &build,
             &root,
-            &libraries.reference,
+            &libraries.with_rust,
             frontend.as_ref().unwrap(),
             &plugins::BrowserOptions {
                 cef_root: PathBuf::from(
@@ -536,7 +546,7 @@ fn c_and_rust_twins_preserve_public_data_lifecycle_and_module_apis() {
         let executable = frontend::build_application_with_options(
             &build,
             &root,
-            &libraries.reference,
+            &libraries.with_rust,
             frontend.as_ref().unwrap(),
             &gpu_archive,
             &frontend::ApplicationOptions {
@@ -564,13 +574,13 @@ fn c_and_rust_twins_preserve_public_data_lifecycle_and_module_apis() {
     }
     let mut ffmpeg = None;
     if enabled("OBS_BUILD_RECORD") {
-        modules.push(plugins::build_x264(&build, &root, &libraries.reference).unwrap());
+        modules.push(plugins::build_x264(&build, &root, &libraries.with_rust).unwrap());
         modules
-            .push(plugins::build_outputs(&build, &root, &libraries.reference, &options).unwrap());
+            .push(plugins::build_outputs(&build, &root, &libraries.with_rust, &options).unwrap());
         let artifacts = plugins::build_ffmpeg(
             &build,
             &root,
-            &libraries.reference,
+            &libraries.with_rust,
             &options,
             &plugins::FfmpegOptions::default(),
         )
@@ -602,15 +612,15 @@ fn c_and_rust_twins_preserve_public_data_lifecycle_and_module_apis() {
         || std::env::var_os("OBS_BUILD_VLC_C_TESTS").is_some()
         || std::env::var_os("OBS_BUILD_GRAPHICS_C_TESTS").is_some();
     let renderer = wants_graphics
-        .then(|| graphics::build_opengl(&build, &root, &libraries.reference, &options).unwrap());
+        .then(|| graphics::build_opengl(&build, &root, &libraries.with_rust, &options).unwrap());
     let probe = renderer
         .as_ref()
-        .map(|_| render::build(&build, &root, &libraries.reference));
+        .map(|_| render::build(&build, &root, &libraries.with_rust));
     if std::env::var_os("OBS_BUILD_GRAPHICS_C_TESTS").is_some() {
         let tests = obs_build::validation::build_graphics_tests(
             &build,
             &root,
-            &libraries.reference,
+            &libraries.with_rust,
             renderer.as_ref().unwrap(),
         )
         .unwrap();
@@ -643,7 +653,7 @@ fn c_and_rust_twins_preserve_public_data_lifecycle_and_module_apis() {
             tools::build(
                 &build,
                 &root,
-                &libraries.reference,
+                &libraries.with_rust,
                 frontend.as_ref().unwrap(),
             )
         });

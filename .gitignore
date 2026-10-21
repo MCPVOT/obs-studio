@@ -49,3 +49,6 @@ build-aux/flatpak-github-action-modified-*
 !/.claude/skills/
 /.clud/*
 !/.clud/settings.json
+
+# Offline Flatpak Rust dependencies prepared before entering the sandbox.
+/.flatpak-rust/

@@ -42,8 +42,9 @@ class RustMacosSdkTest(unittest.TestCase):
                 "project(SdkRegression C)\n"
                 'list(PREPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}")\n'
                 "add_library(libobs STATIC dummy.c)\n"
-                # rust.cmake configures libobs's Rust twin (#1065).
-                "add_library(libobs-with-rust STATIC dummy.c)\n"
+                # rust.cmake configures the production hybrid target.
+                "set(OBS_LIBOBS_RUST_TARGET libobs)\n"
+                'set(ENABLE_HEVC ON)\n'
                 f'set(OS_MACOS {"ON" if macos else "OFF"})\n'
                 f'include("{ROOT.as_posix()}/libobs/cmake/rust.cmake")\n'
                 "get_target_property(paths libobs_rust-static INTERFACE_LINK_DIRECTORIES)\n"

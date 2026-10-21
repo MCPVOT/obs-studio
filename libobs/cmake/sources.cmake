@@ -8,9 +8,9 @@
 #
 # Per list:
 # - LIBOBS_SOURCES: built on every host, no Rust port.
-# - LIBOBS_PORTED_SOURCES: C with a Rust port in rust/libobs-rust. libobs
-#   compiles them; libobs-with-rust links the staticlib instead (#1065).
-# - LIBOBS_RUST_SOURCES: the C halves only libobs-with-rust adds (C variadics).
+# - LIBOBS_PORTED_SOURCES: C with a Rust port in rust/libobs-rust. Only the
+#   explicit C reference/rollback compiles these; production links Rust instead.
+# - LIBOBS_RUST_SOURCES: the C halves the hybrid adds (C variadics).
 # - LIBOBS_<HOST>_SOURCES / _PORTED_SOURCES: the same split, per host.
 # - LIBOBS_HEVC_PORTED_SOURCES, LIBOBS_PULSE_PORTED_SOURCES,
 #   LIBOBS_WAYLAND_PORTED_SOURCES, LIBOBS_WAYLAND_GIO_PORTED_SOURCES: ported
@@ -46,9 +46,8 @@ if(ENABLE_HEVC)
 endif()
 
 # Adds a host's lists (libobs/CMakeLists.txt): its sources to the
-# objects both libobs binaries share, its ported C to libobs only
-# (libobs-with-rust gets the staticlib instead).
+# objects both libobs binaries share, its ported C to the explicit C targets.
 macro(libobs_add_host_sources host)
   target_sources(libobs-objects PRIVATE ${LIBOBS_${host}_SOURCES})
-  target_sources(libobs PRIVATE ${LIBOBS_${host}_PORTED_SOURCES})
+  obs_libobs_add_c_sources(${LIBOBS_${host}_PORTED_SOURCES})
 endmacro()

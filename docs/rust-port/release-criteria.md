@@ -3,16 +3,25 @@
 This is the decision for #141. A port is **complete** when the applicable
 four testing tiers in [testing-policy.md](testing-policy.md) pass. It is
 **shipped** when a release artifact uses that Rust implementation by default.
-Today every build makes `libobs-with-rust` (the Rust ports linked in place of
-the ported C) beside the C `libobs`, but links and ships the C one (#1065).
-Passing a unit test or building a Rust static library alone does not ship it.
+The normal developer/application build now links and installs the hybrid
+`libobs`: completed Rust ports plus unported legacy C/C++. The C reference is
+explicit testing infrastructure (`OBS_BUILD_C_REFERENCE=ON`), excluded from
+normal builds and installation. `OBS_LIBOBS_BACKEND=C` is temporary rollback;
+product identity (`OBS_BRAND_RUST`) does not select an implementation.
 
-## Ship `libobs-with-rust` by default
+## Release approval for the hybrid default
 
-Linking and packaging `libobs-with-rust` instead of `libobs` changes in a
-separate PR only after all of these gates pass on a release candidate. Keep
-an explicit way back to the C `libobs` for rollback during the first such
-release.
+Changing developer defaults does not satisfy the production release gates.
+Publishing from `release-rust.yaml` or the AppImage tag workflow requires a
+reviewed `hybrid-release-evidence.json`, checked by `ci/hybrid_release_gate.py`.
+It starts **unapproved**. Candidate builds and validation may run while approval
+is pending; publication fails closed. Keep the first-release C rollback path.
+
+A maintainer review must establish every requirement below on the recorded
+release candidate, link the platform compatibility, application and performance
+artifacts, record at least fourteen consecutive successful stability dates,
+and review release blockers before approving that evidence file. Merely filling
+in URLs is not proof: the review must inspect their coverage and results.
 
 1. **Compatibility:** Tier 2 passes with OFF and ON on Linux, macOS, and
    Windows, on both x64 and arm64 wherever this project ships that platform.
@@ -20,7 +29,7 @@ release.
    unchanged C tests. Record the CI runs and release-candidate commit.
 2. **Running application:** a full ON app builds and launches on every
    supported release platform. The unchanged obs-websocket Tier 4 suite
-   passes against both the C++ and ON servers. A headless smoke run loads a
+   passes with the existing C++ plugin against C-reference and hybrid libobs. A headless smoke run loads a
    scene collection containing a text source, records five seconds, and
    exits cleanly. Record artifacts and logs, not just a green job summary.
 3. **Performance:** record the C and Rust results from #142 on the same
@@ -38,9 +47,9 @@ release.
    build or a failed smoke run resets the 14-day count after its fix. Review
    open release-blocking issues before the flip.
 
-If a platform cannot yet meet these gates, the default remains OFF for that
-platform. State the platform-specific exception and its evidence in the
-default-flip PR; do not infer success from another platform's runs.
+If a platform cannot meet these gates, release approval remains pending. Do
+not infer success from another platform's runs or waive a gate by changing
+the developer build default.
 
 ## Record C/Rust benchmark evidence (#142)
 
@@ -151,7 +160,7 @@ before its performance can be compared with this baseline.
 The 5% recording bound needs runs of the real application on release
 hardware, not shim benchmarks. Use a hardware renderer (never llvmpipe or
 Xvfb), one saved scene and profile, the same build for both backends (the
-installed C `libobs` or the `libobs-with-rust` twin, selected by the
+explicit C reference or installed hybrid `libobs`, selected by the
 library path), and no profiler in the timed runs.
 
 1. Before each run, OBS must be running with the backend under test. The
@@ -183,10 +192,10 @@ JSON also keeps the raw per-second samples and the encoder log lines.
 
 ## Retire the C implementation of a unit
 
-Keep the original C file while the global OFF configuration still needs it.
-After one stable release with ON as the default, a separate PR may retire the
-OFF fallback for a unit only when the supported OFF build remains linkable
-through another implementation or the OFF option itself is retired. That PR
+Keep the original C file while reference testing and temporary rollback need it.
+After one stable hybrid release, a separate PR may retire the
+C fallback for a unit only when the supported C rollback build remains linkable
+through another implementation or the C rollback option itself is retired. That PR
 must show the unchanged C tests, public symbol/layout checks, and Tier 3
 parity on the supported configurations. Move the original C source to
 `rust/obs-c-oracle/legacy/` in the same PR, update the oracle wrapper to use

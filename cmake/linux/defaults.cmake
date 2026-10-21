@@ -30,7 +30,7 @@ set(OBS_SCRIPT_PLUGIN_DESTINATION "${CMAKE_INSTALL_LIBDIR}/obs-scripting")
 set(OBS_DATA_DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/obs")
 set(OBS_CMAKE_DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake")
 
-if(ENABLE_RUST_LIBOBS)
+if(OBS_BRAND_RUST)
   # Install alongside upstream OBS without replacing its libraries or data.
   set(OBS_LIBRARY_DESTINATION "${CMAKE_INSTALL_LIBDIR}/obs-studio-rust")
   set(OBS_PLUGIN_DESTINATION "${OBS_LIBRARY_DESTINATION}/obs-modules")

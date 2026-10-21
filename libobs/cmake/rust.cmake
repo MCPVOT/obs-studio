@@ -1,6 +1,5 @@
-# Links the Rust ports (rust/libobs-rust) into libobs-with-rust, libobs's
-# never-installed twin, in place of the C sources they replace (#1065). See
-# docs/rust-port/testing-policy.md.
+# Link completed Rust ports into the production hybrid libobs. The C reference
+# never includes this archive; the public C ABI and export set stay identical.
 
 include(FetchContent)
 include("${CMAKE_CURRENT_LIST_DIR}/rust-target.cmake")
@@ -28,26 +27,46 @@ corrosion_import_crate(
 )
 obs_serialize_cargo_build(libobs-rust)
 
-# Whole-archive so every exported C symbol ends up in libobs-with-rust, including ones
+# Whole-archive so every exported C symbol ends up in ${OBS_LIBOBS_RUST_TARGET}, including ones
 # libobs itself never calls (e.g. bitstream_reader_r16, used by plugins).
-target_link_libraries(libobs-with-rust PRIVATE "$<LINK_LIBRARY:WHOLE_ARCHIVE,libobs_rust-static>")
+target_link_libraries(${OBS_LIBOBS_RUST_TARGET} PRIVATE "$<LINK_LIBRARY:WHOLE_ARCHIVE,libobs_rust-static>")
 
-# Keep libobs-with-rust exporting the same symbol set as libobs:
+# Keep ${OBS_LIBOBS_RUST_TARGET} exporting the same symbol set as libobs:
 # - ELF: Rust staticlib internals have default visibility; hide them with a
 #   version script.
 # - Windows: Rust no_mangle symbols in a staticlib are not dllexport, so export
 #   the listed shims explicitly (otherwise its obs.dll and import lib miss them).
 # - macOS: hide Rust internals with ld64 -unexported_symbols_list.
+set(_obs_rust_export_map "${CMAKE_CURRENT_SOURCE_DIR}/cmake/rust-exports.map")
+set(_obs_rust_unexports "${CMAKE_CURRENT_SOURCE_DIR}/cmake/rust-unexports-macos.txt")
+if(NOT ENABLE_HEVC)
+  # The aggregate archive contains codec shims even when the application turns
+  # HEVC off. Keep the same public surface as that configuration's C baseline.
+  if(OS_LINUX OR OS_FREEBSD OR OS_OPENBSD)
+    file(READ "${_obs_rust_export_map}" _exports)
+    string(
+      REPLACE
+      "local:"
+      "local:\n    obs_hevc_keyframe;\n    obs_parse_hevc_packet;\n    obs_parse_hevc_packet_priority;\n    obs_extract_hevc_headers;"
+      _exports
+      "${_exports}"
+    )
+    set(_obs_rust_export_map "${CMAKE_CURRENT_BINARY_DIR}/rust-exports-no-hevc.map")
+    file(CONFIGURE OUTPUT "${_obs_rust_export_map}" CONTENT "${_exports}" @ONLY)
+  elseif(OS_MACOS)
+    file(READ "${_obs_rust_unexports}" _unexports)
+    string(
+      APPEND _unexports
+      "\n_obs_hevc_keyframe\n_obs_parse_hevc_packet\n_obs_parse_hevc_packet_priority\n_obs_extract_hevc_headers\n"
+    )
+    set(_obs_rust_unexports "${CMAKE_CURRENT_BINARY_DIR}/rust-unexports-no-hevc.txt")
+    file(CONFIGURE OUTPUT "${_obs_rust_unexports}" CONTENT "${_unexports}" @ONLY)
+  endif()
+endif()
+
 if(OS_LINUX OR OS_FREEBSD OR OS_OPENBSD)
-  target_link_options(
-    libobs-with-rust
-    PRIVATE "LINKER:--version-script=${CMAKE_CURRENT_SOURCE_DIR}/cmake/rust-exports.map"
-  )
-  set_property(
-    TARGET libobs-with-rust
-    APPEND
-    PROPERTY LINK_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/rust-exports.map"
-  )
+  target_link_options(${OBS_LIBOBS_RUST_TARGET} PRIVATE "LINKER:--version-script=${_obs_rust_export_map}")
+  set_property(TARGET ${OBS_LIBOBS_RUST_TARGET} APPEND PROPERTY LINK_DEPENDS "${_obs_rust_export_map}")
   # The obs-data glue calls json_delete from inside the staticlib.
   # jansson is first linked earlier, in libobs/CMakeLists.txt. On
   # Ubuntu, GNU ld --as-needed drops that first occurrence because
@@ -55,22 +74,25 @@ if(OS_LINUX OR OS_FREEBSD OR OS_OPENBSD)
   # fails to link. Link it again so a later occurrence follows the
   # archive.
   if(OS_LINUX)
-    target_link_libraries(libobs-with-rust PRIVATE jansson::jansson)
+    target_link_libraries(${OBS_LIBOBS_RUST_TARGET} PRIVATE jansson::jansson)
   endif()
 elseif(OS_WINDOWS)
   # One fragment per FFI module (cmake/rust-exports.d/README.md).
   file(GLOB _obs_rust_export_fragments CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/rust-exports.d/*.txt")
   list(SORT _obs_rust_export_fragments)
   foreach(fragment IN LISTS _obs_rust_export_fragments)
+    if(NOT ENABLE_HEVC AND fragment MATCHES "obs-codec-hevc[.]txt$")
+      continue()
+    endif()
     file(STRINGS "${fragment}" _obs_rust_exports REGEX "^[A-Za-z_]")
     foreach(sym IN LISTS _obs_rust_exports)
       # "name unix" shims are not compiled on Windows; the C file exports them.
       if(sym MATCHES " unix$")
         continue()
       endif()
-      target_link_options(libobs-with-rust PRIVATE "LINKER:/EXPORT:${sym}")
+      target_link_options(${OBS_LIBOBS_RUST_TARGET} PRIVATE "LINKER:/EXPORT:${sym}")
     endforeach()
-    set_property(TARGET libobs-with-rust APPEND PROPERTY LINK_DEPENDS "${fragment}")
+    set_property(TARGET ${OBS_LIBOBS_RUST_TARGET} APPEND PROPERTY LINK_DEPENDS "${fragment}")
   endforeach()
 elseif(OS_MACOS)
   # Corrosion 0.5.2 injects the CLT SDK's libraries ahead of CMake's selected
@@ -83,25 +105,6 @@ elseif(OS_MACOS)
     set_property(TARGET libobs_rust-static PROPERTY INTERFACE_LINK_DIRECTORIES "${_obs_rust_link_dirs}")
   endif()
 
-  target_link_options(
-    libobs-with-rust
-    PRIVATE "LINKER:-unexported_symbols_list,${CMAKE_CURRENT_SOURCE_DIR}/cmake/rust-unexports-macos.txt"
-  )
-  set_property(
-    TARGET libobs-with-rust
-    APPEND
-    PROPERTY LINK_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/rust-unexports-macos.txt"
-  )
+  target_link_options(${OBS_LIBOBS_RUST_TARGET} PRIVATE "LINKER:-unexported_symbols_list,${_obs_rust_unexports}")
+  set_property(TARGET ${OBS_LIBOBS_RUST_TARGET} APPEND PROPERTY LINK_DEPENDS "${_obs_rust_unexports}")
 endif()
-
-# Its own directory (file name and SONAME are copied from libobs at the end of
-# libobs/CMakeLists.txt), so Tier 2 can load it in libobs's place (LD_LIBRARY_PATH, DYLD_FRAMEWORK_PATH, PATH). Never
-# installed or copied to the rundir: nothing links against it.
-set_target_properties(
-  libobs-with-rust
-  PROPERTIES
-    FOLDER core
-    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/libobs-with-rust"
-    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/libobs-with-rust"
-    ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/libobs-with-rust"
-)

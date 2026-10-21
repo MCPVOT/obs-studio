@@ -554,6 +554,7 @@ pub fn configure_c_tests(
     build: &crate::NativeBuild,
     library: &mut crate::SharedLibrary,
     sanitizer: Option<&str>,
+    core: &Path,
 ) -> Result<(), String> {
     if !build.target.contains("linux") {
         return Err(format!(
@@ -579,6 +580,14 @@ pub fn configure_c_tests(
         "-pthread".into(),
         "-lm".into(),
         "-Wl,--export-dynamic".into(),
+    ]);
+    // Standalone C characterizations (UTF-8, for example) may import no core
+    // symbol. Keep their declared libobs dependency so validation can verify
+    // the selected backend instead of silently dropping it under --as-needed.
+    library.link_options.extend([
+        "-Wl,--no-as-needed".into(),
+        core.display().to_string(),
+        "-Wl,--as-needed".into(),
     ]);
     let compiler = build.compiler(library, &build.output, false).get_compiler();
     let mut already_sanitized = compiler

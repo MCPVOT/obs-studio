@@ -31,7 +31,7 @@ macro(obs_frontend_platform_sources)
   find_package(nlohmann_json 3.11 REQUIRED)
 
   # The Rust build says so in its VERSIONINFO, with the full release version (#631).
-  if(ENABLE_RUST_LIBOBS)
+  if(OBS_BRAND_RUST)
     set(OBS_RC_PRODUCT_NAME "OBS-Studio-Rust")
     set(OBS_RC_PRODUCT_VERSION "${OBS_RUST_VERSION}")
   else()

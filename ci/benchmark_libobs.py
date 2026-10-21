@@ -26,8 +26,6 @@ def measure(build: Path, output: Path, repetitions: int, jobs: int, rebuild: boo
         if line and not line.startswith(("#", "//")) and ":" in line and "=" in line:
             name, value = line.split("=", 1)
             settings[name.split(":", 1)[0]] = value
-    if settings.get("ENABLE_RUST_LIBOBS") != "OFF":
-        raise ValueError("Benchmark the C library alone: configure ENABLE_RUST_LIBOBS=OFF")
     source = Path(settings["CMAKE_HOME_DIRECTORY"])
     revision = subprocess.run(
         ["git", "rev-parse", "HEAD"], cwd=source, capture_output=True, text=True, check=True
@@ -38,7 +36,8 @@ def measure(build: Path, output: Path, repetitions: int, jobs: int, rebuild: boo
         "command": command, "settings": {
             key: value for key, value in settings.items()
             if key in {"CMAKE_BUILD_TYPE", "CMAKE_C_COMPILER", "CMAKE_C_COMPILER_LAUNCHER",
-                       "CMAKE_CXX_COMPILER", "ENABLE_PCH", "ENABLE_UNITY_BUILD", "ENABLE_RUST_LIBOBS"}
+                       "CMAKE_CXX_COMPILER", "ENABLE_PCH", "ENABLE_UNITY_BUILD", "ENABLE_RUST_LIBOBS",
+                       "OBS_LIBOBS_BACKEND", "OBS_BUILD_C_REFERENCE", "OBS_BRAND_RUST"}
         },
         "runs": [],
     }

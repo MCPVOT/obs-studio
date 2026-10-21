@@ -16,11 +16,10 @@ if(CMAKE_HOST_SYSTEM_NAME MATCHES "Windows")
   endif()
 endif()
 
-# Product identity only (#1065): ON names the app OBS-Studio-Rust (name, app ID,
-# install paths, version string; cmake/common/app-identity.cmake). It no longer
-# picks a libobs: every build links the C libobs and also builds, never links,
-# libobs-with-rust for Tier 2 (libobs/CMakeLists.txt).
-option(ENABLE_RUST_LIBOBS "Name the app OBS-Studio-Rust; libobs is always the C build" OFF)
+# Product identity is independent of libobs implementation/rollback selection.
+# Keep the historical option as a branding-only compatibility input.
+option(ENABLE_RUST_LIBOBS "Use OBS-Studio-Rust product identity (deprecated; use OBS_BRAND_RUST)" ON)
+option(OBS_BRAND_RUST "Use OBS-Studio-Rust product identity" "${ENABLE_RUST_LIBOBS}")
 
 include(compilerconfig)
 include(app-identity)

@@ -42,6 +42,12 @@ not get a line.
 
 ## Features
 
+- **Hybrid Rust/C application build.** Completed Rust ports replace their C
+  equivalents in the normal application; unported components remain available.
+  *All*, pending merge and release approval. Issue
+  [#1587](https://github.com/obs-rust/obs-studio/issues/1587), PR
+  [#1588](https://github.com/obs-rust/obs-studio/pull/1588).
+
 - Rust libobs process pipes fill reads across kernel pipe chunks, matching the C API on Linux and macOS.
 
 - Failed libobs startup reports the initializer that failed; Linux X11

@@ -11,9 +11,7 @@
 # Environment:
 #   SAN_OUT      output root (default rust/tools/sanitize/out); results go to
 #                $SAN_OUT/<tool>, the build tree to $SAN_OUT/build-<tool>
-#   RUST_LIBOBS  ON to run the tests and the app against libobs-with-rust,
-#                the Rust-linked twin every build makes (#1065; default OFF:
-#                the C libobs)
+#   RUST_LIBOBS  ON (default) uses the hybrid; OFF explicitly selects C rollback.
 #   SKIP_TESTS   non-empty: only relaunch the app, keep earlier test results
 set -uo pipefail
 tool=${1:-}; secs=${2:-45}
@@ -54,12 +52,14 @@ PATH="$root/bin:$PATH"
 export ZCCACHE_CACHE_DIR="${ZCCACHE_CACHE_DIR:-$root/zccache}"
 trap 'zccache stop >/dev/null 2>&1 || true' EXIT
 
-echo "== [$tool] configure + build (libobs ${RUST_LIBOBS:-OFF}: ON runs libobs-with-rust)"
+backend=HYBRID
+[ "${RUST_LIBOBS:-ON}" != OFF ] || backend=C
+echo "== [$tool] configure + build ($backend libobs)"
 # Every build makes libobs-with-rust. Install the toolchain
 # rust-toolchain.toml pins instead of relying on rustup's deprecated
 # auto-install (rust-lang/rustup#4836).
 (cd "$src" && rustup toolchain install) >"$out/rustup.log" 2>&1 || { tail -20 "$out/rustup.log"; exit 1; }
-cmake -S "$src" -B "$b" -G Ninja -DCMAKE_BUILD_TYPE=$type -DENABLE_UNIT_TESTS=ON \
+cmake -S "$src" -B "$b" -G Ninja -DCMAKE_BUILD_TYPE=$type -DENABLE_UNIT_TESTS=ON -DOBS_LIBOBS_BACKEND="$backend" -DOBS_BRAND_RUST=OFF \
   -DCMAKE_C_COMPILER_LAUNCHER=zccache -DCMAKE_CXX_COMPILER_LAUNCHER=zccache \
   -DCMAKE_C_FLAGS="$flags" -DCMAKE_CXX_FLAGS="$flags" \
   -DCMAKE_EXE_LINKER_FLAGS="$flags -Wl,--enable-new-dtags" -DCMAKE_SHARED_LINKER_FLAGS="$flags -Wl,--enable-new-dtags" \
@@ -84,15 +84,6 @@ if [ ! -x "$inst/bin/obs" ] || [ -z "$libobs" ]; then
   exit 1
 fi
 libdir=$(dirname "$libobs")
-if [ "${RUST_LIBOBS:-OFF}" = ON ]; then
-  # Same file name and SONAME as libobs: first on the loader path, it is the
-  # libobs the tests and the app load (they link with RUNPATH, which
-  # LD_LIBRARY_PATH beats; a DT_RPATH would not yield).
-  [ -n "$(ls "$b"/libobs-with-rust/libobs.so.* 2>/dev/null)" ] || { echo "libobs-with-rust was not built"; exit 1; }
-  export LD_LIBRARY_PATH="$b/libobs-with-rust${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-  # The app launch puts libdir first; keep the twin ahead of the rundir's.
-  libdir="$b/libobs-with-rust:$libdir"
-fi
 
 export ASAN_OPTIONS="detect_leaks=1:abort_on_error=0:halt_on_error=0:log_path=$out/asan"
 export UBSAN_OPTIONS="print_stacktrace=1:halt_on_error=0:log_path=$out/ubsan"

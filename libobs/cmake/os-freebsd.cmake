@@ -51,8 +51,8 @@ if(ENABLE_PULSEAUDIO)
       audio-monitoring/pulse/pulseaudio-wrapper.h
   )
 
-  # pulseaudio-stream-flags.c has a Rust port: libobs only (sources.cmake).
-  target_sources(libobs PRIVATE ${LIBOBS_PULSE_PORTED_SOURCES})
+  # pulseaudio-stream-flags.c has a Rust port: C reference/rollback only (sources.cmake).
+  obs_libobs_add_c_sources(${LIBOBS_PULSE_PORTED_SOURCES})
   target_link_libraries(libobs-objects PUBLIC PulseAudio::PulseAudio)
   target_enable_feature(libobs "PulseAudio audio monitoring (FreeBSD)")
 else()
@@ -80,14 +80,14 @@ if(ENABLE_WAYLAND)
   find_package(Xkbcommon REQUIRED)
 
   target_sources(libobs-objects PRIVATE build/libobs.nix-wayland+.h.c obs-nix-hotkey-state.h)
-  # obs-nix-hotkey-state.c has a Rust port: libobs only (sources.cmake).
-  target_sources(libobs PRIVATE ${LIBOBS_WAYLAND_PORTED_SOURCES})
+  # obs-nix-hotkey-state.c has a Rust port: C reference/rollback only (sources.cmake).
+  obs_libobs_add_c_sources(${LIBOBS_WAYLAND_PORTED_SOURCES})
   target_link_libraries(libobs-objects PUBLIC Wayland::Client xkbcommon::xkbcommon)
 
   if(TARGET gio::gio)
     target_sources(libobs-objects PRIVATE build/libobs.nix-portal-shortcuts+.h.c obs-nix-portal-shortcuts.h)
-    # obs-nix-portal-shortcut-ids.c has a Rust port: libobs only (sources.cmake).
-    target_sources(libobs PRIVATE ${LIBOBS_WAYLAND_GIO_PORTED_SOURCES})
+    # obs-nix-portal-shortcut-ids.c has a Rust port: C reference/rollback only (sources.cmake).
+    obs_libobs_add_c_sources(${LIBOBS_WAYLAND_GIO_PORTED_SOURCES})
     target_compile_definitions(libobs-objects PUBLIC HAVE_GLOBAL_SHORTCUTS_PORTAL)
   endif()
   target_enable_feature(libobs "Wayland compositor support (FreeBSD)")
