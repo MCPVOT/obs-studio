@@ -3,30 +3,7 @@ include_guard(DIRECTORY)
 option(ENABLE_WHATSNEW "Enable WhatsNew dialog" ON)
 
 if(ENABLE_WHATSNEW AND TARGET OBS::browser-panels)
-  if(OS_MACOS)
-    include(cmake/feature-macos-update.cmake)
-  elseif(OS_LINUX)
-    find_package(MbedTLS 3...<4 REQUIRED)
-    find_package(nlohmann_json 3.11 REQUIRED)
-
-    if(NOT TARGET OBS::blake2)
-      add_subdirectory("${CMAKE_SOURCE_DIR}/deps/blake2" "${CMAKE_BINARY_DIR}/deps/blake2")
-    endif()
-
-    target_link_libraries(obs-studio PRIVATE MbedTLS::mbedtls nlohmann_json::nlohmann_json OBS::blake2)
-
-    target_sources(
-      obs-studio
-      PRIVATE
-        build/frontend.whatsnew+.hpp.cpp
-        utility/WhatsNewBrowserInitThread.hpp
-        utility/WhatsNewInfoThread.hpp
-        build/frontend.crypto-mbedtls+.hpp.cpp
-        utility/crypto-helpers.hpp
-        utility/models/whatsnew.hpp
-        utility/update-helpers.hpp
-    )
-  endif()
+  obs_frontend_platform_whatsnew()
 
   target_enable_feature(obs-studio "What's New panel" WHATSNEW_ENABLED)
 endif()

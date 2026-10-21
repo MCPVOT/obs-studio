@@ -1,92 +1,113 @@
-if(NOT TARGET OBS::blake2)
-  add_subdirectory("${CMAKE_SOURCE_DIR}/deps/blake2" "${CMAKE_BINARY_DIR}/deps/blake2")
-endif()
+# Selected once by frontend/CMakeLists.txt. Macros retain caller scope and
+# run at the original feature/source stages; including this file does no setup.
 
-if(NOT TARGET OBS::w32-pthreads)
-  add_subdirectory("${CMAKE_SOURCE_DIR}/deps/w32-pthreads" "${CMAKE_BINARY_DIR}/deps/w32-pthreads")
-endif()
+macro(obs_frontend_platform_qt)
+  # No additional Qt platform dependencies.
+endmacro()
 
-find_package(MbedTLS 3...<4 REQUIRED)
-find_package(Detours REQUIRED)
-find_package(nlohmann_json 3.11 REQUIRED)
+macro(obs_frontend_platform_plugin_paths)
+  # Use the shared absolute installation paths.
+endmacro()
 
-# The Rust build says so in its VERSIONINFO, with the full release version (#631).
-if(ENABLE_RUST_LIBOBS)
-  set(OBS_RC_PRODUCT_NAME "OBS-Studio-Rust")
-  set(OBS_RC_PRODUCT_VERSION "${OBS_RUST_VERSION}")
-else()
-  set(OBS_RC_PRODUCT_NAME "OBS Studio")
-  set(OBS_RC_PRODUCT_VERSION "${OBS_VERSION_CANONICAL}")
-endif()
-configure_file(cmake/windows/obs.rc.in obs.rc)
+macro(obs_frontend_platform_plugin_manager)
+  target_sources(obs-studio PRIVATE build/frontend.plugin-manager-pluginmoduleloader_windows+.hpp.cpp)
+endmacro()
 
-target_sources(
-  obs-studio
-  PRIVATE
-    cmake/windows/obs.manifest
-    build/frontend.windows+.hpp.cpp
-    dialogs/OBSUpdate.hpp
-    forms/OBSUpdate.ui
-    obs.rc
+macro(obs_frontend_platform_whatsnew)
+  # No additional platform setup for this feature.
+endmacro()
+
+macro(obs_frontend_platform_sources)
+  if(NOT TARGET OBS::blake2)
+    add_subdirectory("${CMAKE_SOURCE_DIR}/deps/blake2" "${CMAKE_BINARY_DIR}/deps/blake2")
+  endif()
+
+  if(NOT TARGET OBS::w32-pthreads)
+    add_subdirectory("${CMAKE_SOURCE_DIR}/deps/w32-pthreads" "${CMAKE_BINARY_DIR}/deps/w32-pthreads")
+  endif()
+
+  find_package(MbedTLS 3...<4 REQUIRED)
+  find_package(Detours REQUIRED)
+  find_package(nlohmann_json 3.11 REQUIRED)
+
+  # The Rust build says so in its VERSIONINFO, with the full release version (#631).
+  if(ENABLE_RUST_LIBOBS)
+    set(OBS_RC_PRODUCT_NAME "OBS-Studio-Rust")
+    set(OBS_RC_PRODUCT_VERSION "${OBS_RUST_VERSION}")
+  else()
+    set(OBS_RC_PRODUCT_NAME "OBS Studio")
+    set(OBS_RC_PRODUCT_VERSION "${OBS_VERSION_CANONICAL}")
+  endif()
+  configure_file(cmake/windows/obs.rc.in obs.rc)
+
+  target_sources(
+    obs-studio
+    PRIVATE
+      cmake/windows/obs.manifest
+      build/frontend.windows+.hpp.cpp
+      dialogs/OBSUpdate.hpp
+      forms/OBSUpdate.ui
+      obs.rc
+      build/frontend.windows-autoupdatethread+.hpp.cpp
+      utility/AutoUpdateThread.hpp
+      build/frontend.windows-nativeeventfilter+.hpp.cpp
+      build/frontend.whatsnew+.hpp.cpp
+      utility/WhatsNewBrowserInitThread.hpp
+      utility/WhatsNewInfoThread.hpp
+      build/frontend.crypto-mbedtls+.hpp.cpp
+      utility/crypto-helpers.hpp
+      utility/models/branches.hpp
+      utility/models/whatsnew.hpp
+      build/frontend.windows-platform+.hpp.cpp
+      build/frontend.windows-system-info+.hpp.cpp
+      utility/update-helpers.hpp
+      build/frontend.windows-c+.h.c
+  )
+
+  add_library(obs-updater-manifest INTERFACE)
+  add_library(OBS::updater-manifest ALIAS obs-updater-manifest)
+
+  target_sources(obs-updater-manifest INTERFACE updater/manifest.hpp)
+
+  target_link_libraries(
+    obs-studio
+    PRIVATE
+      crypt32
+      shell32
+      OBS::blake2
+      OBS::updater-manifest
+      OBS::w32-pthreads
+      MbedTLS::mbedtls
+      nlohmann_json::nlohmann_json
+      Detours::Detours
+  )
+
+  target_compile_definitions(obs-studio PRIVATE PSAPI_VERSION=2)
+
+  target_link_options(obs-studio PRIVATE /IGNORE:4099 $<$<CONFIG:DEBUG>:/NODEFAULTLIB:MSVCRT>)
+
+  # Set commit for untagged version comparisons in the Windows updater
+  if(OBS_VERSION MATCHES ".+g[a-f0-9]+.*")
+    string(REGEX REPLACE ".+g([a-f0-9]+).*$" "\\1" OBS_COMMIT ${OBS_VERSION})
+  else()
+    set(OBS_COMMIT "")
+  endif()
+
+  set_source_files_properties(
     build/frontend.windows-autoupdatethread+.hpp.cpp
-    utility/AutoUpdateThread.hpp
-    build/frontend.windows-nativeeventfilter+.hpp.cpp
-    build/frontend.whatsnew+.hpp.cpp
-    utility/WhatsNewBrowserInitThread.hpp
-    utility/WhatsNewInfoThread.hpp
-    build/frontend.crypto-mbedtls+.hpp.cpp
-    utility/crypto-helpers.hpp
-    utility/models/branches.hpp
-    utility/models/whatsnew.hpp
-    build/frontend.windows-platform+.hpp.cpp
-    build/frontend.windows-system-info+.hpp.cpp
-    utility/update-helpers.hpp
-    build/frontend.windows-c+.h.c
-)
+    PROPERTIES COMPILE_DEFINITIONS OBS_COMMIT="${OBS_COMMIT}"
+  )
 
-add_library(obs-updater-manifest INTERFACE)
-add_library(OBS::updater-manifest ALIAS obs-updater-manifest)
+  add_subdirectory(updater)
 
-target_sources(obs-updater-manifest INTERFACE updater/manifest.hpp)
+  set_property(TARGET obs-studio APPEND PROPERTY AUTORCC_OPTIONS --format-version 1)
 
-target_link_libraries(
-  obs-studio
-  PRIVATE
-    crypt32
-    shell32
-    OBS::blake2
-    OBS::updater-manifest
-    OBS::w32-pthreads
-    MbedTLS::mbedtls
-    nlohmann_json::nlohmann_json
-    Detours::Detours
-)
-
-target_compile_definitions(obs-studio PRIVATE PSAPI_VERSION=2)
-
-target_link_options(obs-studio PRIVATE /IGNORE:4099 $<$<CONFIG:DEBUG>:/NODEFAULTLIB:MSVCRT>)
-
-# Set commit for untagged version comparisons in the Windows updater
-if(OBS_VERSION MATCHES ".+g[a-f0-9]+.*")
-  string(REGEX REPLACE ".+g([a-f0-9]+).*$" "\\1" OBS_COMMIT ${OBS_VERSION})
-else()
-  set(OBS_COMMIT "")
-endif()
-
-set_source_files_properties(
-  build/frontend.windows-autoupdatethread+.hpp.cpp
-  PROPERTIES COMPILE_DEFINITIONS OBS_COMMIT="${OBS_COMMIT}"
-)
-
-add_subdirectory(updater)
-
-set_property(TARGET obs-studio APPEND PROPERTY AUTORCC_OPTIONS --format-version 1)
-
-set_property(DIRECTORY ${CMAKE_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT obs-studio)
-set_target_properties(
-  obs-studio
-  PROPERTIES
-    WIN32_EXECUTABLE TRUE
-    VS_DEBUGGER_COMMAND "${CMAKE_BINARY_DIR}/rundir/$<CONFIG>/bin/64bit/$<TARGET_FILE_NAME:obs-studio>"
-    VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/rundir/$<CONFIG>/bin/64bit"
-)
+  set_property(DIRECTORY ${CMAKE_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT obs-studio)
+  set_target_properties(
+    obs-studio
+    PROPERTIES
+      WIN32_EXECUTABLE TRUE
+      VS_DEBUGGER_COMMAND "${CMAKE_BINARY_DIR}/rundir/$<CONFIG>/bin/64bit/$<TARGET_FILE_NAME:obs-studio>"
+      VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/rundir/$<CONFIG>/bin/64bit"
+  )
+endmacro()
