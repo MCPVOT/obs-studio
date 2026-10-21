@@ -44,6 +44,8 @@ jobs:
           fetch-depth: 0
       - name: Set Up uv 🐍
         uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          save-cache: ${{ github.ref == 'refs/heads/master' }}
 
       - name: Check Event Data ☑️
         id: setup
@@ -346,6 +348,8 @@ jobs:
       # useful restored archives before every build (#1286).
       - name: Set Up uv 🐍
         uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          save-cache: ${{ github.ref == 'refs/heads/master' }}
 
       # This full-build job is outside PR/merge-group admission. Capture
       # structured miss evidence without publishing raw compiler arguments.
@@ -577,6 +581,8 @@ jobs:
           echo "cacheKey=${cache_key}" >> $GITHUB_OUTPUT
 
       - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          save-cache: ${{ github.ref == 'refs/heads/master' }}
       - name: Prepare offline Flatpak Rust dependencies
         run: |
           # Supply the pinned compiler in the manifest; soldr vendors Cargo inputs
@@ -847,6 +853,8 @@ jobs:
           sparse-checkout: ci_lint
       - name: Set Up uv 🐍
         uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          save-cache: ${{ github.ref == 'refs/heads/master' }}
 
       - name: Local Gate Attestation 🛂
         id: gate
@@ -931,6 +939,8 @@ jobs:
       # The lint lane pins clang-format and gersemi through uvx.
       - name: Set Up uv 🐍
         uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          save-cache: ${{ github.ref == 'refs/heads/master' }}
 
       # GATE-001 mirror (local-gate.toml): exactly the local gate's lint and
       # rust-test lanes (./lint, ./unittest), i.e. rustfmt, clippy -D warnings,
@@ -1087,6 +1097,8 @@ jobs:
 
       - name: Set Up uv 🐍
         uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          save-cache: ${{ github.ref == 'refs/heads/master' }}
 
       - name: Local Gate (cross) 🧪
         run: uv run ci/local_gate.py --lane cross
@@ -1131,6 +1143,8 @@ jobs:
 
       - name: Set Up uv 🐍
         uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          save-cache: ${{ github.ref == 'refs/heads/master' }}
 
       - name: Local Gate (cross-release) 🧪
         run: uv run ci/local_gate.py --lane cross-release
@@ -1167,6 +1181,8 @@ jobs:
 
       - name: Set Up uv 🐍
         uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          save-cache: ${{ github.ref == 'refs/heads/master' }}
 
       # The OS lane runs the tests of the crates the diff touches on a PR
       # (ci/rust_scope.py selects the feature, ci_scope.py the OS); the
@@ -1230,6 +1246,7 @@ jobs:
       - name: Set Up uv 🐍
         uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
         with:
+          save-cache: ${{ github.ref == 'refs/heads/master' }}
           version: '0.13.1'
           enable-cache: false
 
@@ -1388,6 +1405,7 @@ jobs:
       - name: Set Up uv 🐍
         uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
         with:
+          save-cache: ${{ github.ref == 'refs/heads/master' }}
           version: '0.13.1'
           enable-cache: false
 
@@ -1543,6 +1561,8 @@ jobs:
 
       - name: Set Up uv 🐍
         uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          save-cache: ${{ github.ref == 'refs/heads/master' }}
 
       # Unpacked prefixes, keyed on the pinned sha256: a warm run skips the
       # download.

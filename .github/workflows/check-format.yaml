@@ -18,6 +18,8 @@ jobs:
       # brew install zsh and the formatter took about 75 s to format in 0.3 s.
       - name: Set Up uv 🐍
         uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          save-cache: ${{ github.ref == 'refs/heads/master' }}
       # swift-format needs a macOS runner, one of the 5 the plan allows; take it
       # only when a Swift file changed (#427).
       - name: Check for Swift Changes 🔎

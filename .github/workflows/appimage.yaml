@@ -101,6 +101,8 @@ jobs:
       # The build steps live in build-aux/appimage/build.py (one call per step, the
       # same scripts), so `bosn run --task appimage` can run them locally (#899).
       - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          save-cache: ${{ github.ref == 'refs/heads/master' }}
 
       # The glibc 2.28 build image (#926): AlmaLinux 8 packages plus the prebuilt
       # dependencies from obs-rust/obs-studio-libs (deps.lock.json); every build
@@ -247,6 +249,8 @@ jobs:
       # leaves behind can affect another; each also fails if it leaves anything
       # running. Every scenario runs even after one fails.
       - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          save-cache: ${{ github.ref == 'refs/heads/master' }}
 
       - name: Install host GPU runtime for metadata check
         timeout-minutes: 10
@@ -375,6 +379,8 @@ jobs:
         with:
           persist-credentials: false
       - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          save-cache: ${{ github.ref == 'refs/heads/master' }}
       - name: Verify hybrid implementation release approval
         run: uv run --no-project ci/hybrid_release_gate.py
 

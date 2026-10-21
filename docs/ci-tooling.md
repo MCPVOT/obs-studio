@@ -513,6 +513,15 @@ and the workflow call sites. Decisions and evidence for the current behavior
 are tracked in [#1269](https://github.com/obs-rust/obs-studio/issues/1269)
 and [#1270](https://github.com/obs-rust/obs-studio/pull/1270).
 
+`setup-uv` follows the same remote writer policy: each call sets
+`save-cache: ${{ github.ref == 'refs/heads/master' }}` while keeping restores
+enabled wherever caching was already enabled. The pinned action otherwise
+saves on PR and queue refs, producing archives the janitor later reclaims.
+The [retention snapshot and offline executor reproduction](ci-evidence/2026-10-21-cache-retention.md)
+record that churn separately from the still-open whole-budget allocation and
+durability work. A current inventory below the global budget does not prove
+that useful seeds survive the next nightly writer burst.
+
 ## Where this is going (open gaps)
 
 For a reproducible traffic/cache snapshot, run the read-only collector:

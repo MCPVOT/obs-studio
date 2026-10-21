@@ -39,6 +39,36 @@ def load() -> dict:
     return tomllib.loads(CI_TOML.read_text())
 
 
+class UvCacheWriterTest(unittest.TestCase):
+    def test_uv_remote_saves_are_master_only_and_restores_remain_enabled(self):
+        files = sorted(WORKFLOWS.glob("*.y*ml")) + sorted(GITHUB.glob("actions/*/action.y*ml"))
+        calls = 0
+        for path in files:
+            lines = path.read_text().splitlines()
+            for index, line in enumerate(lines):
+                if not re.search(r"uses: astral-sh/setup-uv@", line):
+                    continue
+                calls += 1
+                # A setup action's inputs end at the next step or job.
+                indent = len(line) - len(line.lstrip())
+                end = index + 1
+                while end < len(lines):
+                    candidate = lines[end]
+                    if candidate.strip() and not candidate.lstrip().startswith("#"):
+                        depth = len(candidate) - len(candidate.lstrip())
+                        if depth < indent or (depth == indent and candidate.lstrip().startswith("- ")):
+                            break
+                    end += 1
+                block = "\n".join(lines[index:end])
+                with self.subTest(path=path.relative_to(ROOT), line=index + 1):
+                    self.assertIn("save-cache: ${{ github.ref == 'refs/heads/master' }}", block)
+                    # Tier 2 containers already disable uv caching entirely;
+                    # preserve that independent setting. Enabled consumers
+                    # retain setup-uv's default restore behavior.
+                    self.assertNotRegex(block, r"restore-cache:\s*['\"]?false")
+        self.assertGreater(calls, 0)
+
+
 def family_prefixes(ci: dict) -> list[str]:
     out = []
     for fam in ci["cache"]["family"].values():
