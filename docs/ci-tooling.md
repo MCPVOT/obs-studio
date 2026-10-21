@@ -340,13 +340,14 @@ Cargo files test the workspace), on every PR. No Qt is installed there.
 | `build-aux/`, `.gitmodules`, submodules | compiled on Linux only; no full build from a PR |
 | `docs/`, `.github/`, `ci/` | lint and the ci/ self-tests |
 
-The macOS, Windows, Qt and cross jobs wait for Fast Gate. Tier 2 Linux
-compilation is the explicit exception: it can overlap on an independent runner
-after scope/proof checks. OFF/ON execution waits for both the build and a
+The macOS, Windows and cross jobs wait for Fast Gate. Qt starts on an
+independent runner after successful scope detection; its compilation and tests
+can overlap Fast Gate (#1581). Tier 2 Linux compilation also overlaps on an
+independent runner after scope/proof checks. OFF/ON execution waits for both the build and a
 successful Fast Gate, or its valid attestation skip. Failed/canceled Fast Gates
 start neither test suite. The final required gate still includes every check.
-This trades possible wasted compilation on a red PR for a shorter successful
-queue path; a compile already running can finish after Fast Gate fails.
+This trades possible wasted compilation and Qt tests on a red PR for a shorter
+successful queue path; independent work can finish after Fast Gate fails.
 Measure runner cost and actual gate time rather than treating the theoretical
 overlap as a proven speedup (#930, #1286).
 

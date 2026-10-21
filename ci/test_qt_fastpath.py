@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import re
+import itertools
 import unittest
 from pathlib import Path
 
@@ -36,6 +37,33 @@ class QtFastPathTest(unittest.TestCase):
 
     def test_no_distro_qt(self):
         self.assertNotRegex(self.job(), r"qt6-(base|svg)-dev")
+
+    def test_qt_starts_after_scope_without_waiting_for_fast_gate(self):
+        self.assertRegex(self.job(), r"(?m)^    needs: \[check-event\]$")
+        self.assertNotIn("needs.rust-tests-linux", self.job())
+
+    def test_scope_failure_cancellation_and_out_of_scope_skip_qt(self):
+        condition = re.search(r"(?m)^    if: \$\{\{ (.*?) \}\}$", self.job()).group(1)
+        # Evaluate only this job's small boolean condition; unexpected syntax
+        # fails the test rather than executing arbitrary workflow expressions.
+        for status, scoped, cancelled in itertools.product(
+            ("success", "failure", "cancelled", "skipped"), (True, False), (True, False)
+        ):
+            with self.subTest(status=status, scoped=scoped, cancelled=cancelled):
+                expression = condition.replace("needs.check-event.result == 'success'", str(status == "success"))
+                expression = expression.replace("fromJSON(needs.check-event.outputs.qt)", str(scoped))
+                expression = expression.replace("cancelled()", str(cancelled))
+                expression = expression.replace("&&", " and ").replace("!", "not ").strip()
+                self.assertRegex(expression, r"^(?:True|False|and|not|\s|\(|\))+$")
+                actual = eval(expression, {"__builtins__": {}})
+                self.assertEqual(actual, status == "success" and scoped and not cancelled)
+
+    def test_required_gate_still_rejects_either_build_failure(self):
+        gate = (ROOT / ".github/workflows/ci.yml").read_text().split("  ci-gate:", 1)[1]
+        self.assertIn("build-project", gate.split("steps:", 1)[0])
+        self.assertIn("contains(needs.*.result, 'failure')", gate)
+        self.assertIn("contains(needs.*.result, 'cancelled')", gate)
+        self.assertNotIn("continue-on-error", self.job())
 
 
 if __name__ == "__main__":

@@ -1503,8 +1503,11 @@ jobs:
   linux-qt-frontend:
     name: Qt Frontend Linux 🐧
     runs-on: ubuntu-26.04
-    needs: [check-event, rust-tests-linux]
-    if: ${{ always() && !cancelled() && needs.rust-tests-linux.result != 'failure' && (fromJSON(needs.check-event.outputs.qt)) }}
+    # Independent runner: overlap frontend compilation/tests with Fast Gate.
+    # The reusable workflow still fails if either selected job fails; this
+    # can spend extra Qt runner time when Fast Gate fails (#1581).
+    needs: [check-event]
+    if: ${{ !cancelled() && needs.check-event.result == 'success' && fromJSON(needs.check-event.outputs.qt) }}
     timeout-minutes: 30
     env:
       QT_TAG: qt6-6.11.1

@@ -19,6 +19,9 @@ src=$(cd "$(dirname "$0")/.." && pwd)
 export PKG_CONFIG_PATH="$ff/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
 export LD_LIBRARY_PATH="$ff/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 
+# Literal phase wall times distinguish compilation from test execution in
+# overlap measurements (#1581). Failed commands retain their normal exit code.
+phase_start=$SECONDS
 cmake -S "$src" -B "$build" -G Ninja \
   -DCMAKE_BUILD_TYPE=RelWithDebInfo \
   -DCMAKE_PREFIX_PATH="$qt;$ff" -DQt6_DIR="$qt/lib/cmake/Qt6" \
@@ -29,6 +32,7 @@ cmake -S "$src" -B "$build" -G Ninja \
   -DENABLE_NVENC=OFF -DENABLE_QSV11=OFF -DENABLE_VST=OFF -DENABLE_WAYLAND=OFF \
   -DENABLE_VLC=OFF -DENABLE_NEW_MPEGTS_OUTPUT=OFF -DENABLE_NATIVE_NVENC=OFF \
   2>&1 | tee "$build.configure.log"
+printf 'qt-phase phase=configure seconds=%d\n' "$((SECONDS - phase_start))"
 
 # The distro Qt must not be what got linked (#992).
 grep -E "^-- Found Qt6|Qt6_DIR" "$build.configure.log" || true
@@ -55,10 +59,14 @@ done
 tests=${built# }
 echo "== Qt-linked tests: $tests"
 
+phase_start=$SECONDS
 # shellcheck disable=SC2086
 ninja -C "$build" obs-studio $tests
+printf 'qt-phase phase=build seconds=%d\n' "$((SECONDS - phase_start))"
 
 export LD_LIBRARY_PATH="$qt/lib:$LD_LIBRARY_PATH"
 export QT_PLUGIN_PATH="$qt/plugins"
 regex="^($(echo $tests | sed 's/ /|/g'))\$"
+phase_start=$SECONDS
 xvfb-run -a ctest --test-dir "$build" --output-on-failure -j "${CTEST_JOBS:-4}" -R "$regex"
+printf 'qt-phase phase=test seconds=%d\n' "$((SECONDS - phase_start))"
