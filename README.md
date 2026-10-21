@@ -1,13 +1,10 @@
 # obs-studio-rust
 
 > [!IMPORTANT]
-> ## **CI is optimized: full Rust, with C compilation**
-> The refactor ([#930](https://github.com/obs-rust/obs-studio/issues/930)) is done. CI has been
-> optimized and converted to full Rust with C compilation, so runs are fast again.
->
-> **Contributors: please prioritize converting core OBS C/C++ code to Rust.** Every core module
-> moved shrinks the remaining port; once the core is ported we drop the parity efforts — the
-> C/Rust parity and differential checks go away with the C they compare.
+> **We’re unifying OBS into one hybrid Rust/C/C++ build.**
+> Prioritize migrating code to Rust and retiring the C/C++ implementations it replaces.
+> Each completed port becomes part of the application, with compatibility and parity
+> checks supporting the transition.
 
 [![Contributor leaderboard workflow status](https://github.com/obs-rust/obs-studio/actions/workflows/leaderboard.yml/badge.svg?branch=master)](https://github.com/obs-rust/obs-studio/actions/workflows/leaderboard.yml)
 [![Merge queue for master](docs/images/merge-queue.svg)](https://github.com/obs-rust/obs-studio/queue/master)
