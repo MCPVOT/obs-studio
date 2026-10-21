@@ -952,8 +952,9 @@ area.
   `%FPS`, `%CRES`, `%ORES` or `%VF` before video is set up gets `0`, `0x0`
   and `None` there. Before, those were formatted from uninitialized memory
   (names like `2880154539x2880154539`). *All*, 2026-10-20. Issue
-  [#1509](https://github.com/obs-rust/obs-studio/issues/1509), PR
-  [#PR](https://github.com/obs-rust/obs-studio/pull/PR).
+  [#1509](https://github.com/obs-rust/obs-studio/issues/1509), PRs
+  [#1562](https://github.com/obs-rust/obs-studio/pull/1562) and
+  [#1565](https://github.com/obs-rust/obs-studio/pull/1565).
 - Streaming over RTMP no longer leaks memory each time the server drops the
   connection before the first video frame is sent, or sends a message OBS
   can't read before it drops the connection. *All*, 2026-10-20. Issue
@@ -970,6 +971,13 @@ area.
   it had connected. *All*, 2026-10-20. Issue
   [#1571](https://github.com/obs-rust/obs-studio/issues/1571), PR
   [#1572](https://github.com/obs-rust/obs-studio/pull/1572).
+- An output whose only video encoder is not in the first slot (a plugin
+  that sets one with `obs_output_set_video_encoder2()` and an index above 0)
+  starts on its first keyframe, with its timestamps starting at 0. Before,
+  the first keyframe was never sent and the output started on a frame that
+  is not a keyframe. *All*, 2026-10-21. Issue
+  [#1611](https://github.com/obs-rust/obs-studio/issues/1611), PR
+  [#1612](https://github.com/obs-rust/obs-studio/pull/1612).
 
 ### Sources and filters
 

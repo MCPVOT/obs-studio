@@ -1946,19 +1946,19 @@ fn start_index_without_audio_is_the_video() {
     let mut a = audio_packet(0, 0, T + 5, 2);
     a.track = 0;
     // a single closest audio after the video: the video comes first
-    assert_eq!(interleaved_start_idx(&[v.clone(), a.clone()]), 0);
+    assert_eq!(interleaved_start_idx(&[v.clone(), a.clone()], 0), 0);
     // audio first, closer than nothing: the audio
     let mut early = a.clone();
     early.dts_usec = T - 5;
     early.pts = 10;
-    assert_eq!(interleaved_start_idx(&[early, v, a]), 0);
+    assert_eq!(interleaved_start_idx(&[early, v, a], 0), 0);
 }
 
 #[test]
 fn premature_prune_without_audio_encoders_keeps() {
     let mut v = video_packet(0, 0, 0, T, true, 1);
     v.track = 0;
-    assert_eq!(premature_prune(&[v], |_| None, |_| 0), Prune::Keep);
+    assert_eq!(premature_prune(&[v], 0, |_| None, |_| 0), Prune::Keep);
     assert_eq!(Prune::Keep.c_value(), 0);
     assert_eq!(Prune::NoVideo.c_value(), -1);
     assert_eq!(Prune::MissingAudio.c_value(), -1);
@@ -1975,6 +1975,7 @@ fn premature_prune_asks_durations_up_to_the_missing_track() {
     let slots = [Some(AENC[0]), None, Some(AENC[1]), None, None, None];
     let prune = premature_prune(
         &[v, a0],
+        0,
         |slot| slots[slot],
         |encoder| {
             asked.borrow_mut().push(encoder);
@@ -2246,5 +2247,49 @@ fn start_without_video_encoders_waits() {
     out.received_audio = true;
     assert!(!interleave::initialize_interleaved_packets(&mut out));
     assert!(out.received_audio);
+    out.teardown();
+}
+
+#[test]
+fn start_follows_the_first_video_encoder() {
+    // A multitrack video output may leave slot 0 empty
+    // (obs_output_set_video_encoder2() with idx > 0). The start rules
+    // follow the first slot with a video encoder, as initialize_interleaved_
+    // packets() does: the start sends at once with every track offset to 0.
+    let mut out = Out::setup();
+    out.use_tracks(2, 1);
+    out.video_encoders[0] = None;
+
+    out.feed_video(1, 30, 30, T, true, 10);
+    out.feed_audio(0, 48000, T + 1000, 20);
+
+    assert!(out.received_video[1]);
+    assert!(out.received_audio);
+    assert_eq!(out.num_sent(), 1);
+    assert_eq!(out.sent[0].tag, 10);
+    assert_eq!(out.sent[0].dts, 0);
+    assert_eq!(out.video_offsets[1], 30);
+    assert_eq!(out.audio_offsets[0], 48000);
+    out.assert_queue_tags(&[20]);
+    assert_eq!(out.queued_at(0).dts, 0);
+    assert_eq!(out.queued_at(0).dts_usec, 0);
+    out.teardown();
+}
+
+#[test]
+fn late_audio_drops_the_first_keyframe_of_the_first_video_encoder() {
+    // As late_audio_drops_the_first_keyframe, with the video encoder in
+    // slot 1 and slot 0 empty.
+    let mut out = Out::setup();
+    out.use_tracks(2, 1);
+    out.video_encoders[0] = None;
+
+    out.feed_video(1, 30, 30, T, true, 1);
+    out.feed_audio(0, 48000, T + 40000, 2);
+
+    assert_eq!(out.queued(), 0);
+    assert_eq!(out.packet_times[1].len(), 0);
+    assert!(!out.received_video[1]);
+    assert_eq!(out.num_sent(), 0);
     out.teardown();
 }
