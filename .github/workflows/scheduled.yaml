@@ -39,7 +39,7 @@ jobs:
     uses: ./.github/workflows/build-project.yaml
     permissions:
       actions: read
-      contents: read
+      contents: write
     if: github.event_name != 'schedule' || github.repository == 'obs-rust/obs-studio'
     secrets: inherit
 

@@ -528,7 +528,7 @@ jobs:
     secrets: inherit
     permissions:
       actions: read
-      contents: read
+      contents: write
 
   release:
     name: Publish pre-release 🚀

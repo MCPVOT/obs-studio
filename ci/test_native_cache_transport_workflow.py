@@ -10,9 +10,10 @@ ROOT = Path(__file__).resolve().parent.parent
 class TransportWorkflowTest(unittest.TestCase):
     def test_publisher_is_manual_master_only_separate_and_serialized(self):
         workflow = (ROOT / '.github/workflows/ci.yml').read_text()
-        job = workflow.split('  native-cache-transport:\n', 1)[1].split('\n  native-cache-consumer:', 1)[0].split('\n  ci-gate:', 1)[0]
+        build = (ROOT / '.github/workflows/build-project.yaml').read_text()
+        job = build.split('  native-cache-transport:\n', 1)[1]
         self.assertIn("github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master' && inputs.native-cache-transport-probe", job)
-        self.assertIn('needs: build-project', job)
+        self.assertIn('needs: [macos-build, windows-build]', job)
         self.assertIn('contents: write', job)
         self.assertIn('cancel-in-progress: false', job)
         self.assertIn('fail-fast: false', job)
@@ -21,16 +22,19 @@ class TransportWorkflowTest(unittest.TestCase):
         self.assertIn('cache-hit !=', job)
         self.assertIn('NATIVE_CACHE_JOB_TOKEN: ${{ github.token }}', job)
         self.assertNotIn('ci/native_cache_transport.py consume', job)
-        self.assertIn('--expected', job)
+        self.assertNotIn('--expected ', job)
+        self.assertIn("--identity '${{ runner.temp }}/native-cache-build-identity/native-cache-identity.json' --source", job)
+        self.assertIn('key: windows-ccache-${{ steps.native-seed.outputs.suffix }}', job)
         build_job = workflow.split('  build-project:\n', 1)[1].split('\n  #', 1)[0]
-        self.assertIn('contents: read', build_job)
-        self.assertNotIn('contents: write', build_job)
+        self.assertIn('contents: write', build_job)
+        self.assertIn('permissions:\n  actions: read\n  contents: read\n', build)
+        self.assertEqual(build.count('contents: write'), 1)
 
     def test_roundtrip_has_a_separate_read_only_token_and_required_source(self):
         workflow = (ROOT / '.github/workflows/ci.yml').read_text()
         self.assertIn('  native-cache-consumer:\n', workflow)
         job = workflow.split('  native-cache-consumer:\n', 1)[1].split('\n  ci-gate:', 1)[0]
-        self.assertIn('needs: native-cache-transport', job)
+        self.assertIn('needs: build-project', job)
         self.assertIn('always() && !cancelled()', job)
         self.assertIn("github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master' && inputs.native-cache-transport-probe", job)
         self.assertIn('contents: read', job)
@@ -44,6 +48,18 @@ class TransportWorkflowTest(unittest.TestCase):
         gate = workflow.split('  ci-gate:\n', 1)[1]
         needs = next(line.strip() for line in gate.splitlines() if line.strip().startswith('needs: ['))
         self.assertIn('native-cache-consumer', needs.removeprefix('needs: [').removesuffix(']').split(', '))
+        self.assertIn('build-project,', gate)
+
+    def test_qualification_seed_is_profile_bound_and_saved_once(self):
+        build = (ROOT / '.github/workflows/build-project.yaml').read_text()
+        for platform, boundary in (('macos', '\n  ubuntu-build:'), ('windows', '\n  # zackees/ci.yml GATE-008')):
+            job = build.split('  ' + platform + '-build:\n', 1)[1].split(boundary, 1)[0]
+            self.assertIn('id: native-seed', job)
+            self.assertIn('ci/native_cache_seed.py', job)
+            self.assertIn('key: ' + ('macOS-xcode-' if platform == 'macos' else 'windows-ccache-') + '${{ steps.native-seed.outputs.suffix }}', job)
+            self.assertIn("!inputs.native-cache-transport-probe && github.event_name != 'pull_request'", job)
+            self.assertLess(job.index('Record Native Transport Identity'), job.index('id: native-seed'))
+            self.assertLess(job.index('Qualify Local Native Cache Archive'), job.index('Save Qualified Native Transport Seed'))
 
     def test_identity_evidence_is_default_off_and_matches_native_axes(self):
         workflow = (ROOT / '.github/workflows/ci.yml').read_text()

@@ -33,6 +33,11 @@ on:
         type: boolean
         required: false
         default: false
+# Keep all application and utility job tokens read-only. Only the guarded
+# transport publisher below overrides this default. Caller grants are ceilings.
+permissions:
+  actions: read
+  contents: read
 env:
   # Pinned soldr can replay stale Rust output (zackees/zccache#1943).
   # Keep cook/target reuse and standalone C/C++ compiler caching enabled.
@@ -319,7 +324,7 @@ jobs:
           path: ${{ github.workspace }}/build_macos/obs-studio-*-macos-${{ steps.setup.outputs.cpuName }}-dSYMs.tar.xz
 
       - uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master' && steps.macos-compiler-cache.outputs.cache-hit != 'true'
+        if: ${{ !inputs.native-cache-transport-probe && github.event_name != 'pull_request' && github.ref == 'refs/heads/master' && steps.macos-compiler-cache.outputs.cache-hit != 'true' }}
         with:
           path: ${{ steps.setup.outputs.xcodeCasPath }}
           key: ${{ runner.os }}-xcode-${{ matrix.target }}-${{ needs.check-event.outputs.config }}-${{ github.sha }}
@@ -339,6 +344,15 @@ jobs:
           --output '${{ runner.temp }}/native-cache-identity.json'
           --diagnostics '${{ runner.temp }}/native-cache-identity-diagnostics.json'
 
+      - name: Bind Native Transport Seed
+        id: native-seed
+        if: inputs.native-cache-transport-probe
+        shell: bash
+        run: >-
+          uv run ci/native_cache_seed.py
+          --identity '${{ runner.temp }}/native-cache-identity.json'
+          --source-sha '${{ github.sha }}' --output "$GITHUB_OUTPUT"
+
       - name: Qualify Local Native Cache Archive
         shell: bash
         if: inputs.native-cache-transport-probe
@@ -348,6 +362,13 @@ jobs:
           uv run ci/native_cache_transport.py verify-local
           --identity '${{ runner.temp }}/native-cache-identity.json' --source "$CACHE_SOURCE"
           --report '${{ runner.temp }}/native-cache-local.json'
+
+      - name: Save Qualified Native Transport Seed
+        if: inputs.native-cache-transport-probe && github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ steps.setup.outputs.xcodeCasPath }}
+          key: macOS-xcode-${{ steps.native-seed.outputs.suffix }}
 
       - name: Upload Local Native Cache Evidence
         if: always() && inputs.native-cache-transport-probe
@@ -1005,7 +1026,7 @@ jobs:
           ccache --show-stats
 
       - uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master' && steps.windows-compiler-cache.outputs.cache-hit != 'true'
+        if: ${{ !inputs.native-cache-transport-probe && github.event_name != 'pull_request' && github.ref == 'refs/heads/master' && steps.windows-compiler-cache.outputs.cache-hit != 'true' }}
         with:
           path: ${{ github.workspace }}/.ccache
           key: windows-ccache-${{ matrix.architecture }}-${{ needs.check-event.outputs.config }}-${{ github.sha }}
@@ -1040,6 +1061,15 @@ jobs:
           --output '${{ runner.temp }}/native-cache-identity.json'
           --diagnostics '${{ runner.temp }}/native-cache-identity-diagnostics.json'
 
+      - name: Bind Native Transport Seed
+        id: native-seed
+        if: inputs.native-cache-transport-probe
+        shell: bash
+        run: >-
+          uv run ci/native_cache_seed.py
+          --identity '${{ runner.temp }}/native-cache-identity.json'
+          --source-sha '${{ github.sha }}' --output "$GITHUB_OUTPUT"
+
       - name: Qualify Local Native Cache Archive
         shell: bash
         if: inputs.native-cache-transport-probe
@@ -1049,6 +1079,13 @@ jobs:
           uv run ci/native_cache_transport.py verify-local
           --identity '${{ runner.temp }}/native-cache-identity.json' --source "$CACHE_SOURCE"
           --report '${{ runner.temp }}/native-cache-local.json'
+
+      - name: Save Qualified Native Transport Seed
+        if: inputs.native-cache-transport-probe && github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ github.workspace }}/.ccache
+          key: windows-ccache-${{ steps.native-seed.outputs.suffix }}
 
       - name: Upload Local Native Cache Evidence
         if: always() && inputs.native-cache-transport-probe
@@ -2064,3 +2101,100 @@ jobs:
         with:
           path: ${{ github.workspace }}/.vcpkg-bin
           key: vcpkg-bin-cmocka-x64-windows-v1
+
+  # Manual candidate only. Existing application jobs keep read-only tokens.
+  # Use the job GITHUB_TOKEN: its release/tag writes do not recursively trigger
+  # product workflows. No PAT, Actions artifact cache transport or PR writer.
+  native-cache-transport:
+    name: Native Cache Transport (${{ matrix.platform }} ${{ matrix.architecture }})
+    if: github.repository == 'obs-rust/obs-studio' && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master' && inputs.native-cache-transport-probe
+    needs: [macos-build, windows-build]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    permissions:
+      actions: read
+      contents: write
+    concurrency:
+      group: native-cache-release-${{ matrix.platform }}-${{ matrix.architecture }}
+      cancel-in-progress: false
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {platform: windows, architecture: x64, runner: windows-2025-vs2026}
+          - {platform: windows, architecture: arm64, runner: windows-2025-vs2026}
+          - {platform: macos, architecture: arm64, runner: macos-26}
+          - {platform: macos, architecture: x86_64, runner: macos-26}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          save-cache: ${{ github.ref == 'refs/heads/master' }}
+      - name: Select Matching Xcode
+        if: matrix.platform == 'macos'
+        run: sudo xcode-select --switch /Applications/Xcode_26.5.app/Contents/Developer
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: native-cache-identity-${{ matrix.platform }}-${{ matrix.architecture }}
+          path: ${{ runner.temp }}/native-cache-build-identity
+      - name: Record Transport Copier Identity
+        run: >-
+          uv run ci/native_cache_identity.py --platform '${{ matrix.platform }}'
+          --architecture '${{ matrix.architecture }}' --configuration RelWithDebInfo
+          --output '${{ runner.temp }}/native-cache-current-identity.json'
+          --diagnostics '${{ runner.temp }}/native-cache-current-identity-diagnostics.json'
+      - name: Bind Native Transport Seed
+        id: native-seed
+        run: >-
+          uv run ci/native_cache_seed.py
+          --identity '${{ runner.temp }}/native-cache-build-identity/native-cache-identity.json'
+          --source-sha '${{ github.sha }}' --output "$GITHUB_OUTPUT"
+      - name: Select Native Cache Path
+        id: path
+        run: |
+          if [ "$RUNNER_OS" = macOS ]; then
+            echo "cache=$HOME/Library/Developer/Xcode/DerivedData/CompilationCache.noindex" >> "$GITHUB_OUTPUT"
+          else
+            echo "cache=$GITHUB_WORKSPACE/.ccache" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Restore Exact Completed Windows Seed
+        if: matrix.platform == 'windows'
+        id: windows-seed
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ steps.path.outputs.cache }}
+          key: windows-ccache-${{ steps.native-seed.outputs.suffix }}
+          fail-on-cache-miss: true
+      - name: Restore Exact Completed macOS Seed
+        if: matrix.platform == 'macos'
+        id: macos-seed
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ steps.path.outputs.cache }}
+          key: macOS-xcode-${{ steps.native-seed.outputs.suffix }}
+          fail-on-cache-miss: true
+      - name: Require Exact Seed
+        if: (matrix.platform == 'windows' && steps.windows-seed.outputs.cache-hit != 'true') || (matrix.platform == 'macos' && steps.macos-seed.outputs.cache-hit != 'true')
+        run: exit 1
+      - name: Publish Bounded Cache Generation
+        env:
+          NATIVE_CACHE_JOB_TOKEN: ${{ github.token }}
+          CACHE_SOURCE: ${{ steps.path.outputs.cache }}
+        run: >-
+          uv run ci/native_cache_transport.py publish
+          --identity '${{ runner.temp }}/native-cache-build-identity/native-cache-identity.json' --source "$CACHE_SOURCE"
+          --report '${{ runner.temp }}/native-cache-publish.json'
+      - name: Upload Native Transport Evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: native-cache-transport-${{ matrix.platform }}-${{ matrix.architecture }}-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/native-cache-*.json
+          retention-days: 1
+          if-no-files-found: warn

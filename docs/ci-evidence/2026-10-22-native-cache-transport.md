@@ -298,3 +298,49 @@ GitHub documents [job-level token permissions](https://docs.github.com/en/action
 and the [separate authenticated API rate limit](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api).
 Authentication avoids the observed shared unauthenticated allowance; it does
 not promise immunity to authenticated primary or secondary rate limits.
+
+
+## Follow-up: producer-bound seeds and earlier transfer
+
+The hosted trial showed that the Actions bridge could lose seeds while waiting
+for unrelated full validation. The next routing change places the existing
+publisher matrix inside `build-project.yaml`, after both native app matrices.
+It no longer waits for unrelated Tier 2 jobs. Native build failures still block
+publication; the full reusable workflow and its callers' gates still require
+all selected tests. Earlier scheduling is not a retention guarantee: slow
+architectures, runner queues or cache pressure can still remove a seed. An
+exact miss remains a failed qualification.
+
+The qualification writer replaces its ordinary save with one profile-bound
+save after local archive validation. Keys retain the existing literal
+`windows-ccache-`/`macOS-xcode-` family prefixes and bind architecture,
+configuration, full source SHA and the complete compiler/SDK/cache profile.
+The shared bounded `native_cache_seed.py` helper derives the suffix in both
+producer and publisher. This prevents a same-source immutable cache from a
+different runner image being mislabeled with the current build's identity.
+There is one save per producer, not a second full seed. Ordinary production
+keys and restores are unchanged; no allocation or family limit is raised.
+
+The publisher is a transport copier and performs no native compilation. Its
+own toolchain identity is diagnostic only; the archive is labeled using the
+completed native build's identity and must restore that exact profile-bound
+seed. Requiring compiler equality on the copier is removed at this boundary,
+not bypassed for a native consumer. Future native compilation must still
+capture its actual environment and reject incompatible profiles. The current
+Linux consumer proves transport integrity only.
+
+All reusable-workflow callers grant the publisher's write permission ceiling,
+as GitHub validates callee permissions before job conditions. Explicit
+`actions: read`/`contents: read` defaults in the callee keep every existing
+application and utility job read-only; only the manual-master, default-off
+publisher overrides `contents: write`. Regression checks cover this boundary
+and every caller/callee permission pair. No new workflow files, application
+builds or test binaries are added.
+
+Local RED: the profile-bound seed stub fails three test methods; routing tests
+fail because publication waits for the whole build and uses unbound seeds.
+The fixed tests cover same-source toolchain changes, canonical identity order,
+source changes, output injection, bounded identity loading, writer scope,
+exact restore and caller permission ceilings. Hosted availability, transport
+cost and subsequent native compiler reuse remain unqualified. #1269 and #1667
+remain open; #1723 remains held. No unchanged full workflow retry is authorized.

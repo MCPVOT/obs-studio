@@ -39,7 +39,7 @@ jobs:
     secrets: inherit
     permissions:
       actions: read
-      contents: read
+      contents: write
 
   compatibility-validation:
     name: Validate Compatibility 🕵️
