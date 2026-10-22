@@ -263,3 +263,38 @@ job metadata. A green branch run does not qualify hosted transfer or a native
 build consuming that transfer. Proceed through normal PR CI/merge queue with the
 experiment default off, then measure one trusted master producer/read-only
 consumer qualification before deciding backend adoption or #1269 closure.
+
+
+## Follow-up: authenticated read-only transport consumer
+
+The [first master qualification](2026-10-22-native-cache-hosted-qualification.md)
+found a public API rate-limit failure after successful macOS ARM64 publication.
+The follow-up moves archive restoration out of the publisher into a separate
+manual-master-only job with `contents: read` and `actions: read`. Its explicit
+job token authenticates API inventory calls; public asset downloads still omit
+Authorization. No writer token is passed to this consumer.
+
+The consumer uses the completed build's identity artifact and requires the exact
+current source SHA. It runs all four archive axes on Linux, since it verifies
+transport rather than executing native compiler artifacts. This is not evidence
+that a native compiler accepted or reused that cache. Actual native consumers
+must still validate their current compiler/SDK/configuration identity.
+
+`always() && !cancelled()` permits evidence from surviving axes if another
+publisher fails. Both publisher and consumer remain required by the final gate;
+a successful restoration cannot override a publication failure. Normal PR and
+queue runs skip the default-off probe. No new workflow files, native builds,
+C test binaries or production cache writers are added.
+
+Local RED: the workflow regression rejects consumption inside the writable
+publisher and the absence of a separately scoped consumer (two failures).
+GREEN: the focused workflow, release-adapter and archive suites pass, 37 checks.
+Hosted validation remains outstanding. This only addresses the authentication
+boundary: seed lifetime and publisher image drift still require resolution
+before another complete qualification. It does not authorize an unchanged
+full-workflow retry or production adoption.
+
+GitHub documents [job-level token permissions](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idpermissions)
+and the [separate authenticated API rate limit](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api).
+Authentication avoids the observed shared unauthenticated allowance; it does
+not promise immunity to authenticated primary or secondary rate limits.
