@@ -60,6 +60,39 @@ set_target_properties(obs-nvenc PROPERTIES PREFIX "")
         workflow = (ROOT / ".github/workflows/build-project.yaml").read_text()
         self.assertLess(workflow.index("run: build-aux/prepare-flatpak-rust.sh"), workflow.index("- name: Build Flatpak Manifest"))
 
+    def test_flatpak_custom_key_matches_pinned_action_architecture_fallback(self):
+        workflow = (ROOT / ".github/workflows/build-project.yaml").read_text()
+        job = workflow.split("  flatpak-build:\n", 1)[1].split("\n  windows-build:", 1)[0]
+        template = re.search(r"cache_key='([^']*(?:'build-aux/com.obsproject.Studio.json')[^']*)'", job)[1]
+        expression = "${{ hashFiles('build-aux/com.obsproject.Studio.json') }}"
+        self.assertIn(expression, template, "preserve the original manifest identity")
+        # v6.8 appends the architecture to custom keys and falls back to this
+        # architecture-first prefix. Different manifests must find the same seed.
+        seed = template.replace(expression, "a" * 64) + "-x86_64"
+        changed = template.replace(expression, "b" * 64) + "-x86_64"
+        self.assertNotEqual(seed, changed)
+        self.assertTrue(seed.startswith("flatpak-builder-x86_64"), seed)
+        self.assertTrue(changed.startswith("flatpak-builder-x86_64"), changed)
+        self.assertFalse(seed.startswith("flatpak-builder-aarch64"))
+
+    def test_flatpak_namespace_migration_preserves_legacy_seed_conditionally(self):
+        workflow = (ROOT / ".github/workflows/build-project.yaml").read_text()
+        job = workflow.split("  flatpak-build:\n", 1)[1].split("\n  windows-build:", 1)[0]
+        self.assertIn("id: flatpak-builder-cache-lookup", job)
+        lookup = job.split("id: flatpak-builder-cache-lookup", 1)[1].split("\n      - ", 1)[0]
+        self.assertIn("lookup-only: true", lookup)
+        self.assertIn("key: flatpak-builder-x86_64-${{ hashFiles('build-aux/com.obsproject.Studio.json') }}-x86_64", lookup)
+        self.assertIn("restore-keys: flatpak-builder-x86_64", lookup)
+        marker = "- name: Restore legacy Flatpak builder seed"
+        self.assertIn(marker, job)
+        legacy = job.split(marker, 1)[1].split("\n      - ", 1)[0]
+        self.assertIn("steps.flatpak-builder-cache-lookup.outputs.cache-matched-key == ''", legacy)
+        self.assertIn("path: .flatpak-builder", legacy)
+        self.assertIn("key: flatpak-builder-7bb71f0a48a885ca4bfe218d34814d0c108cb0ee80df664119c10c6a24945d77-x86_64", legacy)
+        self.assertNotIn("restore-keys:", legacy, "legacy bridge must not select another architecture")
+        self.assertLess(job.index(marker), job.index("id: flatpak-compiler-cache"))
+        self.assertLess(job.index("id: flatpak-compiler-cache"), job.index("- name: Build Flatpak Manifest"))
+
     def flatpak_cache_inventory_script(self):
         workflow = (ROOT / ".github/workflows/build-project.yaml").read_text()
         job = workflow.split("  flatpak-build:\n", 1)[1].split("\n  windows-build:", 1)[0]
