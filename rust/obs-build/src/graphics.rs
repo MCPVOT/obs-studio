@@ -2,6 +2,15 @@
 use crate::{NativeBuild, SharedLibrary, libobs::Options};
 use std::path::{Path, PathBuf};
 
+pub fn build_metal(
+    build: &NativeBuild,
+    root: &Path,
+    core: &Path,
+    options: &Options,
+) -> Result<PathBuf, String> {
+    crate::platform::build_metal(build, root, core, options)
+}
+
 pub fn build_d3d11(
     build: &NativeBuild,
     root: &Path,
@@ -77,6 +86,11 @@ pub(crate) fn append_sources(
     name: &str,
     library: &mut SharedLibrary,
 ) -> Result<(), String> {
+    library.sources.extend(source_set(root, name)?);
+    Ok(())
+}
+
+pub(crate) fn source_set(root: &Path, name: &str) -> Result<Vec<PathBuf>, String> {
     let manifest = root.join("cmake/graphics-source-sets.json");
     println!("cargo:rerun-if-changed={}", manifest.display());
     let sets: std::collections::BTreeMap<String, Vec<String>> =
@@ -85,10 +99,7 @@ pub(crate) fn append_sources(
     let sources = sets
         .get(name)
         .ok_or_else(|| format!("missing graphics source set {name}"))?;
-    library
-        .sources
-        .extend(sources.iter().map(|source| root.join(source)));
-    Ok(())
+    Ok(sources.iter().map(|source| root.join(source)).collect())
 }
 
 fn configure_groups(

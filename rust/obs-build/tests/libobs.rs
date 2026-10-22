@@ -3,6 +3,8 @@ use obs_build::{NativeBuild, frontend, graphics, libobs, plugins, scripting};
 use std::{ffi::c_void, path::PathBuf};
 #[path = "libobs/application.rs"]
 mod application;
+#[path = "libobs/macos_graphics.rs"]
+mod macos_graphics;
 #[path = "libobs/native_tests.rs"]
 mod native_tests;
 #[path = "libobs/qt.rs"]
@@ -1385,9 +1387,86 @@ fn macos_core_builds_from_the_canonical_manifest() {
         std::fs::read(framework.join("Versions/A/libobs")).unwrap()
     );
     assert_eq!(bytes, std::fs::read(framework.join("libobs")).unwrap());
+    if let Ok(mode) = std::env::var("OBS_BUILD_MACOS_GRAPHICS") {
+        assert!(
+            matches!(mode.as_str(), "1" | "opengl"),
+            "select 1 (all renderers) or opengl (explicit cross-build subset)"
+        );
+        let mut renderers = vec![(
+            "OPENGL",
+            graphics::build_opengl(&build, &root, &library, &options).unwrap(),
+        )];
+        if mode == "1" {
+            renderers.push((
+                "METAL",
+                graphics::build_metal(&build, &root, &library, &options).unwrap(),
+            ));
+        }
+        let mut symbols_by_renderer = std::collections::BTreeMap::new();
+        for (name, renderer) in &renderers {
+            let symbols = macos_graphics_exports(renderer);
+            for required in [
+                "_device_get_name",
+                "_device_get_type",
+                "_device_create",
+                "_device_destroy",
+            ] {
+                assert!(symbols.contains(required), "{name} lacks {required}");
+            }
+            if let Some(reference) = std::env::var_os(format!("OBS_BUILD_MACOS_{name}_REFERENCE")) {
+                assert_eq!(
+                    symbols,
+                    macos_graphics_exports(std::path::Path::new(&reference)),
+                    "{name} exports differ from CMake"
+                );
+            }
+            symbols_by_renderer.insert(name.to_string(), symbols);
+        }
+        let probe = macos_graphics::build_probe(&build, &root, &options, &library);
+        let mut paths = String::new();
+        for (name, renderer) in &renderers {
+            for path in [renderer, &probe] {
+                assert!(
+                    !path.to_str().unwrap().contains(['\t', '\n', '\r']),
+                    "native probe manifest needs single-line paths"
+                );
+            }
+            paths.push_str(&format!(
+                "{name}\t{}\t{}\n",
+                renderer.display(),
+                probe.display()
+            ));
+        }
+        std::fs::write(build.output.join("macos-graphics-paths.txt"), paths).unwrap();
+        std::fs::write(
+            build.output.join("macos-graphics-symbols.json"),
+            serde_json::to_vec_pretty(&symbols_by_renderer).unwrap(),
+        )
+        .unwrap();
+    }
     std::fs::write(
         build.output.join("macos-core-path.txt"),
         library.to_str().unwrap(),
     )
     .unwrap();
+}
+
+fn macos_graphics_exports(path: &std::path::Path) -> std::collections::BTreeSet<String> {
+    let result = std::process::Command::new(
+        std::env::var_os("OBS_BUILD_MACOS_NM").unwrap_or_else(|| "nm".into()),
+    )
+    .args(["-gUj"])
+    .arg(path)
+    .output()
+    .unwrap();
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    String::from_utf8(result.stdout)
+        .unwrap()
+        .lines()
+        .map(str::to_owned)
+        .collect()
 }

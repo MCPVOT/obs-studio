@@ -6,11 +6,13 @@ use std::{
     process::Command,
 };
 
+mod graphics_macos;
 mod graphics_windows;
 mod libobs_linux;
 mod libobs_macos;
 mod libobs_windows;
 pub(crate) mod resources;
+mod swift_macos;
 
 pub fn stage_core_identity(target: &str, artifact: &Path) -> Result<(), String> {
     if target.contains("apple-darwin") {
@@ -270,6 +272,9 @@ pub fn configure_opengl(
     if target.contains("windows-msvc") {
         return graphics_windows::opengl(build, root, options, library);
     }
+    if target.contains("apple-darwin") {
+        return graphics_macos::opengl(root, options, library);
+    }
     if !target.contains("linux") {
         return Err(format!(
             "native OpenGL graph for {target} is not implemented yet"
@@ -302,9 +307,42 @@ pub fn configure_glad(
         crate::graphics::append_sources(root, "GLAD_EGL", library)
     } else if target.contains("windows-msvc") {
         graphics_windows::glad(build, root, library)
+    } else if target.contains("apple-darwin") {
+        graphics_macos::glad(library);
+        Ok(())
     } else {
         Err(format!(
             "native GL loader graph for {target} is not implemented yet"
+        ))
+    }
+}
+
+pub fn build_metal(
+    build: &crate::NativeBuild,
+    root: &Path,
+    core: &Path,
+    options: &crate::libobs::Options,
+) -> Result<PathBuf, String> {
+    if build.target.contains("apple-darwin") {
+        graphics_macos::metal(build, root, core, options)
+    } else {
+        Err(format!(
+            "native Metal graph for {} is not implemented yet",
+            build.target
+        ))
+    }
+}
+
+pub fn build_swift_library(
+    build: &crate::NativeBuild,
+    library: &crate::SwiftLibrary,
+) -> Result<PathBuf, String> {
+    if build.target.contains("apple-darwin") {
+        swift_macos::build(build, library)
+    } else {
+        Err(format!(
+            "native Swift graph for {} is not implemented yet",
+            build.target
         ))
     }
 }

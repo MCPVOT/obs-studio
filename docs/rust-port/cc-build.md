@@ -53,6 +53,46 @@ runs the unchanged CTest suite against each. It checks the bundled crate's build
 path separately. These are core checks: they do not establish the macOS frontend,
 graphics backends, plugins, complete application, or release package conversion.
 
+## macOS graphics graphs
+
+The macOS OpenGL graph uses the canonical graphics manifest, the original C and
+Cocoa groups, GLAD and the Cocoa/IOSurface/OpenGL frameworks. The Cocoa group
+keeps manual reference counting. Unity and compiled PCH follow the core options
+independently. ARM64 cross builds produce 153 exported symbols; actual CMake
+export agreement and native loading require the macOS validation lane.
+
+`graphics::build_metal` consumes all 34 original Swift files and the original
+bridging header from the same manifest as CMake. `NativeBuild::swift_shared_library`
+accepts typed `SwiftLibrary` inputs, invokes the Swift compiler and emits the
+dylib, Swift module and Objective-C compatibility header under the build output.
+C-family compilation continues through `cc::Build`. Metal uses Swift 6, optimized
+whole-module compilation, debug information and the existing macOS 13 minimum.
+Release/configuration overrides and distribution signing remain separate work.
+
+Native Apple builds discover `swiftc` and the macOS SDK through `xcrun`. Override
+them with executable-path `SWIFTC` and SDK-directory `SDKROOT`; target-qualified
+forms (hyphens or underscores in the triple) take precedence. Cross builds must
+supply both paths and an Apple-compatible Swift toolchain. The Clang importer
+receives the declared include paths and C definitions. Swift sources, the bridge,
+declared native inputs/dependencies and tool-selection environment are tracked;
+module caches live beside the generated library. Cache placement alone does not
+establish compiler-cache hits or a controlled performance result.
+
+The existing native-build category contains a Swift/C contract requiring results
+42, 52, 54, 56 and 58 after header, importer flag, Swift source and C dependency
+changes. Each result is checked in a fresh process, preserving dyld's Objective-C
+image lifetime behavior. This contract executes on native macOS, not Linux.
+
+`OBS_BUILD_MACOS_GRAPHICS=1` extends the existing core integration contract to
+both renderers; `opengl` selects an explicit cross-build subset and does not
+establish Metal coverage. `OBS_BUILD_MACOS_OPENGL_REFERENCE` and
+`OBS_BUILD_MACOS_METAL_REFERENCE` require exact exports from actual CMake modules.
+The macOS Tier 2 script builds those originals and both Cargo renderers, then
+checks core/module file identity and public device name/type in fresh processes
+against each Cargo core. Wrong-core and wrong-backend controls must fail. The
+unchanged CTest suites remain. These loading checks do not create a graphics
+device, verify rendered pixels, record media or prove the full application.
+
 ## Windows core graph
 
 The Windows MSVC graph uses the shared libobs source manifest and existing

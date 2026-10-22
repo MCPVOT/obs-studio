@@ -67,6 +67,25 @@ pub struct NativeBuild {
     pub output: PathBuf,
 }
 
+/// Swift module inputs; C-family sources continue to compile through cc::Build.
+#[derive(Clone, Debug)]
+pub struct SwiftLibrary {
+    pub name: String,
+    pub module_name: String,
+    pub file_name: String,
+    pub sources: Vec<PathBuf>,
+    pub bridging_header: PathBuf,
+    /// Included native headers/generated inputs to track for Cargo rebuilds.
+    pub input_files: Vec<PathBuf>,
+    pub include_dirs: Vec<PathBuf>,
+    /// Definitions passed to the Clang importer for the bridging header.
+    pub definitions: Vec<(String, Option<String>)>,
+    pub dependencies: Vec<PathBuf>,
+    pub deployment_target: String,
+    pub compile_options: Vec<String>,
+    pub link_options: Vec<String>,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum Language {
     C,
@@ -107,6 +126,11 @@ struct CompilationBatch {
 }
 
 impl NativeBuild {
+    /// Compile and link a complete Swift module with an explicit native bridge.
+    pub fn swift_shared_library(&self, library: &SwiftLibrary) -> Result<PathBuf, String> {
+        platform::build_swift_library(self, library)
+    }
+
     /// Expand explicit BUILD.md groups into individual translation units.
     pub fn separate_group_sources(
         &self,

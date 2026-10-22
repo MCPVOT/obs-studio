@@ -30,6 +30,84 @@ unsafe fn answer(library: &Path, symbol: &[u8], dependencies: &[&Path]) -> i32 {
 }
 
 #[test]
+fn swift_bridge_preserves_native_linkage_header_flags_and_source_rebuilds() {
+    if native_answer_probe() {
+        return;
+    }
+    if !obs_build::BUILD_TARGET.contains("apple-darwin") {
+        return;
+    }
+    let selector = format!(
+        "{}::swift_bridge_preserves_native_linkage_header_flags_and_source_rebuilds",
+        module_path!().split_once("::").unwrap().1
+    );
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    let build = NativeBuild {
+        host: obs_build::BUILD_HOST.into(),
+        target: obs_build::BUILD_TARGET.into(),
+        output: root.join("artifacts"),
+    };
+    let base = root.join("base.c");
+    fs::write(&base, "int base_value(void) { return 1; }\n").unwrap();
+    let native = build
+        .shared_library(&target("fixture-swift-base", &base, vec![]))
+        .unwrap();
+    let header = root.join("value.h");
+    fs::write(&header, "#define HEADER_VALUE 38\n").unwrap();
+    let bridge = root.join("bridge.h");
+    fs::write(&bridge, "#include \"value.h\"\nstatic const int bridge_value = HEADER_VALUE;\nstatic const int build_flag = BUILD_FLAG;\nint base_value(void);\n").unwrap();
+    let source = root.join("fixture.swift");
+    let text = "@_cdecl(\"obs_fixture_swift\")\npublic func obs_fixture_swift() -> Int32 { return base_value() + bridge_value + build_flag }\n";
+    fs::write(&source, text).unwrap();
+    let mut library = obs_build::SwiftLibrary {
+        name: "fixture-swift".into(),
+        module_name: "NativeSwiftFixture".into(),
+        file_name: "libfixture-swift.dylib".into(),
+        sources: vec![source.clone()],
+        bridging_header: bridge,
+        input_files: vec![header.clone()],
+        include_dirs: vec![root.into()],
+        definitions: vec![("BUILD_FLAG".into(), Some("3".into()))],
+        dependencies: vec![native],
+        deployment_target: "13.0".into(),
+        compile_options: vec!["-swift-version".into(), "6".into()],
+        link_options: vec![],
+    };
+    let artifact = build.swift_shared_library(&library).unwrap();
+    assert!(
+        artifact
+            .parent()
+            .unwrap()
+            .join("NativeSwiftFixture.swiftmodule")
+            .is_file()
+    );
+    assert!(
+        artifact
+            .parent()
+            .unwrap()
+            .join("NativeSwiftFixture-Swift.h")
+            .is_file()
+    );
+    assert_native_answer_fresh(&artifact, "obs_fixture_swift", 42, &selector);
+    fs::write(&header, "#define HEADER_VALUE 48\n").unwrap();
+    let artifact = build.swift_shared_library(&library).unwrap();
+    assert_native_answer_fresh(&artifact, "obs_fixture_swift", 52, &selector);
+    library.definitions[0].1 = Some("5".into());
+    let artifact = build.swift_shared_library(&library).unwrap();
+    assert_native_answer_fresh(&artifact, "obs_fixture_swift", 54, &selector);
+    fs::write(&source, text.replace("+ build_flag", "+ build_flag + 2")).unwrap();
+    let artifact = build.swift_shared_library(&library).unwrap();
+    assert_native_answer_fresh(&artifact, "obs_fixture_swift", 56, &selector);
+    fs::write(&base, "int base_value(void) { return 3; }\n").unwrap();
+    build
+        .shared_library(&target("fixture-swift-base", &base, vec![]))
+        .unwrap();
+    // The unchanged Swift dylib must observe the rebuilt shared dependency.
+    assert_native_answer_fresh(&artifact, "obs_fixture_swift", 58, &selector);
+}
+
+#[test]
 fn native_plugin_links_shared_core_and_observes_rebuilt_dependency() {
     let dir = tempfile::tempdir().unwrap();
     let core_source = dir.path().join("core.c");
