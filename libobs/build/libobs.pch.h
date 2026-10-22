@@ -78,6 +78,10 @@
 
 #include "obs-scene-coords.h"
 
+/* obs-scene-group-transform.c */
+
+#include "obs-scene-group-transform.h"
+
 /* obs-scene.c */
 #include "graphics/math-defs.h"
 #include "obs-scene-blend.h"

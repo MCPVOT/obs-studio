@@ -3194,22 +3194,15 @@ obs_data_t *obs_sceneitem_get_private_settings(obs_sceneitem_t *item)
 	return item->private_settings;
 }
 
-static inline void transform_val(struct vec2 *v2, struct matrix4 *transform)
-{
-	struct vec3 v;
-	vec3_set(&v, v2->x, v2->y, 0.0f);
-	vec3_transform(&v, &v, transform);
-	v2->x = v.x;
-	v2->y = v.y;
-}
+/* The matrix math is obs-scene-group-transform.c.h. The scene still reads
+ * the item, still converts absolute and relative coordinates, and still
+ * decides whether to invert the group's draw transform. */
 
 static void get_ungrouped_transform(obs_sceneitem_t *group, obs_sceneitem_t *item, struct vec2 *pos, struct vec2 *scale,
 				    float *rot)
 {
-	struct matrix4 transform;
-	struct matrix4 mat;
-	struct vec4 x_base;
-	struct vec2 scale_abs, pos_abs;
+	struct vec2 scale_abs;
+	struct vec2 pos_abs;
 
 	if (item->absolute_coordinates) {
 		vec2_copy(&scale_abs, scale);
@@ -3219,21 +3212,7 @@ static void get_ungrouped_transform(obs_sceneitem_t *group, obs_sceneitem_t *ite
 		pos_to_absolute(&pos_abs, pos, item);
 	}
 
-	vec4_set(&x_base, 1.0f, 0.0f, 0.0f, 0.0f);
-
-	matrix4_copy(&transform, &group->draw_transform);
-
-	transform_val(&pos_abs, &transform);
-	vec4_set(&transform.t, 0.0f, 0.0f, 0.0f, 1.0f);
-
-	vec4_set(&mat.x, scale_abs.x, 0.0f, 0.0f, 0.0f);
-	vec4_set(&mat.y, 0.0f, scale_abs.y, 0.0f, 0.0f);
-	vec4_set(&mat.z, 0.0f, 0.0f, 1.0f, 0.0f);
-	vec4_set(&mat.t, 0.0f, 0.0f, 0.0f, 1.0f);
-	matrix4_mul(&mat, &mat, &transform);
-
-	scale_abs.x = vec4_len(&mat.x) * (scale_abs.x > 0.0f ? 1.0f : -1.0f);
-	scale_abs.y = vec4_len(&mat.y) * (scale_abs.y > 0.0f ? 1.0f : -1.0f);
+	obs_scene_group_transform(&group->draw_transform, &pos_abs, &scale_abs, rot, group->rot);
 
 	if (item->absolute_coordinates) {
 		vec2_copy(scale, &scale_abs);
@@ -3242,8 +3221,6 @@ static void get_ungrouped_transform(obs_sceneitem_t *group, obs_sceneitem_t *ite
 		size_from_absolute(scale, &scale_abs, item);
 		pos_from_absolute(pos, &pos_abs, item);
 	}
-
-	*rot += group->rot;
 }
 
 /* A visible item's source is an active child of the scene that holds it.
@@ -3301,10 +3278,9 @@ static void remove_group_transform(obs_sceneitem_t *group, obs_sceneitem_t *item
 static void apply_group_transform(obs_sceneitem_t *item, obs_sceneitem_t *group)
 {
 	struct matrix4 transform;
-	struct matrix4 mat;
-	struct vec4 x_base;
-
-	struct vec2 scale_abs, pos_abs;
+	struct vec2 scale_abs;
+	struct vec2 pos_abs;
+	float rot;
 
 	if (item->absolute_coordinates) {
 		vec2_copy(&scale_abs, &item->scale);
@@ -3314,21 +3290,10 @@ static void apply_group_transform(obs_sceneitem_t *item, obs_sceneitem_t *group)
 		pos_to_absolute(&pos_abs, &item->pos, item);
 	}
 
-	vec4_set(&x_base, 1.0f, 0.0f, 0.0f, 0.0f);
-
 	matrix4_inv(&transform, &group->draw_transform);
 
-	transform_val(&pos_abs, &transform);
-	vec4_set(&transform.t, 0.0f, 0.0f, 0.0f, 1.0f);
-
-	vec4_set(&mat.x, scale_abs.x, 0.0f, 0.0f, 0.0f);
-	vec4_set(&mat.y, 0.0f, scale_abs.y, 0.0f, 0.0f);
-	vec4_set(&mat.z, 0.0f, 0.0f, 1.0f, 0.0f);
-	vec4_set(&mat.t, 0.0f, 0.0f, 0.0f, 1.0f);
-	matrix4_mul(&mat, &mat, &transform);
-
-	scale_abs.x = vec4_len(&mat.x) * (scale_abs.x > 0.0f ? 1.0f : -1.0f);
-	scale_abs.y = vec4_len(&mat.y) * (scale_abs.y > 0.0f ? 1.0f : -1.0f);
+	rot = item->rot;
+	obs_scene_group_transform(&transform, &pos_abs, &scale_abs, &rot, -group->rot);
 
 	if (item->absolute_coordinates) {
 		vec2_copy(&item->scale, &scale_abs);
@@ -3337,8 +3302,7 @@ static void apply_group_transform(obs_sceneitem_t *item, obs_sceneitem_t *group)
 		size_from_absolute(&item->scale, &scale_abs, item);
 		pos_from_absolute(&item->pos, &pos_abs, item);
 	}
-
-	item->rot -= group->rot;
+	item->rot = rot;
 
 	update_item_transform(item, false);
 }
@@ -3436,12 +3400,12 @@ static void resize_group(obs_sceneitem_t *group, bool scene_resize)
 		struct vec2 delta;
 
 		vec2_copy(&target, &minv);
-		transform_val(&target, &group->draw_transform);
+		obs_scene_transform_val(&target, &group->draw_transform);
 
 		update_item_transform(group, false);
 
 		vec2_zero(&now);
-		transform_val(&now, &group->draw_transform);
+		obs_scene_transform_val(&now, &group->draw_transform);
 
 		vec2_sub(&delta, &target, &now);
 		if (!group->absolute_coordinates)
