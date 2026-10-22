@@ -441,3 +441,44 @@ Portable evidence: `docs/ci-evidence/2026-10-22-flatpak-compiler-reasons.json`.
 The first report's missing attribution is retained as a limitation and was
 fixed with RED92c06356d/GREEN9cbb3247e. Fallback log spans exclude actual
 compiler execution; they are not the duration of the rejected compile.
+
+
+### C++20 browser cache rejection
+
+Corrected hosted diagnostic39820372855 attributes all16 uncacheable compiler
+calls to obs-browser sources rejected for `-fmodules-ts`. CMake automatically
+scans C++20 targets under CMP0155; the repository declares no named-module file
+sets. The Flatpak OBS config disables automatic module scanning while keeping
+C++20, PCH and normal header dependency tracking. This is a recipe-only setting.
+
+The real Freedesktop26.08 SDK fixture reproduces the rejection before the change:
+cold output42, then warm output42 with1 direct hit and1 unsupported option,
+failing the required2-hit assertion. With scanning disabled, all10 trials pass:
+source/header/compiler changes with preserved size and mtime, configuration
+change, and the subsequent2-hit warm build after each. No unsupported options
+remain. See [portable SDK evidence](ci-evidence/2026-10-22-flatpak-cpp20-cache.json).
+These isolated fixture timings are not whole-job savings. Full application cache
+consumer and installed saved-profile qualification remain required before adoption.
+
+
+### Full C++20 cache and installed-package qualification
+
+Run39824614077 at frozen d511b0a84 passed the full producer, fresh compiler/
+dependency consumer and installed saved-profile runtime jobs. Consumer119988550402
+verified10OSTree commits/19,088objects, all6dependency hits, a genuine OBS rebuild,
+343direct compiler hits/3misses and0unsupported options. All3validators passed.
+The producer's first browser rebuild had327hits/19misses; the subsequent consumer
+therefore demonstrates the16newly cacheable browser calls rather than only a
+fixture assertion. These experimental transport jobs are not routine timing samples.
+
+Runtime119993180570 passed the actual consumer App/Debug refs, saved screen,
+camera, microphone and browser recording (303verifiedbrowserframes), CEF debugger
+checks and unchanged C++WebSocket v5. Synthetic/software coverage limits remain.
+The rebased recipe/fixture/tests are byte-identical to the qualified source;
+only adjacent documentation needed conflict resolution with merged diagnostics.
+See [full qualification](ci-evidence/2026-10-22-flatpak-cpp20-qualified.json).
+
+The enclosing workflow also had the known Windows callback declaration parity
+failure tracked in #1549/#1541 (664pass/1fail). Its seed/log and cost are retained;
+no unchanged rerun or test exclusion was used. Normal PR CI passed separately.
+The parent50%/450s median target still needs a new production cohort after merge.
