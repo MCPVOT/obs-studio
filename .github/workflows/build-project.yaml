@@ -12,6 +12,10 @@ on:
         type: boolean
         required: false
         default: false
+      flatpak-cache-probe:
+        description: Measure isolated Flatpak downloads and proxy compression after Flatpak output validation
+        type: boolean
+        default: false
       native-cache-probe:
         description: Opt-in manual Windows compiler-cache budget measurement; does not replace full validation
         type: boolean
@@ -735,6 +739,23 @@ jobs:
         with:
           artifact: repo
           path: repo
+
+      - name: Measure Flatpak Cache Capacity
+        if: inputs.flatpak-cache-probe
+        timeout-minutes: 15
+        run: |
+          uv run ci/flatpak_cache_probe.py \
+            --manifest build-aux/flatpak-github-action-modified-com.obsproject.Studio.json \
+            --temp-root "${RUNNER_TEMP}" --output "${RUNNER_TEMP}/flatpak-cache-probe.json"
+
+      - name: Upload Flatpak Cache Measurement
+        if: ${{ !cancelled() && inputs.flatpak-cache-probe }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: flatpak-cache-probe-${{ github.run_id }}
+          path: ${{ runner.temp }}/flatpak-cache-probe.json
+          if-no-files-found: error
+          retention-days: 7
 
   windows-build:
     name: Windows 🪟

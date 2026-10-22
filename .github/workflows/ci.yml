@@ -9,6 +9,10 @@ on:
         description: Measure cold prepared-environment transfer against locked stock setup (one producer and six fresh consumers)
         type: boolean
         default: false
+      flatpak-cache-probe:
+        description: Measure isolated Flatpak downloads and proxy compression after Flatpak output validation
+        type: boolean
+        default: false
       native-cache-probe:
         description: Measure isolated Windows cache budgets after the full build (extra clean rebuilds)
         type: boolean
@@ -68,6 +72,7 @@ jobs:
     if: ${{ !cancelled() }}
     uses: ./.github/workflows/build-project.yaml
     with:
+      flatpak-cache-probe: ${{ github.event_name == 'workflow_dispatch' && inputs.flatpak-cache-probe }}
       native-cache-probe: ${{ github.event_name == 'workflow_dispatch' && inputs.native-cache-probe }}
     secrets: inherit
     permissions:
