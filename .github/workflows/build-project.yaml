@@ -12,6 +12,11 @@ on:
         type: boolean
         required: false
         default: false
+      native-cache-probe:
+        description: Opt-in manual Windows compiler-cache budget measurement; does not replace full validation
+        type: boolean
+        required: false
+        default: false
 env:
   # Pinned soldr can replay stale Rust output (zackees/zccache#1943).
   # Keep cook/target reuse and standalone C/C++ compiler caching enabled.
@@ -778,6 +783,25 @@ jobs:
         with:
           target: ${{ matrix.architecture }}
           config: ${{ needs.check-event.outputs.config }}
+
+      - name: Set Up uv for Cache Probe 🐍
+        if: github.event_name == 'workflow_dispatch' && inputs.native-cache-probe
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          save-cache: ${{ github.ref == 'refs/heads/master' }}
+
+      - name: Measure Windows Cache Budgets
+        if: github.event_name == 'workflow_dispatch' && inputs.native-cache-probe
+        run: uv run ci/native_cache_probe.py --target '${{ matrix.architecture }}' --config '${{ needs.check-event.outputs.config }}' --output '${{ runner.temp }}/native-cache-probe-${{ matrix.architecture }}'
+
+      - name: Upload Windows Cache Probe
+        if: always() && github.event_name == 'workflow_dispatch' && inputs.native-cache-probe
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: native-cache-budget-${{ matrix.architecture }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/native-cache-probe-${{ matrix.architecture }}/report.json
+          retention-days: 2
+          if-no-files-found: error
 
       # Drop entries this build did not use so the saved cache stays the size
       # of one build.

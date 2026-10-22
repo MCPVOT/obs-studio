@@ -672,3 +672,32 @@ and Rust. Any new security integration must be reviewed for its event triggers,
 required-check settings and runner use before enabling it. Do not add a security
 scan to `CI Gate`, merge rules or queue cancellation dependencies. Nightly
 failures are investigated through nightly reports rather than blocking the queue.
+
+### Optional Windows cache budget experiment (#1269)
+
+Manual `ci.yml` dispatches accept `native-cache-probe` (default `false`).
+Enabling it preserves the full dispatch validation and adds four clean full
+Windows rebuilds per architecture after the normal app build. Use it only for
+a planned cache experiment; PRs, queue runs, schedules and releases do not run
+these additional rebuilds. No production cache limit changes automatically.
+
+`ci/native_cache_probe.py` copies the completed build's compiler cache into
+four isolated directories and compares `2G`, `350M`, `350M`, `2G` in that order.
+Each trial starts from the same seed, explicitly cleans its own cache to its
+limit, resets counters and invokes the existing Windows build preset with
+`--clean-first`. The original cache and its publication policy are unchanged.
+Four copies plus 1 GiB of free disk are required; insufficient disk or a failed
+rebuild fails the experiment and preserves a failure report. Only successful
+rebuilds are timing samples.
+
+Each `native-cache-budget-<architecture>-<run>` artifact contains `report.json`
+with source/image, commands, preparation and rebuild times, filesystem bytes,
+and literal ccache statistics/version plus machine-readable counters. The
+probe verifies the effective cache directory and rejects rebuilds with no
+cacheable C/C++ calls. The pinned ccache supports these inspection commands
+in its [manual](https://ccache.dev/manual/4.14.1.html). Artifacts expire after two days;
+preserve useful results in `docs/ci-evidence/` before expiry. Filesystem bytes
+are not compressed GitHub archive sizes. Two samples per size from one runner
+do not establish representative-day latency, repository retention, or a
+universal size recommendation. Compare compile time and actual hits/misses
+before deciding whether to change the production limit.

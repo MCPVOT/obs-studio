@@ -4,6 +4,11 @@ run-name: ${{ github.event.pull_request.title || github.ref_name }} pull request
 # master merge queue (merge_group) reruns it on the merge result (#692).
 on:
   workflow_dispatch:
+    inputs:
+      native-cache-probe:
+        description: Measure isolated Windows cache budgets after the full build (extra clean rebuilds)
+        type: boolean
+        default: false
   pull_request:
     branches: [master]
     types: [ opened, synchronize, reopened ]
@@ -58,6 +63,8 @@ jobs:
     name: Build 🧱
     if: ${{ !cancelled() }}
     uses: ./.github/workflows/build-project.yaml
+    with:
+      native-cache-probe: ${{ github.event_name == 'workflow_dispatch' && inputs.native-cache-probe }}
     secrets: inherit
     permissions:
       actions: read
