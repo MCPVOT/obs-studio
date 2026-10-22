@@ -265,3 +265,137 @@ set_target_properties(obs-nvenc PROPERTIES PREFIX "")
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             config = tomllib.loads((root / ".flatpak-rust/cargo/config.toml").read_text())
             self.assertEqual(config["source"]["vendored-sources"]["directory"], "/run/build/obs/.flatpak-rust/vendor")
+
+
+class FlatpakPrunedBuildTest(unittest.TestCase):
+    def load_probe(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('flatpak_pruned_build_probe', ROOT / 'ci/flatpak_pruned_build_probe.py')
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+
+    def fixture(self, root):
+        state = root / 'state'
+        for name in ('cache', 'downloads', 'ccache'):
+            (state / name).mkdir(parents=True)
+            (state / name / 'original').write_text(name)
+        manifest = root / 'manifest.json'
+        manifest.write_text(json.dumps({'id': 'com.obsproject.Studio', 'command': 'obs', 'modules': [
+            {'name': 'dependency'}, {'name': 'obs', 'post-install': ['existing-command']},
+        ]}))
+        # flatpak-builder --state-dir scopes refs to the absolute manifest path.
+        from urllib.parse import quote
+        branch = quote('x86_64-' + str(manifest.resolve())[1:], safe='').replace('%', '_')
+        refs = state / 'cache/refs/heads' / branch
+        refs.mkdir(parents=True)
+        (refs / 'build-dependency').write_text('a' * 64 + '\n')
+        return state, manifest
+
+    def test_pruned_rebuild_isolated_and_validates_outputs(self):
+        probe = self.load_probe()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            state, manifest = self.fixture(root)
+            original = manifest.read_bytes()
+            # Transient build trees are not dependency repository inputs.
+            (state / 'build').mkdir()
+            (state / 'build/transient-link').symlink_to(state / 'cache/original')
+            objects = state / 'cache/objects/ab'
+            objects.mkdir(parents=True)
+            object_link = objects / ('1' * 62 + '.file')
+            object_link.symlink_to('/app/lib/example.so')
+            calls = []
+
+            def execute(command, seconds):
+                calls.append(command)
+                if 'flatpak-builder' in command:
+                    self.assertIn('--mirror-screenshots-url=https://dl.flathub.org/media', command)
+                    self.assertIn('--compose-url-policy=full', command)
+                    copied = Path(command[command.index('--state-dir') + 1])
+                    self.assertNotEqual(copied, state)
+                    self.assertTrue((copied / 'cache/original').exists())
+                    self.assertEqual(sorted(path.name for path in copied.iterdir()), ['cache'])
+                    copied_link = copied / object_link.relative_to(state)
+                    self.assertTrue(copied_link.is_symlink())
+                    self.assertEqual(os.readlink(copied_link), '/app/lib/example.so')
+                    self.assertFalse((copied / 'downloads').exists())
+                    self.assertFalse((copied / 'ccache').exists())
+                    recipe = Path(command[-1])
+                    from urllib.parse import quote
+                    branch = quote('x86_64-' + str(recipe.resolve())[1:], safe='').replace('%', '_')
+                    selected = copied / 'cache/refs/heads' / branch / 'build-dependency'
+                    self.assertTrue(selected.is_file(), 'temporary manifest must select copied dependency refs')
+                    self.assertEqual(selected.read_text(), 'a' * 64 + '\n')
+                    self.assertEqual(recipe.parent, manifest.parent)
+                    prepared = json.loads(recipe.read_text())
+                    self.assertEqual(prepared['modules'][0], {'name': 'dependency'})
+                    self.assertEqual(prepared['modules'][-1]['post-install'][0], 'existing-command')
+                    build = Path(command[-2])
+                    for path in ('bin/obs', 'share/app-info/icons/flatpak/128x128/com.obsproject.Studio.png',
+                                 'share/app-info/xmls/com.obsproject.Studio.xml.gz'):
+                        target = build / 'files' / path
+                        target.parent.mkdir(parents=True, exist_ok=True)
+                        target.write_text('fixture')
+                    return 'Cache hit for dependency, skipping build\nOBS_PRUNED_REBUILD_EXECUTED\n'
+                return '{}'
+
+            result = probe.measure(state, manifest, root, execute=execute)
+            self.assertEqual(result['status'], 'success')
+            self.assertEqual(manifest.read_bytes(), original)
+            self.assertEqual((state / 'cache/original').read_text(), 'cache')
+            self.assertEqual(sorted(p.name for p in root.iterdir()), ['manifest.json', 'state'])
+            lint_kinds = [command[-2] for command in calls if command[0] == 'flatpak-builder-lint']
+            self.assertEqual(lint_kinds, ['appstream', 'builddir', 'repo'])
+            fsck_index = next(i for i, command in enumerate(calls) if command[0] == 'ostree' and 'fsck' in command)
+            builder_index = next(i for i, command in enumerate(calls) if 'flatpak-builder' in command)
+            self.assertLess(fsck_index, builder_index)
+            screenshots = next(command for command in calls if command[0] == 'ostree' and 'commit' in command)
+            self.assertIn('--canonical-permissions', screenshots)
+            self.assertIn('--branch=screenshots/x86_64', screenshots)
+            self.assertTrue(screenshots[-1].endswith('/build/files/share/app-info/media'))
+            self.assertLess(calls.index(screenshots), next(i for i, command in enumerate(calls) if command[0] == 'flatpak-builder-lint'))
+
+    def test_pruned_rebuild_failure_cleans_temporary_state_and_manifest(self):
+        probe = self.load_probe()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            state, manifest = self.fixture(root)
+            original = manifest.read_bytes()
+            def execute(command, seconds):
+                raise subprocess.CalledProcessError(1, command)
+            with self.assertRaises(subprocess.CalledProcessError):
+                probe.measure(state, manifest, root, execute=execute)
+            self.assertEqual(manifest.read_bytes(), original)
+            self.assertEqual(sorted(p.name for p in root.iterdir()), ['manifest.json', 'state'])
+
+    def test_pruned_rebuild_rejects_missing_rebuild_signal(self):
+        probe = self.load_probe()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            state, manifest = self.fixture(root)
+            with self.assertRaisesRegex(ValueError, 'rebuild'):
+                probe.measure(state, manifest, root, execute=lambda command, seconds: 'Cache hit for obs, skipping build')
+            self.assertEqual(sorted(p.name for p in root.iterdir()), ['manifest.json', 'state'])
+
+    def test_pruned_rebuild_manual_default_off_after_validation(self):
+        for file in ('ci.yml', 'build-project.yaml'):
+            workflow = (ROOT / '.github/workflows' / file).read_text()
+            self.assertRegex(workflow, r'flatpak-pruned-build-probe:\n(?:[^\n]*\n){0,4}\s+default: false')
+        workflow = (ROOT / '.github/workflows/build-project.yaml').read_text()
+        self.assertLess(workflow.index('- name: Validate repository'), workflow.index('- name: Probe Pruned Flatpak Rebuild'))
+        self.assertIn('if: inputs.flatpak-pruned-build-probe', workflow)
+        self.assertIn('uv run ci/flatpak_pruned_build_probe.py', workflow)
+
+    def test_pruned_rebuild_still_rejects_links_in_dependency_repository(self):
+        probe = self.load_probe()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            state, manifest = self.fixture(root)
+            (state / 'cache/escaped-link').symlink_to(state / 'cache/original')
+            def forbidden(command, seconds):
+                self.fail('commands must not run for linked dependency state')
+            with self.assertRaisesRegex(ValueError, 'cache/escaped-link'):
+                probe.measure(state, manifest, root, execute=forbidden)
+            self.assertEqual((state / 'cache/original').read_text(), 'cache')
+            self.assertEqual(sorted(p.name for p in root.iterdir()), ['manifest.json', 'state'])

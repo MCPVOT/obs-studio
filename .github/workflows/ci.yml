@@ -5,6 +5,10 @@ run-name: ${{ github.event.pull_request.title || github.ref_name }} pull request
 on:
   workflow_dispatch:
     inputs:
+      flatpak-pruned-build-probe:
+        description: Validate isolated application rebuild without cached downloads or compiler state
+        type: boolean
+        default: false
       tier2-setup-probe:
         description: Measure cold prepared-environment transfer against locked stock setup (one producer and six fresh consumers)
         type: boolean
@@ -73,6 +77,7 @@ jobs:
     uses: ./.github/workflows/build-project.yaml
     with:
       flatpak-cache-probe: ${{ github.event_name == 'workflow_dispatch' && inputs.flatpak-cache-probe }}
+      flatpak-pruned-build-probe: ${{ github.event_name == 'workflow_dispatch' && inputs.flatpak-pruned-build-probe }}
       native-cache-probe: ${{ github.event_name == 'workflow_dispatch' && inputs.native-cache-probe }}
     secrets: inherit
     permissions:

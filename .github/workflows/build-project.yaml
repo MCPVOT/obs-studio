@@ -2,6 +2,10 @@ name: Build Project
 on:
   workflow_call:
     inputs:
+      flatpak-pruned-build-probe:
+        description: Validate isolated application rebuild without cached downloads or compiler state
+        type: boolean
+        default: false
       full:
         # obs-rust/obs-studio#436: the release gate. PRs and master pushes (the
         # dev cycle) skip Flatpak, the macOS/Windows OBS builds, Ubuntu with
@@ -754,6 +758,23 @@ jobs:
         with:
           name: flatpak-cache-probe-${{ github.run_id }}
           path: ${{ runner.temp }}/flatpak-cache-probe.json
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Probe Pruned Flatpak Rebuild
+        if: inputs.flatpak-pruned-build-probe
+        timeout-minutes: 40
+        run: |
+          uv run ci/flatpak_pruned_build_probe.py \
+            --manifest build-aux/flatpak-github-action-modified-com.obsproject.Studio.json \
+            --temp-root "${RUNNER_TEMP}" --output "${RUNNER_TEMP}/flatpak-pruned-build.json"
+
+      - name: Upload Pruned Flatpak Evidence
+        if: ${{ !cancelled() && inputs.flatpak-pruned-build-probe }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: flatpak-pruned-build-${{ github.run_id }}
+          path: ${{ runner.temp }}/flatpak-pruned-build.json
           if-no-files-found: error
           retention-days: 7
 
