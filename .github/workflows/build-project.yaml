@@ -1652,7 +1652,9 @@ jobs:
           restore-keys: qt-ccache-linux-
 
       - name: Set Qt Cache Limit 🗄️
+        id: qt-cache-epoch
         run: |
+          echo "epoch=$(date +%s)" >> "$GITHUB_OUTPUT"
           ccache --max-size="$CCACHE_MAXSIZE"
           ccache --zero-stats
           ccache --version | head -1
@@ -1663,8 +1665,19 @@ jobs:
 
       - name: Report Qt Cache 🗄️
         if: always()
+        env:
+          QT_CACHE_EPOCH: ${{ steps.qt-cache-epoch.outputs.epoch }}
         run: |
-          if [ "$GITHUB_REF" = refs/heads/master ]; then ccache --cleanup; fi
+          echo "qt-cache phase=before bytes=$(du -sb "$CCACHE_DIR" | cut -f1)"
+          if [ -n "$QT_CACHE_EPOCH" ]; then
+            # Keep entries accessed by this build, with a one-minute margin.
+            # This only trims the runner's local copy; remote writes stay master-only.
+            age=$(( $(date +%s) - QT_CACHE_EPOCH + 60 ))
+            if [ "$age" -lt 60 ]; then age=60; fi
+            ccache --evict-older-than "${age}s"
+          fi
+          ccache --cleanup
+          echo "qt-cache phase=after bytes=$(du -sb "$CCACHE_DIR" | cut -f1)"
           ccache --show-stats --verbose
           du -sh "$CCACHE_DIR"
 

@@ -159,6 +159,16 @@ commit-version objects can still miss after docs-only commits; avoiding another
 test archives safe or solve repository-wide retention by itself. Runtime
 publication/reuse measurements remain required after deployment.
 
+After the Qt build/tests, the runner's compiler cache evicts entries unused
+since preparation began, with a one-minute margin, then applies its existing
+1200M size limit. Hits refresh ccache entry timestamps, so current-build hits
+and misses remain eligible for the next snapshot while stale objects can be
+removed. Missing preparation timestamps skip age eviction. Before/after byte
+counts are logged on PRs as well as master; remote uploads remain master-only.
+These filesystem counts are not compressed archive sizes or proof of the next
+consumer's hit rate. Required builds/tests always run and failed jobs do not
+publish a cache.
+
 #### Cross-compile check: Windows and macOS C from any host
 
 `cmake/cross/` compiles libobs for another OS on this machine, with no Windows or macOS runner.

@@ -201,6 +201,8 @@ QT_PREFIXES = ("frontend/", "shared/qt/", "shared/properties-view/", "plugins/fr
 QT_FILES = {
     "ci/fetch_libs_asset.py",
     "ci/test_qt_fastpath.py",
+    "ci/test_qt_cache_budget.py",
+    "ci/test_qt_cache_identity.py",
     "test/cmocka/CMakeLists.txt",
     "cmake/finders/FindFFmpeg.cmake",
 }

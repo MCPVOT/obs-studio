@@ -152,6 +152,11 @@ class QtScopeTest(unittest.TestCase):
         self.assertFalse(self.qt(".github/workflows/build-project.yaml"))  # only the Qt job's own files
         self.assertTrue(self.qt("ci/linux_qt_frontend.sh"))
 
+    def test_qt_cache_contract_changes_run_the_job(self):
+        for path in ("ci/test_qt_cache_budget.py", "ci/test_qt_cache_identity.py"):
+            with self.subTest(path=path):
+                self.assertTrue(self.qt(path))
+
     def test_other_changes_skip_the_job(self):
         self.assertFalse(self.qt("docs/rust-port/naming.md"))
         self.assertFalse(self.qt("libobs/obs-source.c.h", "rust/obs-util/src/dstr.rs"))
