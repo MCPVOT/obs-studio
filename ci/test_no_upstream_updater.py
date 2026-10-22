@@ -34,6 +34,16 @@ UPDATER_SOURCES = (
     "frontend/utility/OBSSparkle.mm.hpp",
     "frontend/utility/MacUpdateThread.cpp.hpp",
 )
+# Every file that names an update feed or download URL (#1759).
+FEED_SOURCES = UPDATER_SOURCES + (
+    "frontend/utility/obs-rust-update.hpp",
+    "ci/update_feed.py",
+)
+OBS_RUST = "https://github.com/obs-rust/obs-studio/"
+NIGHTLY_PREFIX = "https://github.com/obs-rust/obs-studio/releases/download/continuous/"
+# XML namespace names, not fetched.
+NOT_FEEDS = {"http://www.andymatuschak.org/xml-namespaces/sparkle"}
+URL_RE = re.compile(r"https?://[^\s\"'<>)\\]+")
 
 
 def cache_value(preset: dict, name: str) -> str:
@@ -67,6 +77,36 @@ class NoUpstreamUpdaterTests(unittest.TestCase):
             with self.subTest(file=rel):
                 self.assertNotIn("obsproject.com", text(rel))
                 self.assertIn(FEED_PREFIX, text(rel))
+
+    def test_no_feed_url_points_outside_obs_rust(self) -> None:
+        # Stable and nightly feeds alike: only obs-rust/obs-studio releases.
+        for rel in FEED_SOURCES:
+            urls = [u for u in URL_RE.findall(text(rel)) if u not in NOT_FEEDS]
+            with self.subTest(file=rel):
+                self.assertTrue(urls, f"{rel} names no feed URL")
+            for url in urls:
+                with self.subTest(file=rel, url=url):
+                    self.assertTrue(url.startswith(OBS_RUST) or url == OBS_RUST.rstrip("/"),
+                                    f"{rel}: {url} is not an obs-rust URL")
+        self.assertIn(NIGHTLY_PREFIX, text("frontend/utility/obs-rust-update.hpp"))
+        # The Sparkle delegate takes its URLs from obs-rust-update.hpp only.
+        self.assertEqual(URL_RE.findall(text("frontend/utility/OBSUpdateDelegate.mm.hpp")), [])
+
+    def test_nightly_channel_is_opt_in(self) -> None:
+        # The app lists a built-in Nightly branch next to stable; stable stays
+        # the default and anything else falls back to it (#1759).
+        app = text("frontend/OBSApp.cpp.hpp")
+        self.assertIn("OBS_RUST_NIGHTLY_BRANCH", app)
+        windows = text("frontend/utility/AutoUpdateThread.cpp.hpp")
+        self.assertIn("ObsRustUpdateBranchIsKnown", windows)
+        self.assertIn("ObsRustFeedUrl(", windows)
+        self.assertNotIn("Certified releases are the only channel", windows)
+        delegate = text("frontend/utility/OBSUpdateDelegate.mm.hpp")
+        self.assertIn("ObsRustFeedUrl(", delegate)
+        self.assertIn("allowedChannelsForUpdater", delegate)
+        locale = text("frontend/data/locale/en-US.ini")
+        self.assertIn("Basic.Settings.General.ChannelName.nightly=", locale)
+        self.assertIn("Basic.Settings.General.ChannelDescription.nightly=", locale)
 
     def test_update_metadata_key_is_obs_rust(self) -> None:
         pem = text("frontend/data/OBSPublicRSAKey.pem")

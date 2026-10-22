@@ -1,6 +1,9 @@
 #include "frontend/build/frontend-windows-autoupdatethread.pch.hpp"
 
-/* OBS-Studio-Rust updates only from certified obs-rust releases (#1729, #1736).
+/* OBS-Studio-Rust updates only from obs-rust releases (#1729, #1736): certified
+ * ones on the default "stable" branch, or daily ones on the opt-in "nightly"
+ * branch, whose signed manifest the daily run writes onto the continuous
+ * pre-release (#1759, obs-rust-update.hpp's ObsRustFeedUrl).
  * release-rust.yaml's certify job attaches manifest.json (+ .sig, RSA-signed
  * with the key in data/OBSPublicRSAKey.pem) to the release it promotes to
  * "Latest"; releases/latest/download/ never resolves to a daily pre-release.
@@ -185,18 +188,25 @@ try {
 		App()->SetBranchData(text);
 	}
 
-	/* Certified releases are the only channel. */
+	/* Stable reads certified releases; nightly (opt-in, General > Updates)
+	 * reads the daily feed on the continuous pre-release (#1759). Anything
+	 * else (an upstream branch such as "beta") falls back to stable. */
+	string branch = WIN_DEFAULT_BRANCH;
 	const char *config_branch = config_get_string(App()->GetAppConfig(), "General", "UpdateBranch");
-	if (config_branch && strcmp(config_branch, WIN_DEFAULT_BRANCH) != 0) {
+	if (config_branch && ObsRustUpdateBranchIsKnown(config_branch)) {
+		branch = config_branch;
+	} else if (config_branch) {
 		config_set_string(App()->GetAppConfig(), "General", "UpdateBranch", WIN_DEFAULT_BRANCH);
 	}
 
 	/* ----------------------------------- *
-	 * get the latest certified release    */
+	 * get the latest release of the branch */
 
 	text.clear();
-	if (!FetchAndVerifyFile("manifest", "obs-studio\\updates\\manifest.json", WIN_UPDATE_FEED_URL "manifest.json",
-				&text)) {
+	const string manifestUrl = ObsRustFeedUrl(WIN_UPDATE_FEED_URL "manifest.json", branch);
+	const string manifestCache = branch == WIN_DEFAULT_BRANCH ? "obs-studio\\updates\\manifest.json"
+								  : "obs-studio\\updates\\manifest-" + branch + ".json";
+	if (!FetchAndVerifyFile("manifest", manifestCache.c_str(), manifestUrl.c_str(), &text)) {
 		if (manualUpdate) {
 			info(QTStr("Updater.NoUpdatesAvailable.Title"), QTStr("Updater.NoUpdatesAvailable.Text"));
 		}
@@ -212,7 +222,7 @@ try {
 
 	int order = CompareObsRustVersions(release.version, current);
 	updatesAvailable = order > 0;
-	blog(LOG_INFO, "Update check: running %s, latest certified release %s", current.c_str(),
+	blog(LOG_INFO, "Update check: running %s, latest %s release %s", current.c_str(), branch.c_str(),
 	     release.version.c_str());
 
 	if (!updatesAvailable && !repairMode) {

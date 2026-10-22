@@ -239,3 +239,33 @@ marks it Latest. Both updaters read
 GitHub resolves to the newest full release. Certify a build only after a
 maintainer has run it. Certifying an older release makes it Latest again,
 but an app newer than that release won't downgrade.
+
+### Stable, nightly and certify
+
+| Channel | Who gets it | Feed | Written by |
+|---|---|---|---|
+| `stable` (default) | everyone | `releases/latest/download/` (the Latest release) | the `certify` job, on a maintainer's dispatch |
+| `nightly` (opt-in) | users who pick **Nightly** under Settings > General > Updates > Update Channel | `releases/download/continuous/` (the rolling `continuous` pre-release) | the `nightly_feed` job, after every published daily |
+
+1. **Daily:** each day `release-rust.yaml` publishes `obs-studio-rust-v<version>`
+   as a pre-release once the gate and every build pass. Its `nightly_feed`
+   job then runs `ci/update_feed.py build --channel nightly` and uploads the
+   result onto `continuous`: Sparkle appcasts whose items carry
+   `<sparkle:channel>nightly</sparkle:channel>`, and a `manifest.json` (+
+   `.sig`) with `"channel": "nightly"`, all naming the daily's own assets. It
+   is signed with the same two secrets. Without them the job skips with a
+   warning and the daily still succeeds (#1759).
+2. **Certify:** at least two days later, a maintainer runs
+   `gh workflow run release-rust.yaml -f certify=<tag>` (add
+   `-f min_age_days=0` only in an emergency). The gate above checks the run
+   and the age, then the stable feed goes up and the release becomes Latest.
+3. **In the app:** the update channel lives in the global config
+   (`[General] UpdateBranch`, default `stable`). `nightly` is built into the
+   app, next to `stable`. Any other value (an upstream `beta`) falls back to
+   stable. On Windows the updater reads `manifest.json` from the channel's
+   feed. On macOS the Sparkle delegate reads the channel's appcast and
+   allows only that channel, so a stable app never takes a nightly item.
+   Switching from nightly back to stable never downgrades: the app waits for
+   a certified release newer than the nightly it runs. Every feed and
+   download URL must be under `https://github.com/obs-rust/obs-studio/`
+   (`ci/test_no_upstream_updater.py`).

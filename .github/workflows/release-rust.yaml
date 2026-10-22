@@ -669,6 +669,94 @@ jobs:
               OBS-Studio-Rust-*-linux-x86_64.AppImage OBS-Studio-Rust-*-linux-x86_64.AppImage.zsync
           fi
 
+  # The opt-in nightly update channel (#1759): after a daily is published, write
+  # its update feed (ci/update_feed.py --channel nightly) onto the rolling
+  # continuous pre-release, where apps on the nightly branch read it
+  # (releases/download/continuous/). It never touches the daily's own release
+  # or Latest. Without the signing secrets it skips with a warning, so a daily
+  # never fails on it.
+  nightly_feed:
+    name: Nightly update feed 🌙
+    needs: [check, release]
+    if: >-
+      always() && needs.release.result == 'success'
+      && needs.check.outputs.verify_only != 'true'
+      && github.repository == 'obs-rust/obs-studio'
+    runs-on: macos-26
+    timeout-minutes: 60
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ needs.check.outputs.tag }}
+    steps:
+      - name: Check the signing secrets 🔑
+        id: secrets
+        env:
+          SPARKLE_KEY: ${{ secrets.OBS_RUST_SPARKLE_PRIVATE_KEY }}
+          RSA_KEY: ${{ secrets.OBS_RUST_UPDATE_RSA_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "$SPARKLE_KEY" ] || [ -z "$RSA_KEY" ]; then
+            echo "::warning::OBS_RUST_SPARKLE_PRIVATE_KEY or OBS_RUST_UPDATE_RSA_PRIVATE_KEY is not set; no nightly update feed for $TAG"
+            echo "ok=false" >>"$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "ok=true" >>"$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        if: steps.secrets.outputs.ok == 'true'
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        if: steps.secrets.outputs.ok == 'true'
+        with:
+          save-cache: ${{ github.ref == 'refs/heads/master' }}
+
+      - name: Download release assets 📥
+        if: steps.secrets.outputs.ok == 'true'
+        run: |
+          set -euo pipefail
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir dist \
+            --pattern SHA256SUMS --pattern '*-macos-arm64.dmg' --pattern '*-macos-x86_64.dmg' \
+            --pattern '*-windows-x64.zip' --pattern '*-windows-arm64.zip'
+          (cd dist && shasum -a 256 -c SHA256SUMS --ignore-missing)
+
+      - name: Set Up Sparkle ✨
+        if: steps.secrets.outputs.ok == 'true'
+        run: |
+          set -euo pipefail
+          IFS=';' read -r version base_url hash <<<"$(jq -r '.configurePresets[] | select(.name=="dependencies")
+            | .vendor["obsproject.com/obs-studio"].tools.sparkle | [.version, .baseUrl, .hash] | join(";")' CMakePresets.json)"
+          curl -fsSL -o "$RUNNER_TEMP/Sparkle.tar.xz" "$base_url/$version/Sparkle-$version.tar.xz"
+          echo "$hash  $RUNNER_TEMP/Sparkle.tar.xz" | shasum -a 256 -c -
+          mkdir -p "$RUNNER_TEMP/Sparkle"
+          tar -xJf "$RUNNER_TEMP/Sparkle.tar.xz" -C "$RUNNER_TEMP/Sparkle"
+
+      - name: Write the nightly feed 🌙
+        if: steps.secrets.outputs.ok == 'true'
+        env:
+          SPARKLE_KEY: ${{ secrets.OBS_RUST_SPARKLE_PRIVATE_KEY }}
+          RSA_KEY: ${{ secrets.OBS_RUST_UPDATE_RSA_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          keys="$RUNNER_TEMP/keys"
+          (umask 077 && mkdir -p "$keys" && printf '%s' "$SPARKLE_KEY" >"$keys/sparkle.key" && printf '%s\n' "$RSA_KEY" >"$keys/rsa.pem")
+          trap 'rm -rf "$keys"' EXIT
+          ci/sparkle_mac_info.sh dist "$keys/sparkle.key" "$RUNNER_TEMP/Sparkle/bin/sign_update" mac.json
+          uv run --script ci/update_feed.py build --channel nightly --tag "$TAG" --assets dist \
+            --mac-info mac.json --rsa-key "$keys/rsa.pem" --out feed
+          ls -l feed
+
+      - name: Publish the nightly feed 🌙
+        if: steps.secrets.outputs.ok == 'true'
+        run: |
+          set -euo pipefail
+          # The release job created or moved continuous; the feed names the
+          # daily's own assets (releases/download/$TAG/).
+          gh release upload continuous --repo "$GITHUB_REPOSITORY" --clobber feed/*
+          echo "::notice::the nightly update channel now offers $TAG"
+
   # Certify a daily pre-release for the in-app updaters (#1729, #1730, #1736).
   # Only obs-studio-rust-v* releases exist because release passed the gate and
   # every platform build, so a certified release is always a gated daily.
@@ -759,23 +847,7 @@ jobs:
           keys="$RUNNER_TEMP/keys"
           (umask 077 && mkdir -p "$keys" && printf '%s' "$SPARKLE_KEY" >"$keys/sparkle.key" && printf '%s\n' "$RSA_KEY" >"$keys/rsa.pem")
           trap 'rm -rf "$keys"' EXIT
-          echo '{}' >mac.json
-          for arch in arm64 x86_64; do
-            dmg=$(ls dist/*-macos-"$arch".dmg)
-            mnt=$(mktemp -d)
-            hdiutil attach -nobrowse -readonly -mountpoint "$mnt" "$dmg" >/dev/null
-            plist=$(ls -d "$mnt"/*.app)/Contents/Info.plist
-            bundle=$(plutil -extract CFBundleVersion raw -o - "$plist")
-            short=$(plutil -extract CFBundleShortVersionString raw -o - "$plist")
-            minsys=$(plutil -extract LSMinimumSystemVersion raw -o - "$plist")
-            hdiutil detach "$mnt" >/dev/null
-            sig=$("$RUNNER_TEMP/Sparkle/bin/sign_update" --ed-key-file "$keys/sparkle.key" "$dmg" |
-              sed -n 's/.*sparkle:edSignature="\([^"]*\)".*/\1/p')
-            [ -n "$sig" ] || { echo "::error::sign_update produced no signature for $dmg"; exit 1; }
-            jq --arg a "$arch" --arg b "$bundle" --arg s "$short" --arg m "$minsys" --arg e "$sig" \
-              '.[$a] = {bundle_version: $b, short_version: $s, minimum_system_version: $m, ed_signature: $e}' \
-              mac.json >mac.json.new && mv mac.json.new mac.json
-          done
+          ci/sparkle_mac_info.sh dist "$keys/sparkle.key" "$RUNNER_TEMP/Sparkle/bin/sign_update" mac.json
           uv run --script ci/update_feed.py build --tag "$TAG" --assets dist --mac-info mac.json \
             --rsa-key "$keys/rsa.pem" --out feed
           ls -l feed

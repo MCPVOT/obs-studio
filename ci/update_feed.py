@@ -3,7 +3,7 @@
 # requires-python = ">=3.11"
 # dependencies = ["cryptography>=43,<47"]
 # ///
-"""Write the in-app update feed for a certified OBS-Studio-Rust release.
+"""Write the in-app update feed for an OBS-Studio-Rust release.
 
     uv run --script ci/update_feed.py check-certifiable --facts facts.json \\
         --min-age-days 2
@@ -24,7 +24,14 @@ Sparkle's own tool). Outputs:
 - updates_<arch>_v2.xml: Sparkle appcast, one item, enclosure on the tag's DMG.
 - manifest.json (+ .sig): the Windows updater's manifest: version, tag, notes
   and, per arch (x64, arm64), the ZIP's url, sha256 and size.
-- branches.json (+ .sig): no extra branches; the app always adds "stable".
+- branches.json (+ .sig): no extra branches; the app always adds "stable"
+  and "nightly". Stable channel only.
+
+--channel nightly (#1759) writes the same files, minus branches.json, for the
+daily run to upload to the rolling "continuous" pre-release: the appcast items
+carry <sparkle:channel>nightly</sparkle:channel> and manifest.json says
+"channel": "nightly". Apps on the nightly update branch read it from
+https://github.com/obs-rust/obs-studio/releases/download/continuous/<file>.
 
 .sig files are hex RSA PKCS#1 v1.5 SHA-512 signatures, as
 frontend/utility/WhatsNewInfoThread.cpp.hpp's FetchAndVerifyFile checks them
@@ -72,16 +79,19 @@ def checked(assets: Path, sums: dict[str, str], name: str) -> Path:
     return path
 
 
-def appcast(tag: str, version: str, dmg: Path, mac: dict) -> str:
+def appcast(tag: str, version: str, dmg: Path, mac: dict, channel: str = "stable") -> str:
     url = f"{REPO}/releases/download/{tag}/{dmg.name}"
     notes = f"{REPO}/releases/tag/{tag}"
+    # Stable items use Sparkle's default channel; nightly ones are offered
+    # only to an app that allows the nightly channel (#1759).
+    tagged = "" if channel == "stable" else f"\n      <sparkle:channel>{html.escape(channel)}</sparkle:channel>"
     return f"""<?xml version="1.0" encoding="utf-8"?>
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>OBS-Studio-Rust</title>
     <link>{REPO}</link>
     <item>
-      <title>OBS-Studio-Rust {html.escape(version)}</title>
+      <title>OBS-Studio-Rust {html.escape(version)}</title>{tagged}
       <sparkle:version>{html.escape(str(mac["bundle_version"]))}</sparkle:version>
       <sparkle:shortVersionString>{html.escape(str(mac["short_version"]))}</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>{html.escape(str(mac["minimum_system_version"]))}</sparkle:minimumSystemVersion>
@@ -101,7 +111,12 @@ def sign(key_pem: bytes, data: bytes) -> str:
     return key.sign(data, padding.PKCS1v15(), hashes.SHA512()).hex()
 
 
-def build(tag: str, assets: Path, mac_info: dict, key_pem: bytes, out: Path) -> None:
+CHANNELS = ("stable", "nightly")
+
+
+def build(tag: str, assets: Path, mac_info: dict, key_pem: bytes, out: Path, channel: str = "stable") -> None:
+    if channel not in CHANNELS:
+        raise FeedError(f"{channel!r} is not an update channel ({', '.join(CHANNELS)})")
     match = TAG_RE.match(tag)
     if not match:
         raise FeedError(f"{tag!r} is not an obs-studio-rust-v<version> release tag")
@@ -113,7 +128,7 @@ def build(tag: str, assets: Path, mac_info: dict, key_pem: bytes, out: Path) -> 
         if arch not in mac_info:
             raise FeedError(f"mac info has no {arch} entry")
         dmg = checked(assets, sums, f"OBS-Studio-Rust-{version}-macos-{arch}.dmg")
-        files[f"updates_{arch}_v2.xml"] = appcast(tag, version, dmg, mac_info[arch]).encode()
+        files[f"updates_{arch}_v2.xml"] = appcast(tag, version, dmg, mac_info[arch], channel).encode()
 
     windows = {}
     for arch in WINDOWS_ARCHES:
@@ -129,12 +144,18 @@ def build(tag: str, assets: Path, mac_info: dict, key_pem: bytes, out: Path) -> 
     manifest = {
         "version": version,
         "tag": tag,
+        "channel": channel,
         "notes": f'<p>OBS-Studio-Rust {html.escape(version)}</p><p><a href="{notes_url}">{notes_url}</a></p>',
         "windows": windows,
     }
     files["manifest.json"] = (json.dumps(manifest, indent=2) + "\n").encode()
-    files["branches.json"] = b"[]\n"
-    for name in ("manifest.json", "branches.json"):
+    signed = ["manifest.json"]
+    if channel == "stable":
+        # The app adds its built-in stable and nightly branches; branches come
+        # from the certified feed only.
+        files["branches.json"] = b"[]\n"
+        signed.append("branches.json")
+    for name in signed:
         files[f"{name}.sig"] = (sign(key_pem, files[name]) + "\n").encode()
 
     out.mkdir(parents=True, exist_ok=True)
@@ -225,6 +246,7 @@ def main(argv: list[str] | None = None) -> int:
     b.add_argument("--mac-info", required=True, type=Path)
     b.add_argument("--rsa-key", required=True, type=Path)
     b.add_argument("--out", required=True, type=Path)
+    b.add_argument("--channel", choices=CHANNELS, default="stable")
     c = sub.add_parser("check-certifiable")
     c.add_argument("--facts", required=True, type=Path)
     c.add_argument("--min-age-days", required=True, type=float)
@@ -248,6 +270,7 @@ def main(argv: list[str] | None = None) -> int:
             json.loads(args.mac_info.read_text(encoding="utf-8")),
             args.rsa_key.read_bytes(),
             args.out,
+            args.channel,
         )
     except (FeedError, OSError, ValueError, KeyError) as error:
         print(f"update_feed: {error}", file=sys.stderr)

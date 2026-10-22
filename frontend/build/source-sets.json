@@ -63,6 +63,7 @@
     "utility/OBSSparkle.hpp",
     "build/frontend.sparkle-arc-mm+.hpp.mm",
     "utility/OBSUpdateDelegate.h",
+    "utility/obs-rust-update.hpp",
     "build/frontend.sparkle-delegate-mm+.hpp.mm"
   ],
   "TWITCH": [

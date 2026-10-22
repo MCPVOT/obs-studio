@@ -120,12 +120,12 @@ class UpdateFeedScriptTests(unittest.TestCase):
         )
         self.out = self.tmp / "feed"
 
-    def build(self, tag: str = TAG) -> subprocess.CompletedProcess:
+    def build(self, tag: str = TAG, *extra: str) -> subprocess.CompletedProcess:
         return subprocess.run(
             [
                 UV, "run", "--script", str(SCRIPT), "build",
                 "--tag", tag, "--assets", str(self.assets), "--mac-info", str(self.mac),
-                "--rsa-key", str(self.key), "--out", str(self.out),
+                "--rsa-key", str(self.key), "--out", str(self.out), *extra,
             ],
             capture_output=True,
             text=True,
@@ -171,6 +171,36 @@ class UpdateFeedScriptTests(unittest.TestCase):
         self.assertEqual(json.loads((self.out / "branches.json").read_text()), [])
         self.verify("manifest.json")
         self.verify("branches.json")
+
+    def test_writes_signed_nightly_feed_for_the_continuous_release(self) -> None:
+        # #1759: the daily run writes this onto the rolling "continuous"
+        # pre-release; it names the daily's own assets.
+        result = self.build(TAG, "--channel", "nightly")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        for arch in ("arm64", "x86_64"):
+            with self.subTest(arch=arch):
+                dmg = f"OBS-Studio-Rust-{VERSION}-macos-{arch}.dmg"
+                items = ET.parse(self.out / f"updates_{arch}_v2.xml").getroot().findall("./channel/item")
+                self.assertEqual(len(items), 1)
+                self.assertEqual(items[0].findtext(f"{{{SPARKLE}}}channel"), "nightly")
+                self.assertEqual(items[0].find("enclosure").get("url"), DOWNLOAD + dmg)
+        manifest = json.loads((self.out / "manifest.json").read_text())
+        self.assertEqual(manifest["channel"], "nightly")
+        self.assertEqual(manifest["tag"], TAG)
+        self.assertEqual(manifest["windows"]["x64"]["url"], DOWNLOAD + f"OBS-Studio-Rust-{VERSION}-windows-x64.zip")
+        self.verify("manifest.json")
+        # Branches come from the certified feed only.
+        self.assertFalse((self.out / "branches.json").exists())
+        self.assertFalse((self.out / "branches.json.sig").exists())
+
+    def test_stable_feed_is_the_default_channel(self) -> None:
+        result = self.build(TAG, "--channel", "stable")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads((self.out / "manifest.json").read_text())["channel"], "stable")
+        self.assertTrue((self.out / "branches.json").exists())
+
+    def test_rejects_unknown_channels(self) -> None:
+        self.assertNotEqual(self.build(TAG, "--channel", "beta").returncode, 0)
 
     def test_rejects_an_asset_that_does_not_match_sha256sums(self) -> None:
         (self.assets / f"OBS-Studio-Rust-{VERSION}-windows-x64.zip").write_bytes(b"tampered")
@@ -391,6 +421,65 @@ class CertifiedReleaseWorkflowTests(unittest.TestCase):
         self.assertRegex(inputs, r"\n      min_age_days:\n(?:        .*\n)*?        default: '2'\n")
         # The daily build must not run on a certify dispatch.
         self.assertIn("inputs.certify == ''", job(self.text, "check"))
+
+    def test_daily_run_writes_the_nightly_feed_onto_continuous(self) -> None:
+        nightly = job(self.text, "nightly_feed")
+        self.assertRegex(nightly, r"needs: \[check, release\]")
+        # Only after a published (not verify-only) daily.
+        self.assertIn("needs.release.result == 'success'", nightly)
+        self.assertIn("needs.check.outputs.verify_only != 'true'", nightly)
+        self.assertIn("ci/update_feed.py build", nightly)
+        self.assertIn("--channel nightly", nightly)
+        self.assertIn("gh release upload continuous", nightly)
+        self.assertNotIn('gh release edit "$TAG"', nightly)
+        self.assertIsNone(re.search(r"--latest(?!=false)", nightly.replace("releases/latest", "")))
+        self.assertIn("secrets.OBS_RUST_SPARKLE_PRIVATE_KEY", nightly)
+        self.assertIn("secrets.OBS_RUST_UPDATE_RSA_PRIVATE_KEY", nightly)
+        # Missing secrets skip with a warning; a daily never fails on them.
+        missing = nightly.split('if [ -z "$SPARKLE_KEY" ] || [ -z "$RSA_KEY" ]; then', 1)[1].split("fi", 1)[0]
+        self.assertIn("::warning::", missing)
+        self.assertIn("exit 0", missing)
+        self.assertNotIn("exit 1", missing)
+        # The signing step itself is shared with certify.
+        self.assertIn("ci/sparkle_mac_info.sh", nightly)
+        self.assertIn("ci/sparkle_mac_info.sh", job(self.text, "certify"))
+
+
+class NightlyFeedUrlTests(unittest.TestCase):
+    """frontend/utility/obs-rust-update.hpp's channel mapping (#1759)."""
+
+    @unittest.skipUnless(shutil.which("c++"), "a C++ compiler is required")
+    def test_feed_url_per_branch(self) -> None:
+        stable = "https://github.com/obs-rust/obs-studio/releases/latest/download/"
+        nightly = "https://github.com/obs-rust/obs-studio/releases/download/continuous/"
+        cases = [
+            (stable + "manifest.json", "stable", stable + "manifest.json"),
+            (stable + "manifest.json", "nightly", nightly + "manifest.json"),
+            (stable + "updates_arm64_v2.xml", "nightly", nightly + "updates_arm64_v2.xml"),
+            (stable + "updates_x86_64_v2.xml", "beta", stable + "updates_x86_64_v2.xml"),
+            (stable + "manifest.json", "", stable + "manifest.json"),
+            # Never rewrite a URL that is not obs-rust's certified feed.
+            ("https://example.com/releases/latest/download/x.xml", "nightly", "https://example.com/releases/latest/download/x.xml"),
+        ]
+        known = [("stable", 1), ("nightly", 1), ("beta", 0), ("", 0), ("Nightly", 0)]
+        body = "\n".join(
+            f'\tif (ObsRustFeedUrl("{a}", "{b}") != "{want}") {{ std::puts("{a} {b}"); bad = 1; }}'
+            for a, b, want in cases
+        ) + "\n" + "\n".join(
+            f'\tif (ObsRustUpdateBranchIsKnown("{b}") != {want}) {{ std::puts("known {b}"); bad = 1; }}'
+            for b, want in known
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            src = Path(tmp) / "t.cpp"
+            src.write_text(
+                f'#include "{VERSION_HEADER}"\n#include <cstdio>\n'
+                f"int main() {{\n\tint bad = 0;\n{body}\n\treturn bad;\n}}\n"
+            )
+            exe = Path(tmp) / "t"
+            built = subprocess.run(["c++", "-std=c++17", "-o", str(exe), str(src)], capture_output=True, text=True)
+            self.assertEqual(built.returncode, 0, built.stderr)
+            run = subprocess.run([str(exe)], capture_output=True, text=True)
+            self.assertEqual(run.returncode, 0, run.stdout)
 
 
 @unittest.skipUnless(shutil.which("c++"), "a C++ compiler is required")

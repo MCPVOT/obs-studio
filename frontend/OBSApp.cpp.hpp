@@ -936,11 +936,22 @@ std::vector<UpdateBranch> OBSApp::GetBranches()
 
 		branches_loaded = true;
 	}
+
+	/* OBS-Studio-Rust's opt-in nightly branch (#1759): the daily builds'
+	 * feed on the continuous release. Built in, so it is offered before
+	 * any certified branches.json lists it. */
+	out.push_back(UpdateBranch{OBS_RUST_NIGHTLY_BRANCH, "Nightly", "", true, true});
 #endif
 
 	/* Copy additional branches to result (if any) */
-	if (!updateBranches.empty()) {
-		out.insert(out.end(), updateBranches.begin(), updateBranches.end());
+	for (const UpdateBranch &branch : updateBranches) {
+		bool listed = false;
+		for (const UpdateBranch &known : out) {
+			listed = listed || known.name == branch.name;
+		}
+		if (!listed) {
+			out.push_back(branch);
+		}
 	}
 
 	return out;

@@ -393,6 +393,14 @@ not get a line.
   against the signed manifest, installs it and restarts. *Windows, macOS*,
   2026-10-22. PR [#1742](https://github.com/obs-rust/obs-studio/pull/1742).
 
+- **Opt-in nightly updates.** Settings > General > Updates > Update Channel
+  offers **Nightly** next to **Stable** (the default). On Nightly, the
+  Windows and macOS updaters offer each day's build as soon as it passes the
+  release gate, from a signed feed on the rolling `continuous` pre-release,
+  instead of waiting for a certified release. Switching back to Stable never
+  downgrades. *Windows, macOS*, 2026-10-22. Issue
+  [#1759](https://github.com/obs-rust/obs-studio/issues/1759).
+
 ## Fixed upstream bugs
 
 Bugs inherited from OBS Studio (and obs-websocket) that are fixed here, by

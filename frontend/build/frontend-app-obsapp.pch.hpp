@@ -24,6 +24,7 @@
 #include <utility/scene-collection-migration.hpp>
 #ifdef OBS_PLATFORM_HAS_UPDATE_BRANCHES
 #include <utility/models/branches.hpp>
+#include <utility/obs-rust-update.hpp>
 #endif
 #include <widgets/OBSBasic.hpp>
 

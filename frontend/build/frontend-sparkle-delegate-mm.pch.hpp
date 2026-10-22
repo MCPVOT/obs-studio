@@ -11,3 +11,4 @@
 
 /* utility/OBSUpdateDelegate.mm */
 #import "frontend/utility/OBSUpdateDelegate.h"
+#include "frontend/utility/obs-rust-update.hpp"
