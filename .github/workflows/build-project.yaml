@@ -1212,7 +1212,12 @@ jobs:
       # The obs-util D-Bus and portal inhibitors link GIO. The portal oracle
       # needs the headers even when the gio Cargo feature is off.
       - name: Install libuuid and GIO
-        run: sudo apt-get update && sudo apt-get install -y uuid-dev libglib2.0-dev
+        run: |
+          # Match runner-images' bounded mirror failover (#1269). CLI options
+          # take precedence over older images' late apt.conf.d overrides.
+          apt_options=(-o Acquire::Retries=1 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15)
+          sudo apt-get "${apt_options[@]}" update
+          sudo apt-get install "${apt_options[@]}" -y uuid-dev libglib2.0-dev
 
       # Same soldr-wrapped commands as docs/rust-port/testing-policy.md.
       # setup-soldr provisions the toolchain (with the clippy/rustfmt
@@ -1878,8 +1883,11 @@ jobs:
       # supply them.
       - name: Install Build Dependencies 📦
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
+          # Preserve the runner's mirror list, but bound each failed acquire
+          # before fallback. Installation errors still fail the job (#1269).
+          apt_options=(-o Acquire::Retries=1 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15)
+          sudo apt-get "${apt_options[@]}" update
+          sudo apt-get install "${apt_options[@]}" -y --no-install-recommends \
             build-essential cmake ninja-build pkg-config ccache git curl zstd \
             libcurl4-openssl-dev libjansson-dev libx11-dev libx11-xcb-dev libxcb1-dev \
             libxcb-randr0-dev libxcb-shm0-dev libxcb-xinerama0-dev libxcb-composite0-dev \
