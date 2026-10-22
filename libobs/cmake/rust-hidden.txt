@@ -89,3 +89,7 @@ obs_nix_portal_shortcut_combo
 obs_nix_portal_shortcut_trigger
 # effect-parser lifecycle: internal entry point, not EXPORT.
 ep_free
+
+# Internal scene bounds placement.
+add_alignment
+obs_bounds_place

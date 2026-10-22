@@ -114,8 +114,7 @@
     "build/libobs.graphics+.h.c",
     "build/libobs.media+.h.c",
     "build/libobs.nsgif+.h.c",
-    "build/libobs.platform+.h.c",
-    "build/libobs.scene-bounds-place+.h.c"
+    "build/libobs.platform+.h.c"
   ],
   "LIBOBS_PORTED_SOURCES": [
     "build/libobs.ported-effect-lifecycle+.h.c",
@@ -134,6 +133,7 @@
     "build/libobs.ported-output-interleave+.h.c",
     "build/libobs.ported-scene-blend+.h.c",
     "build/libobs.ported-scene-bounds+.h.c",
+    "build/libobs.ported-scene-bounds-place+.h.c",
     "build/libobs.ported-scene-coords+.h.c",
     "build/libobs.ported-audio-controls+.h.c"
   ],

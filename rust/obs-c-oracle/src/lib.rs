@@ -91,6 +91,7 @@ pub mod profiler_snapshot;
 pub mod pulse_stream_flags;
 pub mod scene_blend;
 pub mod scene_bounds;
+pub mod scene_bounds_place;
 pub mod scene_coords;
 pub mod shader_param_names;
 pub mod signal;

@@ -4,6 +4,8 @@
 {
   local:
     ep_free;
+    add_alignment;
+    obs_bounds_place;
     _ZN*;
     _R*;
     rust_eh_personality;

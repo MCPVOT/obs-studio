@@ -87,3 +87,7 @@ _obs_nix_portal_shortcut_trigger
 ___is*VersionAtLeast
 # effect-parser lifecycle: preserve the internal symbol boundary.
 _ep_free
+
+# Internal scene bounds placement.
+_add_alignment
+_obs_bounds_place
