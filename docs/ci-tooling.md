@@ -893,3 +893,9 @@ The obsolete standalone compiler family no longer reserves 200 MiB. The
 records the declaration reduction and unchanged deletion plans. This snapshot
 has no standalone entries to reclaim; global overcommit and native architecture
 retention remain open in #1801.
+
+The [allocation and version-retention follow-up](ci-evidence/2026-10-22-cache-allocation-followup.md)
+maps all 25 remaining families, records overlapping publications and an actual
+registry deletion across different host/container Actions versions, and links
+the existing upstream identity defect. Its portable replay separates observed
+deletions from hypothetical plans; global allocation remains unresolved.
