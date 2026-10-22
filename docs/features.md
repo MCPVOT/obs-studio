@@ -408,6 +408,13 @@ not get a line.
   approved `hybrid-release-evidence.json` and dispatch. *All platforms*,
   2026-10-22. Issue [#1811](https://github.com/obs-rust/obs-studio/issues/1811).
 
+- **Releases ship on dispatch with automated gates only.** Nightlies always
+  publish the hybrid build; a public release is published when the maintainer
+  dispatches certify and the automated CI gates pass. The manual
+  `hybrid-release-evidence.json` approval is gone; regressions are fixed
+  forward and covered by new automated tests. *All platforms*, 2026-10-22.
+  Issue [#1818](https://github.com/obs-rust/obs-studio/issues/1818).
+
 ## Fixed upstream bugs
 
 Bugs inherited from OBS Studio (and obs-websocket) that are fixed here, by

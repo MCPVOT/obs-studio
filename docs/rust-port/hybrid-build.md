@@ -65,7 +65,6 @@ production build excludes that C implementation and the explicit reference still
 includes it. Preserve C oracle sources and all required tiers. Remove originals
 only under release-criteria.md after the rollback retirement gates pass.
 
-Developer defaults do not approve a release. Publication remains blocked by
-`hybrid-release-evidence.json` until the compatibility, real-app performance,
-platform and fourteen-day stability evidence is reviewed. This change authorizes
-neither publication nor merging.
+Nightlies publish the hybrid build automatically; a public release happens
+when the maintainer dispatches certify and the automated CI gates pass (see
+release-criteria.md, #1818).

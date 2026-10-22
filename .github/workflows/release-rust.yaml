@@ -565,11 +565,6 @@ jobs:
           name: obs-studio-appimage
           path: appimage
 
-      # A pre-release publishes while hybrid approval is pending (#1587); it is
-      # never Latest, so the stable updaters never offer it. Certify is gated.
-      - name: Check hybrid implementation release approval (nightly)
-        run: uv run --no-project ci/hybrid_release_gate.py --channel nightly
-
       - name: Create or repair release 🛫
         env:
           GH_TOKEN: ${{ github.token }}
@@ -784,11 +779,8 @@ jobs:
         with:
           save-cache: ${{ github.ref == 'refs/heads/master' }}
 
-      # Blessing (Latest, the stable feed) needs the maintainer-approved
-      # docs/rust-port/hybrid-release-evidence.json (#1587).
-      - name: Verify hybrid implementation release approval
-        run: uv run --no-project ci/hybrid_release_gate.py --channel blessed
-
+      # Blessing (Latest, the stable feed) happens only on the maintainer's
+      # certify dispatch, behind the automated gates below (#1818).
       - name: Check the release 🔎
         run: |
           set -euo pipefail

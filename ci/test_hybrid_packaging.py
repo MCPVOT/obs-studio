@@ -1,4 +1,4 @@
-"""Hybrid packages keep offline inputs pinned and publish only after approval."""
+"""Hybrid packages keep offline inputs pinned and publish on dispatch plus automated gates."""
 
 import importlib.util
 import json
@@ -300,13 +300,29 @@ set_target_properties(obs-nvenc PROPERTIES PREFIX "")
             self.assertIn("flatpak-cache state=absent job_status=failure", result.stdout)
             self.assertEqual(list(Path(directory).iterdir()), [])
 
-    def test_every_publication_path_checks_hybrid_release_approval(self):
-        for name, publish in (("release-rust.yaml", "- name: Create or repair release"),
-                              ("appimage.yaml", "- name: Attach to the tag's release")):
-            source = (ROOT / ".github/workflows" / name).read_text().split("\n  release:", 1)[1]
+    def test_no_publication_path_depends_on_a_manual_approval_file(self):
+        # #1818: release = maintainer dispatch + automated CI gates. No manual
+        # approval file may gate nightly, certify or the AppImage tag push.
+        for name in ("release-rust.yaml", "appimage.yaml"):
+            source = (ROOT / ".github/workflows" / name).read_text()
             with self.subTest(workflow=name):
-                self.assertIn("ci/hybrid_release_gate.py", source)
-                self.assertLess(source.index("ci/hybrid_release_gate.py"), source.index(publish))
+                for banned in ("hybrid_release_gate", "hybrid-release-evidence", "release approval"):
+                    self.assertNotIn(banned, source)
+        self.assertFalse((ROOT / "ci/hybrid_release_gate.py").exists())
+        self.assertFalse((ROOT / "docs/rust-port/hybrid-release-evidence.json").exists())
+        certify = (ROOT / ".github/workflows/release-rust.yaml").read_text().split("\n  certify:", 1)[1]
+        self.assertIn("check-certifiable", certify)
+
+    def test_nightly_release_builds_the_hybrid_backend(self):
+        # Nightlies always ship hybrid libobs; C is only a manual rollback.
+        cmake = (ROOT / "libobs/cmake/implementation.cmake").read_text()
+        self.assertIn('set(OBS_LIBOBS_BACKEND HYBRID CACHE', cmake)
+        for name in ("release-rust.yaml", "appimage.yaml"):
+            source = (ROOT / ".github/workflows" / name).read_text()
+            with self.subTest(workflow=name):
+                self.assertNotIn("OBS_LIBOBS_BACKEND=C", source)
+        release = (ROOT / ".github/workflows/release-rust.yaml").read_text()
+        self.assertIn("grep -a -q '/rustc/' \"$lib\"", release)
 
     def test_macos_application_build_does_not_request_the_removed_twin(self):
         script = (ROOT / ".github/scripts/.build.zsh").read_text()

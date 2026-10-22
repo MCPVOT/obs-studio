@@ -9,56 +9,45 @@ explicit testing infrastructure (`OBS_BUILD_C_REFERENCE=ON`), excluded from
 normal builds and installation. `OBS_LIBOBS_BACKEND=C` is temporary rollback;
 product identity (`OBS_BRAND_RUST`) does not select an implementation.
 
-## Release approval for the hybrid default
+## Releasing the hybrid default
 
-Changing developer defaults does not satisfy the production release gates.
-A **blessed** release (certified: Latest, the stable update feed) requires a
-reviewed `hybrid-release-evidence.json`, checked by
-`ci/hybrid_release_gate.py --channel blessed` in the `certify` job of
-`release-rust.yaml`. It starts **unapproved**. Approving that file is how the
-maintainer says a hybrid release may be blessed; certify still runs only on the
-maintainer's own dispatch.
+There is no manual approval file and no manual evidence review (#1818). A
+release is published when the maintainer dispatches it and the automated CI
+gates pass:
 
-While approval is pending, the daily `release-rust.yaml` run still publishes
-its GitHub **pre-release**, the rolling `continuous` AppImage and the nightly
-feed (`--channel nightly` only logs that approval is pending). Pre-releases are
-never Latest, so `releases/latest` and the stable feed never pick them up, and
-a certify dispatch fails closed until the evidence is approved. Keep the
-first-release C rollback path.
+- **Nightly:** the daily `release-rust.yaml` run publishes a GitHub
+  **pre-release**, the rolling `continuous` AppImage and the nightly update
+  feed. Nightlies always build the hybrid backend (`OBS_LIBOBS_BACKEND`
+  default `HYBRID`); the packaging step fails if Rust is not linked into the
+  production libobs. Pre-releases are never Latest, so `releases/latest` and
+  the stable feed never offer them.
+- **Public (blessed) release:** happens only when the maintainer dispatches
+  `release-rust.yaml` with `certify=<tag>`. That dispatch is the decision to
+  release; the `certify` job then runs only its automated checks
+  (`check-certifiable`) before marking the release Latest and updating the
+  stable feed. Agents never dispatch certify.
+- **AppImage tag push:** attaches to the tag's release after the AppImage
+  build and its automated tests pass.
 
-A maintainer review must establish every requirement below on the recorded
-release candidate, link the platform compatibility, application and performance
-artifacts, record at least fourteen consecutive successful stability dates,
-and review release blockers before approving that evidence file. Merely filling
-in URLs is not proof: the review must inspect their coverage and results.
+Every automated gate stays: the builds, Tier 2, the packaged-app smoke tests
+and `check-certifiable`. The `OBS_LIBOBS_BACKEND=C` rollback stays available.
 
-1. **Compatibility:** Tier 2 passes with OFF and ON on Linux, macOS, and
-   Windows, on both x64 and arm64 wherever this project ships that platform.
-   Both configurations export the same public libobs symbols and pass the
-   unchanged C tests. Record the CI runs and release-candidate commit.
-2. **Running application:** a full ON app builds and launches on every
-   supported release platform. The unchanged obs-websocket Tier 4 suite
-   passes with the existing C++ plugin against C-reference and hybrid libobs. A headless smoke run loads a
-   scene collection containing a text source, records five seconds, and
-   exits cleanly. Record artifacts and logs, not just a green job summary.
-3. **Performance:** record the C and Rust results from #142 on the same
-   machine, toolchain, build profile, and input set. No tracked hot-path
-   benchmark may regress by more than 10% in median time or throughput;
-   the full-app recording workload may not regress by more than 5% in frame
-   time or dropped-frame rate. Repeat each benchmark enough times to report
-   a median and its run-to-run range. A regression over a bound blocks the
-   flip until fixed or explicitly accepted in a separate issue with the
-   measured user impact.
-4. **Nightly stability:** run ON release-like artifacts on every supported
-   release platform for 14 consecutive daily builds. Each build must pass
-   the startup, scene-load, recording, and clean-exit smoke run. Archive the
-   logs and crash reports. A new crash signature attributable to the Rust
-   build or a failed smoke run resets the 14-day count after its fix. Review
-   open release-blocking issues before the flip.
+If something is broken, fix it forward fast with a new release. A failure a
+release let through is a coverage gap: close it by adding an automated test
+that would have caught it, not by adding a manual review step.
 
-If a platform cannot meet these gates, release approval remains pending. Do
-not infer success from another platform's runs or waive a gate by changing
-the developer build default.
+### Coverage targets without automated gates yet
+
+The checks below were once manual release criteria. They are goals for new
+automated tests, not release blockers:
+
+1. **Compatibility:** Tier 2 with OFF and ON on Linux, macOS and Windows, x64
+   and arm64, plus identical exported public libobs symbols.
+2. **Running application:** the unchanged obs-websocket Tier 4 suite against
+   the release artifact; a full-app launch on every release platform.
+3. **Performance:** hot-path benchmarks within 10% and the full-app recording
+   workload within 5% of C (#142), checked automatically per release.
+4. **Stability:** multi-day crash-signature tracking of nightly artifacts.
 
 ## Record C/Rust benchmark evidence (#142)
 

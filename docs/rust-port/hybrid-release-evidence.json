@@ -1,9 +1,0 @@
-{
-  "approved": false,
-  "candidate": "",
-  "compatibility": [],
-  "application": [],
-  "performance": [],
-  "stability_days": [],
-  "review": "Pending release-criteria.md evidence; #1587 changes developer defaults, not release approval."
-}
