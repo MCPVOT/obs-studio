@@ -8,8 +8,10 @@ import os
 from pathlib import Path
 import re
 import subprocess
+import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 SPEC = importlib.util.spec_from_file_location("freshness", Path(__file__).with_name("native_cache_freshness.py"))
 freshness = importlib.util.module_from_spec(SPEC)
@@ -35,7 +37,9 @@ class NativeCacheFreshnessTest(unittest.TestCase):
             path = self.root / "build_x64/install/bin/64bit/obs64.exe"
             prefix = b"MZ"
         else:
-            path = self.root / "build_macos/OBS-Studio-Rust.app/Contents/MacOS/obs-studio-rust-gui"
+            # cmake/macos/helpers.cmake overrides the generic Unix GUI name
+            # with OBS_MACOS_BUNDLE_NAME for this executable.
+            path = self.root / "build_macos/OBS-Studio-Rust.app/Contents/MacOS/OBS-Studio-Rust"
             prefix = b"\xcf\xfa\xed\xfe"
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(prefix + b"\0" * ((1 << 20) - len(prefix) - 3) + marker + b"\0")
@@ -64,6 +68,36 @@ class NativeCacheFreshnessTest(unittest.TestCase):
         binary.write_bytes(prepared["marker"].encode())
         with self.assertRaises(ValueError):
             freshness.verify(self.root, self.state, "windows", "x64")
+        freshness.restore(self.root, self.state)
+
+    def test_macos_unbranded_bundle_uses_its_bundle_executable_name(self):
+        prepared = freshness.prepare(self.root, self.state, CONTEXT)
+        binary = self.root / 'build_macos/OBS.app/Contents/MacOS/OBS'
+        binary.parent.mkdir(parents=True)
+        binary.write_bytes(b'\xcf\xfa\xed\xfe' + prepared['marker'].encode())
+        report = freshness.verify(self.root, self.state, 'macos', 'x86_64')
+        self.assertEqual(report['binary'], 'build_macos/OBS.app/Contents/MacOS/OBS')
+        freshness.restore(self.root, self.state)
+
+    def test_macos_linux_style_executable_cannot_qualify_the_app(self):
+        prepared = freshness.prepare(self.root, self.state, CONTEXT)
+        binary = self.root / 'build_macos/OBS-Studio-Rust.app/Contents/MacOS/obs-studio-rust-gui'
+        binary.parent.mkdir(parents=True)
+        binary.write_bytes(b'\xcf\xfa\xed\xfe' + prepared['marker'].encode())
+        with self.assertRaises(ValueError):
+            freshness.verify(self.root, self.state, 'macos', 'arm64')
+        freshness.restore(self.root, self.state)
+
+    def test_cli_report_identifies_a_known_freshness_failure(self):
+        freshness.prepare(self.root, self.state, CONTEXT)
+        self.binary()
+        report = self.root / 'report.json'
+        argv = ['native_cache_freshness.py', 'verify', '--root', str(self.root), '--state', str(self.state),
+                '--report', str(report), '--platform', 'windows', '--architecture', 'x64']
+        with patch.object(sys, 'argv', argv):
+            self.assertEqual(freshness.main(), 1)
+        self.assertEqual(json.loads(report.read_text())['reason'],
+                         'installed main binary lacks changed-source freshness marker')
         freshness.restore(self.root, self.state)
 
     def test_unrelated_edit_is_preserved(self):
