@@ -86,6 +86,7 @@ cmake --preset macos-ci -B "$build" \
   >"$build.configure.log" 2>&1 || { tail -40 "$build.configure.log"; exit 1; }
 cmake --build "$build" --config RelWithDebInfo \
   --target libobs libobs-c-reference cmocka-tests libobs-opengl libobs-metal \
+    mac-capture mac-avcapture mac-avcapture-legacy \
   >"$build.build.log" 2>&1 || { grep -E ": (fatal )?error|BUILD FAILED" "$build.build.log" | sort -u | head -40; exit 1; }
 
 # libobs.framework twice: libobs (C, what the tests link) and its Rust twin
@@ -160,6 +161,18 @@ if [ ! -f "$reference_opengl" ] || [ ! -f "$reference_metal" ]; then
 fi
 reference_opengl="$PWD/$reference_opengl"
 reference_metal="$PWD/$reference_metal"
+capture_reference() {
+  local name="$1" directory="$2" binary
+  binary=$(find "$build/plugins/$directory" -path "*/Contents/MacOS/$name" -type f | head -1)
+  if [ -z "$binary" ] || [ ! -f "$binary" ]; then
+    echo "FAIL: original CMake capture module $name not found" >&2
+    return 1
+  fi
+  printf '%s/%s\n' "$PWD" "$binary"
+}
+reference_capture=$(capture_reference mac-capture mac-capture)
+reference_camera=$(capture_reference mac-avcapture mac-avcapture)
+reference_legacy_camera=$(capture_reference mac-avcapture-legacy mac-avcapture)
 soldr cargo build -p libobs-rust --release --target "$native_target" --target-dir "$native_rust"
 OBS_BUILD_MACOS_DEPENDENCIES="$(dirname "$(dirname "$avcodec")")" \
   OBS_BUILD_MACOS_TARGET="$native_target" \
@@ -169,6 +182,10 @@ OBS_BUILD_MACOS_DEPENDENCIES="$(dirname "$(dirname "$avcodec")")" \
   OBS_BUILD_MACOS_GRAPHICS=1 \
   OBS_BUILD_MACOS_OPENGL_REFERENCE="$reference_opengl" \
   OBS_BUILD_MACOS_METAL_REFERENCE="$reference_metal" \
+  OBS_BUILD_MACOS_CAPTURE=1 \
+  OBS_BUILD_MACOS_MAC_CAPTURE_REFERENCE="$reference_capture" \
+  OBS_BUILD_MACOS_MAC_AVCAPTURE_REFERENCE="$reference_camera" \
+  OBS_BUILD_MACOS_MAC_AVCAPTURE_LEGACY_REFERENCE="$reference_legacy_camera" \
   SWIFTC="$(xcrun --find swiftc)" \
   SDKROOT="$(xcrun --sdk macosx --show-sdk-path)" \
   soldr cargo test -p obs-studio-rust --features libobs-integration \
@@ -221,6 +238,37 @@ for native_variant in obs-c-reference obs; do
     graphics_count=$((graphics_count + 1))
   done <"$native_output/macos-graphics-paths.txt"
   [ "$graphics_count" -eq 2 ] || { echo 'FAIL: both graphics modules must be checked' >&2; exit 1; }
+  capture_count=0
+  while IFS=$'\t' read -r capture capture_path capture_data capture_probe; do
+    case "$capture" in
+      mac-capture) reference_module=$reference_capture; wrong_capture=mac-avcapture ;;
+      mac-avcapture) reference_module=$reference_camera; wrong_capture=mac-avcapture-legacy ;;
+      mac-avcapture-legacy) reference_module=$reference_legacy_camera; wrong_capture=mac-capture ;;
+      *) echo "FAIL: unexpected capture module $capture" >&2; exit 1 ;;
+    esac
+    reference_data="$(dirname "$(dirname "$reference_module")")/Resources"
+    [ -f "$capture_data/locale/en-US.ini" ] && [ -f "$reference_data/locale/en-US.ini" ] || {
+      echo "FAIL: $capture locale data missing" >&2; exit 1;
+    }
+    diff -r "$capture_data" "$reference_data"
+    echo "== Cargo [$native_variant] $capture module/core identity and source registration"
+    "${native_dyld[@]}" "$capture_probe" "$capture_path" "$capture" "$capture_data" "$native_framework/Versions/A/libobs"
+    "${native_dyld[@]}" "$capture_probe" "$reference_module" "$capture" "$reference_data" "$native_framework/Versions/A/libobs"
+    if "${native_dyld[@]}" "$capture_probe" "$capture_path" "$wrong_capture" "$capture_data" "$native_framework/Versions/A/libobs"; then
+      echo 'FAIL: capture negative control unexpectedly passed' >&2; exit 1
+    else
+      status=$?
+      [ "$status" -eq 14 ] || { echo "FAIL: capture negative control returned $status" >&2; exit 1; }
+    fi
+    if "${native_dyld[@]}" "$capture_probe" "$capture_path" "$capture" "$capture_data" "$PWD/$c_lib"; then
+      echo 'FAIL: capture core negative control unexpectedly passed' >&2; exit 1
+    else
+      status=$?
+      [ "$status" -eq 12 ] || { echo "FAIL: capture core negative control returned $status" >&2; exit 1; }
+    fi
+    capture_count=$((capture_count + 1))
+  done <"$native_output/macos-capture-paths.txt"
+  [ "$capture_count" -eq 3 ] || { echo 'FAIL: all three capture modules must be checked' >&2; exit 1; }
   echo "== Cargo [$native_variant] unchanged ctest suite"
   if ! "${native_dyld[@]}" ctest --test-dir "$build" -C RelWithDebInfo --output-on-failure; then
     DYLD_FRAMEWORK_PATH="$native_output/$native_variant" DYLD_LIBRARY_PATH="$(dirname "$avcodec")" \

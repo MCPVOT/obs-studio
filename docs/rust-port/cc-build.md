@@ -93,6 +93,48 @@ against each Cargo core. Wrong-core and wrong-backend controls must fail. The
 unchanged CTest suites remain. These loading checks do not create a graphics
 device, verify rendered pixels, record media or prove the full application.
 
+## macOS capture module graphs
+
+`LibraryKind::Module` selects a loadable module: Apple linking uses `-bundle`
+and omits the dylib install name, while shared libraries retain `-dynamiclib`.
+The capture contract verifies `MH_BUNDLE` headers in both Cargo and CMake
+artifacts. The existing shared-core/plugin fixture exercises module loading
+and observes a rebuilt dependency without relinking the module.
+
+`plugins::build_macos_capture` builds the original `mac-capture`,
+`mac-avcapture` and `mac-avcapture-legacy` modules. CMake, its cross checks
+and Cargo consume `plugins/mac-capture/source-sets.json`. The screen/audio
+Objective-C group keeps manual reference counting; the modern camera uses
+ARC and Clang modules, and the legacy camera keeps Objective-C++ with ARC.
+Framework dependencies, weak ScreenCaptureKit linking, macOS 13 minimum,
+locale data and independent unity/PCH choices are retained. Each development
+artifact has the native `.plugin/Contents/MacOS/<name>` layout, staged resources
+and an `Info.plist` with its executable and bundle identifier. A snapshot of
+binary, resource paths/contents and metadata selects the output directory so
+removed resources cannot survive from an older same-named bundle. Release
+version metadata, signing and distribution packaging remain incomplete.
+
+`OBS_BUILD_MACOS_CAPTURE=1` extends the existing core integration contract.
+The three `OBS_BUILD_MACOS_MAC_CAPTURE_REFERENCE`,
+`OBS_BUILD_MACOS_MAC_AVCAPTURE_REFERENCE` and
+`OBS_BUILD_MACOS_MAC_AVCAPTURE_LEGACY_REFERENCE` inputs require exact export
+agreement with actual CMake binaries. The native macOS Tier 2 script builds
+those references and runs each Cargo/CMake module with both Cargo cores in
+fresh processes. Checks cover module/core file identity, API version,
+description, byte-for-byte resource agreement, CoreFoundation bundle/executable identity,
+initialization and all registered source IDs.
+Wrong-module and wrong-core controls must return 14 and 12 respectively.
+The unchanged CTest suites still run against both cores.
+
+Local ARM64 cross builds pass with unity on/PCH off and separate sources/PCH on.
+The Linux cross toolchain lacks Apple's availability runtime; the local check
+links LLVM 21.1.5's original `compiler-rt/lib/builtins/os_version_check.c`,
+compiled for the target, without altering source availability checks. Native
+Apple Clang supplies its own runtime. Cross compilation does not establish
+native module initialization. Native execution/export agreement remains a
+required CI result. Registration checks do not open screen, microphone or
+camera devices, verify captured media, or prove packaged saved-profile behavior.
+
 ## Windows core graph
 
 The Windows MSVC graph uses the shared libobs source manifest and existing

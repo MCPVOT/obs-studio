@@ -369,23 +369,24 @@ if(_host STREQUAL WINDOWS)
     INCLUDES deps/glad/include
   )
 elseif(_host STREQUAL MACOS)
+  include("${OBS_SOURCE_ROOT}/plugins/mac-capture/sources.cmake")
+  obs_macos_capture_sources(_mac_capture MAC_CAPTURE "${OBS_SOURCE_ROOT}/plugins/mac-capture")
+  obs_macos_capture_sources(_mac_avcapture MAC_AVCAPTURE "${OBS_SOURCE_ROOT}/plugins/mac-avcapture")
+  obs_macos_capture_sources(_mac_avcapture_legacy MAC_AVCAPTURE_LEGACY "${OBS_SOURCE_ROOT}/plugins/mac-avcapture")
   # frontend-tools' macOS host group (BUILD.md, #855); its Qt groups need
   # Qt, which the cross check does not have.
   _obs_cross_plugin(frontend-tools-host-cross DIR plugins/frontend-tools SOURCES build/frontend-tools.host-macos+.h.c)
   _obs_cross_plugin(
     mac-capture-cross
     DIR plugins/mac-capture
-    SOURCES build/mac-capture.core-macos+.h.c build/mac-capture.objc-macos+.h.m build/mac-capture.sck-stop+.h.c
+    SOURCES ${_mac_capture}
   )
   _obs_cross_plugin(
     mac-avcapture-cross
     OBJC_ARC
     OBJC_MODULES
     DIR plugins/mac-avcapture
-    SOURCES
-      build/mac-avcapture.objc-macos+.h.m
-      build/mac-avcapture.audio-planes+.h.c
-      build/mac-avcapture.legacy-macos+.hpp.mm
+    SOURCES ${_mac_avcapture} ${_mac_avcapture_legacy}
     INCLUDES plugins/mac-avcapture/legacy
   )
   # decklink's unity groups (BUILD.md) with the macOS SDK headers; Windows

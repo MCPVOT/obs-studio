@@ -3,10 +3,11 @@ cmake_minimum_required(VERSION 3.28...3.30)
 add_library(mac-avcapture-legacy MODULE)
 add_library(OBS::avcapture-legacy ALIAS mac-avcapture-legacy)
 
-target_sources(
-  mac-avcapture-legacy
-  PRIVATE build/mac-avcapture.legacy-macos+.hpp.mm legacy/left-right.hpp legacy/scope-guard.hpp
-)
+include("${CMAKE_CURRENT_SOURCE_DIR}/../mac-capture/sources.cmake")
+obs_macos_capture_sources(_legacy_sources MAC_AVCAPTURE_LEGACY "${CMAKE_CURRENT_SOURCE_DIR}")
+obs_macos_capture_sources(_capture_sources MAC_AVCAPTURE "${CMAKE_CURRENT_SOURCE_DIR}")
+
+target_sources(mac-avcapture-legacy PRIVATE ${_legacy_sources} legacy/left-right.hpp legacy/scope-guard.hpp)
 target_include_directories(mac-avcapture-legacy PRIVATE legacy)
 
 target_link_libraries(
@@ -37,8 +38,7 @@ add_library(OBS::avcapture ALIAS mac-avcapture)
 target_sources(
   mac-avcapture
   PRIVATE
-    build/mac-avcapture.objc-macos+.h.m
-    build/mac-avcapture.audio-planes+.h.c
+    ${_capture_sources}
     AVCaptureDeviceFormat+OBSListable.h
     plugin-main.h
     plugin-properties.h

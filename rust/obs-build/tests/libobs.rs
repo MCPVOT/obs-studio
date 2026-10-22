@@ -3,6 +3,8 @@ use obs_build::{NativeBuild, frontend, graphics, libobs, plugins, scripting};
 use std::{ffi::c_void, path::PathBuf};
 #[path = "libobs/application.rs"]
 mod application;
+#[path = "libobs/macos_capture.rs"]
+mod macos_capture;
 #[path = "libobs/macos_graphics.rs"]
 mod macos_graphics;
 #[path = "libobs/native_tests.rs"]
@@ -1387,6 +1389,67 @@ fn macos_core_builds_from_the_canonical_manifest() {
         std::fs::read(framework.join("Versions/A/libobs")).unwrap()
     );
     assert_eq!(bytes, std::fs::read(framework.join("libobs")).unwrap());
+    if std::env::var_os("OBS_BUILD_MACOS_CAPTURE").is_some() {
+        use obs_build::plugins::{MacosCaptureModule, build_macos_capture};
+        let mut symbols_by_module = std::collections::BTreeMap::new();
+        let probe = macos_capture::build_probe(&build, &root, &options, &library);
+        let mut paths = String::new();
+        for module in [
+            MacosCaptureModule::ScreenAudio,
+            MacosCaptureModule::Camera,
+            MacosCaptureModule::LegacyCamera,
+        ] {
+            let artifact = build_macos_capture(&build, &root, &library, &options, module).unwrap();
+            assert!(artifact.library.is_file());
+            assert_macos_module_image(&artifact.library);
+            assert!(artifact.data.join("locale/en-US.ini").is_file());
+            let symbols = macos_graphics_exports(&artifact.library);
+            for required in [
+                "_obs_module_load",
+                "_obs_module_ver",
+                "_obs_module_set_pointer",
+                "_obs_module_description",
+            ] {
+                assert!(
+                    symbols.contains(required),
+                    "{} lacks {required}",
+                    module.name()
+                );
+            }
+            if let Some(reference) = std::env::var_os(format!(
+                "OBS_BUILD_MACOS_{}_REFERENCE",
+                module.name().replace('-', "_").to_uppercase()
+            )) {
+                assert_macos_module_image(std::path::Path::new(&reference));
+                assert_eq!(
+                    symbols,
+                    macos_graphics_exports(std::path::Path::new(&reference)),
+                    "{} exports differ from CMake",
+                    module.name()
+                );
+            }
+            symbols_by_module.insert(module.name(), symbols);
+            for path in [&artifact.library, &artifact.data, &probe] {
+                assert!(
+                    !path.to_str().unwrap().contains(['\t', '\n', '\r']),
+                    "capture probe manifest needs single-line paths"
+                );
+            }
+            paths.push_str(&format!(
+                "{}\t{}\t{}\t{}\n",
+                module.name(),
+                artifact.library.display(),
+                artifact.data.display(),
+                probe.display()
+            ));
+        }
+        std::fs::write(build.output.join("macos-capture-paths.txt"), paths).unwrap();
+        std::fs::write(
+            build.output.join("macos-capture-symbols.json"),
+            serde_json::to_vec_pretty(&symbols_by_module).unwrap(),
+        )
+        .unwrap();
+    }
     if let Ok(mode) = std::env::var("OBS_BUILD_MACOS_GRAPHICS") {
         assert!(
             matches!(mode.as_str(), "1" | "opengl"),
@@ -1449,6 +1512,21 @@ fn macos_core_builds_from_the_canonical_manifest() {
         library.to_str().unwrap(),
     )
     .unwrap();
+}
+
+fn assert_macos_module_image(path: &std::path::Path) {
+    let bytes = std::fs::read(path).unwrap();
+    assert_eq!(
+        &bytes[..4],
+        &[0xcf, 0xfa, 0xed, 0xfe],
+        "not a 64-bit Mach-O image"
+    );
+    assert_eq!(
+        u32::from_le_bytes(bytes[12..16].try_into().unwrap()),
+        8,
+        "{} must be an MH_BUNDLE module, as in CMake",
+        path.display()
+    );
 }
 
 fn macos_graphics_exports(path: &std::path::Path) -> std::collections::BTreeSet<String> {

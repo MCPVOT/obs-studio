@@ -31,9 +31,18 @@ pub struct SourceCompileOptions {
     pub options: Vec<String>,
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum LibraryKind {
+    #[default]
+    Shared,
+    /// Loadable module; Apple targets emit MH_BUNDLE rather than MH_DYLIB.
+    Module,
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct SharedLibrary {
     pub name: String,
+    pub kind: LibraryKind,
     pub sources: Vec<PathBuf>,
     /// Native resource scripts, compiled separately from C-family unity/PCH batches.
     pub resource_files: Vec<PathBuf>,
@@ -201,16 +210,13 @@ impl NativeBuild {
         Ok(())
     }
 
-    /// Compile through cc::Build, then link a native shared library.
+    /// Compile through cc::Build, then link a shared library or loadable module.
     pub fn shared_library(&self, library: &SharedLibrary) -> Result<PathBuf, String> {
         let (output, cpp_link, mut objects) = self.objects(library)?;
         append_precompiled(&mut objects, library);
-        let artifact = output.join(
-            library
-                .file_name
-                .clone()
-                .unwrap_or_else(|| platform::shared_filename(&self.target, &library.name)),
-        );
+        let artifact = output.join(library.file_name.clone().unwrap_or_else(|| {
+            platform::library_filename(&self.target, &library.name, library.kind)
+        }));
         let compiler = self.compiler(library, &output, cpp_link).get_compiler();
         let mut command = compiler.to_command();
         platform::configure_shared_link(
@@ -220,6 +226,7 @@ impl NativeBuild {
             &objects,
             &library.dependencies,
             compiler.is_like_msvc(),
+            library.kind,
         )?;
         command.args(&library.link_options);
         let result = command

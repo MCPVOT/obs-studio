@@ -127,13 +127,15 @@ fn native_plugin_links_shared_core_and_observes_rebuilt_dependency() {
     let core = build
         .shared_library(&target("fixture-core", &core_source, vec![]))
         .unwrap();
-    let plugin = build
-        .shared_library(&target(
-            "fixture-plugin",
-            &plugin_source,
-            vec![core.clone()],
-        ))
-        .unwrap();
+    let mut plugin_target = target("fixture-plugin", &plugin_source, vec![core.clone()]);
+    plugin_target.kind = obs_build::LibraryKind::Module;
+    let plugin = build.shared_library(&plugin_target).unwrap();
+    if obs_build::BUILD_TARGET.contains("apple-darwin") {
+        let bytes = fs::read(&plugin).unwrap();
+        assert_eq!(u32::from_le_bytes(bytes[12..16].try_into().unwrap()), 8);
+        let bytes = fs::read(&core).unwrap();
+        assert_eq!(u32::from_le_bytes(bytes[12..16].try_into().unwrap()), 6);
+    }
     // SAFETY: both sources above define the expected no-argument C functions.
     assert_eq!(
         unsafe { answer(&plugin, b"obs_fixture_plugin", &[&core]) },

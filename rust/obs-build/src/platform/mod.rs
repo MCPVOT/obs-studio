@@ -11,6 +11,7 @@ mod graphics_windows;
 mod libobs_linux;
 mod libobs_macos;
 mod libobs_windows;
+mod plugins_macos;
 pub(crate) mod resources;
 mod swift_macos;
 
@@ -109,8 +110,14 @@ pub fn configure_core_dependencies(
 }
 
 pub fn shared_filename(target: &str, name: &str) -> String {
+    library_filename(target, name, crate::LibraryKind::Shared)
+}
+
+pub fn library_filename(target: &str, name: &str, kind: crate::LibraryKind) -> String {
     if target.contains("windows") {
         format!("{name}.dll")
+    } else if kind == crate::LibraryKind::Module {
+        format!("{name}.so")
     } else if target.contains("apple") {
         format!("lib{name}.dylib")
     } else {
@@ -125,6 +132,7 @@ pub fn configure_shared_link(
     objects: &[PathBuf],
     dependencies: &[PathBuf],
     msvc: bool,
+    kind: crate::LibraryKind,
 ) -> Result<(), String> {
     if target.contains("windows") {
         if msvc {
@@ -147,7 +155,10 @@ pub fn configure_shared_link(
         }
     } else {
         command.arg(if target.contains("apple") {
-            "-dynamiclib"
+            match kind {
+                crate::LibraryKind::Shared => "-dynamiclib",
+                crate::LibraryKind::Module => "-bundle",
+            }
         } else {
             "-shared"
         });
@@ -161,10 +172,14 @@ pub fn configure_shared_link(
             .ok_or("shared library has no filename")?
             .to_string_lossy();
         if target.contains("apple") {
-            command.arg(format!("-Wl,-install_name,@rpath/{filename}"));
+            if kind == crate::LibraryKind::Shared {
+                command.arg(format!("-Wl,-install_name,@rpath/{filename}"));
+            }
             command.arg("-Wl,-rpath,@loader_path");
         } else {
-            command.arg(format!("-Wl,-soname,{filename}"));
+            if kind == crate::LibraryKind::Shared {
+                command.arg(format!("-Wl,-soname,{filename}"));
+            }
             command.arg("-Wl,--no-undefined");
             command.arg("-Wl,-rpath,$ORIGIN");
         }
@@ -241,6 +256,23 @@ pub fn configure_module(target: &str, library: &mut crate::SharedLibrary) -> Res
     } else {
         Err(format!(
             "native OBS module graph for {target} is not implemented yet"
+        ))
+    }
+}
+
+pub fn build_macos_capture(
+    build: &crate::NativeBuild,
+    root: &Path,
+    core: &Path,
+    options: &crate::libobs::Options,
+    module: crate::plugins::MacosCaptureModule,
+) -> Result<crate::plugins::Module, String> {
+    if build.target.contains("apple-darwin") {
+        plugins_macos::capture(build, root, core, options, module)
+    } else {
+        Err(format!(
+            "macOS capture requires an Apple target, got {}",
+            build.target
         ))
     }
 }

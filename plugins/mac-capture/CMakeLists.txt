@@ -3,17 +3,12 @@ cmake_minimum_required(VERSION 3.28...3.30)
 add_library(mac-capture MODULE)
 add_library(OBS::capture ALIAS mac-capture)
 
+include(sources.cmake)
+obs_macos_capture_sources(_capture_sources MAC_CAPTURE "${CMAKE_CURRENT_SOURCE_DIR}")
+
 target_sources(
   mac-capture
-  PRIVATE
-    build/mac-capture.core-macos+.h.c
-    build/mac-capture.objc-macos+.h.m
-    build/mac-capture.sck-stop+.h.c
-    audio-device-enum.h
-    coreaudio-retry.h
-    mac-sck-common.h
-    mac-sck-stop.h
-    window-utils.h
+  PRIVATE ${_capture_sources} audio-device-enum.h coreaudio-retry.h mac-sck-common.h mac-sck-stop.h window-utils.h
 )
 
 target_link_libraries(

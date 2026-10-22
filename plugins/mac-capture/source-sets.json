@@ -1,0 +1,14 @@
+{
+  "MAC_CAPTURE": [
+    "plugins/mac-capture/build/mac-capture.core-macos+.h.c",
+    "plugins/mac-capture/build/mac-capture.objc-macos+.h.m",
+    "plugins/mac-capture/build/mac-capture.sck-stop+.h.c"
+  ],
+  "MAC_AVCAPTURE": [
+    "plugins/mac-avcapture/build/mac-avcapture.objc-macos+.h.m",
+    "plugins/mac-avcapture/build/mac-avcapture.audio-planes+.h.c"
+  ],
+  "MAC_AVCAPTURE_LEGACY": [
+    "plugins/mac-avcapture/build/mac-avcapture.legacy-macos+.hpp.mm"
+  ]
+}

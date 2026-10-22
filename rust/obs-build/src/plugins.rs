@@ -16,6 +16,34 @@ pub struct Module {
     pub data: PathBuf,
 }
 
+/// Native macOS display/audio and camera capture modules.
+#[derive(Clone, Copy, Debug)]
+pub enum MacosCaptureModule {
+    ScreenAudio,
+    Camera,
+    LegacyCamera,
+}
+
+impl MacosCaptureModule {
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::ScreenAudio => "mac-capture",
+            Self::Camera => "mac-avcapture",
+            Self::LegacyCamera => "mac-avcapture-legacy",
+        }
+    }
+}
+
+pub fn build_macos_capture(
+    build: &NativeBuild,
+    root: &Path,
+    core: &Path,
+    options: &crate::libobs::Options,
+    module: MacosCaptureModule,
+) -> Result<Module, String> {
+    crate::platform::build_macos_capture(build, root, core, options, module)
+}
+
 #[derive(Debug)]
 pub struct NvencArtifacts {
     pub reference: Module,
