@@ -788,6 +788,11 @@ build/restore/setup times, failures and cold conditions, and compare costs
 against an appropriate control before adopting a backend. Routine PRs,
 queue runs, pushes, schedules and releases leave this input empty.
 
+The [first native build-reuse attempt](ci-evidence/2026-10-22-native-cache-build-reuse.md)
+failed qualification: Windows profiles were cold, and successful macOS app
+builds lacked installed-binary freshness proof. Its retained evidence includes
+the final failed gate and successful compatibility and protocol checks.
+
 ## Tier 2 execution and Fast Gate overlap
 
 The complete OFF/ON test jobs start after successful Tier 2 compilation and
