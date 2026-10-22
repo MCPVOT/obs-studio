@@ -59,19 +59,8 @@ OBSAbout::OBSAbout(QWidget *parent) : QDialog(parent), ui(new Ui::OBSAbout)
 	connect(ui->authors, &ClickableLabel::clicked, this, &OBSAbout::ShowAuthors);
 	connect(ui->license, &ClickableLabel::clicked, this, &OBSAbout::ShowLicense);
 
-	QPointer<OBSAbout> about(this);
-
-	OBSBasic *main = OBSBasic::Get();
-	if (main->patronJson.empty() && !main->patronJsonThread) {
-		RemoteTextThread *thread =
-			new RemoteTextThread("https://obsproject.com/patreon/about-box.json", "application/json");
-		QObject::connect(thread, &RemoteTextThread::Result, main, &OBSBasic::UpdatePatronJson);
-		QObject::connect(thread, &RemoteTextThread::Result, this, &OBSAbout::ShowAbout);
-		main->patronJsonThread.reset(thread);
-		thread->start();
-	} else {
-		ShowAbout();
-	}
+	/* OBS-Studio-Rust does not download upstream's Patreon list (#1732). */
+	ShowAbout();
 }
 
 void OBSAbout::ShowAbout()
@@ -79,6 +68,8 @@ void OBSAbout::ShowAbout()
 	OBSBasic *main = OBSBasic::Get();
 
 	if (main->patronJson.empty()) {
+		ui->textBrowser->setHtml("<p><a href=\"https://github.com/obs-rust/obs-studio\">"
+					 "https://github.com/obs-rust/obs-studio</a></p>");
 		return;
 	}
 

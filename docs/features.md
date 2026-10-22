@@ -230,6 +230,17 @@ not get a line.
   [#409](https://github.com/obs-rust/obs-studio/pull/409),
   [#475](https://github.com/obs-rust/obs-studio/pull/475),
   [#791](https://github.com/obs-rust/obs-studio/pull/791).
+- **No upstream release notes or donor list downloads.** The What's New
+  dialog, which showed upstream OBS Studio's release notes from
+  obsproject.com, is off by default (`ENABLE_WHATSNEW=OFF`), and the About
+  box no longer downloads upstream's Patreon list; it links to the
+  obs-rust repository instead. Two obsproject.com data feeds stay on
+  because they are data only and useful: the streaming-service list
+  (`plugins/rtmp-services/data/package.json`) and the game-capture
+  compatibility list (`plugins/win-capture/data/package.json`).
+  `ci/test_no_upstream_runtime_feeds.py` keeps the allow-list. *All*,
+  2026-10-21. Issue
+  [#1732](https://github.com/obs-rust/obs-studio/issues/1732).
 
 ### Performance
 
