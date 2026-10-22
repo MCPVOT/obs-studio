@@ -25,6 +25,10 @@ on:
         description: Measure isolated Flatpak downloads and proxy compression after Flatpak output validation
         type: boolean
         default: false
+      native-cache-reuse-source:
+        description: Qualify real native builds from this exact release-cache producer SHA (manual master only)
+        type: string
+        default: ''
       native-cache-transport-probe:
         description: Qualify bounded native cache release transport on master (writes cache-only prereleases)
         type: boolean
@@ -91,6 +95,7 @@ jobs:
       flatpak-runtime-test: ${{ github.event_name == 'workflow_dispatch' && inputs.flatpak-runtime-test }}
       flatpak-cache-probe: ${{ github.event_name == 'workflow_dispatch' && inputs.flatpak-cache-probe }}
       flatpak-pruned-build-probe: ${{ github.event_name == 'workflow_dispatch' && inputs.flatpak-pruned-build-probe }}
+      native-cache-reuse-source: ${{ github.event_name == 'workflow_dispatch' && inputs.native-cache-reuse-source || '' }}
       native-cache-transport-probe: ${{ github.event_name == 'workflow_dispatch' && inputs.native-cache-transport-probe }}
       native-cache-probe: ${{ github.event_name == 'workflow_dispatch' && inputs.native-cache-probe }}
     secrets: inherit

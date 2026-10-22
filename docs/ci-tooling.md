@@ -732,6 +732,37 @@ do not establish representative-day latency, repository retention, or a
 universal size recommendation. Compare compile time and actual hits/misses
 before deciding whether to change the production limit.
 
+### Optional native release-cache build qualification (#1269)
+
+Manual `ci.yml` dispatches accept `native-cache-reuse-source` (default empty).
+Set it to a complete producer SHA only for a planned master qualification.
+It uses the existing four native app builds, with no extra compiler unit or
+test executable. The normal full-dispatch coverage still runs. Do not combine
+it with native transport publication or the Windows budget rebuild probe.
+
+Each native runner captures its own compiler/SDK/configuration identity and
+requires an exact-source release-cache hit with that profile before building.
+The restored directory replaces the Actions compiler cache for this run;
+neither compiler-cache save path publishes experimental state. A missing or
+mismatched profile fails qualification rather than becoming a hit. Tokens
+remain read-only in the native app jobs.
+
+`ci/native_cache_freshness.py` temporarily inserts a source/run-specific marker
+into an existing frontend log literal, then checks for that marker in the
+installed main executable after the real build. It records source and binary
+hashes. The always-run cleanup restores the exact original source bytes and
+refuses to overwrite an unrelated edit. Packaging is disabled for these builds.
+The overlay is experimental evidence, not a shipped source change or an app
+runtime test. `native-build-reuse-<platform>-<architecture>-<run>` artifacts
+retain identity, restoration, overlay, binary verification and cleanup reports
+for one day; preserve useful results before expiry.
+
+Archive restoration plus a fresh binary still does not prove compiler reuse
+or a net performance benefit. Retain the native compiler statistics, actual
+build/restore/setup times, failures and cold conditions, and compare costs
+against an appropriate control before adopting a backend. Routine PRs,
+queue runs, pushes, schedules and releases leave this input empty.
+
 ## Tier 2 execution and Fast Gate overlap
 
 The complete OFF/ON test jobs start after successful Tier 2 compilation and
