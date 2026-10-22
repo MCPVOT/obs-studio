@@ -643,6 +643,23 @@ jobs:
           cache-key: ${{ steps.setup.outputs.cacheKey }}
           mirror-screenshots-url: https://dl.flathub.org/media
 
+      # The pinned action snapshots this state immediately after building.
+      # Measure its composition before considering any cache-content changes.
+      - name: Report Flatpak Cache Contents
+        if: always()
+        timeout-minutes: 2
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          if [ ! -d .flatpak-builder ]; then
+            echo "flatpak-cache state=absent job_status=${JOB_STATUS}"
+            exit 0
+          fi
+          echo "flatpak-cache phase=after-builder job_status=${JOB_STATUS} units=apparent-bytes"
+          echo '::group::Flatpak builder state contents (apparent bytes)'
+          LC_ALL=C du --apparent-size --block-size=1 --max-depth=2 -- .flatpak-builder | LC_ALL=C sort -nr
+          echo '::endgroup::'
+
       # The SDK's own ccache reads the cache flatpak-builder wrote. On master
       # pushes it also drops entries this build did not use, so the saved cache
       # stays the size of one build.

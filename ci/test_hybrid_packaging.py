@@ -60,6 +60,58 @@ set_target_properties(obs-nvenc PROPERTIES PREFIX "")
         workflow = (ROOT / ".github/workflows/build-project.yaml").read_text()
         self.assertLess(workflow.index("run: build-aux/prepare-flatpak-rust.sh"), workflow.index("- name: Build Flatpak Manifest"))
 
+    def flatpak_cache_inventory_script(self):
+        workflow = (ROOT / ".github/workflows/build-project.yaml").read_text()
+        job = workflow.split("  flatpak-build:\n", 1)[1].split("\n  windows-build:", 1)[0]
+        marker = "- name: Report Flatpak Cache Contents"
+        self.assertTrue(marker in job, "measure the actual builder state before proposing pruning")
+        self.assertLess(job.index("- name: Build Flatpak Manifest"), job.index(marker))
+        self.assertLess(job.index(marker), job.index("- name: Ccache Stats"))
+        step = job.split(marker, 1)[1].split("\n      - ", 1)[0]
+        body = re.search(r"        run: \|\n((?:          [^\n]*\n|\n)*)", step)[1]
+        return "\n".join(line[10:] for line in body.splitlines())
+
+    def test_flatpak_inventory_reports_bytes_without_mutation_or_symlink_escape(self):
+        script = self.flatpak_cache_inventory_script()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            state = root / ".flatpak-builder"
+            for name, size in (("downloads/input", 11), ("cache/objects/object", 17),
+                               ("ccache/object", 23), ("build/obs/object", 31)):
+                path = state / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(b"x" * size)
+            outside = root / "outside"
+            outside.mkdir()
+            (outside / "payload").write_bytes(b"x" * 1_000_000)
+            (state / "external").symlink_to(outside, target_is_directory=True)
+            def snapshot():
+                paths = sorted(str(path.relative_to(root)) for path in root.rglob("*"))
+                files = {str(path.relative_to(root)): (path.read_bytes(), path.stat().st_mtime_ns)
+                         for path in root.rglob("*") if path.is_file()}
+                return paths, files
+            before = snapshot()
+            result = subprocess.run(["bash", "-euo", "pipefail", "-c", script], cwd=root,
+                                    env={**os.environ, "JOB_STATUS": "success"}, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertEqual(snapshot(), before, "measurement must not prune or alter state")
+            rows = {path: int(amount) for line in result.stdout.splitlines() if "\t" in line
+                    for amount, path in [line.split("\t", 1)]}
+            self.assertGreaterEqual(rows[".flatpak-builder/downloads"], 11)
+            self.assertGreaterEqual(rows[".flatpak-builder/cache/objects"], 17)
+            self.assertGreaterEqual(rows[".flatpak-builder/ccache"], 23)
+            self.assertLess(rows[".flatpak-builder"], 1_000_000, "do not follow outside symlinks")
+            self.assertIn("job_status=success units=apparent-bytes", result.stdout)
+
+    def test_flatpak_inventory_marks_absent_state_without_creating_it(self):
+        script = self.flatpak_cache_inventory_script()
+        with tempfile.TemporaryDirectory() as directory:
+            result = subprocess.run(["bash", "-euo", "pipefail", "-c", script], cwd=directory,
+                                    env={**os.environ, "JOB_STATUS": "failure"}, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn("flatpak-cache state=absent job_status=failure", result.stdout)
+            self.assertEqual(list(Path(directory).iterdir()), [])
+
     def test_every_publication_path_checks_hybrid_release_approval(self):
         for name, publish in (("release-rust.yaml", "- name: Create or repair release"),
                               ("appimage.yaml", "- name: Attach to the tag's release")):
