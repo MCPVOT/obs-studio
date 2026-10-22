@@ -58,3 +58,42 @@ That run supplies no hosted pruning evidence. A separate local RED commit
 2889dce5e fails for both omitted paths. The scope correction selects Qt for
 `ci/test_qt_cache_budget.py` and `ci/test_qt_cache_identity.py`; all 40 scope tests
 and the 28 Qt/configuration tests then pass. Other lane selection stays intact.
+
+## Hosted PR and merge-group qualification
+
+#1690 merged as `224602f79e0afd027c274dfe641051b8d68e5401` after required
+PR run 39705091053 and merge-group run 39705788492 passed. The [hosted
+record](2026-10-22-qt-cache-used-hosted.json) preserves measurement excerpts.
+
+| Observation | Local bytes before | Local bytes after | Hits / cacheable calls |
+| --- | ---: | ---: | ---: |
+| PR Qt job 119583323367 | 1,196,582,208 | 507,503,415 | 303 / 310 |
+| Queue Qt job 119585476202 | 1,196,582,200 | 507,503,407 | 303 / 310 |
+
+Both hosted ccache 4.12.3 jobs passed five facade tests and all 19 CTest cases.
+Both removed 689,078,793 local bytes (57.59%), ending with 615 stored files.
+These related source observations are not independent randomized trials.
+The hit counts were measured during builds before pruning; they do not
+establish the next consumer's hit rate. Neither event publishes a remote
+replacement. Master archive publication is recorded below; subsequent reuse remains pending.
+
+The [rollout-day baseline](2026-10-21-rollout-day.md) separately reports code
+PR and queue timing/cost samples; it precedes this pruning publication and
+must not be used as a post-change speedup claim.
+
+## Master publication
+
+Master Qt job [119594181344](https://github.com/obs-rust/obs-studio/actions/runs/39707134569/job/119594181344)
+passed on merged source `224602f79`. It restored a 1,187,113,796-byte archive,
+then reported 310 cacheable calls (297 hits, 13 misses), five facade tests
+passed and all 19 CTest cases passed. Local bytes fell from 1,197,203,950 to
+507,500,741 after pruning, ending with 616 stored files.
+
+The job saved master cache **9314403583**, key
+`qt-ccache-linux-inputs-v2-7021a2ec3e14af5bf46e4fa736dbce3d876a44a8f2325d8cec330852ec663168`.
+The API inventory reports **507,448,340 compressed archive bytes**, created
+2026-10-22T01:59:55.925949Z: 679,665,456 fewer than the archive restored by
+this producer. This is an observed replacement size, not a causal speedup
+or proof of future retention. The parent run was still in progress when
+these completed-job logs were captured. A later real warm consumer remains
+required.
