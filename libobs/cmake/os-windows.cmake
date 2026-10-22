@@ -1,7 +1,11 @@
+if(NOT DEFINED LIBOBS_WINDOWS_OBFUSCATE_SOURCES)
+  include("${CMAKE_CURRENT_LIST_DIR}/sources.cmake")
+endif()
+
 if(NOT TARGET OBS::obfuscate)
   add_library(obs-obfuscate INTERFACE)
   add_library(OBS::obfuscate ALIAS obs-obfuscate)
-  target_sources(obs-obfuscate INTERFACE build/libobs.obfuscate-windows+.h.c util/windows/obfuscate.h)
+  target_sources(obs-obfuscate INTERFACE ${LIBOBS_WINDOWS_OBFUSCATE_SOURCES} util/windows/obfuscate.h)
   target_include_directories(obs-obfuscate INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}")
 endif()
 

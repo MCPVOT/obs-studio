@@ -17,6 +17,8 @@ mod tools;
 mod vlc_tests;
 #[path = "libobs/webrtc.rs"]
 mod webrtc_tests;
+#[path = "libobs/windows.rs"]
+mod windows_tests;
 
 #[test]
 fn c_and_rust_twins_preserve_public_data_lifecycle_and_module_apis() {

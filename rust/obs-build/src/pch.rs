@@ -3,7 +3,7 @@ use crate::NativeBuild;
 use std::{
     fs,
     hash::{Hash, Hasher},
-    path::Path,
+    path::{Path, PathBuf},
 };
 
 pub(crate) fn apply(
@@ -11,7 +11,7 @@ pub(crate) fn apply(
     compiler: &mut cc::Build,
     language: crate::Language,
     header: &Path,
-) -> Result<(), String> {
+) -> Result<Option<PathBuf>, String> {
     let tool = compiler.get_compiler();
     let kind = crate::platform::pch_kind(&build.target, &tool)?;
     let mut signature = std::collections::hash_map::DefaultHasher::new();
@@ -39,18 +39,47 @@ pub(crate) fn apply(
     if path.contains(['\n', '\r', '"']) {
         return Err(format!("unrepresentable PCH include: {path:?}"));
     }
-    crate::frontend::write(&source, &format!("#include \"{path}\"\n"))?;
+    let guard = if matches!(kind, crate::platform::PchKind::Msvc) {
+        "#pragma once\n"
+    } else {
+        ""
+    };
+    crate::frontend::write(&source, &format!("{guard}#include \"{path}\"\n"))?;
     println!("cargo:rerun-if-changed={}", header.display());
     let artifact = directory.join(match kind {
         crate::platform::PchKind::Gnu => "prefix.h.gch",
-        crate::platform::PchKind::Clang => "prefix.pch",
+        crate::platform::PchKind::Clang | crate::platform::PchKind::Msvc => "prefix.pch",
     });
     let mut command = tool.to_command();
-    command
-        .args(["-x", language.header_language(), "-c"])
-        .arg(&source)
-        .arg("-o")
-        .arg(&artifact);
+    let object = if matches!(kind, crate::platform::PchKind::Msvc) {
+        if !matches!(language, crate::Language::C | crate::Language::Cpp) {
+            return Err("MSVC PCH requires C or C++".into());
+        }
+        let wrapper = dunce::simplified(&source)
+            .to_str()
+            .ok_or("non-UTF8 PCH wrapper path")?
+            .replace('\\', "/");
+        if wrapper.contains(['\n', '\r', '"']) {
+            return Err(format!("unrepresentable PCH wrapper include: {wrapper:?}"));
+        }
+        let input = directory.join(format!("prefix-input.{}", language.extension()));
+        crate::frontend::write(&input, &format!("#include \"{wrapper}\"\n"))?;
+        let object = directory.join("prefix.obj");
+        command
+            .arg(format!("/Yc{wrapper}"))
+            .arg(format!("/Fp{}", dunce::simplified(&artifact).display()))
+            .arg(format!("/Fo{}", dunce::simplified(&object).display()))
+            .arg("/c")
+            .arg(&input);
+        Some(object)
+    } else {
+        command
+            .args(["-x", language.header_language(), "-c"])
+            .arg(&source)
+            .arg("-o")
+            .arg(&artifact);
+        None
+    };
     let result = command
         .output()
         .map_err(|e| format!("execute PCH compiler: {e}"))?;
@@ -82,6 +111,18 @@ pub(crate) fn apply(
                 .flag("-include-pch")
                 .flag(artifact.to_str().ok_or("non-UTF8 PCH artifact path")?);
         }
+        crate::platform::PchKind::Msvc => {
+            let wrapper = dunce::simplified(&source)
+                .to_str()
+                .ok_or("non-UTF8 PCH wrapper path")?
+                .replace('\\', "/");
+            compiler
+                .flag(format!("/Yu{wrapper}"))
+                .flag(format!("/FI{wrapper}"))
+                .flag(format!("/Fp{}", dunce::simplified(&artifact).display()));
+        }
     }
-    Ok(())
+    // /Yc with /Z7 can put required code/debug symbols in this object. Link it
+    // once alongside all consumers, including when archiving native objects.
+    Ok(object)
 }

@@ -35,6 +35,11 @@ pub struct SourceCompileOptions {
 pub struct SharedLibrary {
     pub name: String,
     pub sources: Vec<PathBuf>,
+    /// Native resource scripts, compiled separately from C-family unity/PCH batches.
+    pub resource_files: Vec<PathBuf>,
+    pub resource_compile_options: Vec<String>,
+    /// Extra resource inputs (included headers, icons, manifests) watched by Cargo.
+    pub resource_input_files: Vec<PathBuf>,
     /// Objects compiled once and reused by multiple shared-library variants.
     pub precompiled_objects: Vec<PathBuf>,
     pub include_dirs: Vec<PathBuf>,
@@ -175,7 +180,7 @@ impl NativeBuild {
     /// Compile through cc::Build, then link a native shared library.
     pub fn shared_library(&self, library: &SharedLibrary) -> Result<PathBuf, String> {
         let (output, cpp_link, mut objects) = self.objects(library)?;
-        objects.extend(library.precompiled_objects.iter().cloned());
+        append_precompiled(&mut objects, library);
         let artifact = output.join(
             library
                 .file_name
@@ -211,7 +216,7 @@ impl NativeBuild {
     /// Compile and link an executable with the native shared dependencies.
     pub fn executable(&self, target: &SharedLibrary) -> Result<PathBuf, String> {
         let (output, cpp, mut objects) = self.objects(target)?;
-        objects.extend(target.precompiled_objects.iter().cloned());
+        append_precompiled(&mut objects, target);
         let artifact = output.join(
             target
                 .file_name
@@ -246,7 +251,13 @@ impl NativeBuild {
 
     /// Build an archive with the same compiler, flags and source grouping.
     pub fn static_library(&self, library: &SharedLibrary) -> Result<PathBuf, String> {
-        let (output, cpp, objects) = self.objects(library)?;
+        if !library.resource_files.is_empty() {
+            return Err(
+                "native resources must be linked into a DLL or executable, not an archive".into(),
+            );
+        }
+        let (output, cpp, mut objects) = self.objects(library)?;
+        append_precompiled(&mut objects, library);
         self.compiler(library, &output, cpp)
             .try_create_archive(&library.name, objects)
             .map_err(|e| e.to_string())
@@ -261,7 +272,10 @@ impl NativeBuild {
         {
             return Err(format!("invalid native target name {:?}", library.name));
         }
-        if library.sources.is_empty() {
+        if library.sources.is_empty()
+            && library.resource_files.is_empty()
+            && library.precompiled_objects.is_empty()
+        {
             return Err(format!("{} has no sources", library.name));
         }
         let output = self.output.join(&library.name);
@@ -358,8 +372,11 @@ impl NativeBuild {
                 Language::C | Language::Cpp => &[],
             });
             compiler.flags(&options);
-            if let Some(header) = header {
-                pch::apply(self, &mut compiler, language, &header)?;
+            if let Some(header) = header
+                && let Some(object) = pch::apply(self, &mut compiler, language, &header)?
+                && !objects.contains(&object)
+            {
+                objects.push(object);
             }
             if library.unity {
                 let group = output.join(format!("unity-{index}.{}", language.extension()));
@@ -386,6 +403,12 @@ impl NativeBuild {
                     .try_compile_intermediates()
                     .map_err(|e| e.to_string())?,
             );
+        }
+        if !library.resource_files.is_empty() {
+            let compiler = self.compiler(library, &output, false).get_compiler();
+            objects.extend(platform::resources::compile(
+                self, library, &output, &compiler,
+            )?);
         }
         Ok((output, cpp_link, objects))
     }
@@ -424,6 +447,20 @@ impl NativeBuild {
         });
         compiler
     }
+}
+
+fn append_precompiled(objects: &mut Vec<PathBuf>, library: &SharedLibrary) {
+    // Common and variant batches can consume the same MSVC PCH. Its generated
+    // object must reach the linker exactly once, even when the common objects
+    // were compiled before the variant was selected.
+    let mut seen: std::collections::HashSet<_> = objects.iter().cloned().collect();
+    objects.extend(
+        library
+            .precompiled_objects
+            .iter()
+            .filter(|object| seen.insert((*object).clone()))
+            .cloned(),
+    );
 }
 
 /// Host triple used to compile this build engine.

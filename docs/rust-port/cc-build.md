@@ -53,6 +53,48 @@ runs the unchanged CTest suite against each. It checks the bundled crate's build
 path separately. These are core checks: they do not establish the macOS frontend,
 graphics backends, plugins, complete application, or release package conversion.
 
+## Windows core graph
+
+The Windows MSVC graph uses the shared libobs source manifest and existing
+`rust-exports.d` fragments. The obfuscation interface group is also selected
+from that manifest by CMake. An explicit OBS dependency bundle supplies headers
+and import libraries; `w32-pthreads` is built from its existing source and
+resource template. Each core retains `obs.dll` and its `obs.lib` import library.
+
+`SharedLibrary::resource_files` contains native `.rc` scripts. Declare their
+included headers, icons and other inputs in `resource_input_files` for Cargo
+tracking; `resource_compile_options` supplies RC-specific options. The resource
+compiler receives the target's definitions and include paths, separately from
+C/C++ flags, unity and PCH. Set a target-qualified `RC_<triple>` (hyphens or
+underscores), `HOST_RC`/`TARGET_RC`, or `RC` to an executable path. Otherwise the
+engine discovers the Windows SDK resource compiler, falling back to `llvm-rc`
+for clang-cl. Resources link into DLLs or executables; putting resource scripts
+in a static archive is rejected instead of silently losing them.
+
+MSVC and clang-cl PCH use the same language and source-specific flags as their
+consumers. PCH-generated objects are retained for linking and archiving, with
+shared common/variant objects linked only once. The native contracts cover
+resource payload changes, DLL/executable loading, C/C++ flag isolation, header
+changes, unity modes and PCH objects linked through a static archive.
+
+The existing Windows Tier 2 script builds the Cargo pair with PCH enabled,
+compares exports to its CMake reference, and checks bundled `obs-sys` with PCH
+disabled. A separate loader probe checks the loaded core's file identity and a
+deliberately incorrect expected file before the unchanged CTest suite runs
+against each Cargo core. Test-specific runtime paths are checked for shadowing.
+Cross builds can use `OBS_BUILD_WINDOWS_DEPENDENCIES`, `OBS_BUILD_WINDOWS_TARGET`,
+`OBS_BUILD_WINDOWS_OUTPUT`, and `OBS_BUILD_WINDOWS_RUST_ARCHIVE` with the existing
+`native_libobs::windows_tests::core_builds_from_the_canonical_manifest` test.
+`OBS_BUILD_WINDOWS_PCH`, `OBS_BUILD_WINDOWS_SEPARATE` and
+`OBS_BUILD_DISABLE_HEVC` select additional configurations. Export inspection uses
+`OBS_BUILD_WINDOWS_EXPORT_TOOL` (llvm-readobj by default, or dumpbin on Windows).
+
+These are core checks. Resource metadata currently follows the core API version
+and existing bootstrap strings; full configuration/release-version overrides,
+frontend, graphics, plugins, packaging and controlled compiler-cache measurements
+remain required before retiring CMake authority. Cross-built artifacts do not
+prove Windows runtime behavior.
+
 ## Requirements carried forward
 
 - Native C/C++ builds must be very fast. Reuse explicit unity groups, make unity

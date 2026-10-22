@@ -148,3 +148,107 @@ foreach ($mode in 'OFF', 'ON') {
   $env:PATH = $savedPath
   if ($ctestExit -ne 0) { throw "ctest failed ($ctestExit)" }
 }
+
+# Build the Cargo cores using the same native architecture and dependency bundle
+# as the baseline. Cargo builds the Rust archive outside build.rs to avoid a
+# nested Cargo invocation and to select an explicit, freshly built artifact.
+$nativeTarget = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') {
+  'aarch64-pc-windows-msvc'
+} else {
+  'x86_64-pc-windows-msvc'
+}
+$nativeOutput = Join-Path $RepoRoot "$build/cargo-native-core"
+$nativeRust = Join-Path $RepoRoot "$build/cargo-native-rust"
+$nativeTests = Join-Path $RepoRoot "$build/cargo-native-tests"
+$nativeDependencies = Split-Path $avcodec.DirectoryName
+soldr cargo build -p libobs-rust --release --target $nativeTarget --target-dir $nativeRust
+if ($LASTEXITCODE -ne 0) { throw "Cargo Rust archive failed ($LASTEXITCODE)" }
+$nativeArchive = Join-Path $nativeRust "$nativeTarget/release/libobs_rust.lib"
+$env:OBS_BUILD_WINDOWS_DEPENDENCIES = $nativeDependencies
+$env:OBS_BUILD_WINDOWS_TARGET = $nativeTarget
+$env:OBS_BUILD_WINDOWS_OUTPUT = $nativeOutput
+$env:OBS_BUILD_WINDOWS_RUST_ARCHIVE = $nativeArchive
+$env:OBS_BUILD_WINDOWS_PCH = '1'
+$env:OBS_BUILD_WINDOWS_REFERENCE = $cDll.FullName
+$env:OBS_BUILD_WINDOWS_EXPORT_TOOL = Find-Dumpbin
+soldr cargo test -p obs-studio-rust --features libobs-integration `
+  --target $nativeTarget --target-dir $nativeTests --test obs-tests-app `
+  native_libobs::windows_tests::core_builds_from_the_canonical_manifest -- --exact
+if ($LASTEXITCODE -ne 0) { throw "Cargo Windows core contract failed ($LASTEXITCODE)" }
+
+$env:OBS_SYS_NATIVE_DEPENDENCIES = $nativeDependencies
+$env:OBS_BUILD_RUST_ARCHIVE = $nativeArchive
+$env:OBS_SYS_UNITY = '1'
+$env:OBS_SYS_PCH = '0'
+soldr cargo check -p obs-sys --features bundled --target $nativeTarget --target-dir $nativeTests
+if ($LASTEXITCODE -ne 0) { throw "bundled Windows obs-sys failed ($LASTEXITCODE)" }
+
+$nativeArtifacts = Get-Content (Join-Path $nativeOutput 'windows-artifacts.json') -Raw | ConvertFrom-Json
+$nativeSymbols = Get-Content (Join-Path $nativeOutput 'windows-symbols.json') -Raw | ConvertFrom-Json
+Write-Host "Cargo IDENTICAL ($($nativeSymbols.Count) symbols), target=$($nativeArtifacts.target), unity=$($nativeArtifacts.unity), pch=$($nativeArtifacts.pch)"
+$testPlanJson = ctest --test-dir $build -C RelWithDebInfo --show-only=json-v1
+if ($LASTEXITCODE -ne 0) { throw 'could not inspect unchanged CTest runtime paths' }
+$testPlan = ($testPlanJson -join [Environment]::NewLine) | ConvertFrom-Json
+if (-not $testPlan.tests.Count) { throw 'no unchanged native tests were registered' }
+# A per-test PATH override, a prepended directory or a working directory with
+# obs.dll could hide the selected Cargo core. Keep Qt's normal PATH prepends,
+# but prove they cannot shadow the core before using the unmodified tests.
+foreach ($test in $testPlan.tests) {
+  $executableDirectory = Split-Path $test.command[0]
+  if ($executableDirectory -and (Test-Path (Join-Path $executableDirectory 'obs.dll'))) {
+    throw "test $($test.name) has a shadowing executable-directory obs.dll"
+  }
+  foreach ($property in $test.properties) {
+    if ($property.name -eq 'ENVIRONMENT') {
+      foreach ($value in $property.value) {
+        if ($value -match '^PATH=') { throw "test $($test.name) overrides PATH" }
+      }
+    }
+    if ($property.name -eq 'WORKING_DIRECTORY' -and (Test-Path (Join-Path $property.value 'obs.dll'))) {
+      throw "test $($test.name) has a shadowing working-directory obs.dll"
+    }
+    if ($property.name -eq 'ENVIRONMENT_MODIFICATION') {
+      foreach ($value in $property.value) {
+        if ($value -match '^PATH=path_list_prepend:(.*)$') {
+          foreach ($directory in $Matches[1] -split ';') {
+            if (Test-Path (Join-Path $directory 'obs.dll')) {
+              throw "test $($test.name) prepends a shadowing obs.dll"
+            }
+          }
+        } elseif ($value -match '^PATH=' -and $value -notmatch '^PATH=path_list_append:') {
+          throw "test $($test.name) changes PATH unexpectedly: $value"
+        }
+      }
+    }
+  }
+}
+
+foreach ($selected in $nativeArtifacts.reference, $nativeArtifacts.core) {
+  $dll = Get-Item $selected
+  $savedPath = $env:PATH
+  try {
+    $nativePthreads = Split-Path $nativeArtifacts.pthreads
+    $env:PATH = "$($dll.DirectoryName);$nativePthreads;$($avcodec.DirectoryName);$savedPath"
+    Write-Host "== Cargo loader identity: $($dll.FullName)"
+    & $nativeArtifacts.loader_probe $dll.FullName
+    if ($LASTEXITCODE -ne 0) { throw "Cargo core loader identity failed ($LASTEXITCODE)" }
+    # Negative control: same selected DLL, deliberately wrong expected file.
+    & $nativeArtifacts.loader_probe $cDll.FullName
+    if ($LASTEXITCODE -ne 14) { throw "Cargo loader negative control failed ($LASTEXITCODE)" }
+    Write-Host "== Cargo [$($dll.Directory.Name)] unchanged ctest suite"
+    ctest --test-dir $build -C RelWithDebInfo --output-on-failure --no-tests=error
+    $ctestExit = $LASTEXITCODE
+    if ($ctestExit -eq 0 -and $Repeat -gt 0) {
+      $repeatArgs = @('--repeat', "until-fail:$Repeat")
+      if ($Tests) { $repeatArgs += @('-R', $Tests) }
+      ctest --test-dir $build -C RelWithDebInfo --output-on-failure --no-tests=error @repeatArgs
+      $ctestExit = $LASTEXITCODE
+    }
+    if ($ctestExit -ne 0) {
+      Show-CrashStacks $build
+      throw "Cargo core CTest failed ($ctestExit)"
+    }
+  } finally {
+    $env:PATH = $savedPath
+  }
+}

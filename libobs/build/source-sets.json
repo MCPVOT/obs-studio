@@ -152,6 +152,9 @@
     "build/libobs.windows+.h.c",
     "build/libobs.windows-crash-handler+.h.c"
   ],
+  "LIBOBS_WINDOWS_OBFUSCATE_SOURCES": [
+    "build/libobs.obfuscate-windows+.h.c"
+  ],
   "LIBOBS_WINDOWS_PORTED_SOURCES": [
     "build/libobs.ported-windows+.h.c",
     "build/libobs.ported-windows-pipe+.h.c",
