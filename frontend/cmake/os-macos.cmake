@@ -14,7 +14,7 @@ macro(obs_frontend_platform_plugin_paths)
 endmacro()
 
 macro(obs_frontend_platform_plugin_manager)
-  target_sources(obs-studio PRIVATE build/frontend.plugin-manager-mm+.hpp.mm)
+  obs_frontend_add_sources(MACOS_PLUGIN_MANAGER)
 endmacro()
 
 macro(obs_frontend_platform_whatsnew)
@@ -22,19 +22,10 @@ macro(obs_frontend_platform_whatsnew)
 endmacro()
 
 macro(obs_frontend_platform_sources)
-  target_sources(obs-studio PRIVATE build/frontend.signal-posix+.hpp.cpp)
+  obs_frontend_add_sources(POSIX_SIGNALS)
   include(cmake/feature-sparkle.cmake)
 
-  target_sources(
-    obs-studio
-    PRIVATE
-      build/frontend.macos+.hpp.cpp
-      dialogs/OBSPermissions.hpp
-      forms/OBSPermissions.ui
-      build/frontend.macos-arc-mm+.hpp.mm
-      build/frontend.macos-mm+.hpp.mm
-      build/frontend.native-event-filter+.hpp.cpp
-  )
+  obs_frontend_add_sources(MACOS)
   target_compile_options(obs-studio PRIVATE -Wno-quoted-include-in-framework-header -Wno-comma)
 
   list(APPEND _frontend_objcxx_compile_options -fobjc-arc -fmodules -fcxx-modules)

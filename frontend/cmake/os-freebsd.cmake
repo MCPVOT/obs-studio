@@ -11,7 +11,7 @@ endmacro()
 
 macro(obs_frontend_platform_plugin_manager)
   configure_file(plugin-manager/LoaderPaths_BSD.hpp.in LoaderPaths_BSD.hpp @ONLY)
-  target_sources(obs-studio PRIVATE build/frontend.plugin-manager-bsd+.hpp.cpp LoaderPaths_BSD.hpp)
+  obs_frontend_add_sources(FREEBSD_PLUGIN_MANAGER)
 endmacro()
 
 macro(obs_frontend_platform_whatsnew)
@@ -19,11 +19,8 @@ macro(obs_frontend_platform_whatsnew)
 endmacro()
 
 macro(obs_frontend_platform_sources)
-  target_sources(obs-studio PRIVATE build/frontend.signal-posix+.hpp.cpp)
-  target_sources(
-    obs-studio
-    PRIVATE build/frontend.freebsd+.hpp.cpp build/frontend.native-event-filter+.hpp.cpp build/frontend.x11+.hpp.cpp
-  )
+  obs_frontend_add_sources(POSIX_SIGNALS)
+  obs_frontend_add_sources(FREEBSD)
   target_compile_definitions(obs-studio PRIVATE OBS_INSTALL_PREFIX="${OBS_INSTALL_PREFIX}")
   target_link_libraries(obs-studio PRIVATE Qt::DBus procstat)
 

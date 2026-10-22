@@ -1,0 +1,6 @@
+{
+  "common": ["build/qt-wrappers.core+.hpp.cpp", "qt-wrappers.hpp"],
+  "windows": ["build/qt-wrappers.host-windows+.hpp.cpp"],
+  "macos": ["build/qt-wrappers.host-macos+.hpp.cpp"],
+  "posix": ["build/qt-wrappers.host-posix+.hpp.cpp"]
+}

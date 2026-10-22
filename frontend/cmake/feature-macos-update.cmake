@@ -6,18 +6,7 @@ if(NOT TARGET OBS::blake2)
   add_subdirectory("${CMAKE_SOURCE_DIR}/deps/blake2" "${CMAKE_BINARY_DIR}/deps/blake2")
 endif()
 
-target_sources(
-  obs-studio
-  PRIVATE
-    build/frontend.whatsnew+.hpp.cpp
-    utility/WhatsNewBrowserInitThread.hpp
-    utility/WhatsNewInfoThread.hpp
-    build/frontend.crypto-macos-mm+.hpp.mm
-    utility/crypto-helpers.hpp
-    utility/models/branches.hpp
-    utility/models/whatsnew.hpp
-    utility/update-helpers.hpp
-)
+obs_frontend_add_sources(MACOS_UPDATE)
 
 target_link_libraries(
   obs-studio

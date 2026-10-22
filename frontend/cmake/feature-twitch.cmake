@@ -1,5 +1,5 @@
 if(TWITCH_CLIENTID AND TWITCH_HASH MATCHES "^(0|[a-fA-F0-9]+)$" AND TARGET OBS::browser-panels)
-  target_sources(obs-studio PRIVATE build/frontend.twitch+.hpp.cpp oauth/TwitchAuth.hpp)
+  obs_frontend_add_sources(TWITCH)
   target_enable_feature(obs-studio "Twitch API connection" TWITCH_ENABLED)
 else()
   target_disable_feature(obs-studio "Twitch API connection")

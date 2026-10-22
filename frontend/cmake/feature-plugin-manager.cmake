@@ -9,17 +9,7 @@ set(OBS_PLATFORM_PLUGIN_MODULE_PATH "${CMAKE_INSTALL_PREFIX}/${OBS_PLUGIN_DESTIN
 set(OBS_PLATFORM_PLUGIN_DATA_PATH "${CMAKE_INSTALL_PREFIX}/${OBS_DATA_DESTINATION}/obs-modules/plugins")
 obs_frontend_platform_plugin_paths()
 
-target_sources(
-  obs-studio
-  PRIVATE
-    build/frontend.plugin-manager-installedpluginrow+.hpp.cpp
-    plugin-manager/InstalledPluginRow.hpp
-    build/frontend.plugin-manager-pluginmanager+.hpp.cpp
-    plugin-manager/PluginManager.hpp
-    build/frontend.plugin-manager-pluginmanagerwindow+.hpp.cpp
-    plugin-manager/PluginManagerWindow.hpp
-    plugin-manager/PluginModuleLoader.hpp
-)
+obs_frontend_add_sources(PLUGIN_MANAGER)
 
 obs_frontend_platform_plugin_manager()
 

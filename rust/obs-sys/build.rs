@@ -33,6 +33,7 @@ fn main() {
             println!("cargo:rerun-if-env-changed={variable}");
         }
         let build = obs_build::NativeBuild {
+            profile: Default::default(),
             host: std::env::var("HOST").unwrap(),
             target: std::env::var("TARGET").unwrap(),
             output: std::path::PathBuf::from(std::env::var_os("OUT_DIR").unwrap()).join("native"),

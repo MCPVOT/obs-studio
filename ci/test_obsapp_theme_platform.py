@@ -2,6 +2,7 @@
 """OBSApp theme policy and POSIX signal lifecycle characterization (#885)."""
 from pathlib import Path
 import re
+import json
 import os
 import shutil
 import subprocess
@@ -101,8 +102,10 @@ class OBSAppThemePlatformTest(unittest.TestCase):
             text = (UTILITY / f'platform-{host}.hpp').read_text()
             for signature in THEME_SIGS:
                 self.assertIn(signature, text)
+        sources = json.loads((ROOT / 'frontend/build/source-sets.json').read_text())
+        self.assertIn('build/frontend.signal-posix+.hpp.cpp', sources['POSIX_SIGNALS'])
         for host in ('macos', 'linux', 'freebsd'):
-            self.assertIn('build/frontend.signal-posix+.hpp.cpp',
+            self.assertIn('obs_frontend_add_sources(POSIX_SIGNALS)',
                           (ROOT / f'frontend/cmake/os-{host}.cmake').read_text())
 
     def test_legacy_theme_policy(self):

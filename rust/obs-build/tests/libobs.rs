@@ -47,6 +47,7 @@ fn c_and_rust_twins_preserve_public_data_lifecycle_and_module_apis() {
     );
     let output = tempfile::tempdir().unwrap();
     let build = NativeBuild {
+        profile: Default::default(),
         host: obs_build::BUILD_HOST.into(),
         target: obs_build::BUILD_TARGET.into(),
         output: std::env::var_os("OBS_BUILD_TEST_OUTPUT")
@@ -64,25 +65,13 @@ fn c_and_rust_twins_preserve_public_data_lifecycle_and_module_apis() {
         unity: std::env::var_os("OBS_BUILD_DISABLE_CORE_UNITY").is_none(),
         hevc: std::env::var_os("OBS_BUILD_DISABLE_HEVC").is_none(),
         core_modules: if enabled("OBS_BUILD_APP_GUI") {
-            [
-                "obs-transitions",
-                "obs-filters",
-                "image-source",
-                "text-freetype2",
-                "linux-pulseaudio",
-                "linux-alsa",
-                "linux-v4l2",
-                "linux-capture",
-                "rtmp-services",
-                "linux-pipewire",
-                "obs-vst",
-                "obs-x264",
-                "obs-outputs",
-                "obs-ffmpeg",
-            ]
-            .into_iter()
-            .map(String::from)
-            .collect()
+            let mut application =
+                obs_build::application::BuildOptions::for_target(&build.target).unwrap();
+            // This driver enables frontend plugins explicitly below; its
+            // baseline must not request modules absent from that variant.
+            application.frontend_tools = false;
+            application.websocket = None;
+            application.core_module_names()
         } else {
             vec![]
         },
@@ -164,6 +153,7 @@ fn c_and_rust_twins_preserve_public_data_lifecycle_and_module_apis() {
     // Exercise the normal bundled/native entry point too: the explicit pair
     // above must not be the only route that can produce a working hybrid.
     let production = NativeBuild {
+        profile: Default::default(),
         host: build.host.clone(),
         target: build.target.clone(),
         output: build.output.join("production"),
@@ -183,7 +173,7 @@ fn c_and_rust_twins_preserve_public_data_lifecycle_and_module_apis() {
             },
         )
         .unwrap();
-        assert_eq!(executables.len(), if options.hevc { 59 } else { 58 });
+        assert_eq!(executables.len(), if options.hevc { 63 } else { 62 });
         let mut results = Vec::new();
         for core in [&libraries.reference, &libraries.with_rust] {
             let variant = core
@@ -416,18 +406,15 @@ fn c_and_rust_twins_preserve_public_data_lifecycle_and_module_apis() {
         modules.push(vlc);
     }
     if enabled("OBS_BUILD_SOURCES") {
-        for source in [
-            plugins::SourceModule::Image,
-            plugins::SourceModule::Text,
-            plugins::SourceModule::PulseAudio,
-            plugins::SourceModule::Alsa,
-            plugins::SourceModule::V4l2 {
-                udev: std::env::var_os("OBS_BUILD_DISABLE_UDEV").is_none(),
-            },
-            plugins::SourceModule::X11Capture,
-            // Offline smoke tests must not start the update service.
-            plugins::SourceModule::RtmpServices { updates: false },
-        ] {
+        for source in obs_build::application::source_modules(
+            &build.target,
+            std::env::var_os("OBS_BUILD_DISABLE_UDEV").is_none(),
+            false, // Offline smoke tests must not start the update service.
+        )
+        .unwrap()
+        .into_iter()
+        .filter(|source| !matches!(source, plugins::SourceModule::PipeWire))
+        {
             modules
                 .push(plugins::build_source(&build, &root, &libraries.with_rust, source).unwrap());
         }
@@ -1324,6 +1311,7 @@ fn macos_core_builds_from_the_canonical_manifest() {
         std::env::var_os("OBS_BUILD_MACOS_OUTPUT").expect("set OBS_BUILD_MACOS_OUTPUT"),
     );
     let build = NativeBuild {
+        profile: Default::default(),
         host: obs_build::BUILD_HOST.into(),
         target: std::env::var("OBS_BUILD_MACOS_TARGET")
             .unwrap_or_else(|_| obs_build::BUILD_TARGET.into()),

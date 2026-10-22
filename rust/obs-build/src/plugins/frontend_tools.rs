@@ -39,7 +39,7 @@ pub fn build(
         .filter(|(directory, _)| directory.as_str() != "shared/qt/idian")
     {
         library.include_dirs.push(root.join(directory));
-        frontend::add_inputs(build, &root, &mut library, inputs)?;
+        frontend::add_interface_inputs(build, &root, &mut library, directory, inputs)?;
     }
     frontend::add_spinbox(build, &root, &mut library)?;
     let mut inputs: Vec<String> = [

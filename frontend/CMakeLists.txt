@@ -31,6 +31,8 @@ endif()
 add_executable(obs-studio)
 add_executable(OBS::studio ALIAS obs-studio)
 
+include(cmake/sources.cmake)
+
 # Select platform operations once; each is invoked at its existing setup stage.
 if(OS_WINDOWS)
   include(cmake/os-windows.cmake)
@@ -100,17 +102,8 @@ include(cmake/feature-gpu-status.cmake)
 
 configure_file(cmake/templates/ui-config.h.in ui-config.h)
 
-target_sources(
-  obs-studio
-  PRIVATE
-    build/frontend.app-obs-main+.hpp.cpp
-    build/frontend.app-obsstudioapi+.hpp.cpp
-    OBSStudioAPI.hpp
-    build/frontend.app-obsapp+.hpp.cpp
-    OBSApp.hpp
-    build/frontend.app+.hpp.cpp
-    ui-config.h
-)
+obs_frontend_add_sources(APP)
+obs_frontend_add_sources(AUTOGEN_INPUTS)
 
 # The Rust build names itself OBS-Studio-Rust and shows its own version, read from
 # the libobs-rust crate, next to the upstream OBS version it is based on.

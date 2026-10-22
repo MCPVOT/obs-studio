@@ -1,5 +1,6 @@
 """Exercise parallel CMake builds against a nonblocking Cargo-style lock (#1407)."""
 
+import os
 import shutil
 import subprocess
 import sys
@@ -71,6 +72,28 @@ else:
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             for crate in ("first", "second", "third"):
                 self.assertTrue((build / (crate + "-done")).exists())
+
+    def test_application_launcher_uses_the_native_rust_cache_safeguard(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            soldr = root / "soldr"
+            soldr.write_text("""#!/bin/bash
+if [[ "$*" == *rustc* ]]; then
+  echo 'host: x86_64-unknown-linux-gnu'
+  exit 0
+fi
+printf '%s' "${SOLDR_RUSTC_WRAPPER:-unset}" > "$OBS_TEST_WRAPPER_LOG"
+exit 19
+""")
+            soldr.chmod(0o755)
+            marker = root / "wrapper"
+            env = dict(os.environ, PATH=str(root) + os.pathsep + os.environ["PATH"],
+                       OBS_TEST_WRAPPER_LOG=str(marker), OBS_NATIVE_TOOL_OUTPUT=str(root / "target"))
+            env.pop("SOLDR_RUSTC_WRAPPER", None)
+            result = subprocess.run(["bash", str(ROOT / "native-build"), "--help"], env=env,
+                                    capture_output=True, text=True, timeout=30)
+            self.assertEqual(result.returncode, 19, result.stdout + result.stderr)
+            self.assertEqual(marker.read_text(), "none")
 
     def test_every_corrosion_import_joins_the_cargo_build_order(self):
         imports = {

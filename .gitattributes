@@ -1,5 +1,8 @@
 * text=auto
 
+# Keep raw shader resources identical across host checkouts and archives.
+*.effect text eol=lf
+
 *.sln             text eol=crlf
 *.vcproj          text eol=crlf
 *.vcxproj         text eol=crlf

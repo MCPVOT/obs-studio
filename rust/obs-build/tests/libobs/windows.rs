@@ -12,6 +12,7 @@ fn core_builds_from_the_canonical_manifest() {
     };
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     let build = NativeBuild {
+        profile: Default::default(),
         host: obs_build::BUILD_HOST.into(),
         target: std::env::var("OBS_BUILD_WINDOWS_TARGET")
             .unwrap_or_else(|_| obs_build::BUILD_TARGET.into()),

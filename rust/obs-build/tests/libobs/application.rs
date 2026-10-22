@@ -39,80 +39,7 @@ pub fn exercise(inputs: Inputs<'_>, variants: &[Variant<'_>]) -> Result<(), Stri
             .tempdir_in(&inputs.build.output)
             .map_err(|e| e.to_string())?
             .keep();
-        let bin = runtime.join("bin");
-        let libraries = runtime.join("lib64");
-        std::fs::create_dir_all(&bin).map_err(|e| e.to_string())?;
-        std::fs::create_dir_all(&libraries).map_err(|e| e.to_string())?;
-        copy(inputs.executable, &bin.join("obs-studio-rust"))?;
-        for library in [core, inputs.api, inputs.renderer] {
-            copy(
-                library,
-                &libraries.join(
-                    library
-                        .file_name()
-                        .ok_or("runtime library has no filename")?,
-                ),
-            )?;
-        }
-        inputs.ffmpeg.deploy_muxer(&bin)?;
-        if let Some(scripts) = inputs.script_artifacts {
-            let library_name = scripts
-                .library
-                .file_name()
-                .ok_or("scripting library has no filename")?;
-            copy(&scripts.library, &libraries.join(library_name))?;
-            let mut modules = Vec::new();
-            let mut languages = Vec::new();
-            for (language, module) in [
-                ("lua", scripts.lua_module.as_deref()),
-                ("python", scripts.python_module.as_deref()),
-            ] {
-                if let Some(module) = module {
-                    let relative = module
-                        .strip_prefix(&scripts.runtime)
-                        .map_err(|e| e.to_string())?;
-                    copy(module, &runtime.join(relative))?;
-                    modules.push(relative.to_string_lossy().into_owned());
-                    languages.push(language);
-                }
-            }
-            if let Some(wrapper) = &scripts.python_wrapper {
-                copy(
-                    wrapper,
-                    &runtime.join(
-                        wrapper
-                            .strip_prefix(&scripts.runtime)
-                            .map_err(|e| e.to_string())?,
-                    ),
-                )?;
-            }
-            let metadata = serde_json::json!({"library": format!("lib64/{}", library_name.to_string_lossy()), "modules": modules, "languages": languages});
-            std::fs::write(
-                runtime.join("expected-scripting.json"),
-                serde_json::to_vec(&metadata).map_err(|e| e.to_string())?,
-            )
-            .map_err(|e| e.to_string())?;
-        }
-        if let Some(helper) = inputs.nvenc_helper {
-            copy(
-                helper,
-                &bin.join(helper.file_name().ok_or("NVENC helper has no filename")?),
-            )?;
-        }
-        copy_tree(
-            &inputs.root.join("libobs/data"),
-            &runtime.join("share/obs/libobs"),
-        )?;
-        copy_tree(
-            &inputs.root.join("frontend/data"),
-            &runtime.join("share/obs/obs-studio"),
-        )?;
-        copy(
-            &inputs.root.join("AUTHORS"),
-            &runtime.join("share/obs/obs-studio/authors"),
-        )?;
-        let mut names = Vec::new();
-        for module in inputs
+        let modules: Vec<_> = inputs
             .modules
             .iter()
             .chain(variant.nvenc)
@@ -120,67 +47,104 @@ pub fn exercise(inputs: Inputs<'_>, variants: &[Variant<'_>]) -> Result<(), Stri
             .chain(inputs.websocket)
             .chain(inputs.browser.map(|browser| &browser.module))
             .chain(inputs.gui_probe)
-        {
-            let name = module
-                .library
-                .file_stem()
-                .and_then(|name| name.to_str())
-                .ok_or("invalid module filename")?;
-            let target = runtime.join("lib64/obs-modules/core");
-            std::fs::create_dir_all(&target).map_err(|e| e.to_string())?;
-            copy(
-                &module.library,
-                &target.join(module.library.file_name().ok_or("module has no filename")?),
-            )?;
-            copy_tree(
-                &module.data,
-                &runtime.join("share/obs/obs-modules/core").join(name),
-            )?;
-            names.push(name);
-        }
+            .collect();
+        let staged = obs_build::application::stage_runtime(
+            inputs.build,
+            &obs_build::application::RuntimeInputs {
+                root: inputs.root,
+                executable: inputs.executable,
+                core,
+                api: inputs.api,
+                renderer: inputs.renderer,
+                ffmpeg: inputs.ffmpeg,
+                nvenc_helper: inputs.nvenc_helper,
+                modules: &modules,
+                browser: inputs.browser,
+                scripting: inputs.script_artifacts,
+            },
+            &runtime,
+        )?;
+        let runtime = staged.directory;
         std::fs::write(
             runtime.join("expected-modules.json"),
-            serde_json::to_vec(&names).map_err(|e| e.to_string())?,
+            serde_json::to_vec(&staged.modules).map_err(|e| e.to_string())?,
         )
         .map_err(|e| e.to_string())?;
-        if let Some(browser) = inputs.browser {
-            browser.deploy_runtime(&runtime.join("lib64/obs-modules/core"))?;
-        }
-        // D-Bus activated services can inherit standard streams after the
-        // launcher exits. Files let us wait for the owned launcher without
-        // waiting indefinitely for every inherited pipe writer to disappear.
-        let probe_log = runtime.join("application-probe.log");
-        let log = std::fs::File::create(&probe_log).map_err(|e| e.to_string())?;
-        let errors = log.try_clone().map_err(|e| e.to_string())?;
-        let result = std::process::Command::new("dbus-run-session")
-            .args(["--", "uv", "run", "--no-project", "python"])
-            .arg(
-                inputs
-                    .root
-                    .join("rust/obs-build/tests/libobs/application_probe.py"),
+        if let Some(metadata) = staged.scripting {
+            std::fs::write(
+                runtime.join("expected-scripting.json"),
+                serde_json::to_vec(&metadata).map_err(|e| e.to_string())?,
             )
-            .arg("--runtime")
-            .arg(&runtime)
-            .arg("--inspector")
-            .arg(&inspector)
-            .stdout(log)
-            .stderr(errors)
-            .status()
             .map_err(|e| e.to_string())?;
-        if !result.success() {
-            return Err(format!(
-                "{} GUI runtime {} failed: {}\n{}",
-                core.display(),
-                runtime.display(),
-                result,
-                std::fs::read_to_string(&probe_log).map_err(|e| e.to_string())?
-            ));
         }
+        run_probe(inputs.root, &runtime, &inspector)?;
         println!(
             "OBS GUI runtime passed for {}: {}",
             core.display(),
             runtime.display()
         );
+    }
+    Ok(())
+}
+
+// Validate the exact runtime produced by the user command without rebuilding
+// its core, modules or frontend through the compatibility-test graph.
+#[test]
+fn production_command_runtime_runs_saved_scene_and_recording() {
+    let Some(runtime) = std::env::var_os("OBS_BUILD_APPLICATION_RUNTIME") else {
+        return;
+    };
+    let runtime = PathBuf::from(runtime);
+    let manifest: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(runtime.join("application-build.json")).unwrap())
+            .unwrap();
+    assert_eq!(manifest["target"], obs_build::BUILD_TARGET);
+    std::fs::write(
+        runtime.join("expected-modules.json"),
+        serde_json::to_vec(&manifest["modules"]).unwrap(),
+    )
+    .unwrap();
+    if !manifest["scripting"].is_null() {
+        std::fs::write(
+            runtime.join("expected-scripting.json"),
+            serde_json::to_vec(&manifest["scripting"]).unwrap(),
+        )
+        .unwrap();
+    }
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let build = NativeBuild {
+        profile: Default::default(),
+        host: obs_build::BUILD_HOST.into(),
+        target: obs_build::BUILD_TARGET.into(),
+        output: runtime.join("test-tools"),
+    };
+    std::fs::create_dir_all(&build.output).unwrap();
+    let inspector = inspector(&build).unwrap();
+    run_probe(&root, &runtime, &inspector).unwrap();
+}
+
+fn run_probe(root: &Path, runtime: &Path, inspector: &Path) -> Result<(), String> {
+    let probe_log = runtime.join("application-probe.log");
+    let log = std::fs::File::create(&probe_log).map_err(|e| e.to_string())?;
+    let errors = log.try_clone().map_err(|e| e.to_string())?;
+    let result = std::process::Command::new("dbus-run-session")
+        .args(["--", "uv", "run", "--no-project", "python"])
+        .arg(root.join("rust/obs-build/tests/libobs/application_probe.py"))
+        .arg("--runtime")
+        .arg(runtime)
+        .arg("--inspector")
+        .arg(inspector)
+        .stdout(log)
+        .stderr(errors)
+        .status()
+        .map_err(|e| e.to_string())?;
+    if !result.success() {
+        return Err(format!(
+            "GUI runtime {} failed: {}\n{}",
+            runtime.display(),
+            result,
+            std::fs::read_to_string(&probe_log).map_err(|e| e.to_string())?
+        ));
     }
     Ok(())
 }

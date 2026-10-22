@@ -93,8 +93,9 @@ pub fn build_application_with_options(
     let manifest: serde_json::Value =
         serde_json::from_slice(&std::fs::read(&manifest_path).map_err(|e| e.to_string())?)
             .map_err(|e| e.to_string())?;
-    let mut common: Vec<String> =
-        serde_json::from_value(manifest["common"].clone()).map_err(|e| e.to_string())?;
+    let common_sets: Vec<String> =
+        serde_json::from_value(manifest["common_sets"].clone()).map_err(|e| e.to_string())?;
+    let mut common = source_set_inputs(&root, &common_sets)?;
     let interfaces: std::collections::BTreeMap<String, Vec<String>> =
         serde_json::from_value(manifest["interfaces"].clone()).map_err(|e| e.to_string())?;
     let config = build.output.join("frontend-config");
@@ -123,17 +124,10 @@ pub fn build_application_with_options(
         library
             .include_dirs
             .push(root.join("plugins/obs-browser/panel"));
-        common.extend(
-            [
-                "frontend/build/frontend.browserpanels+.hpp.cpp",
-                "frontend/dialogs/OBSExtraBrowsers.hpp",
-                "frontend/docks/BrowserDock.hpp",
-                "frontend/utility/ExtraBrowsersDelegate.hpp",
-                "frontend/utility/ExtraBrowsersModel.hpp",
-                "plugins/obs-browser/panel/browser-panel.hpp",
-            ]
-            .map(str::to_owned),
-        );
+        let browser_sets: Vec<String> =
+            serde_json::from_value(manifest["browser_sets"].clone()).map_err(|e| e.to_string())?;
+        common.extend(source_set_inputs(&root, &browser_sets)?);
+        common.push("plugins/obs-browser/panel/browser-panel.hpp".into());
     }
     for package in [
         "simde",
@@ -199,6 +193,22 @@ pub fn build_application_with_options(
     library
         .include_dirs
         .push(root.join("shared/qt/obs-spinbox"));
+    // CMake resolves generated headers against the binary directory. Resolve
+    // those same inputs explicitly in Cargo's frontend configuration directory.
+    for input in &mut common {
+        if !root.join(&*input).exists() {
+            let name = Path::new(&*input)
+                .file_name()
+                .ok_or("invalid frontend input")?;
+            let generated = config.join(name);
+            if generated.is_file() {
+                *input = generated
+                    .to_str()
+                    .ok_or("non-UTF8 generated frontend input")?
+                    .into();
+            }
+        }
+    }
     add_inputs(build, &root, &mut library, &common)?;
     add_spinbox(build, &root, &mut library)?;
     for (directory, inputs) in interfaces {
@@ -223,7 +233,7 @@ pub fn build_application_with_options(
             library.include_dirs.push(path.join("include"));
         } else {
             library.include_dirs.push(path);
-            add_inputs(build, &root, &mut library, &inputs)?;
+            add_interface_inputs(build, &root, &mut library, &directory, &inputs)?;
         }
     }
     library.sources.push(root.join("deps/json11/json11.cpp"));
@@ -244,6 +254,43 @@ pub fn build_application_with_options(
         &root.join("frontend/build/frontend-components.pch.hpp"),
     )?;
     build.executable(&library)
+}
+
+pub(crate) fn source_set_inputs(root: &Path, keys: &[String]) -> Result<Vec<String>, String> {
+    let path = root.join("frontend/build/source-sets.json");
+    println!("cargo:rerun-if-changed={}", path.display());
+    let sets: std::collections::BTreeMap<String, Vec<String>> =
+        serde_json::from_slice(&std::fs::read(&path).map_err(|e| e.to_string())?)
+            .map_err(|e| e.to_string())?;
+    let mut inputs = Vec::new();
+    let mut selected = std::collections::BTreeSet::new();
+    for key in keys {
+        for input in sets
+            .get(key)
+            .ok_or_else(|| format!("frontend source set missing: {key}"))?
+        {
+            let input = format!("frontend/{input}");
+            if selected.insert(input.clone()) {
+                inputs.push(input);
+            }
+        }
+    }
+    Ok(inputs)
+}
+
+pub(crate) fn add_interface_inputs(
+    build: &NativeBuild,
+    root: &Path,
+    library: &mut SharedLibrary,
+    directory: &str,
+    inputs: &[String],
+) -> Result<(), String> {
+    if directory == "shared/qt/wrappers" {
+        let inputs = crate::platform::qt_wrapper_inputs(&build.target, root)?;
+        add_inputs(build, root, library, &inputs)
+    } else {
+        add_inputs(build, root, library, inputs)
+    }
 }
 
 pub(crate) fn add_inputs(

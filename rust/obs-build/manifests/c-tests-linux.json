@@ -524,7 +524,8 @@
   {
     "name": "test_output_interleave",
     "sources": [
-      "test/cmocka/test_output_interleave.c"
+      "test/cmocka/test_output_interleave.c",
+      "test/cmocka/output_interleave_fields_stub.c"
     ]
   },
   {

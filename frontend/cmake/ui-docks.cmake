@@ -1,1 +1,1 @@
-target_sources(obs-studio PRIVATE build/frontend.docks+.hpp.cpp docks/OBSDock.hpp)
+obs_frontend_add_sources(UI_DOCKS)

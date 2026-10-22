@@ -2,6 +2,7 @@
 """Shared Qt facade boundaries and legacy dialog/modifier policy (#884)."""
 from pathlib import Path
 import os
+import json
 import re
 import shlex
 import shutil
@@ -70,6 +71,7 @@ class SharedQtPlatformTest(unittest.TestCase):
     def test_build_wiring(self):
         header = PLATFORM / 'qt-platform.hpp'
         self.assertTrue(header.exists())
+        sources = json.loads((ROOT / 'shared/qt/wrappers/source-sets.json').read_text())
         for host in ('windows', 'macos', 'posix'):
             p = PLATFORM / f'qt-host-{host}.cpp.hpp'
             self.assertTrue(p.exists())
@@ -77,9 +79,35 @@ class SharedQtPlatformTest(unittest.TestCase):
                 self.assertIn(signature, p.read_text())
             group = ROOT / f'shared/qt/wrappers/build/qt-wrappers.host-{host}+.hpp.cpp'
             self.assertIn(str(p.relative_to(ROOT)), group.read_text())
-            self.assertIn(group.name, (ROOT / 'shared/qt/wrappers/CMakeLists.txt').read_text())
+            self.assertIn('build/' + group.name, sources[host])
         cmake = (ROOT / 'shared/properties-view/CMakeLists.txt').read_text()
         self.assertIn('$<$<CXX_COMPILER_ID:MSVC>:/wd4505>', cmake)
+
+    @unittest.skipUnless(shutil.which('cmake'), 'CMake required')
+    def test_cmake_selects_the_shared_host_inventory(self):
+        wrappers = ROOT / 'shared/qt/wrappers'
+        sources = json.loads((wrappers / 'source-sets.json').read_text())
+        for host in ('windows', 'macos', 'posix'):
+            with self.subTest(host=host), tempfile.TemporaryDirectory(prefix='obs-wrapper-sources-') as tmp:
+                root = Path(tmp)
+                (root / 'CMakeLists.txt').write_text(
+                    'cmake_minimum_required(VERSION 3.28)\nproject(WrapperSources NONE)\n'
+                    'function(find_package)\nendfunction()\n'
+                    'add_library(core INTERFACE)\nadd_library(Qt::Core ALIAS core)\n'
+                    'add_library(widgets INTERFACE)\nadd_library(Qt::Widgets ALIAS widgets)\n'
+                    'add_library(obs INTERFACE)\nadd_library(OBS::libobs ALIAS obs)\n'
+                    f'set(OS_WINDOWS {"TRUE" if host == "windows" else "FALSE"})\n'
+                    f'set(OS_MACOS {"TRUE" if host == "macos" else "FALSE"})\n'
+                    f'add_subdirectory("{wrappers.as_posix()}" wrappers)\n'
+                    'get_target_property(inputs qt-wrappers INTERFACE_SOURCES)\n'
+                    'file(WRITE "${CMAKE_BINARY_DIR}/sources.txt" "${inputs}")\n'
+                )
+                result = subprocess.run(['cmake', '-S', str(root), '-B', str(root / 'build')],
+                                        capture_output=True, text=True, timeout=30)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                actual = (root / 'build/sources.txt').read_text().split(';')
+                expected = [(wrappers / item).as_posix() for item in sources['common'] + sources[host]]
+                self.assertEqual(actual, expected)
 
     def test_legacy_policy_all_hosts(self):
         compiler = shutil.which('c++')

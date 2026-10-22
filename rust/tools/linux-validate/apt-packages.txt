@@ -13,6 +13,7 @@ file
 libglib2.0-dev
 libcurl4-openssl-dev
 libffmpeg-nvenc-dev
+ffmpeg
 libavcodec-dev
 libavdevice-dev
 libavfilter-dev
@@ -71,6 +72,8 @@ extra-cmake-modules
 rsync
 xvfb
 xauth
+openbox
+x11-utils
 pipewire
 dbus-daemon
 vlc-plugin-base

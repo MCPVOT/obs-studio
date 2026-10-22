@@ -1,9 +1,1 @@
-target_sources(
-  obs-studio
-  PRIVATE
-    build/frontend.importers+.hpp.cpp
-    importer/ImporterEntryPathItemDelegate.hpp
-    importer/ImporterModel.hpp
-    importer/OBSImporter.hpp
-    importers/importers.hpp
-)
+obs_frontend_add_sources(IMPORTERS)

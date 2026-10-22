@@ -6,6 +6,8 @@
 
 use std::{fs, path::PathBuf};
 
+pub mod application;
+pub mod cli;
 mod deps;
 pub mod frontend;
 pub mod graphics;
@@ -74,6 +76,36 @@ pub struct NativeBuild {
     pub host: String,
     pub target: String,
     pub output: PathBuf,
+    pub profile: NativeProfile,
+}
+
+/// Native configurations corresponding to the supported CMake build profiles.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum NativeProfile {
+    Debug,
+    Release,
+    #[default]
+    RelWithDebInfo,
+    MinSizeRel,
+}
+
+impl NativeProfile {
+    pub(crate) fn optimization(self) -> &'static str {
+        match self {
+            Self::Debug => "0",
+            Self::Release => "3",
+            Self::RelWithDebInfo => "2",
+            Self::MinSizeRel => "s",
+        }
+    }
+
+    pub(crate) fn debug_info(self) -> bool {
+        matches!(self, Self::Debug | Self::RelWithDebInfo)
+    }
+
+    pub(crate) fn assertions(self) -> bool {
+        self == Self::Debug
+    }
 }
 
 /// Swift module inputs; C-family sources continue to compile through cc::Build.
@@ -135,6 +167,14 @@ struct CompilationBatch {
 }
 
 impl NativeBuild {
+    /// Select the native configuration explicitly for an application build.
+    pub fn with_profile(&self, profile: NativeProfile) -> Self {
+        Self {
+            profile,
+            ..self.clone()
+        }
+    }
+
     /// Compile and link a complete Swift module with an explicit native bridge.
     pub fn swift_shared_library(&self, library: &SwiftLibrary) -> Result<PathBuf, String> {
         platform::build_swift_library(self, library)
@@ -450,14 +490,17 @@ impl NativeBuild {
             .host(&self.host)
             .target(&self.target)
             .out_dir(output)
-            .opt_level(2)
-            .debug(true)
+            .opt_level_str(self.profile.optimization())
+            .debug(self.profile.debug_info())
             .pic(true)
             .cpp(cpp)
             // Intermediate compilation and archive creation do not emit link
             // directives. Keep cc's compiler/archiver environment tracking so
             // target-qualified flags invalidate Cargo's bundled native build.
             .cargo_metadata(true);
+        if !self.profile.assertions() {
+            compiler.define("NDEBUG", None);
+        }
         let mut includes = std::collections::HashSet::new();
         for directory in &library.include_dirs {
             if includes.insert(directory) {

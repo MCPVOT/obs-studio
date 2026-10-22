@@ -19,6 +19,62 @@ C/Rust parity validation when it delays prototype launch. Follow-up
 validation. Existing tests remain intact; this is not a claim of complete
 parity, release readiness or completion of the full conversion in #1332.
 
+## Linux development application command
+
+From a native Linux checkout with the existing native build dependencies installed:
+
+```sh
+./native-build build --profile relwithdebinfo
+./native-build --help
+```
+
+The launcher builds the `obs-build` tool through `soldr cargo`, then runs it
+outside Soldr's build process. Both Rust build invocations use the existing
+native-consumer `SOLDR_RUSTC_WRAPPER=none` safeguard; standalone C/C++ compiler
+caching remains available. The tool builds the production hybrid core,
+frontend API, OpenGL renderer, Qt application, enabled modules and scripting
+bindings through the Rust build graph. It does not build a C reference or ship
+compatibility probes. CMake remains the authoritative build while the full
+acceptance requirements above are incomplete.
+
+Run the executable printed by the command. Each invocation stages a fresh
+`build_cargo/<profile>/runtimes/<id>/` development runtime and writes
+`application-build.json` there. The executable and modules search this runtime's
+`lib64` before their original build directories; launching does not require
+`LD_LIBRARY_PATH`. This layout still relies on the host's native SDK/runtime
+libraries and is not a distributable package.
+
+Profiles are `debug`, `release`, `relwithdebinfo` (default) and `minsizerel`.
+`--separate-core` and `--core-pch` select core compilation modes. Help lists the
+optional plugin/SDK and scripting selections. Native Linux is the only full
+application target currently accepted by this command; the macOS/Windows graphs
+below are intermediate component coverage. NVENC application selection, complete
+configuration parity, all-platform application orchestration, packaging and the
+controlled native cache/performance acceptance remain open.
+
+Frontend source groups are shared by CMake and Cargo through
+`frontend/build/source-sets.json`; the Qt wrapper host groups similarly use
+`shared/qt/wrappers/source-sets.json`. Generated configuration stays in the build
+output directories.
+
+The existing application test category can validate the exact command-produced
+runtime, rather than rebuilding its application artifacts:
+
+```sh
+OBS_BUILD_APPLICATION_RUNTIME=/absolute/path/to/runtime \
+OBS_BUILD_APP_RECORD=1 \
+soldr cargo test -p obs-studio-rust --test obs-tests-app \
+  --features libobs-integration production_command_runtime_runs_saved_scene_and_recording \
+  -- --nocapture
+```
+
+Run with an isolated X display (for example Xvfb) and the existing GUI test
+dependencies, including the FFmpeg executables. The test owns a fresh profile in
+the runtime directory: startup, the selected staged libraries/modules, saved
+scene, Lua/Python callbacks, recording and normal shutdown are asserted. Use a
+freshly staged runtime for every test invocation. The separate compatibility
+driver retains its C-reference/hybrid, Tools dialog and WebSocket checks.
+
 ## Default build mode
 
 The user selected **unity on, compiled PCH off**. Keep both settings optional.

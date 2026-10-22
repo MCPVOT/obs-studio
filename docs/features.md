@@ -1629,3 +1629,10 @@ area.
 - Rust graphics preserves separate C trigonometric calls on macOS and signaling
   NaN rounding on macOS/Windows. *macOS, Windows*, 2026-10-18.
   PR [#1398](https://github.com/obs-rust/obs-studio/pull/1398).
+
+## Development builds
+
+- **Cargo application command.** `./native-build` builds and stages a Linux hybrid
+  OBS development application with selectable profiles and plugin features.
+  *Linux*, pending. Issue [#1332](https://github.com/obs-rust/obs-studio/issues/1332),
+  PR [#1725](https://github.com/obs-rust/obs-studio/pull/1725).

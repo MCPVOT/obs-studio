@@ -5,17 +5,7 @@ if(
   AND YOUTUBE_SECRET_HASH MATCHES "^(0|[a-fA-F0-9]+)$"
   AND TARGET OBS::browser-panels
 )
-  target_sources(
-    obs-studio
-    PRIVATE
-      build/frontend.youtube+.hpp.cpp
-      dialogs/OBSYoutubeActions.hpp
-      docks/YouTubeAppDock.hpp
-      docks/YouTubeChatDock.hpp
-      forms/OBSYoutubeActions.ui
-      oauth/YoutubeAuth.hpp
-      utility/YoutubeApiWrappers.hpp
-  )
+  obs_frontend_add_sources(YOUTUBE)
 
   target_enable_feature(obs-studio "YouTube API connection" YOUTUBE_ENABLED)
 else()

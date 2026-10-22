@@ -3,13 +3,5 @@ if(TARGET OBS::browser-panels)
 
   target_link_libraries(obs-studio PRIVATE OBS::browser-panels)
 
-  target_sources(
-    obs-studio
-    PRIVATE
-      build/frontend.browserpanels+.hpp.cpp
-      dialogs/OBSExtraBrowsers.hpp
-      docks/BrowserDock.hpp
-      utility/ExtraBrowsersDelegate.hpp
-      utility/ExtraBrowsersModel.hpp
-  )
+  obs_frontend_add_sources(BROWSERPANELS)
 endif()

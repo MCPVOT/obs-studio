@@ -6,6 +6,7 @@ use std::{
     process::Command,
 };
 
+mod application_linux;
 mod graphics_macos;
 mod graphics_windows;
 mod libobs_linux;
@@ -14,6 +15,95 @@ mod libobs_windows;
 mod plugins_macos;
 pub(crate) mod resources;
 mod swift_macos;
+
+pub fn qt_wrapper_inputs(target: &str, root: &Path) -> Result<Vec<String>, String> {
+    let path = root.join("shared/qt/wrappers/source-sets.json");
+    println!("cargo:rerun-if-changed={}", path.display());
+    let sets: std::collections::BTreeMap<String, Vec<String>> =
+        serde_json::from_slice(&std::fs::read(&path).map_err(|e| e.to_string())?)
+            .map_err(|e| e.to_string())?;
+    let host = if target.contains("windows") {
+        "windows"
+    } else if target.contains("apple") {
+        "macos"
+    } else {
+        "posix"
+    };
+    let mut inputs = Vec::new();
+    for key in ["common", host] {
+        for input in sets
+            .get(key)
+            .ok_or_else(|| format!("Qt wrappers source set missing: {key}"))?
+        {
+            inputs.push(format!("shared/qt/wrappers/{input}"));
+        }
+    }
+    Ok(inputs)
+}
+
+pub fn application_sources(
+    target: &str,
+    udev: bool,
+    service_updates: bool,
+) -> Result<Vec<crate::plugins::SourceModule>, String> {
+    if !target.contains("linux") {
+        return Err(format!("application graph is not implemented for {target}"));
+    }
+    use crate::plugins::SourceModule;
+    Ok(vec![
+        SourceModule::Image,
+        SourceModule::Text,
+        SourceModule::PulseAudio,
+        SourceModule::Alsa,
+        SourceModule::V4l2 { udev },
+        SourceModule::X11Capture,
+        SourceModule::RtmpServices {
+            updates: service_updates,
+        },
+        SourceModule::PipeWire,
+    ])
+}
+
+pub fn validate_application_build(build: &crate::NativeBuild) -> Result<(), String> {
+    application_sources(&build.target, true, true)?;
+    if build.host != build.target {
+        return Err("application cross-build dependency discovery is not implemented".into());
+    }
+    Ok(())
+}
+
+pub fn application_rust_archives(
+    target: &str,
+    directory: &Path,
+) -> Result<crate::application::RustArchives, String> {
+    application_sources(target, true, true)?;
+    Ok(crate::application::RustArchives {
+        core: directory.join("liblibobs_rust.a"),
+        gpu_status: directory.join("libobs_gpu_status_frontend.a"),
+    })
+}
+
+pub fn configure_application_archive_command(
+    build: &crate::NativeBuild,
+    command: &mut Command,
+) -> Result<(), String> {
+    validate_application_build(build)?;
+    application_linux::configure_archive_command(build, command)
+}
+
+pub fn stage_application_runtime(
+    build: &crate::NativeBuild,
+    inputs: &crate::application::RuntimeInputs<'_>,
+    destination: &Path,
+) -> Result<crate::application::StagedRuntime, String> {
+    if !build.target.contains("linux") {
+        return Err(format!(
+            "application runtime graph is not implemented for {}",
+            build.target
+        ));
+    }
+    application_linux::stage(inputs, destination)
+}
 
 pub fn stage_core_identity(target: &str, artifact: &Path) -> Result<(), String> {
     if target.contains("apple-darwin") {
@@ -182,6 +272,11 @@ pub fn configure_shared_link(
             }
             command.arg("-Wl,--no-undefined");
             command.arg("-Wl,-rpath,$ORIGIN");
+            if target.contains("linux") {
+                // Installed modules live in lib64/obs-modules/core. Resolve their
+                // core and frontend dependencies from this runtime first.
+                command.arg("-Wl,-rpath,$ORIGIN/../..");
+            }
         }
         for dependency in dependencies {
             let parent = dependency
@@ -430,6 +525,11 @@ pub fn configure_executable_link(
         } else {
             "-Wl,-rpath,$ORIGIN"
         });
+        if target.contains("linux") {
+            // Development and installed application layouts use bin/ + lib64/.
+            // This must precede the fallback paths to build artifacts.
+            command.arg("-Wl,-rpath,$ORIGIN/../lib64");
+        }
         for dependency in dependencies {
             let parent = dependency
                 .parent()
@@ -957,11 +1057,15 @@ pub fn configure_application(
     }
     configure_cpp_module(target, library)?;
     library.file_name = None;
-    let inputs: Vec<String> =
-        serde_json::from_value(manifest["linux"].clone()).map_err(|e| e.to_string())?;
-    library
-        .sources
-        .extend(inputs.iter().map(|path| root.join(path)));
+    let sets: Vec<String> =
+        serde_json::from_value(manifest["linux_sets"].clone()).map_err(|e| e.to_string())?;
+    let inputs = crate::frontend::source_set_inputs(root, &sets)?;
+    library.sources.extend(
+        inputs
+            .iter()
+            .filter(|path| path.ends_with(".cpp") || path.ends_with(".c"))
+            .map(|path| root.join(path)),
+    );
     for package in ["Qt6DBus", "libpci", "x11", "x11-xcb", "xcb"] {
         crate::libobs::add_package(library, target, package)?;
     }

@@ -10,7 +10,7 @@ macro(obs_frontend_platform_plugin_paths)
 endmacro()
 
 macro(obs_frontend_platform_plugin_manager)
-  target_sources(obs-studio PRIVATE build/frontend.plugin-manager-pluginmoduleloader_windows+.hpp.cpp)
+  obs_frontend_add_sources(WINDOWS_PLUGIN_MANAGER)
 endmacro()
 
 macro(obs_frontend_platform_whatsnew)
@@ -40,29 +40,7 @@ macro(obs_frontend_platform_sources)
   endif()
   configure_file(cmake/windows/obs.rc.in obs.rc)
 
-  target_sources(
-    obs-studio
-    PRIVATE
-      cmake/windows/obs.manifest
-      build/frontend.windows+.hpp.cpp
-      dialogs/OBSUpdate.hpp
-      forms/OBSUpdate.ui
-      obs.rc
-      build/frontend.windows-autoupdatethread+.hpp.cpp
-      utility/AutoUpdateThread.hpp
-      build/frontend.windows-nativeeventfilter+.hpp.cpp
-      build/frontend.whatsnew+.hpp.cpp
-      utility/WhatsNewBrowserInitThread.hpp
-      utility/WhatsNewInfoThread.hpp
-      build/frontend.crypto-mbedtls+.hpp.cpp
-      utility/crypto-helpers.hpp
-      utility/models/branches.hpp
-      utility/models/whatsnew.hpp
-      build/frontend.windows-platform+.hpp.cpp
-      build/frontend.windows-system-info+.hpp.cpp
-      utility/update-helpers.hpp
-      build/frontend.windows-c+.h.c
-  )
+  obs_frontend_add_sources(WINDOWS)
 
   add_library(obs-updater-manifest INTERFACE)
   add_library(OBS::updater-manifest ALIAS obs-updater-manifest)

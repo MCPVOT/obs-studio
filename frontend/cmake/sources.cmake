@@ -1,0 +1,15 @@
+# One source inventory for the CMake reference and Cargo application graph.
+set(_frontend_source_manifest "${CMAKE_CURRENT_LIST_DIR}/../build/source-sets.json")
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${_frontend_source_manifest}")
+
+function(obs_frontend_add_sources source_set)
+  file(READ "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../build/source-sets.json" _sources)
+  string(JSON _count LENGTH "${_sources}" "${source_set}")
+  if(_count GREATER 0)
+    math(EXPR _last "${_count} - 1")
+    foreach(_index RANGE 0 ${_last})
+      string(JSON _input GET "${_sources}" "${source_set}" ${_index})
+      target_sources(obs-studio PRIVATE "${_input}")
+    endforeach()
+  endif()
+endfunction()

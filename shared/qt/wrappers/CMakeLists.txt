@@ -5,17 +5,27 @@ find_package(Qt6 REQUIRED Core Widgets)
 add_library(qt-wrappers INTERFACE)
 add_library(OBS::qt-wrappers ALIAS qt-wrappers)
 
-target_sources(qt-wrappers INTERFACE build/qt-wrappers.core+.hpp.cpp qt-wrappers.hpp)
-target_include_directories(qt-wrappers INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}")
-
-target_link_libraries(qt-wrappers INTERFACE Qt::Core Qt::Widgets OBS::libobs)
-
-# The selected implementation is compiled once by each interface consumer,
-# alongside the existing shared wrapper group.
+# CMake and Cargo consume the same common and host implementation inventories.
+set(_wrappers_manifest "${CMAKE_CURRENT_SOURCE_DIR}/source-sets.json")
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${_wrappers_manifest}")
+file(READ "${_wrappers_manifest}" _wrappers_sources)
 if(OS_WINDOWS)
-  target_sources(qt-wrappers INTERFACE build/qt-wrappers.host-windows+.hpp.cpp)
+  set(_wrappers_host windows)
 elseif(OS_MACOS)
-  target_sources(qt-wrappers INTERFACE build/qt-wrappers.host-macos+.hpp.cpp)
+  set(_wrappers_host macos)
 else()
-  target_sources(qt-wrappers INTERFACE build/qt-wrappers.host-posix+.hpp.cpp)
+  set(_wrappers_host posix)
 endif()
+foreach(_wrappers_set IN ITEMS common "${_wrappers_host}")
+  string(JSON _wrappers_count LENGTH "${_wrappers_sources}" "${_wrappers_set}")
+  if(_wrappers_count GREATER 0)
+    math(EXPR _wrappers_last "${_wrappers_count} - 1")
+    foreach(_wrappers_index RANGE 0 ${_wrappers_last})
+      string(JSON _wrappers_input GET "${_wrappers_sources}" "${_wrappers_set}" ${_wrappers_index})
+      target_sources(qt-wrappers INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/${_wrappers_input}")
+    endforeach()
+  endif()
+endforeach()
+
+target_include_directories(qt-wrappers INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}")
+target_link_libraries(qt-wrappers INTERFACE Qt::Core Qt::Widgets OBS::libobs)

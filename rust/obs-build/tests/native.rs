@@ -30,6 +30,272 @@ unsafe fn answer(library: &Path, symbol: &[u8], dependencies: &[&Path]) -> i32 {
 }
 
 #[test]
+fn native_profile_switch_rebuilds_assertion_policy() {
+    if native_answer_probe() {
+        return;
+    }
+    let selector = format!(
+        "{}::native_profile_switch_rebuilds_assertion_policy",
+        module_path!().split_once("::").unwrap().1
+    );
+    let directory = tempfile::tempdir().unwrap();
+    let source = directory.path().join("profile.c");
+    fs::write(
+        &source,
+        format!(
+            "{EXPORT} int obs_fixture_profile(void) {{\n#ifdef NDEBUG\nreturn 1;\n#else\nreturn 0;\n#endif\n}}\n"
+        ),
+    )
+    .unwrap();
+    let build = NativeBuild {
+        profile: Default::default(),
+        host: obs_build::BUILD_HOST.into(),
+        target: obs_build::BUILD_TARGET.into(),
+        output: directory.path().join("artifacts"),
+    };
+    use obs_build::NativeProfile::{Debug, MinSizeRel, RelWithDebInfo, Release};
+    for (profile, expected) in [
+        (Debug, 0),
+        (Release, 1),
+        (RelWithDebInfo, 1),
+        (MinSizeRel, 1),
+        (Debug, 0),
+    ] {
+        let artifact = build
+            .with_profile(profile)
+            .shared_library(&target("fixture-profile", &source, vec![]))
+            .unwrap();
+        assert_native_answer_fresh(&artifact, "obs_fixture_profile", expected, &selector);
+    }
+}
+
+#[test]
+fn production_runtime_stages_selected_artifacts_and_rejects_stale_outputs() {
+    use obs_build::{application, plugins};
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("source");
+    let artifacts = temporary.path().join("artifacts");
+    fs::create_dir_all(root.join("libobs/data")).unwrap();
+    fs::create_dir_all(root.join("frontend/data")).unwrap();
+    fs::create_dir_all(artifacts.join("module-data/locale")).unwrap();
+    fs::write(root.join("libobs/data/default.effect"), "shader").unwrap();
+    fs::write(root.join("frontend/data/theme.qss"), "theme").unwrap();
+    fs::write(root.join("AUTHORS"), "authors").unwrap();
+    for name in [
+        "obs-studio-rust",
+        "libobs.so",
+        "libobs-frontend-api.so",
+        "libobs-opengl.so",
+        "fixture-source.so",
+        "obs-ffmpeg.so",
+        "obs-ffmpeg-mux",
+    ] {
+        fs::write(artifacts.join(name), name).unwrap();
+    }
+    fs::write(artifacts.join("module-data/locale/en-US.ini"), "translated").unwrap();
+    let module = plugins::Module {
+        library: artifacts.join("fixture-source.so"),
+        data: artifacts.join("module-data"),
+    };
+    let ffmpeg = plugins::FfmpegArtifacts {
+        module: plugins::Module {
+            library: artifacts.join("obs-ffmpeg.so"),
+            data: artifacts.join("module-data"),
+        },
+        muxer: artifacts.join("obs-ffmpeg-mux"),
+    };
+    let build = NativeBuild {
+        host: obs_build::BUILD_HOST.into(),
+        target: "x86_64-unknown-linux-gnu".into(),
+        output: artifacts.clone(),
+        profile: Default::default(),
+    };
+    let executable = artifacts.join("obs-studio-rust");
+    let core = artifacts.join("libobs.so");
+    let api = artifacts.join("libobs-frontend-api.so");
+    let renderer = artifacts.join("libobs-opengl.so");
+    let inputs = application::RuntimeInputs {
+        root: &root,
+        executable: &executable,
+        core: &core,
+        api: &api,
+        renderer: &renderer,
+        ffmpeg: &ffmpeg,
+        nvenc_helper: None,
+        modules: &[&module, &ffmpeg.module],
+        browser: None,
+        scripting: None,
+    };
+    let destination = temporary.path().join("runtime");
+    let runtime = application::stage_runtime(&build, &inputs, &destination).unwrap();
+    assert_eq!(
+        fs::read_to_string(&runtime.executable).unwrap(),
+        "obs-studio-rust"
+    );
+    assert_eq!(runtime.modules, ["fixture-source", "obs-ffmpeg"]);
+    for (path, expected) in [
+        ("lib64/libobs.so", "libobs.so"),
+        ("bin/obs-ffmpeg-mux", "obs-ffmpeg-mux"),
+        (
+            "lib64/obs-modules/core/fixture-source.so",
+            "fixture-source.so",
+        ),
+        (
+            "share/obs/obs-modules/core/fixture-source/locale/en-US.ini",
+            "translated",
+        ),
+        ("share/obs/libobs/default.effect", "shader"),
+        ("share/obs/obs-studio/theme.qss", "theme"),
+        ("share/obs/obs-studio/authors", "authors"),
+    ] {
+        assert_eq!(
+            fs::read_to_string(destination.join(path)).unwrap(),
+            expected
+        );
+    }
+    fs::write(destination.join("lib64/obs-modules/core/stale.so"), "stale").unwrap();
+    let error = application::stage_runtime(&build, &inputs, &destination)
+        .err()
+        .unwrap();
+    assert!(error.contains("empty"), "{error}");
+    assert_eq!(
+        fs::read_to_string(destination.join("lib64/obs-modules/core/stale.so")).unwrap(),
+        "stale"
+    );
+    let unsupported = NativeBuild {
+        target: "x86_64-pc-windows-msvc".into(),
+        ..build
+    };
+    let rejected = temporary.path().join("unsupported");
+    assert!(application::stage_runtime(&unsupported, &inputs, &rejected).is_err());
+    assert!(!rejected.exists());
+}
+
+#[test]
+fn bundled_frontend_plugins_follow_application_feature_selection() {
+    let mut options =
+        obs_build::application::BuildOptions::for_target("x86_64-unknown-linux-gnu").unwrap();
+    for (tools, websocket) in [(true, true), (true, false), (false, true), (false, false)] {
+        options.frontend_tools = tools;
+        options.websocket = websocket.then(Default::default);
+        let names = options.core_module_names();
+        assert_eq!(names.iter().any(|name| name == "frontend-tools"), tools);
+        assert_eq!(names.iter().any(|name| name == "obs-websocket"), websocket);
+    }
+}
+
+#[test]
+fn production_archive_command_uses_the_native_rust_cache_safeguard() {
+    if !obs_build::BUILD_TARGET.contains("linux") {
+        return;
+    }
+    if let Some(output) = std::env::var_os("OBS_NATIVE_CACHE_PROBE_OUTPUT") {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let result = obs_build::cli::run([
+            std::ffi::OsString::from("build"),
+            "--root".into(),
+            root.into_os_string(),
+            "--output".into(),
+            output,
+        ]);
+        assert!(result.unwrap_err().contains("Rust archive build failed"));
+        return;
+    }
+    let directory = tempfile::tempdir().unwrap();
+    let soldr = directory.path().join("soldr");
+    fs::write(&soldr, "#!/bin/sh\nprintf '%s' \"${SOLDR_RUSTC_WRAPPER:-unset}\" > \"$OBS_NATIVE_CACHE_LOG\"\nexit 19\n").unwrap();
+    assert!(
+        std::process::Command::new("chmod")
+            .arg("+x")
+            .arg(&soldr)
+            .status()
+            .unwrap()
+            .success()
+    );
+    let marker = directory.path().join("wrapper");
+    let path = std::env::join_paths(
+        std::iter::once(directory.path().to_path_buf())
+            .chain(std::env::split_paths(&std::env::var_os("PATH").unwrap())),
+    )
+    .unwrap();
+    let selector = format!(
+        "{}::production_archive_command_uses_the_native_rust_cache_safeguard",
+        module_path!().split_once("::").unwrap().1
+    );
+    let status = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", &selector, "--nocapture"])
+        .env("PATH", path)
+        .env_remove("SOLDR_RUSTC_WRAPPER")
+        .env("OBS_NATIVE_CACHE_LOG", &marker)
+        .env(
+            "OBS_NATIVE_CACHE_PROBE_OUTPUT",
+            directory.path().join("output"),
+        )
+        .status()
+        .unwrap();
+    assert!(status.success());
+    assert_eq!(fs::read_to_string(marker).unwrap(), "none");
+}
+
+#[test]
+fn production_command_selects_explicit_profile_target_and_features() {
+    use obs_build::{NativeProfile, cli};
+    let invocation = cli::parse([
+        "build",
+        "--root",
+        "source tree",
+        "--output",
+        "build output",
+        "--target",
+        "x86_64-unknown-linux-gnu",
+        "--profile",
+        "release",
+        "--separate-core",
+        "--core-pch",
+        "--disable-service-updates",
+        "--without-websocket",
+        "--without-scripting",
+        "--with-vlc",
+    ])
+    .unwrap();
+    let cli::Invocation::Build(request) = invocation else {
+        panic!("build request was lost")
+    };
+    assert_eq!(request.root, std::path::PathBuf::from("source tree"));
+    assert_eq!(request.output, std::path::PathBuf::from("build output"));
+    assert_eq!(request.target, "x86_64-unknown-linux-gnu");
+    assert_eq!(request.profile, NativeProfile::Release);
+    assert!(!request.options.core.unity);
+    assert!(request.options.core.pch);
+    assert!(request.options.websocket.is_none());
+    assert!(request.options.scripting.is_none());
+    assert!(
+        request
+            .options
+            .sources
+            .iter()
+            .any(|source| matches!(source, obs_build::plugins::SourceModule::Vlc))
+    );
+    assert!(request.options.sources.iter().any(|source| matches!(
+        source,
+        obs_build::plugins::SourceModule::RtmpServices { updates: false }
+    )));
+    for arguments in [
+        vec!["build", "--profile", "fast"],
+        vec!["build", "--target", "x86_64-pc-windows-msvc"],
+        vec!["build", "--unrecognized"],
+        vec!["build", "--output"],
+        vec!["build", "--profile", "debug", "--profile", "release"],
+    ] {
+        assert!(cli::parse(arguments).is_err());
+    }
+    assert!(matches!(
+        cli::parse(["--help"]).unwrap(),
+        cli::Invocation::Help
+    ));
+}
+
+#[test]
 fn swift_bridge_preserves_native_linkage_header_flags_and_source_rebuilds() {
     if native_answer_probe() {
         return;
@@ -44,6 +310,7 @@ fn swift_bridge_preserves_native_linkage_header_flags_and_source_rebuilds() {
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path();
     let build = NativeBuild {
+        profile: Default::default(),
         host: obs_build::BUILD_HOST.into(),
         target: obs_build::BUILD_TARGET.into(),
         output: root.join("artifacts"),
@@ -120,6 +387,7 @@ fn native_plugin_links_shared_core_and_observes_rebuilt_dependency() {
     .unwrap();
     fs::write(&plugin_source, format!("extern int obs_fixture_answer(void); {EXPORT} int obs_fixture_plugin(void) {{ return obs_fixture_answer() + 1; }}")).unwrap();
     let build = NativeBuild {
+        profile: Default::default(),
         host: obs_build::BUILD_HOST.into(),
         target: obs_build::BUILD_TARGET.into(),
         output: dir.path().join("artifacts"),
@@ -178,6 +446,7 @@ fn unity_toggle_preserves_exports_and_explicit_generated_source_wins() {
     fs::write(&extra, "int obs_fixture_other(void) { return 23; }").unwrap();
     for unity in [false, true] {
         let build = NativeBuild {
+            profile: Default::default(),
             host: obs_build::BUILD_HOST.into(),
             target: obs_build::BUILD_TARGET.into(),
             output: dir.path().join(format!("output-{unity}")),
@@ -214,6 +483,7 @@ fn executable_runs_against_its_shared_core_dependency() {
     )
     .unwrap();
     let build = NativeBuild {
+        profile: Default::default(),
         host: obs_build::BUILD_HOST.into(),
         target: obs_build::BUILD_TARGET.into(),
         output: dir.path().join("artifacts"),
@@ -243,6 +513,91 @@ fn executable_runs_against_its_shared_core_dependency() {
             .status()
             .unwrap()
             .success()
+    );
+}
+
+#[test]
+fn staged_executable_prefers_runtime_core_over_build_outputs() {
+    if !obs_build::BUILD_TARGET.contains("linux") {
+        return;
+    }
+    let directory = tempfile::tempdir().unwrap();
+    let source = directory.path().join("core.c");
+    let main = directory.path().join("main.c");
+    fs::write(
+        &main,
+        "extern int fixture_value(void); int main(void) { return fixture_value() == 42 ? 0 : 7; }",
+    )
+    .unwrap();
+    let build = NativeBuild {
+        profile: Default::default(),
+        host: obs_build::BUILD_HOST.into(),
+        target: obs_build::BUILD_TARGET.into(),
+        output: directory.path().join("original"),
+    };
+    fs::write(&source, "int fixture_value(void) { return 1; }").unwrap();
+    let original = build
+        .shared_library(&target("fixture-core", &source, vec![]))
+        .unwrap();
+    let executable = build
+        .executable(&target("fixture-app", &main, vec![original.clone()]))
+        .unwrap();
+    fs::write(&source, "int fixture_value(void) { return 42; }").unwrap();
+    let runtime_build = NativeBuild {
+        output: directory.path().join("replacement"),
+        ..build.clone()
+    };
+    let replacement = runtime_build
+        .shared_library(&target("fixture-core", &source, vec![]))
+        .unwrap();
+    let runtime = directory.path().join("runtime");
+    fs::create_dir_all(runtime.join("bin")).unwrap();
+    fs::create_dir_all(runtime.join("lib64")).unwrap();
+    let staged = runtime.join("bin/fixture-app");
+    fs::copy(&executable, &staged).unwrap();
+    fs::copy(
+        &replacement,
+        runtime.join("lib64").join(replacement.file_name().unwrap()),
+    )
+    .unwrap();
+    let status = std::process::Command::new(&staged)
+        .env_remove("LD_LIBRARY_PATH")
+        .status()
+        .unwrap();
+    assert!(
+        status.success(),
+        "staged executable loaded the original core: {status}"
+    );
+    // A separately loaded module must resolve its own dependency from the
+    // staged lib64 directory, without the executable preloading that core.
+    let plugin_source = directory.path().join("plugin.c");
+    fs::write(
+        &plugin_source,
+        "extern int fixture_value(void); int plugin_value(void) { return fixture_value(); }",
+    )
+    .unwrap();
+    let plugin = build
+        .shared_library(&target("fixture-plugin", &plugin_source, vec![original]))
+        .unwrap();
+    let modules = runtime.join("lib64/obs-modules/core");
+    fs::create_dir_all(&modules).unwrap();
+    let staged_plugin = modules.join(plugin.file_name().unwrap());
+    fs::copy(plugin, &staged_plugin).unwrap();
+    let loader_source = directory.path().join("loader.c");
+    fs::write(&loader_source, "#include <dlfcn.h>\nint main(int argc, char **argv) { if (argc != 2) return 2; void *lib = dlopen(argv[1], RTLD_NOW); if (!lib) return 3; int (*value)(void) = dlsym(lib, \"plugin_value\"); return value && value() == 42 ? 0 : 7; }").unwrap();
+    let mut loader = target("fixture-loader", &loader_source, vec![]);
+    loader.link_options.push("-ldl".into());
+    let loader = build.executable(&loader).unwrap();
+    let output = std::process::Command::new(loader)
+        .arg(staged_plugin)
+        .env_remove("LD_LIBRARY_PATH")
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "staged module loaded the original core: {}\n{}",
+        output.status,
+        String::from_utf8_lossy(&output.stderr)
     );
 }
 
@@ -288,6 +643,7 @@ int main(void) { return obs_fixture_resource() == HEADER_VALUE + RESOURCE_VALUE 
     for unity in [false, true] {
         fs::write(&header, "#define HEADER_VALUE 2\n").unwrap();
         let build = NativeBuild {
+            profile: Default::default(),
             host: obs_build::BUILD_HOST.into(),
             target: requested.clone(),
             output: root.join(format!("resources-{unity}")),
@@ -420,6 +776,7 @@ __declspec(selectany) int fixture_c_storage = HEADER_VALUE;
     for unity in [false, true] {
         write_header(17);
         let build = NativeBuild {
+            profile: Default::default(),
             host: obs_build::BUILD_HOST.into(),
             target: requested.clone(),
             output: root.join(format!("msvc-pch-{unity}")),
@@ -520,6 +877,7 @@ fn pch_preserves_mixed_languages_unity_and_header_flag_invalidation() {
         write_header(17);
         fs::write(&transitive, "#define TRANSITIVE_VALUE 0\n").unwrap();
         let build = NativeBuild {
+            profile: Default::default(),
             host: obs_build::BUILD_HOST.into(),
             target: obs_build::BUILD_TARGET.into(),
             output: root.join(format!("output-{unity}")),
@@ -570,6 +928,7 @@ fn explicit_groups_compile_as_individual_sources_and_observe_member_edits() {
     let group = root.join("build/fixture+.h.c");
     fs::write(&group, "/* explicit group */\n#include \"build/fixture.pch.h\"\n#include \"first.c.h\"\n#include \"second.c.h\"\n").unwrap();
     let build = NativeBuild {
+        profile: Default::default(),
         host: obs_build::BUILD_HOST.into(),
         target: obs_build::BUILD_TARGET.into(),
         output: root.join("artifacts"),
@@ -612,6 +971,7 @@ fn individual_compilation_rejects_conditional_group_selection() {
     )
     .unwrap();
     let build = NativeBuild {
+        profile: Default::default(),
         host: obs_build::BUILD_HOST.into(),
         target: obs_build::BUILD_TARGET.into(),
         output: directory.path().join("artifacts"),
@@ -653,6 +1013,7 @@ fn mixed_c_and_cpp_use_independent_flags_and_the_cpp_linker() {
         ..SharedLibrary::default()
     };
     let build = NativeBuild {
+        profile: Default::default(),
         host: obs_build::BUILD_HOST.into(),
         target: obs_build::BUILD_TARGET.into(),
         output: directory.path().join("out"),
@@ -694,6 +1055,7 @@ fn pch_batches_preserve_constructor_order_with_interleaved_headers() {
     fs::write(&entry, "int fixture_order = 0;\nextern \"C\" int obs_fixture_order(void) { return fixture_order; }\n").unwrap();
     for unity in [false, true] {
         let build = NativeBuild {
+            profile: Default::default(),
             host: obs_build::BUILD_HOST.into(),
             target: obs_build::BUILD_TARGET.into(),
             output: root.join(format!("artifacts-{unity}")),
@@ -723,6 +1085,7 @@ fn pch_batches_preserve_constructor_order_with_interleaved_headers() {
 fn production_hybrid_requires_a_real_rust_archive_before_native_compilation() {
     let directory = tempfile::tempdir().unwrap();
     let build = NativeBuild {
+        profile: Default::default(),
         host: obs_build::BUILD_HOST.into(),
         target: obs_build::BUILD_TARGET.into(),
         output: directory.path().join("build"),
@@ -743,6 +1106,7 @@ fn objective_groups_expand_to_individual_language_correct_sources() {
     let directory = tempfile::tempdir().unwrap();
     let root = directory.path();
     let build = NativeBuild {
+        profile: Default::default(),
         host: obs_build::BUILD_HOST.into(),
         target: obs_build::BUILD_TARGET.into(),
         output: root.join("artifacts"),
@@ -815,6 +1179,7 @@ fn mixed_objective_languages_compile_load_and_rebuild_with_unity_and_pch() {
         for pch in [false, true] {
             write_header(1);
             let build = NativeBuild {
+                profile: Default::default(),
                 host: obs_build::BUILD_HOST.into(),
                 target: obs_build::BUILD_TARGET.into(),
                 output: root.join(format!("output-{unity}-{pch}")),
@@ -909,6 +1274,7 @@ fn arc_and_manual_groups_keep_source_flags_through_expansion_and_pch() {
     for separate in [false, true] {
         for pch in [false, true] {
             let build = NativeBuild {
+                profile: Default::default(),
                 host: obs_build::BUILD_HOST.into(),
                 target: obs_build::BUILD_TARGET.into(),
                 output: root.join(format!("output-{separate}-{pch}")),
@@ -956,6 +1322,7 @@ fn native_source_options_reject_ambiguous_or_orphan_assignments() {
     fs::write(&source, "int fixture(void) { return 1; }\n").unwrap();
     fs::write(&other, "int other(void) { return 2; }\n").unwrap();
     let build = NativeBuild {
+        profile: Default::default(),
         host: obs_build::BUILD_HOST.into(),
         target: obs_build::BUILD_TARGET.into(),
         output: dir.path().join("artifacts"),

@@ -22,10 +22,10 @@ endmacro()
 macro(obs_frontend_platform_plugin_manager)
   if(OS_FLATPAK)
     configure_file(plugin-manager/LoaderPaths_Flatpak.hpp.in LoaderPaths_Flatpak.hpp @ONLY)
-    target_sources(obs-studio PRIVATE build/frontend.plugin-manager-flatpak+.hpp.cpp LoaderPaths_Flatpak.hpp)
+    obs_frontend_add_sources(FLATPAK_PLUGIN_MANAGER)
   else()
     configure_file(plugin-manager/LoaderPaths_Linux.hpp.in LoaderPaths_Linux.hpp @ONLY)
-    target_sources(obs-studio PRIVATE build/frontend.plugin-manager-linux+.hpp.cpp LoaderPaths_Linux.hpp)
+    obs_frontend_add_sources(LINUX_PLUGIN_MANAGER)
   endif()
 endmacro()
 
@@ -39,25 +39,12 @@ macro(obs_frontend_platform_whatsnew)
 
   target_link_libraries(obs-studio PRIVATE MbedTLS::mbedtls nlohmann_json::nlohmann_json OBS::blake2)
 
-  target_sources(
-    obs-studio
-    PRIVATE
-      build/frontend.whatsnew+.hpp.cpp
-      utility/WhatsNewBrowserInitThread.hpp
-      utility/WhatsNewInfoThread.hpp
-      build/frontend.crypto-mbedtls+.hpp.cpp
-      utility/crypto-helpers.hpp
-      utility/models/whatsnew.hpp
-      utility/update-helpers.hpp
-  )
+  obs_frontend_add_sources(LINUX_WHATSNEW)
 endmacro()
 
 macro(obs_frontend_platform_sources)
-  target_sources(obs-studio PRIVATE build/frontend.signal-posix+.hpp.cpp)
-  target_sources(
-    obs-studio
-    PRIVATE build/frontend.linux+.hpp.cpp build/frontend.native-event-filter+.hpp.cpp build/frontend.x11+.hpp.cpp
-  )
+  obs_frontend_add_sources(POSIX_SIGNALS)
+  obs_frontend_add_sources(LINUX)
   target_compile_definitions(
     obs-studio
     PRIVATE OBS_INSTALL_PREFIX="${OBS_INSTALL_PREFIX}" $<$<BOOL:${ENABLE_PORTABLE_CONFIG}>:ENABLE_PORTABLE_CONFIG>

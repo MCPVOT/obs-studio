@@ -74,6 +74,11 @@ file(WRITE "${TRACE}" "")
 add_library(wrappers INTERFACE)
 add_library(OBS::qt-wrappers ALIAS wrappers)
 '''
+                    script = script.replace(
+                        'project(FrontendFacade NONE)\n',
+                        'project(FrontendFacade NONE)\n'
+                        f'include("{(FRONTEND / "cmake/sources.cmake").as_posix()}")\n',
+                    )
                     if browser:
                         script += 'add_library(browser INTERFACE)\nadd_library(OBS::browser-panels ALIAS browser)\n'
                     for flag in ("WINDOWS", "MACOS", "LINUX", "FREEBSD", "OPENBSD", "FLATPAK"):

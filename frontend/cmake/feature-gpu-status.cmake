@@ -52,7 +52,7 @@ if(ENABLE_GPU_STATUS AND COMMAND corrosion_import_crate)
   # A staticlib's #[link(name = ...)] system libraries don't reach the final
   # link: the Windows GPU engine counters (#1228) need pdh.lib.
   target_link_libraries(obs-studio PRIVATE $<$<PLATFORM_ID:Windows>:pdh>)
-  target_sources(obs-studio PRIVATE utility/obs-gpu-status.h)
+  obs_frontend_add_sources(GPU_STATUS_RUST_HEADER)
   target_enable_feature(obs-studio "GPU acceleration status light" OBS_GPU_STATUS)
 elseif(ENABLE_GPU_STATUS)
   message(WARNING "cargo not found: building without the GPU acceleration status light (obs-rust/obs-studio#946)")
@@ -61,4 +61,4 @@ else()
   target_disable_feature(obs-studio "GPU acceleration status light")
 endif()
 
-target_sources(obs-studio PRIVATE build/frontend.gpu-status+.hpp.cpp utility/GpuStatus.hpp)
+obs_frontend_add_sources(GPU_STATUS)

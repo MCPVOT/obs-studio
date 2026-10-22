@@ -104,7 +104,7 @@ def main() -> None:
     scripting = json.loads(manifest.read_text()) if manifest.exists() else None
     env["OBS_BUILD_GUI_EVIDENCE"] = str(runtime)
     env["OBS_BUILD_GUI_SCRIPT_COUNT"] = str(len(scripting["languages"])) if scripting else "-1"
-    env["LD_LIBRARY_PATH"] = str(runtime / "lib64") + os.pathsep + env.get("LD_LIBRARY_PATH", "")
+    env.pop("LD_LIBRARY_PATH", None)
     env.pop("OBS_DATA_PATH", None)
     env.pop("WAYLAND_DISPLAY", None)
     recording = bool(os.environ.get("OBS_BUILD_APP_RECORD"))

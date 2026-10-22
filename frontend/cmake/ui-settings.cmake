@@ -1,14 +1,1 @@
-target_sources(
-  obs-studio
-  PRIVATE
-    build/frontend.settings+.hpp.cpp
-    settings/OBSBasicSettings.hpp
-    build/frontend.settings-obshotkeybackground+.hpp.cpp
-    settings/OBSHotkeyBackground.hpp
-    settings/OBSHotkeyBackgroundBanner.hpp
-    build/frontend.settings-obshotkeycapture+.hpp.cpp
-    settings/OBSHotkeyCapture.hpp
-    settings/OBSHotkeyEdit.hpp
-    settings/OBSHotkeyLabel.hpp
-    settings/OBSHotkeyWidget.hpp
-)
+obs_frontend_add_sources(UI_SETTINGS)

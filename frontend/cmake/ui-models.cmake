@@ -1,1 +1,1 @@
-target_sources(obs-studio PRIVATE build/frontend.models+.hpp.cpp models/Rect.hpp models/SceneCollection.hpp)
+obs_frontend_add_sources(UI_MODELS)

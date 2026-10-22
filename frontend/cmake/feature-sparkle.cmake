@@ -1,16 +1,7 @@
 if(SPARKLE_APPCAST_URL AND SPARKLE_PUBLIC_KEY)
   find_library(SPARKLE Sparkle)
   mark_as_advanced(SPARKLE)
-  target_sources(
-    obs-studio
-    PRIVATE
-      build/frontend.sparkle+.hpp.cpp
-      utility/MacUpdateThread.hpp
-      utility/OBSSparkle.hpp
-      build/frontend.sparkle-arc-mm+.hpp.mm
-      utility/OBSUpdateDelegate.h
-      build/frontend.sparkle-delegate-mm+.hpp.mm
-  )
+  obs_frontend_add_sources(SPARKLE)
   set_source_files_properties(build/frontend.sparkle-arc-mm+.hpp.mm PROPERTIES COMPILE_OPTIONS -fobjc-arc)
 
   target_link_libraries(obs-studio PRIVATE "$<LINK_LIBRARY:FRAMEWORK,${SPARKLE}>")

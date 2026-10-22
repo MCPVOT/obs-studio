@@ -1,11 +1,1 @@
-target_sources(
-  obs-studio
-  PRIVATE
-    build/frontend.wizards+.hpp.cpp
-    wizards/AutoConfig.hpp
-    wizards/AutoConfigStartPage.hpp
-    wizards/AutoConfigStreamPage.hpp
-    wizards/AutoConfigTestPage.hpp
-    wizards/AutoConfigVideoPage.hpp
-    wizards/TestMode.hpp
-)
+obs_frontend_add_sources(UI_WIZARDS)

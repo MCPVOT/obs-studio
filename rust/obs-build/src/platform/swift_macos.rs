@@ -83,9 +83,6 @@ pub fn build(build: &NativeBuild, library: &SwiftLibrary) -> Result<PathBuf, Str
             "-emit-library",
             "-emit-module",
             "-emit-objc-header",
-            "-O",
-            "-g",
-            "-whole-module-optimization",
             "-module-name",
             &library.module_name,
             "-target",
@@ -109,6 +106,17 @@ pub fn build(build: &NativeBuild, library: &SwiftLibrary) -> Result<PathBuf, Str
             "-Xcc",
             "-fobjc-arc",
         ]);
+    command.arg(match build.profile {
+        crate::NativeProfile::Debug => "-Onone",
+        crate::NativeProfile::MinSizeRel => "-Osize",
+        _ => "-O",
+    });
+    if build.profile.debug_info() {
+        command.arg("-g");
+    }
+    if !build.profile.assertions() {
+        command.args(["-whole-module-optimization", "-Xcc", "-DNDEBUG"]);
+    }
     for include in &library.include_dirs {
         let include = include.canonicalize().map_err(|e| e.to_string())?;
         command.arg("-Xcc").arg(format!("-I{}", include.display()));
