@@ -1,117 +1,119 @@
 #include "frontend/build/frontend-windows-autoupdatethread.pch.hpp"
 
-/* ------------------------------------------------------------------------ */
+/* OBS-Studio-Rust updates only from certified obs-rust releases (#1729, #1736).
+ * release-rust.yaml's certify job attaches manifest.json (+ .sig, RSA-signed
+ * with the key in data/OBSPublicRSAKey.pem) to the release it promotes to
+ * "Latest"; releases/latest/download/ never resolves to a daily pre-release.
+ * The manifest names each Windows ZIP with its SHA-256. The ZIP is verified
+ * here and again by the installer step, which waits for OBS to exit, copies
+ * the ZIP's tree over the install and restarts OBS. Upstream's per-file
+ * installer in frontend/updater/ only speaks upstream's CDN. */
 
-#ifndef WIN_MANIFEST_URL
-#define WIN_MANIFEST_URL "https://obsproject.com/update_studio/manifest.json"
+#ifndef WIN_UPDATE_FEED_URL
+#define WIN_UPDATE_FEED_URL "https://github.com/obs-rust/obs-studio/releases/latest/download/"
 #endif
 
-#ifndef WIN_MANIFEST_BASE_URL
-#define WIN_MANIFEST_BASE_URL "https://obsproject.com/update_studio/"
-#endif
-
-#ifndef WIN_BRANCHES_URL
-#define WIN_BRANCHES_URL "https://obsproject.com/update_studio/branches.json"
+#ifndef WIN_RELEASE_DOWNLOAD_URL
+#define WIN_RELEASE_DOWNLOAD_URL "https://github.com/obs-rust/obs-studio/releases/download/"
 #endif
 
 #ifndef WIN_DEFAULT_BRANCH
 #define WIN_DEFAULT_BRANCH "stable"
 #endif
 
-#ifndef WIN_UPDATER_URL
-#define WIN_UPDATER_URL "https://obsproject.com/update_studio/updater.exe"
-#endif
-
 /* ------------------------------------------------------------------------ */
 
 using namespace std;
-using namespace updater;
 
-extern char *GetConfigPathPtr(const char *name);
+struct ObsRustRelease {
+	string version;
+	string tag;
+	string notes;
+	string name;
+	string url;
+	string sha256;
+	uint64_t size = 0;
+};
 
-static bool ParseUpdateManifest(const char *manifest_data, bool *updatesAvailable, string &notes, string &updateVer,
-				const string &branch)
-try {
-	constexpr uint64_t currentVersion = (uint64_t)LIBOBS_API_VER << 16ULL | OBS_RELEASE_CANDIDATE << 8ULL |
-					    OBS_BETA;
-	constexpr bool isPreRelease = currentVersion & 0xffff || std::char_traits<char>::length(OBS_COMMIT);
-
-	json manifestContents = json::parse(manifest_data);
-	Manifest manifest = manifestContents.get<Manifest>();
-
-	if (manifest.version_major == 0 && manifest.commit.empty()) {
-		throw strprintf("Invalid version number: %d.%d.%d", manifest.version_major, manifest.version_minor,
-				manifest.version_patch);
-	}
-
-	notes = manifest.notes;
-
-	if (manifest.commit.empty()) {
-		uint64_t new_ver = MAKE_SEMANTIC_VERSION((uint64_t)manifest.version_major,
-							 (uint64_t)manifest.version_minor,
-							 (uint64_t)manifest.version_patch);
-		new_ver <<= 16;
-		/* RC builds are shifted so that rc1 and beta1 versions do not result
-		 * in the same new_ver. */
-		if (manifest.rc > 0) {
-			new_ver |= (uint64_t)manifest.rc << 8;
-		} else if (manifest.beta > 0) {
-			new_ver |= (uint64_t)manifest.beta;
-		}
-
-		updateVer = to_string(new_ver);
-
-		/* When using a pre-release build or non-default branch we only check if
-		 * the manifest version is different, so that it can be rolled back. */
-		if (branch != WIN_DEFAULT_BRANCH || isPreRelease) {
-			*updatesAvailable = new_ver != currentVersion;
-		} else {
-			*updatesAvailable = new_ver > currentVersion;
-		}
-	} else {
-		/* Test or nightly builds may not have a (valid) version number,
-		 * so compare commit hashes instead. */
-		updateVer = manifest.commit.substr(0, 8);
-		*updatesAvailable = !currentVersion || manifest.commit.compare(0, strlen(OBS_COMMIT), OBS_COMMIT) != 0;
-	}
-
-	return true;
-
-} catch (string &text) {
-	blog(LOG_WARNING, "%s: %s", __FUNCTION__, text.c_str());
-	return false;
+static const char *CurrentObsRustVersion()
+{
+#ifdef OBS_RUST_VERSION
+	return OBS_RUST_VERSION;
+#else
+	return "";
+#endif
 }
 
-/* ------------------------------------------------------------------------ */
-
-bool GetBranchAndUrl(string &selectedBranch, string &manifestUrl)
+/* The ZIP for the architecture this obs64.exe was built for. */
+static const char *WindowsArch()
 {
-	const char *config_branch = config_get_string(App()->GetAppConfig(), "General", "UpdateBranch");
-	if (!config_branch) {
-		return true;
+	auto base = (const uint8_t *)GetModuleHandleW(nullptr);
+	auto dos = (const IMAGE_DOS_HEADER *)base;
+	auto nt = (const IMAGE_NT_HEADERS *)(base + dos->e_lfanew);
+	return nt->FileHeader.Machine == IMAGE_FILE_MACHINE_ARM64 ? "arm64" : "x64";
+}
+
+static bool IsHexDigest(const string &s)
+{
+	if (s.size() != 64) {
+		return false;
 	}
-
-	bool found = false;
-	for (const UpdateBranch &branch : App()->GetBranches()) {
-		if (branch.name != config_branch) {
-			continue;
+	for (char c : s) {
+		if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'))) {
+			return false;
 		}
-		/* A branch that is found but disabled will just silently fall back to
-		 * the default. But if the branch was removed entirely, the user should
-		 * be warned, so leave this false *only* if the branch was removed. */
-		found = true;
-
-		if (branch.is_enabled) {
-			selectedBranch = branch.name.toStdString();
-			if (branch.name != WIN_DEFAULT_BRANCH) {
-				manifestUrl = WIN_MANIFEST_BASE_URL;
-				manifestUrl += "manifest_" + branch.name.toStdString() + ".json";
-			}
-		}
-		break;
 	}
+	return true;
+}
 
-	return found;
+static void ParseObsRustManifest(const string &text, ObsRustRelease &out)
+{
+	nlohmann::json manifest = nlohmann::json::parse(text);
+	out.version = manifest.at("version").get<string>();
+	out.tag = manifest.at("tag").get<string>();
+	out.notes = manifest.value("notes", string());
+	const nlohmann::json &zip = manifest.at("windows").at(WindowsArch());
+	out.name = zip.at("name").get<string>();
+	out.url = zip.at("url").get<string>();
+	out.sha256 = zip.at("sha256").get<string>();
+	out.size = zip.at("size").get<uint64_t>();
+
+	if (!ObsRustVersionIsValid(out.version) || out.tag != "obs-studio-rust-v" + out.version) {
+		throw strprintf("Invalid version in update manifest: %s (%s)", out.version.c_str(), out.tag.c_str());
+	}
+	string prefix = WIN_RELEASE_DOWNLOAD_URL + out.tag + "/";
+	if (out.url.compare(0, prefix.size(), prefix) != 0 || out.name.find_first_of("/\\") != string::npos ||
+	    out.url != prefix + out.name) {
+		throw strprintf("Update manifest names an unexpected download: %s", out.url.c_str());
+	}
+	if (!IsHexDigest(out.sha256) || !out.size) {
+		throw string("Update manifest has no valid SHA-256 or size");
+	}
+}
+
+static string PowerShellQuote(const string &s)
+{
+	string out = "'";
+	for (char c : s) {
+		out += c;
+		if (c == '\'') {
+			out += c;
+		}
+	}
+	return out + "'";
+}
+
+/* Whether this user can write to the install (else the installer runs elevated). */
+static bool CanWriteTo(const wstring &dir)
+{
+	wstring probe = dir + L"\\.obs-studio-rust-update-probe";
+	HANDLE file = CreateFileW(probe.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS,
+				  FILE_ATTRIBUTE_TEMPORARY | FILE_FLAG_DELETE_ON_CLOSE, nullptr);
+	if (file == INVALID_HANDLE_VALUE) {
+		return false;
+	}
+	CloseHandle(file);
+	return true;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -161,9 +163,6 @@ bool AutoUpdateThread::queryRepair()
 void AutoUpdateThread::run()
 try {
 	string text;
-	string branch = WIN_DEFAULT_BRANCH;
-	string manifestUrl = WIN_MANIFEST_URL;
-	vector<string> extraHeaders;
 	bool updatesAvailable = false;
 
 	struct FinishedTrigger {
@@ -173,45 +172,48 @@ try {
 		}
 	} finishedTrigger;
 
+	const string current = CurrentObsRustVersion();
+	if (!ObsRustVersionIsValid(current)) {
+		throw string("Not an OBS-Studio-Rust build; no update feed");
+	}
+
 	/* ----------------------------------- *
 	 * get branches from server            */
 
-	if (FetchAndVerifyFile("branches", "obs-studio\\updates\\branches.json", WIN_BRANCHES_URL, &text)) {
+	if (FetchAndVerifyFile("branches", "obs-studio\\updates\\branches.json", WIN_UPDATE_FEED_URL "branches.json",
+			       &text)) {
 		App()->SetBranchData(text);
 	}
 
-	/* ----------------------------------- *
-	 * check branch and get manifest url   */
-
-	if (!GetBranchAndUrl(branch, manifestUrl)) {
+	/* Certified releases are the only channel. */
+	const char *config_branch = config_get_string(App()->GetAppConfig(), "General", "UpdateBranch");
+	if (config_branch && strcmp(config_branch, WIN_DEFAULT_BRANCH) != 0) {
 		config_set_string(App()->GetAppConfig(), "General", "UpdateBranch", WIN_DEFAULT_BRANCH);
-		info(QTStr("Updater.BranchNotFound.Title"), QTStr("Updater.BranchNotFound.Text"));
-	}
-
-	/* allow server to know if this was a manual update check in case
-	 * we want to allow people to bypass a configured rollout rate */
-	if (manualUpdate) {
-		extraHeaders.emplace_back("X-OBS2-ManualUpdate: 1");
 	}
 
 	/* ----------------------------------- *
-	 * get manifest from server            */
+	 * get the latest certified release    */
 
 	text.clear();
-	if (!FetchAndVerifyFile("manifest", "obs-studio\\updates\\manifest.json", manifestUrl.c_str(), &text,
-				extraHeaders)) {
+	if (!FetchAndVerifyFile("manifest", "obs-studio\\updates\\manifest.json", WIN_UPDATE_FEED_URL "manifest.json",
+				&text)) {
+		if (manualUpdate) {
+			info(QTStr("Updater.NoUpdatesAvailable.Title"), QTStr("Updater.NoUpdatesAvailable.Text"));
+		}
 		return;
 	}
 
-	/* ----------------------------------- *
-	 * check manifest for update           */
-
-	string notes;
-	string updateVer;
-
-	if (!ParseUpdateManifest(text.c_str(), &updatesAvailable, notes, updateVer, branch)) {
-		throw string("Failed to parse manifest");
+	ObsRustRelease release;
+	try {
+		ParseObsRustManifest(text, release);
+	} catch (const nlohmann::json::exception &e) {
+		throw strprintf("Failed to parse manifest: %s", e.what());
 	}
+
+	int order = CompareObsRustVersions(release.version, current);
+	updatesAvailable = order > 0;
+	blog(LOG_INFO, "Update check: running %s, latest certified release %s", current.c_str(),
+	     release.version.c_str());
 
 	if (!updatesAvailable && !repairMode) {
 		if (manualUpdate) {
@@ -221,20 +223,17 @@ try {
 	} else if (updatesAvailable && repairMode) {
 		info(QTStr("Updater.RepairButUpdatesAvailable.Title"), QTStr("Updater.RepairButUpdatesAvailable.Text"));
 		return;
+	} else if (repairMode && order != 0) {
+		/* Never "repair" to an older release. */
+		info(QTStr("Updater.NoUpdatesAvailable.Title"), QTStr("Updater.NoUpdatesAvailable.Text"));
+		return;
 	}
 
 	/* ----------------------------------- *
 	 * skip this version if set to skip    */
 
 	const char *skipUpdateVer = config_get_string(App()->GetAppConfig(), "General", "SkipUpdateVersion");
-	if (!manualUpdate && !repairMode && skipUpdateVer && updateVer == skipUpdateVer) {
-		return;
-	}
-
-	/* ----------------------------------- *
-	 * fetch updater module                */
-
-	if (!FetchAndVerifyFile("updater", "obs-studio\\updates\\updater.exe", WIN_UPDATER_URL, nullptr)) {
+	if (!manualUpdate && !repairMode && skipUpdateVer && release.version == skipUpdateVer) {
 		return;
 	}
 
@@ -246,7 +245,7 @@ try {
 			return;
 		}
 	} else {
-		int queryResult = queryUpdate(manualUpdate, notes.c_str());
+		int queryResult = queryUpdate(manualUpdate, release.notes.c_str());
 
 		if (queryResult == OBSUpdate::No) {
 			if (!manualUpdate) {
@@ -256,75 +255,131 @@ try {
 			return;
 
 		} else if (queryResult == OBSUpdate::Skip) {
-			config_set_string(App()->GetAppConfig(), "General", "SkipUpdateVersion", updateVer.c_str());
+			config_set_string(App()->GetAppConfig(), "General", "SkipUpdateVersion",
+					  release.version.c_str());
 			return;
 		}
 	}
 
 	/* ----------------------------------- *
-	 * get working dir                     */
+	 * download and verify the release ZIP */
 
-	wchar_t cwd[MAX_PATH];
-	GetModuleFileNameW(nullptr, cwd, _countof(cwd) - 1);
-	wchar_t *p = wcsrchr(cwd, '\\');
-	if (p) {
-		*p = 0;
+	string zip;
+	string error;
+	string unusedSignature; /* follows the release asset's redirect */
+	long responseCode = 0;
+	if (!GetRemoteFile(release.url.c_str(), zip, error, &responseCode, nullptr, "", nullptr, {},
+			   &unusedSignature) ||
+	    responseCode != 200) {
+		info(QTStr("Updater.FailedToLaunch"), QString::fromStdString(release.url));
+		throw strprintf("Failed to download %s: %s", release.url.c_str(), error.c_str());
+	}
+
+	QByteArray digest =
+		QCryptographicHash::hash(QByteArrayView(zip.data(), (qsizetype)zip.size()), QCryptographicHash::Sha256)
+			.toHex();
+	if (zip.size() != release.size || digest.toStdString() != release.sha256) {
+		info(QTStr("Updater.FailedToLaunch"), QTStr("Updater.FailedToLaunch"));
+		throw strprintf("%s does not match the signed manifest", release.name.c_str());
+	}
+
+	BPtr<char> zipPath = GetAppConfigPathPtr("obs-studio\\updates\\obs-studio-rust-update.zip");
+	QFile zipFile(QString::fromUtf8(zipPath.Get()));
+	if (!zipFile.open(QIODevice::WriteOnly | QIODevice::Truncate) ||
+	    zipFile.write(zip.data(), (qint64)zip.size()) != (qint64)zip.size() || !zipFile.flush()) {
+		throw strprintf("Could not write '%s'", zipPath.Get());
+	}
+	zipFile.close();
+	zip.clear();
+	zip.shrink_to_fit();
+
+	/* ----------------------------------- *
+	 * install directory and restart       */
+
+	wchar_t exePath[MAX_PATH];
+	GetModuleFileNameW(nullptr, exePath, _countof(exePath) - 1);
+	exePath[_countof(exePath) - 1] = 0;
+	wstring baseDir = exePath;
+	for (int i = 0; i < 3; i++) { /* <install>\\bin\\64bit\\obs64.exe */
+		size_t slash = baseDir.find_last_of(L'\\');
+		if (slash == wstring::npos) {
+			throw string("Could not find the install directory");
+		}
+		baseDir.resize(slash);
+	}
+
+	string restartArgs;
+	obs_cmdline_args obs_args = obs_get_cmdline_args();
+	for (int idx = 1; idx < obs_args.argc; idx++) {
+		restartArgs += (restartArgs.empty() ? "" : " ") + string(obs_args.argv[idx]);
+	}
+	/* Portable mode can be enabled via sentinel files, so copying the
+	 * command line doesn't guarantee the flag to be there. */
+	if (App()->IsPortableMode() && restartArgs.find("--portable") == string::npos) {
+		restartArgs += restartArgs.empty() ? "--portable" : " --portable";
 	}
 
 	/* ----------------------------------- *
-	 * execute updater                     */
+	 * run the installer step              */
 
-	BPtr<char> updateFilePath = GetAppConfigPathPtr("obs-studio\\updates\\updater.exe");
-	BPtr<wchar_t> wUpdateFilePath;
+	string script =
+		"$ErrorActionPreference = 'Stop'\n"
+		"$zip = " +
+		PowerShellQuote(zipPath.Get()) +
+		"\n"
+		"$dest = " +
+		PowerShellQuote(QString::fromStdWString(baseDir).toStdString()) +
+		"\n"
+		"$exe = " +
+		PowerShellQuote(QString::fromWCharArray(exePath).toStdString()) +
+		"\n"
+		"$restartArgs = " +
+		PowerShellQuote(restartArgs) +
+		"\n"
+		"$sha = " +
+		PowerShellQuote(release.sha256) +
+		"\n"
+		"$obsPid = " +
+		to_string(GetCurrentProcessId()) +
+		"\n"
+		"try { Wait-Process -Id $obsPid -Timeout 120 -ErrorAction SilentlyContinue } catch {}\n"
+		"try {\n"
+		"  if ((Get-FileHash -Algorithm SHA256 -LiteralPath $zip).Hash -ne $sha) {\n"
+		"    throw 'The downloaded update does not match its signed manifest.' }\n"
+		"  $tmp = Join-Path ([IO.Path]::GetTempPath()) ('obs-studio-rust-update-' + [guid]::NewGuid())\n"
+		"  Expand-Archive -LiteralPath $zip -DestinationPath $tmp\n"
+		"  if (-not (Test-Path -LiteralPath (Join-Path $tmp 'bin\\64bit\\obs64.exe'))) {\n"
+		"    throw 'The update has no bin\\64bit\\obs64.exe.' }\n"
+		"  robocopy $tmp $dest /E /R:5 /W:2 /NFL /NDL /NJH /NJS | Out-Null\n"
+		"  if ($LASTEXITCODE -ge 8) { throw \"Copying the update failed (robocopy $LASTEXITCODE).\" }\n"
+		"  Remove-Item -LiteralPath $tmp -Recurse -Force\n"
+		"  Remove-Item -LiteralPath $zip -Force\n"
+		"} catch {\n"
+		"  Add-Type -AssemblyName PresentationFramework\n"
+		"  [System.Windows.MessageBox]::Show(\"OBS-Studio-Rust update failed: $_\", 'OBS-Studio-Rust') | Out-Null\n"
+		"}\n"
+		"$start = @{ FilePath = $exe; WorkingDirectory = (Split-Path -LiteralPath $exe) }\n"
+		"if ($restartArgs) { $start.ArgumentList = $restartArgs }\n"
+		"Start-Process @start\n";
 
-	size_t size = os_utf8_to_wcs_ptr(updateFilePath, 0, &wUpdateFilePath);
-	if (!size) {
-		throw string("Could not convert updateFilePath to wide");
-	}
+	QString scriptText = QString::fromStdString(script);
+	QByteArray utf16((const char *)scriptText.utf16(), (qsizetype)scriptText.size() * 2);
+	QString encoded = QString::fromLatin1(utf16.toBase64());
+	wstring parameters =
+		L"-NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -EncodedCommand " +
+		encoded.toStdWString();
 
-	/* note, can't use CreateProcess to launch as admin. */
-	SHELLEXECUTEINFO execInfo = {};
-
+	SHELLEXECUTEINFOW execInfo = {};
 	execInfo.cbSize = sizeof(execInfo);
-	execInfo.lpFile = wUpdateFilePath;
+	execInfo.lpVerb = CanWriteTo(baseDir) ? nullptr : L"runas";
+	execInfo.lpFile = L"powershell.exe";
+	execInfo.lpParameters = parameters.c_str();
+	execInfo.nShow = SW_HIDE;
 
-	string parameters;
-	if (branch != WIN_DEFAULT_BRANCH) {
-		parameters += "--branch=" + branch;
-	}
-
-	obs_cmdline_args obs_args = obs_get_cmdline_args();
-	for (int idx = 1; idx < obs_args.argc; idx++) {
-		if (!parameters.empty()) {
-			parameters += " ";
-		}
-
-		parameters += obs_args.argv[idx];
-	}
-
-	/* Portable mode can be enabled via sentinel files, so copying the
-	 * command line doesn't guarantee the flag to be there. */
-	if (App()->IsPortableMode() && parameters.find("--portable") == string::npos) {
-		if (!parameters.empty()) {
-			parameters += " ";
-		}
-		parameters += "--portable";
-	}
-
-	BPtr<wchar_t> lpParameters;
-	size = os_utf8_to_wcs_ptr(parameters.c_str(), 0, &lpParameters);
-	if (!size && !parameters.empty()) {
-		throw string("Could not convert parameters to wide");
-	}
-
-	execInfo.lpParameters = lpParameters;
-	execInfo.lpDirectory = cwd;
-	execInfo.nShow = SW_SHOWNORMAL;
-
-	if (!ShellExecuteEx(&execInfo)) {
+	if (!ShellExecuteExW(&execInfo)) {
 		QString msg = QTStr("Updater.FailedToLaunch");
 		info(msg, msg);
-		throw strprintf("Can't launch updater '%s': %d", updateFilePath.Get(), GetLastError());
+		throw strprintf("Can't launch the update installer: %lu", GetLastError());
 	}
 
 	/* force OBS to perform another update check immediately after updating
@@ -339,8 +394,6 @@ try {
 }
 
 /* File-local macros (BUILD.md): out of the next file in the unity group. */
-#undef WIN_MANIFEST_URL
-#undef WIN_MANIFEST_BASE_URL
-#undef WIN_BRANCHES_URL
+#undef WIN_UPDATE_FEED_URL
+#undef WIN_RELEASE_DOWNLOAD_URL
 #undef WIN_DEFAULT_BRANCH
-#undef WIN_UPDATER_URL

@@ -11,12 +11,17 @@
 
 #include <OBSApp.hpp>
 #include <dialogs/OBSUpdate.hpp>
-#include <updater/manifest.hpp>
+#include <utility/obs-rust-update.hpp>
+#include <utility/RemoteTextThread.hpp>
 #include <utility/WhatsNewInfoThread.hpp>
 #include <utility/update-helpers.hpp>
 #include <widgets/OBSBasic.hpp>
 
 #include <qt-wrappers.hpp>
+
+#include <QCryptographicHash>
+#include <QFile>
+#include <nlohmann/json.hpp>
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>

@@ -49,13 +49,17 @@ class ReleaseStepPitfallsTest(unittest.TestCase):
         self.assertIn("gh release delete-asset continuous", step)
 
 
-    def test_daily_beta_is_the_latest_release(self):
-        # Published as pre-releases, the betas never showed as the repo's
-        # "Latest" release; the front page still offered obs-stream-rust v0.1.0.
+    def test_daily_beta_is_a_pre_release(self):
+        # The daily beta is a pre-release; only a maintainer's certify dispatch
+        # makes a release Latest, which is what the in-app updaters offer
+        # (ci/test_update_feed.py). Before #1727's follow-up the betas were
+        # marked Latest so the front page did not offer obs-stream-rust v0.1.0;
+        # a certified release now does that.
         text = (ROOT / ".github" / "workflows" / "release-rust.yaml").read_text()
-        for m in re.finditer(r'gh release (?:create|edit) "\$TAG"[^\n]*(?:\\\n[^\n]*)*', text):
-            self.assertIsNone(re.search(r"--prerelease(?!=false)", m.group(0)), m.group(0))
-            self.assertIn("--latest", m.group(0))
+        release = text.split("\n  release:\n", 1)[1].split("\n  certify:\n", 1)[0]
+        for m in re.finditer(r'gh release (?:create|edit) "\$TAG"[^\n]*(?:\\\n[^\n]*)*', release):
+            self.assertRegex(m.group(0), r"--prerelease(?!=false)")
+            self.assertIn("--latest=false", m.group(0))
 
 
 if __name__ == "__main__":

@@ -17,6 +17,13 @@ run-name: Daily OBS-Studio-Rust beta 🦀
 # (#623), which completes or replaces today's release from master. The
 # rolling "continuous" AppImage moves only after the gate, in place (#624).
 # The release creates the tag itself, so push.yaml's upstream OBS tag pipeline doesn't run.
+# Certified releases (#1729, #1730, #1736): each daily beta is a pre-release and
+# never "Latest". A maintainer certifies one that passed the gate with
+#   gh workflow run release-rust.yaml -f certify=obs-studio-rust-v<version>
+# The certify job attaches the update feed (ci/update_feed.py: Sparkle appcasts,
+# signed Windows manifest and branches.json) and then makes it a full release
+# marked Latest. The in-app updaters read releases/latest/download/, so they only
+# ever offer a certified release. See docs/rust-port/release-criteria.md.
 on:
   schedule:
     - cron: '0 9 * * *'
@@ -30,6 +37,10 @@ on:
         description: Build and verify candidate packages from this ref without publishing
         type: boolean
         default: false
+      certify:
+        description: Certify this daily pre-release (obs-studio-rust-v...) for the in-app updaters; builds nothing
+        type: string
+        default: ''
 permissions:
   contents: read
 concurrency:
@@ -42,7 +53,8 @@ jobs:
   check:
     name: Check version 🏷️
     # Not in forks: a fork's schedule fails there and mails its owner (#1258).
-    if: github.event_name != 'schedule' || github.repository == 'obs-rust/obs-studio'
+    # A certify dispatch only promotes an existing release (the certify job).
+    if: (github.event_name != 'schedule' || github.repository == 'obs-rust/obs-studio') && inputs.certify == ''
     runs-on: ubuntu-26.04
     outputs:
       tag: ${{ steps.check.outputs.tag }}
@@ -582,7 +594,7 @@ jobs:
           cat >notes.md <<EOF
           Daily beta of OBS-Studio-Rust $VERSION. It ships the C libobs; the Rust ports of its internals are built and tested on every build but not shipped yet (#1065). Built from [\`${SHA:0:9}\`](https://github.com/$GITHUB_REPOSITORY/commit/$SHA).
 
-          **Daily beta.** macOS packages are signed and notarized when the project's release credentials are configured. For an unnotarized download, copy OBS-Studio-Rust.app to Applications and try opening it, then choose **System Settings → Privacy & Security → Open Anyway**. For a download you trust, the Terminal alternative is \`xattr -dr com.apple.quarantine /Applications/OBS-Studio-Rust.app\`; it removes quarantine from that app only. See [Apple's guidance](https://support.apple.com/102445).
+          **Daily beta (pre-release).** The in-app updaters offer only certified releases, which a maintainer promotes from a daily beta. macOS packages are signed and notarized when the project's release credentials are configured. For an unnotarized download, copy OBS-Studio-Rust.app to Applications and try opening it, then choose **System Settings → Privacy & Security → Open Anyway**. For a download you trust, the Terminal alternative is \`xattr -dr com.apple.quarantine /Applications/OBS-Studio-Rust.app\`; it removes quarantine from that app only. See [Apple's guidance](https://support.apple.com/102445).
 
           Windows: SmartScreen will warn. Linux: \`sudo apt install ./OBS-Studio-Rust-$VERSION-linux-x86_64.deb\` (Ubuntu 26.04), or the AppImage for any distribution: \`chmod +x OBS-Studio-Rust-$VERSION-linux-x86_64.AppImage\` and run it.
 
@@ -597,14 +609,15 @@ jobs:
             gh api -X PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/$TAG" -f sha="$SHA" -F force=true >/dev/null
             if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
               gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber "${files[@]}" SHA256SUMS
-              gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --prerelease=false --latest \
+              gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --prerelease --latest=false \
                 --title "OBS-Studio-Rust v$VERSION" --notes-file notes.md
             else
-              gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --latest \
+              gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --prerelease --latest=false \
                 --title "OBS-Studio-Rust v$VERSION" --notes-file notes.md "${files[@]}" SHA256SUMS
             fi
           else
-            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$SHA" --latest \
+            # A pre-release: only the certify job makes a release Latest (#1729).
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$SHA" --prerelease --latest=false \
               --title "OBS-Studio-Rust v$VERSION" --notes-file notes.md \
               "${files[@]}" SHA256SUMS
           fi
@@ -649,3 +662,105 @@ jobs:
               --title "OBS-Studio-Rust continuous build" --notes-file notes.md \
               OBS-Studio-Rust-*-linux-x86_64.AppImage OBS-Studio-Rust-*-linux-x86_64.AppImage.zsync
           fi
+
+  # Certify a daily pre-release for the in-app updaters (#1729, #1730, #1736).
+  # Only obs-studio-rust-v* releases exist because release passed the gate and
+  # every platform build, so a certified release is always a gated daily.
+  certify:
+    name: Certify release 🏅
+    if: >-
+      (github.event_name != 'schedule' || github.repository == 'obs-rust/obs-studio')
+      && github.event_name == 'workflow_dispatch' && inputs.certify != ''
+      && github.repository == 'obs-rust/obs-studio'
+    runs-on: macos-26
+    timeout-minutes: 60
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ inputs.certify }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          save-cache: ${{ github.ref == 'refs/heads/master' }}
+
+      - name: Check the release 🔎
+        run: |
+          set -euo pipefail
+          case "$TAG" in
+            obs-studio-rust-v*) ;;
+            *) echo "::error::$TAG is not an obs-studio-rust-v* daily release"; exit 1 ;;
+          esac
+          state=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,isPrerelease \
+            --jq '"draft=\(.isDraft) prerelease=\(.isPrerelease)"')
+          echo "$TAG: $state"
+          if [ "$state" = "draft=false prerelease=false" ]; then
+            echo "::notice::$TAG is already certified; refreshing its update feed"
+          elif [ "$state" != "draft=false prerelease=true" ]; then
+            echo "::error::$TAG is a draft; only a published daily pre-release can be certified"
+            exit 1
+          fi
+
+      - name: Download release assets 📥
+        run: |
+          set -euo pipefail
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir dist \
+            --pattern SHA256SUMS --pattern '*-macos-arm64.dmg' --pattern '*-macos-x86_64.dmg' \
+            --pattern '*-windows-x64.zip' --pattern '*-windows-arm64.zip'
+          (cd dist && shasum -a 256 -c SHA256SUMS --ignore-missing)
+
+      - name: Set Up Sparkle ✨
+        run: |
+          set -euo pipefail
+          IFS=';' read -r version base_url hash <<<"$(jq -r '.configurePresets[] | select(.name=="dependencies")
+            | .vendor["obsproject.com/obs-studio"].tools.sparkle | [.version, .baseUrl, .hash] | join(";")' CMakePresets.json)"
+          curl -fsSL -o "$RUNNER_TEMP/Sparkle.tar.xz" "$base_url/$version/Sparkle-$version.tar.xz"
+          echo "$hash  $RUNNER_TEMP/Sparkle.tar.xz" | shasum -a 256 -c -
+          mkdir -p "$RUNNER_TEMP/Sparkle"
+          tar -xJf "$RUNNER_TEMP/Sparkle.tar.xz" -C "$RUNNER_TEMP/Sparkle"
+
+      - name: Write the update feed 🎙️
+        env:
+          SPARKLE_KEY: ${{ secrets.OBS_RUST_SPARKLE_PRIVATE_KEY }}
+          RSA_KEY: ${{ secrets.OBS_RUST_UPDATE_RSA_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "$SPARKLE_KEY" ] || [ -z "$RSA_KEY" ]; then
+            echo "::error::OBS_RUST_SPARKLE_PRIVATE_KEY and OBS_RUST_UPDATE_RSA_PRIVATE_KEY must be set"
+            exit 1
+          fi
+          keys="$RUNNER_TEMP/keys"
+          (umask 077 && mkdir -p "$keys" && printf '%s' "$SPARKLE_KEY" >"$keys/sparkle.key" && printf '%s\n' "$RSA_KEY" >"$keys/rsa.pem")
+          trap 'rm -rf "$keys"' EXIT
+          echo '{}' >mac.json
+          for arch in arm64 x86_64; do
+            dmg=$(ls dist/*-macos-"$arch".dmg)
+            mnt=$(mktemp -d)
+            hdiutil attach -nobrowse -readonly -mountpoint "$mnt" "$dmg" >/dev/null
+            plist=$(ls -d "$mnt"/*.app)/Contents/Info.plist
+            bundle=$(plutil -extract CFBundleVersion raw -o - "$plist")
+            short=$(plutil -extract CFBundleShortVersionString raw -o - "$plist")
+            minsys=$(plutil -extract LSMinimumSystemVersion raw -o - "$plist")
+            hdiutil detach "$mnt" >/dev/null
+            sig=$("$RUNNER_TEMP/Sparkle/bin/sign_update" --ed-key-file "$keys/sparkle.key" "$dmg" |
+              sed -n 's/.*sparkle:edSignature="\([^"]*\)".*/\1/p')
+            [ -n "$sig" ] || { echo "::error::sign_update produced no signature for $dmg"; exit 1; }
+            jq --arg a "$arch" --arg b "$bundle" --arg s "$short" --arg m "$minsys" --arg e "$sig" \
+              '.[$a] = {bundle_version: $b, short_version: $s, minimum_system_version: $m, ed_signature: $e}' \
+              mac.json >mac.json.new && mv mac.json.new mac.json
+          done
+          uv run --script ci/update_feed.py build --tag "$TAG" --assets dist --mac-info mac.json \
+            --rsa-key "$keys/rsa.pem" --out feed
+          ls -l feed
+
+      - name: Certify 🏅
+        run: |
+          set -euo pipefail
+          # The feed goes up first, so releases/latest/download/ never names a
+          # release without it.
+          gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber feed/*
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --prerelease=false --latest
+          echo "::notice::$TAG is certified: the in-app updaters now offer it"

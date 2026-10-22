@@ -42,41 +42,18 @@ macro(obs_frontend_platform_sources)
 
   obs_frontend_add_sources(WINDOWS)
 
-  add_library(obs-updater-manifest INTERFACE)
-  add_library(OBS::updater-manifest ALIAS obs-updater-manifest)
-
-  target_sources(obs-updater-manifest INTERFACE updater/manifest.hpp)
-
   target_link_libraries(
     obs-studio
-    PRIVATE
-      crypt32
-      shell32
-      OBS::blake2
-      OBS::updater-manifest
-      OBS::w32-pthreads
-      MbedTLS::mbedtls
-      nlohmann_json::nlohmann_json
-      Detours::Detours
+    PRIVATE crypt32 shell32 OBS::blake2 OBS::w32-pthreads MbedTLS::mbedtls nlohmann_json::nlohmann_json Detours::Detours
   )
 
   target_compile_definitions(obs-studio PRIVATE PSAPI_VERSION=2)
 
   target_link_options(obs-studio PRIVATE /IGNORE:4099 $<$<CONFIG:DEBUG>:/NODEFAULTLIB:MSVCRT>)
 
-  # Set commit for untagged version comparisons in the Windows updater
-  if(OBS_VERSION MATCHES ".+g[a-f0-9]+.*")
-    string(REGEX REPLACE ".+g([a-f0-9]+).*$" "\\1" OBS_COMMIT ${OBS_VERSION})
-  else()
-    set(OBS_COMMIT "")
-  endif()
-
-  set_source_files_properties(
-    build/frontend.windows-autoupdatethread+.hpp.cpp
-    PROPERTIES COMPILE_DEFINITIONS OBS_COMMIT="${OBS_COMMIT}"
-  )
-
-  add_subdirectory(updater)
+  # The updater installs certified obs-rust releases (AutoUpdateThread.cpp.hpp);
+  # upstream's updater.exe in updater/ only speaks obsproject.com's CDN, so it
+  # is not built (#1736).
 
   set_property(TARGET obs-studio APPEND PROPERTY AUTORCC_OPTIONS --format-version 1)
 

@@ -12,6 +12,9 @@ from pathlib import Path
 
 APP_ID = "io.github.obs_rust.OBSStudioRust"
 GUI = "obs-studio-rust-gui"
+# obs-rust's Sparkle feed (the latest certified release) and EdDSA key; release-rust.yaml's certify job writes the feed.
+UPDATE_FEED_PREFIX = "https://github.com/obs-rust/obs-studio/releases/latest/download/"
+SPARKLE_PUBLIC_KEY = "x7PaevvHxyhTaZdEFDhjr6+SqKf631gWXuIHowm6D3I="
 
 
 def check_appdir(root: Path, *, deb: bool = False) -> None:
@@ -80,6 +83,13 @@ def check_bundle(root: Path) -> None:
         or not (root / "Contents/MacOS/OBS-Studio-Rust").is_file()
     ):
         raise RuntimeError("Rust bundle would use the upstream app's installation name")
+    feed = metadata.get("SUFeedURL", "")
+    if feed not in {f"{UPDATE_FEED_PREFIX}updates_{arch}_v2.xml" for arch in ("arm64", "x86_64")}:
+        raise RuntimeError(f"packaged SUFeedURL is {feed!r}, expected obs-rust's update feed")
+    if metadata.get("SUPublicEDKey") != SPARKLE_PUBLIC_KEY:
+        raise RuntimeError("packaged SUPublicEDKey is not obs-rust's Sparkle key")
+    if not (root / "Contents/Frameworks/Sparkle.framework").is_dir():
+        raise RuntimeError("packaged app has an update feed but no Sparkle.framework")
 
 
 def main() -> None:

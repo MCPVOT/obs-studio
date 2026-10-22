@@ -159,6 +159,10 @@ bool GetRemoteFile(const char *url, std::string &str, std::string &error, long *
 		curl_obs_set_revoke_setting(curl.get());
 
 		if (signature) {
+			/* Signed files are verified after download, so they may come
+			 * from a redirecting host such as GitHub release assets. */
+			curl_easy_setopt(curl.get(), CURLOPT_FOLLOWLOCATION, 1L);
+			curl_easy_setopt(curl.get(), CURLOPT_MAXREDIRS, 5L);
 			curl_easy_setopt(curl.get(), CURLOPT_HEADERFUNCTION, header_write);
 			curl_easy_setopt(curl.get(), CURLOPT_HEADERDATA, &header_in_list);
 		}

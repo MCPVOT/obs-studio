@@ -7,7 +7,8 @@ OBSSparkle::OBSSparkle(const char *branch, QAction *checkForUpdatesAction)
 		updaterDelegate.branch = [NSString stringWithUTF8String:branch];
 
 		if (os_get_emulation_status()) {
-			updaterDelegate.feedUrl = @"https://obsproject.com/osx_update/updates_arm64_v2.xml";
+			updaterDelegate.feedUrl =
+				@"https://github.com/obs-rust/obs-studio/releases/latest/download/updates_arm64_v2.xml";
 		} else {
 			updaterDelegate.feedUrl = nil;
 		}

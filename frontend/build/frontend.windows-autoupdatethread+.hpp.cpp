@@ -1,4 +1,4 @@
-/* Unity group (BUILD.md): the update thread on its own (full <windows.h>; OBS_COMMIT). */
+/* Unity group (BUILD.md): the update thread on its own (full <windows.h>). */
 
 #include "frontend/build/frontend-windows-autoupdatethread.pch.hpp"
 

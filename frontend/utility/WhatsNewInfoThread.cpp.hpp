@@ -240,6 +240,27 @@ bool FetchAndVerifyFile(const char *name, const char *file, const char *url, std
 	}
 
 	/* ----------------------------------- *
+	 * fetch a detached signature          */
+
+	/* Static hosts (GitHub release assets) can't send X-Signature, so the
+	 * hex signature is published next to the file as <url>.sig. */
+	if (responseCode == 200 && signature.empty()) {
+		std::string sigUrl = std::string(url) + ".sig";
+		std::string sigHeader;
+		long sigResponseCode = 0;
+		if (GetRemoteFile(sigUrl.c_str(), signature, error, &sigResponseCode, nullptr, "", nullptr, {},
+				  &sigHeader) &&
+		    sigResponseCode == 200) {
+			while (!signature.empty() &&
+			       (signature.back() == '\n' || signature.back() == '\r' || signature.back() == ' ')) {
+				signature.pop_back();
+			}
+		} else {
+			signature.clear();
+		}
+	}
+
+	/* ----------------------------------- *
 	 * verify file signature               */
 
 	if (responseCode == 200) {

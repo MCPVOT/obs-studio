@@ -1,0 +1,264 @@
+#!/usr/bin/env -S uv run --script
+"""The in-app updaters offer only certified obs-rust releases.
+
+Usage:
+    uv run python -m unittest ci/test_update_feed.py
+
+release-rust.yaml publishes each daily beta as a GitHub pre-release. A
+maintainer certifies one by dispatching the workflow with `certify=<tag>`: that
+job runs ci/update_feed.py to write the Sparkle appcasts, the Windows update
+manifest and branches.json (RSA-signed) as assets of that release, then makes
+it a full release marked Latest. The updaters read
+https://github.com/obs-rust/obs-studio/releases/latest/download/..., which
+GitHub resolves to the newest full release only, so a daily or nightly build is
+never offered.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+import re
+import shutil
+import subprocess
+import tempfile
+import unittest
+import xml.etree.ElementTree as ET
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+SCRIPT = ROOT / "ci" / "update_feed.py"
+RELEASE = ROOT / ".github" / "workflows" / "release-rust.yaml"
+VERSION_HEADER = ROOT / "frontend" / "utility" / "obs-rust-update.hpp"
+TAG = "obs-studio-rust-v0.1.0-beta.20261020"
+VERSION = "0.1.0-beta.20261020"
+DOWNLOAD = f"https://github.com/obs-rust/obs-studio/releases/download/{TAG}/"
+SPARKLE = "http://www.andymatuschak.org/xml-namespaces/sparkle"
+UV = shutil.which("uv")
+CRYPTO = "cryptography>=43,<47"
+KEYGEN = """
+import sys
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
+key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+open(sys.argv[1], "wb").write(key.private_bytes(serialization.Encoding.PEM,
+    serialization.PrivateFormat.PKCS8, serialization.NoEncryption()))
+open(sys.argv[2], "wb").write(key.public_key().public_bytes(serialization.Encoding.PEM,
+    serialization.PublicFormat.SubjectPublicKeyInfo))
+"""
+# The app checks RSA PKCS#1 v1.5 over SHA-512 (crypto-helpers-*.cpp.hpp).
+VERIFY = """
+import sys
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import padding
+pub = serialization.load_pem_public_key(open(sys.argv[1], "rb").read())
+sig = bytes.fromhex(open(sys.argv[3]).read().strip())
+pub.verify(sig, open(sys.argv[2], "rb").read(), padding.PKCS1v15(), hashes.SHA512())
+"""
+
+
+def uv_python(code: str, *args: str) -> subprocess.CompletedProcess:
+    env = {k: v for k, v in os.environ.items() if k != "VIRTUAL_ENV"}
+    with tempfile.TemporaryDirectory() as tmp:
+        script = Path(tmp) / "helper.py"
+        script.write_text(code)
+        return subprocess.run(
+            [UV, "run", "--no-project", "--with", CRYPTO, str(script), *args],
+            capture_output=True, text=True, env=env,
+        )
+
+
+def job(text: str, name: str) -> str:
+    match = re.search(rf"^  {re.escape(name)}:\n(.*?)(?=^  [A-Za-z0-9_-]+:\n|\Z)", text, re.M | re.S)
+    if not match:
+        raise AssertionError(f"release-rust.yaml has no {name} job")
+    return match.group(1)
+
+
+def release_commands(text: str) -> list[str]:
+    return [m.group(0) for m in re.finditer(r'gh release (?:create|edit) "\$TAG"[^\n]*(?:\\\n[^\n]*)*', text)]
+
+
+@unittest.skipUnless(UV, "uv is required")
+class UpdateFeedScriptTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.tmp)
+        self.key = self.tmp / "throwaway.pem"
+        self.pub = self.tmp / "throwaway.pub.pem"
+        made = uv_python(KEYGEN, str(self.key), str(self.pub))
+        self.assertEqual(made.returncode, 0, made.stderr)
+        self.assets = self.tmp / "assets"
+        self.assets.mkdir()
+        sums = []
+        for i, name in enumerate(
+            (
+                f"OBS-Studio-Rust-{VERSION}-macos-arm64.dmg",
+                f"OBS-Studio-Rust-{VERSION}-macos-x86_64.dmg",
+                f"OBS-Studio-Rust-{VERSION}-windows-x64.zip",
+                f"OBS-Studio-Rust-{VERSION}-windows-arm64.zip",
+            )
+        ):
+            data = f"{name} payload {i}".encode() * (i + 1)
+            (self.assets / name).write_bytes(data)
+            sums.append(f"{hashlib.sha256(data).hexdigest()}  {name}")
+        (self.assets / "SHA256SUMS").write_text("\n".join(sums) + "\n")
+        self.mac = self.tmp / "mac.json"
+        self.mac.write_text(
+            json.dumps(
+                {
+                    arch: {
+                        "bundle_version": "20261020",
+                        "short_version": VERSION,
+                        "minimum_system_version": "12.0",
+                        "ed_signature": f"edsig-{arch}==",
+                    }
+                    for arch in ("arm64", "x86_64")
+                }
+            )
+        )
+        self.out = self.tmp / "feed"
+
+    def build(self, tag: str = TAG) -> subprocess.CompletedProcess:
+        return subprocess.run(
+            [
+                UV, "run", "--script", str(SCRIPT), "build",
+                "--tag", tag, "--assets", str(self.assets), "--mac-info", str(self.mac),
+                "--rsa-key", str(self.key), "--out", str(self.out),
+            ],
+            capture_output=True,
+            text=True,
+            env={k: v for k, v in os.environ.items() if k != "VIRTUAL_ENV"},
+        )
+
+    def verify(self, name: str) -> None:
+        result = uv_python(VERIFY, str(self.pub), str(self.out / name), str(self.out / f"{name}.sig"))
+        self.assertEqual(result.returncode, 0, f"{name}: {result.stderr}")
+
+    def test_writes_signed_feed_for_the_certified_release(self) -> None:
+        result = self.build()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        for arch in ("arm64", "x86_64"):
+            with self.subTest(arch=arch):
+                dmg = f"OBS-Studio-Rust-{VERSION}-macos-{arch}.dmg"
+                tree = ET.parse(self.out / f"updates_{arch}_v2.xml")
+                items = tree.getroot().findall("./channel/item")
+                self.assertEqual(len(items), 1)
+                item = items[0]
+                self.assertEqual(item.findtext(f"{{{SPARKLE}}}version"), "20261020")
+                self.assertEqual(item.findtext(f"{{{SPARKLE}}}shortVersionString"), VERSION)
+                self.assertEqual(item.findtext(f"{{{SPARKLE}}}minimumSystemVersion"), "12.0")
+                self.assertIsNone(item.find(f"{{{SPARKLE}}}channel"), "certified releases are the default channel")
+                enclosure = item.find("enclosure")
+                self.assertEqual(enclosure.get("url"), DOWNLOAD + dmg)
+                self.assertEqual(enclosure.get(f"{{{SPARKLE}}}edSignature"), f"edsig-{arch}==")
+                self.assertEqual(int(enclosure.get("length")), (self.assets / dmg).stat().st_size)
+                self.assertNotIn("obsproject.com", (self.out / f"updates_{arch}_v2.xml").read_text())
+
+        manifest = json.loads((self.out / "manifest.json").read_text())
+        self.assertEqual(manifest["version"], VERSION)
+        self.assertEqual(manifest["tag"], TAG)
+        self.assertIn(f"https://github.com/obs-rust/obs-studio/releases/tag/{TAG}", manifest["notes"])
+        for arch in ("x64", "arm64"):
+            with self.subTest(arch=arch):
+                name = f"OBS-Studio-Rust-{VERSION}-windows-{arch}.zip"
+                data = (self.assets / name).read_bytes()
+                entry = manifest["windows"][arch]
+                self.assertEqual(entry["url"], DOWNLOAD + name)
+                self.assertEqual(entry["sha256"], hashlib.sha256(data).hexdigest())
+                self.assertEqual(entry["size"], len(data))
+        self.assertEqual(json.loads((self.out / "branches.json").read_text()), [])
+        self.verify("manifest.json")
+        self.verify("branches.json")
+
+    def test_rejects_an_asset_that_does_not_match_sha256sums(self) -> None:
+        (self.assets / f"OBS-Studio-Rust-{VERSION}-windows-x64.zip").write_bytes(b"tampered")
+        result = self.build()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("SHA256SUMS", result.stderr)
+        self.assertFalse((self.out / "manifest.json").exists())
+
+    def test_rejects_tags_that_are_not_obs_rust_releases(self) -> None:
+        for tag in ("continuous", "update-feed", "31.1.0"):
+            with self.subTest(tag=tag):
+                self.assertNotEqual(self.build(tag).returncode, 0)
+
+
+class CertifiedReleaseWorkflowTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.text = RELEASE.read_text(encoding="utf-8")
+
+    def test_daily_release_is_a_pre_release(self) -> None:
+        commands = release_commands(job(self.text, "release"))
+        self.assertTrue(commands)
+        for command in commands:
+            with self.subTest(command=command):
+                self.assertRegex(command, r"--prerelease(?!=false)")
+                self.assertIn("--latest=false", command)
+
+    def test_only_the_certify_job_makes_a_full_release(self) -> None:
+        certify = job(self.text, "certify")
+        outside = self.text.replace(certify, "")
+        self.assertNotIn("--prerelease=false", outside)
+        self.assertIsNone(re.search(r"--latest(?!=false)", outside.replace("releases/latest", "")))
+        self.assertIn("--prerelease=false", certify)
+        self.assertRegex(certify, r"--latest(?!=false)")
+
+    def test_certify_is_a_maintainer_dispatch_of_a_gated_pre_release(self) -> None:
+        inputs = self.text.split("workflow_dispatch:", 1)[1].split("permissions:", 1)[0]
+        self.assertRegex(inputs, r"\n      certify:\n")
+        certify = job(self.text, "certify")
+        self.assertIn("github.event_name == 'workflow_dispatch'", certify)
+        self.assertIn("inputs.certify", certify)
+        self.assertIn("github.repository == 'obs-rust/obs-studio'", certify)
+        # The feed is attached before the release becomes Latest, so
+        # releases/latest/download/... never points at a release without it.
+        upload = certify.index("gh release upload")
+        self.assertLess(upload, certify.index("--prerelease=false"))
+        self.assertIn("ci/update_feed.py build", certify)
+        self.assertIn("secrets.OBS_RUST_SPARKLE_PRIVATE_KEY", certify)
+        self.assertIn("secrets.OBS_RUST_UPDATE_RSA_PRIVATE_KEY", certify)
+        # Only a gated daily: an obs-studio-rust-v* pre-release (release only
+        # publishes after the gate) whose assets match its SHA256SUMS.
+        self.assertIn("obs-studio-rust-v", certify)
+        self.assertIn("isPrerelease", certify)
+        # The daily build must not run on a certify dispatch.
+        self.assertIn("inputs.certify == ''", job(self.text, "check"))
+
+
+@unittest.skipUnless(shutil.which("c++"), "a C++ compiler is required")
+class VersionCompareTests(unittest.TestCase):
+    def test_semver_precedence(self) -> None:
+        cases = [
+            ("0.1.0-beta.20261020", "0.1.0-beta.20261018", 1),
+            ("0.1.0-beta.20261018", "0.1.0-beta.20261020", -1),
+            ("0.1.0-beta.20261020", "0.1.0-beta.20261020", 0),
+            ("0.1.0", "0.1.0-beta.20261020", 1),
+            ("0.2.0-beta.1", "0.1.0", 1),
+            ("0.1.0-beta.9", "0.1.0-beta.10", -1),
+            ("0.1.0-alpha", "0.1.0-beta", -1),
+            ("1.0.0", "0.99.99", 1),
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            src = Path(tmp) / "t.cpp"
+            body = "\n".join(
+                f'\tif (sign(CompareObsRustVersions("{a}", "{b}")) != {want}) {{ std::puts("{a} vs {b}"); bad = 1; }}'
+                for a, b, want in cases
+            )
+            src.write_text(
+                f'#include "{VERSION_HEADER}"\n#include <cstdio>\n'
+                "static int sign(int v) { return (v > 0) - (v < 0); }\n"
+                f"int main() {{\n\tint bad = 0;\n{body}\n"
+                '\tif (ObsRustVersionIsValid("x.y") || !ObsRustVersionIsValid("0.1.0-beta.1")) { std::puts("valid"); bad = 1; }\n'
+                "\treturn bad;\n}\n"
+            )
+            exe = Path(tmp) / "t"
+            build = subprocess.run(["c++", "-std=c++17", "-o", str(exe), str(src)], capture_output=True, text=True)
+            self.assertEqual(build.returncode, 0, build.stderr)
+            run = subprocess.run([str(exe)], capture_output=True, text=True)
+            self.assertEqual(run.returncode, 0, run.stdout)
+
+
+if __name__ == "__main__":
+    unittest.main()

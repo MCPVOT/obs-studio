@@ -1,6 +1,6 @@
 #include "frontend/build/frontend-sparkle.pch.hpp"
 
-static const char *MAC_BRANCHES_URL = "https://obsproject.com/update_studio/branches.json";
+static const char *MAC_BRANCHES_URL = "https://github.com/obs-rust/obs-studio/releases/latest/download/branches.json";
 static const char *MAC_DEFAULT_BRANCH = "stable";
 
 bool GetBranch(std::string &selectedBranch)

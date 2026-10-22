@@ -202,3 +202,29 @@ parity on the supported configurations. Move the original C source to
 it, and keep differential tests running. Preserve the file's upstream
 copyright and license notices. Removing a production C file must not silently
 remove the behavioral baseline used to test its Rust replacement.
+
+## Certified releases (in-app updates)
+
+Every daily beta from `release-rust.yaml` is published as a GitHub
+**pre-release**, after the release gate and every platform build pass. It is
+never marked Latest, and the in-app updaters never offer it.
+
+A **certified** release is a daily beta a maintainer promotes to a full
+release:
+
+```sh
+gh workflow run release-rust.yaml -f certify=obs-studio-rust-v<version>
+```
+
+The `certify` job accepts only a published `obs-studio-rust-v*` release
+(published only after the gate), checks its assets against `SHA256SUMS`, and
+runs `ci/update_feed.py`. That script writes the Sparkle appcasts
+(`updates_<arch>_v2.xml`, DMGs signed with `OBS_RUST_SPARKLE_PRIVATE_KEY`),
+the Windows `manifest.json` (ZIP URL, SHA-256 and size) and `branches.json`,
+both with `.sig` files signed by `OBS_RUST_UPDATE_RSA_PRIVATE_KEY`. The job
+uploads them to the release, and only then clears the pre-release flag and
+marks it Latest. Both updaters read
+`https://github.com/obs-rust/obs-studio/releases/latest/download/`, which
+GitHub resolves to the newest full release. Certify a build only after a
+maintainer has run it. Certifying an older release makes it Latest again,
+but an app newer than that release won't downgrade.
