@@ -129,11 +129,46 @@ you can in the same tick and record the pattern in this file.
 
 ## 3a. Security advisories
 
-Check each new advisory against the two tiers in
-[SECURITY.md](../../../SECURITY.md#two-tiers). If only trusted local
-input can reach it, list it for the maintainer to move to a public issue;
-do not post its details yourself. Never add a collaborator to an
-advisory; the maintainers decide who sees it.
+Triage every advisory still in `triage` yourself, in the tick you find
+it. Don't leave it for the maintainer: SECURITY.md promises an answer
+within 72 hours, and untriaged advisories hold up reporters who have
+fixes ready.
+
+1. **Tier.** Apply the two tiers in
+   [SECURITY.md](../../../SECURITY.md#two-tiers). Who can reach the bug? A
+   file someone else made (a theme, a scene collection, a profile, a
+   shader) counts as remote input. If only trusted local input can reach
+   it, list it for the maintainer to move to a public issue; don't post
+   its details yourself.
+2. **Severity.** Use the reporter's CVSS if it fits, otherwise judge it:
+   - **high:** memory safety reachable from the network, or a credential
+     leak to the network;
+   - **medium:** memory safety or a crash from a file the user installed,
+     or a credential leak to other local users;
+   - **low:** undefined behaviour or an over-read with no clear impact.
+3. **Accept.** PATCH the advisory with `state: draft` and the severity.
+   Append a `## Maintainer triage (<date>)` section to the description:
+   the tier, the severity, where the fix goes, and the publishing checks.
+4. **Route the fix.**
+   - If the reporter has a fix ready, open the temporary private fork
+     (`POST …/security-advisories/<GHSA>/forks`) and tell them to push it
+     there, with a RED test first.
+   - Related reports (same file, same reporter) go to one fork and one
+     branch.
+   - Don't write the fix yourself.
+5. **Tell the reporter** in an advisory comment.
+6. **Answer reporter questions** the same way when the code or the
+   policy settles them, for example whether an input path counts as
+   untrusted or which advisory a case belongs to.
+
+Leave to the maintainer only:
+- a design choice between behaviours the policy doesn't settle (GHSA-pqf9's
+  "C rule or depth limit" was one);
+- moving an advisory to public;
+- reporting it upstream.
+
+Never add a collaborator to an advisory; the maintainers decide who sees
+it.
 
 Advisory comments are separate from the description. Read them with
 `gh api repos/obs-rust/obs-studio/security-advisories/<GHSA>/comments`
@@ -150,6 +185,11 @@ On 2026-10-21 GHSA-rjwf was published as fixed by #1556. The coordinator
 had not read the reporter's comment, which said the global-callback path
 was still open, and believed the API had no endpoint for comments.
 Publishing closed the comments and made the open path public.
+
+On 2026-10-21 and 2026-10-22, GHSA-fp4m and GHSA-2x36 waited in triage for
+several ticks while the coordinator listed them as "waiting on the
+maintainer". The reporter had fixes ready, and SECURITY.md already settled
+the tier.
 
 ## Never
 
