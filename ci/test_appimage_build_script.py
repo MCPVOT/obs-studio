@@ -78,6 +78,62 @@ def old_run_block(workflow: str, name: str) -> str:
     return textwrap.dedent(block.split("        run: |\n", 1)[1])
 
 
+class ManylinuxLauncherTest(unittest.TestCase):
+    def capture_launch(self):
+        with tempfile.TemporaryDirectory(prefix="appimage-launcher-") as directory:
+            root = Path(directory)
+            executable = root / "docker"
+            executable.write_text(
+                '#!/bin/sh\nprintf \'%s\\0\' "$@" > "$DOCKER_ARGS_CAPTURE"\n'
+            )
+            executable.chmod(0o755)
+            workspace = root / "workspace with spaces"
+            temporary = root / "runner temp"
+            home = root / "home"
+            capture = root / "arguments"
+            environment = {
+                "PATH": f"{root}{os.pathsep}{os.environ.get('PATH', os.defpath)}",
+                "HOME": str(home),
+                "GITHUB_WORKSPACE": str(workspace),
+                "RUNNER_TEMP": str(temporary),
+                "ZCCACHE_CACHE_DIR": str(workspace / ".zccache"),
+                "CCACHE_BASEDIR": str(workspace),
+                "RUST_LIBOBS": "true",
+                "OBS_APPIMAGE_IMAGE": "fixture:image",
+                "ZCCACHE_REMOTE_STORAGE": "must-not-be-forwarded",
+                "UNRELATED_SETTING": "must-not-be-forwarded",
+                "DOCKER_ARGS_CAPTURE": str(capture),
+            }
+            command = ["printf", "value with spaces", "literal;$(not-a-command)"]
+            result = subprocess.run(
+                ["bash", str(ROOT / "build-aux/appimage/manylinux/run.sh"), *command],
+                cwd=ROOT, env=environment, capture_output=True, text=True, timeout=10,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            argv = capture.read_bytes().decode().split("\0")[:-1]
+            forwarded = {argv[index + 1] for index, value in enumerate(argv) if value == "-e"}
+            mounts = {argv[index + 1] for index, value in enumerate(argv) if value == "-v"}
+            return argv, forwarded, mounts, environment, command
+
+    def test_manylinux_forwards_configured_compiler_store(self):
+        _, forwarded, mounts, environment, _ = self.capture_launch()
+        self.assertIn("ZCCACHE_CACHE_DIR", forwarded)
+        workspace = environment["GITHUB_WORKSPACE"]
+        self.assertIn(f"{workspace}:{workspace}", mounts)
+        self.assertEqual(environment["ZCCACHE_CACHE_DIR"], f"{workspace}/.zccache")
+
+    def test_manylinux_keeps_environment_filter_and_arguments(self):
+        argv, forwarded, mounts, environment, command = self.capture_launch()
+        self.assertTrue({"CCACHE_BASEDIR", "RUST_LIBOBS", "GITHUB_WORKSPACE", "RUNNER_TEMP"} <= forwarded)
+        self.assertNotIn("ZCCACHE_REMOTE_STORAGE", forwarded)
+        self.assertNotIn("UNRELATED_SETTING", forwarded)
+        self.assertEqual(argv[:2], ["run", "--rm"])
+        self.assertEqual(argv[-4:], ["fixture:image", *command])
+        temporary = environment["RUNNER_TEMP"]
+        self.assertIn(f"{temporary}:{temporary}", mounts)
+        self.assertIn(f"{environment['HOME']}/.cargo/registry:/usr/local/cargo/registry", mounts)
+
+
 class BuildScriptTest(unittest.TestCase):
     def test_scripts_are_the_former_inline_workflow_steps(self):
         old = subprocess.run(["git", "show", f"{BEFORE}:.github/workflows/appimage.yaml"],
