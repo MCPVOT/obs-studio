@@ -548,3 +548,30 @@ fn test_fopen_seek_tell() {
     }
     fclose(f);
 }
+
+/// obs-rust/obs-studio#1768: `fopen` accepts a directory on POSIX, where
+/// `ftell` then reports a bogus length (i64::MAX on glibc). Reading one must
+/// return NULL instead of allocating that length.
+#[test]
+fn test_read_utf8_directory_returns_null() {
+    let dir = ScratchDir::new("platform-file-rdir");
+    let path = c(dir.path());
+    // SAFETY: `path` is a C string.
+    assert!(unsafe { os_quick_read_utf8_file(path.as_ptr()) }.is_null());
+}
+
+#[test]
+fn test_fread_mbs_directory_returns_zero() {
+    let dir = ScratchDir::new("platform-file-rdir-mbs");
+    let path = c(dir.path());
+    let f = fopen(&path, c"rb");
+    if f.is_null() {
+        return; // Windows cannot open a directory at all
+    }
+
+    let mut s = ptr::null_mut();
+    // SAFETY: `f` is open and `s` is writable.
+    assert_eq!(unsafe { os_fread_mbs(f, &mut s) }, 0);
+    assert!(s.is_null());
+    fclose(f);
+}
