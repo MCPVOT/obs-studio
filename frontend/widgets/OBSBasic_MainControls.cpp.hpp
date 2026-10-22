@@ -252,27 +252,20 @@ void OBSBasic::UploadLog(const char *subdir, const char *file, const LogUploadTy
 		return;
 	}
 
-	ui->menuLogFiles->setEnabled(false);
+	OBSApp *app = App();
 
-	stringstream ss;
-	ss << App()->GetProductString(false) << " log file uploaded at " << CurrentDateTimeString()
-	   << ((uploadType == OBS::LogFileType::CurrentAppLog) ? " (Active Log)" : " (Complete Log)") << "\n\n"
-	   << fileString;
-
-	if (logUploadThread) {
-		logUploadThread->wait();
+	/* obs-rust runs no log upload service (#1731): the log stays on the
+	 * user's computer. Open its folder and hand its path to the dialog. */
+	char logDir[512];
+	if (GetAppConfigPath(logDir, sizeof(logDir), subdir) <= 0) {
+		emit app->logUploadFailed(uploadType, QTStr("LogUploadDialog.Errors.NoLogFile"));
+		return;
 	}
 
-	RemoteTextThread *thread = new RemoteTextThread("https://obsproject.com/logs/upload", "text/plain", ss.str());
+	QDesktopServices::openUrl(QUrl::fromLocalFile(QT_UTF8(logDir)));
 
-	logUploadThread.reset(thread);
-
-	connect(thread, &RemoteTextThread::Result, this,
-		[this, uploadType](const std::string &text, const std::string &error) {
-			logUploadFinished(text, error, uploadType);
-		});
-
-	logUploadThread->start();
+	QString logPath = QT_UTF8(logDir) + "/" + QT_UTF8(file);
+	emit app->logUploadFinished(uploadType, logPath);
 }
 
 void OBSBasic::on_actionShowLogs_triggered()

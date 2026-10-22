@@ -47,6 +47,5 @@ private slots:
 	void handleUploadFailure(LogFileType uploadType, const QString &errorMessage);
 
 	void copyToClipBoard() const;
-	void openAnalyzeURL() const;
 };
 } // namespace OBS

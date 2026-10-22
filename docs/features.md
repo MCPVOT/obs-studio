@@ -305,6 +305,12 @@ not get a line.
 
 ### Platforms and packages
 
+- **Logs and crash reports stay on your computer.** OBS-Studio-Rust no
+  longer sends logs or crash reports to obsproject.com and has no log
+  analyzer button. Help > Log Files > Upload and the crash prompt open the
+  file's folder and ask you to attach it to a new issue at
+  github.com/obs-rust/obs-studio/issues. *All*, 2026-10-21. Issue
+  [#1731](https://github.com/obs-rust/obs-studio/issues/1731).
 - **report buffered close errors when copying files.** File copies report buffered close failures instead of success for truncated output. *Linux, macOS*, 2026-10-20. Issue [#1537](https://github.com/obs-rust/obs-studio/issues/1537), PR [#1538](https://github.com/obs-rust/obs-studio/pull/1538).
 
 - **Own app identity.** The fork runs as OBS-Studio-Rust with its own logo,

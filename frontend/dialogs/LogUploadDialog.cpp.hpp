@@ -36,17 +36,16 @@ LogUploadDialog::LogUploadDialog(QWidget *parent, LogFileType uploadType)
 
 	ui->stackedWidget->setCurrentIndex(DialogPage::Start);
 
-	ui->privacyNotice->setText(QTStr("LogUploadDialog.Labels.PrivacyNotice"));
-
-	if (uploadType_ == LogFileType::CrashLog) {
-		ui->analyzeURL->hide();
-		ui->description->setText(Str("LogUploadDialog.Labels.Description.CrashLog"));
-	}
+	/* obs-rust runs no log upload or analyzer service (#1731). */
+	ui->privacyNotice->setText(QTStr("LogUploadDialog.Labels.LocalNotice"));
+	ui->confirmUploadButton->setText(QTStr("LogUploadDialog.Buttons.ShowLogFile"));
+	ui->copyURL->setText(QTStr("LogUploadDialog.Buttons.CopyPath"));
+	ui->analyzeURL->hide();
+	ui->description->setText(QTStr("LogUploadDialog.Labels.Description.LocalFile"));
 
 	connect(ui->confirmUploadButton, &QPushButton::clicked, this, &LogUploadDialog::startLogUpload);
 	connect(ui->retryButton, &QPushButton::clicked, this, &LogUploadDialog::startLogUpload);
 	connect(ui->copyURL, &QPushButton::clicked, this, &LogUploadDialog::copyToClipBoard);
-	connect(ui->analyzeURL, &QPushButton::clicked, this, &LogUploadDialog::openAnalyzeURL);
 	connect(ui->closeButton, &QPushButton::clicked, this, &QDialog::reject);
 	connect(ui->retryCloseButton, &QPushButton::clicked, this, &QDialog::reject);
 
@@ -128,14 +127,4 @@ void LogUploadDialog::copyToClipBoard() const
 	clipboard->setText(ui->urlEdit->text());
 }
 
-void LogUploadDialog::openAnalyzeURL() const
-{
-	QUrlQuery queryParameters;
-	queryParameters.addQueryItem("log_url", QUrl::toPercentEncoding(ui->urlEdit->text()));
-	QUrl analyzerUrl = QUrl("https://obsproject.com/tools/analyzer", QUrl::TolerantMode);
-
-	analyzerUrl.setQuery(queryParameters);
-
-	QDesktopServices::openUrl(analyzerUrl);
-}
 } // namespace OBS

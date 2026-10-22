@@ -85,9 +85,9 @@ UncleanLaunchAction handleUncleanShutdown(bool enableCrashUpload)
 	crashWarning.setText(QTStr("CrashHandling.Labels.Text"));
 
 	if (enableCrashUpload) {
-		crashWarning.setInformativeText(QTStr("CrashHandling.Labels.PrivacyNotice"));
+		crashWarning.setInformativeText(QTStr("CrashHandling.Labels.LocalNotice"));
 
-		QCheckBox *sendCrashReportCheckbox = new QCheckBox(QTStr("CrashHandling.Checkbox.SendReport"));
+		QCheckBox *sendCrashReportCheckbox = new QCheckBox(QTStr("CrashHandling.Checkbox.OpenFolder"));
 		crashWarning.setCheckBox(sendCrashReportCheckbox);
 	}
 
@@ -1283,8 +1283,11 @@ bool OBSApp::OBSInit()
 			emit this->logUploadFailed(OBS::LogFileType::CrashLog, errorMessage);
 		});
 
-	connect(crashHandler_.get(), &OBS::CrashHandler::crashLogUploadFinished, this,
-		[this](const QString &fileUrl) { emit this->logUploadFinished(OBS::LogFileType::CrashLog, fileUrl); });
+	connect(crashHandler_.get(), &OBS::CrashHandler::crashLogUploadFinished, this, [this](const QString &filePath) {
+		/* The crash log stays local (#1731): show its folder. */
+		openCrashLogDirectory();
+		emit this->logUploadFinished(OBS::LogFileType::CrashLog, filePath);
+	});
 
 	return true;
 }

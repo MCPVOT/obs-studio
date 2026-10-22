@@ -24,7 +24,6 @@ namespace {
 
 constexpr std::string_view crashSentinelPath = "obs-studio/.sentinel";
 constexpr std::string_view crashSentinelPrefix = "run_";
-constexpr std::string_view crashUploadURL = "https://obsproject.com/logs/upload";
 
 #ifndef NDEBUG
 constexpr bool isSentinelEnabled = false;
@@ -32,67 +31,12 @@ constexpr bool isSentinelEnabled = false;
 constexpr bool isSentinelEnabled = true;
 #endif
 
-std::string getCrashLogFileContent(std::filesystem::path crashLogFile)
-{
-	std::string crashLogFileContent;
-
-	if (!std::filesystem::exists(crashLogFile)) {
-		return crashLogFileContent;
-	}
-
-	std::fstream filestream;
-	std::streampos crashLogFileSize = 0;
-	filestream.open(crashLogFile, std::ios::in | std::ios::binary);
-
-	if (filestream.is_open()) {
-		crashLogFileSize = filestream.tellg();
-		filestream.seekg(0, std::ios::end);
-		crashLogFileSize = filestream.tellg() - crashLogFileSize;
-		filestream.seekg(0);
-
-		crashLogFileContent.resize(crashLogFileSize);
-		crashLogFileContent.assign((std::istreambuf_iterator<char>(filestream)),
-					   (std::istreambuf_iterator<char>()));
-	}
-
-	return crashLogFileContent;
-}
-
-std::pair<OBS::TimePoint, std::string> buildCrashLogUploadContent(OBS::PlatformType platformType,
-								  std::string crashLogFileContent)
-{
-	OBS::TimePoint uploadTimePoint = OBS::Clock::now();
-	std::time_t uploadTimePoint_c = OBS::Clock::to_time_t(uploadTimePoint);
-	std::tm uploadTimeLocal;
-#ifdef _WIN32
-	localtime_s(&uploadTimeLocal, &uploadTimePoint_c);
-#else
-	localtime_r(&uploadTimePoint_c, &uploadTimeLocal);
-#endif
-
-	std::stringstream uploadLogMessage;
-
-	switch (platformType) {
-	case OBS::PlatformType::Windows:
-		uploadLogMessage << App()->GetProductString(false) << " crash file uploaded at "
-				 << std::put_time(&uploadTimeLocal, "%Y-%m-%d, %X") << "\n\n"
-				 << crashLogFileContent;
-		break;
-	case OBS::PlatformType::macOS:
-		uploadLogMessage << crashLogFileContent;
-	default:
-		break;
-	}
-
-	return std::pair<OBS::TimePoint, std::string>(uploadTimePoint, uploadLogMessage.str());
-}
 } // namespace
 
 namespace OBS {
 
 static_assert(!crashSentinelPath.empty(), "Crash sentinel path name cannot be empty");
 static_assert(!crashSentinelPrefix.empty(), "Crash sentinel filename prefix cannot be empty");
-static_assert(!crashUploadURL.empty(), "Crash sentinel upload URL cannot be empty");
 
 CrashHandler::CrashHandler(QUuid appLaunchUUID) : appLaunchUUID_(appLaunchUUID)
 {
@@ -268,48 +212,22 @@ void CrashHandler::saveCrashLogToConfig()
 	config_save_safe(appConfig, "tmp", nullptr);
 }
 
+/* obs-rust runs no log upload service (#1731): the crash log stays on the
+ * user's computer. Hand its path to the dialog; OBSApp opens its folder. */
 void CrashHandler::uploadCrashLogToServer()
 {
-	std::string crashLogFileContent = getCrashLogFileContent(lastCrashLogFile_);
-
-	if (crashLogFileContent.empty()) {
+	if (lastCrashLogFile_.empty() || !std::filesystem::exists(lastCrashLogFile_)) {
 		blog(LOG_WARNING, "Most recent crash log file was empty or unavailable for reading");
 		emit crashLogUploadFailed(QTStr("LogUploadDialog.Errors.NoLogFile"));
 		return;
 	}
 
-	emit crashLogUploadStarted();
-
-	PlatformType platformType = getPlatformType();
-
-	auto crashLogUploadContent = buildCrashLogUploadContent(platformType, crashLogFileContent);
-
-	if (crashLogUploadThread_) {
-		crashLogUploadThread_->wait();
-	}
-
-	auto uploadThread =
-		std::make_unique<RemoteTextThread>(crashUploadURL.data(), "text/plain", crashLogUploadContent.second);
-
-	std::swap(crashLogUploadThread_, uploadThread);
-
-	connect(crashLogUploadThread_.get(), &RemoteTextThread::Result, this,
-		&CrashHandler::crashLogUploadResultHandler);
-
-	lastCrashUploadTime_ = crashLogUploadContent.first;
-
-	crashLogUploadThread_->start();
+	emit crashLogUploadFinished(QString::fromStdString(lastCrashLogFile_.u8string()));
 }
 
 void CrashHandler::handleExistingCrashLogUpload()
 {
-	if (!lastCrashLogURL_.empty()) {
-		const QString crashLogUrlString = QString::fromStdString(lastCrashLogURL_);
-
-		emit crashLogUploadFinished(crashLogUrlString);
-	} else {
-		uploadCrashLogToServer();
-	}
+	uploadCrashLogToServer();
 }
 
 void CrashHandler::crashLogUploadResultHandler(const std::string &uploadResult, const std::string &error)
