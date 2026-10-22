@@ -99,6 +99,33 @@ fn production_command_runtime_runs_saved_scene_and_recording() {
         serde_json::from_slice(&std::fs::read(runtime.join("application-build.json")).unwrap())
             .unwrap();
     assert_eq!(manifest["target"], obs_build::BUILD_TARGET);
+    if !manifest["nvenc"].is_null() {
+        assert!(
+            manifest["modules"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|name| name == "obs-nvenc")
+        );
+        let helper = std::process::Command::new(runtime.join("bin/obs-nvenc-test"))
+            .current_dir(runtime.join("bin"))
+            .env_remove("LD_LIBRARY_PATH")
+            .output()
+            .unwrap();
+        let output = String::from_utf8(helper.stdout).unwrap();
+        let supported = output.lines().any(|line| line == "nvenc_supported=true");
+        assert!(
+            supported || output.lines().any(|line| line == "nvenc_supported=false"),
+            "{output}"
+        );
+        assert_eq!(helper.status.code(), Some(if supported { 0 } else { 1 }));
+        std::fs::write(runtime.join("nvenc-capabilities.ini"), output).unwrap();
+        std::fs::write(
+            runtime.join("expected-nvenc.json"),
+            serde_json::to_vec(&serde_json::json!({"supported": supported})).unwrap(),
+        )
+        .unwrap();
+    }
     std::fs::write(
         runtime.join("expected-modules.json"),
         serde_json::to_vec(&manifest["modules"]).unwrap(),

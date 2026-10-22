@@ -1662,6 +1662,8 @@ area.
 ## Development builds
 
 - **Cargo application command.** `./native-build` builds and stages a Linux hybrid
-  OBS development application with selectable profiles and plugin features.
-  *Linux*, pending. Issue [#1332](https://github.com/obs-rust/obs-studio/issues/1332),
-  PR [#1725](https://github.com/obs-rust/obs-studio/pull/1725).
+  OBS development application with selectable profiles and plugin features,
+  including default NVENC support and its capability helper.
+  *Linux*, 2026-10-22. Issue [#1332](https://github.com/obs-rust/obs-studio/issues/1332),
+  PRs [#1725](https://github.com/obs-rust/obs-studio/pull/1725),
+  [#1772](https://github.com/obs-rust/obs-studio/pull/1772).

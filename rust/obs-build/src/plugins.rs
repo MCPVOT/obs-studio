@@ -51,6 +51,118 @@ pub struct NvencArtifacts {
     pub helper: PathBuf,
 }
 
+#[derive(Clone, Debug)]
+pub struct NvencOptions {
+    pub ffmpeg_ids: bool,
+}
+
+impl Default for NvencOptions {
+    fn default() -> Self {
+        Self { ffmpeg_ids: true }
+    }
+}
+
+#[derive(Debug)]
+pub struct NvencProductionArtifacts {
+    pub module: Module,
+    pub helper: PathBuf,
+}
+
+pub(crate) fn nvenc_sources(root: &Path, key: &str) -> Result<Vec<PathBuf>, String> {
+    let manifest = root.join("plugins/obs-nvenc/build/source-sets.json");
+    println!("cargo:rerun-if-changed={}", manifest.display());
+    let sets: std::collections::BTreeMap<String, Vec<String>> =
+        serde_json::from_slice(&std::fs::read(&manifest).map_err(|e| e.to_string())?)
+            .map_err(|e| e.to_string())?;
+    Ok(sets
+        .get(key)
+        .ok_or_else(|| format!("NVENC source set missing: {key}"))?
+        .iter()
+        .map(|source| root.join("plugins/obs-nvenc").join(source))
+        .collect())
+}
+
+fn nvenc_library(
+    build: &NativeBuild,
+    root: &Path,
+    core: &Path,
+    options: &NvencOptions,
+) -> Result<SharedLibrary, String> {
+    let mut library = module(build, root, core, "obs-nvenc")?;
+    library.include_dirs.push(root.join("deps/glad/include"));
+    crate::platform::configure_nvenc(&build.target, root, &mut library)?;
+    let package = pkg_config::Config::new()
+        .cargo_metadata(false)
+        .atleast_version("12")
+        .probe("ffnvcodec")
+        .map_err(|e| format!("NVENC requires ffnvcodec >=12: {e}"))?;
+    library.include_dirs.extend(package.include_paths);
+    library.include_dirs.push(root.join("shared/opts-parser"));
+    library
+        .dependencies
+        .push(shared_archive(build, root, "opts-parser")?);
+    library
+        .dependencies
+        .push(crate::graphics::build_glad(build, root)?);
+    if options.ffmpeg_ids {
+        library
+            .definitions
+            .push(("REGISTER_FFMPEG_IDS".into(), None));
+    }
+    Ok(library)
+}
+
+fn nvenc_rust_module(
+    build: &NativeBuild,
+    root: &Path,
+    rust_archive: &Path,
+    mut library: SharedLibrary,
+) -> Result<Module, String> {
+    library.sources.extend(nvenc_sources(root, "rust")?);
+    library
+        .dependencies
+        .push(rust_archive.canonicalize().map_err(|e| e.to_string())?);
+    crate::platform::configure_nvenc_rust(&build.target, &mut library)?;
+    Ok(Module {
+        library: build.shared_library(&library)?,
+        data: root.join("plugins/obs-nvenc/data"),
+    })
+}
+
+fn nvenc_helper(build: &NativeBuild, root: &Path) -> Result<PathBuf, String> {
+    let mut helper = SharedLibrary {
+        name: "obs-nvenc-test".into(),
+        sources: nvenc_sources(root, "helper")?,
+        include_dirs: vec![root.into()],
+        ..SharedLibrary::default()
+    };
+    add_package(&mut helper, &build.target, "ffnvcodec")?;
+    crate::platform::configure_nvenc_helper(&build.target, &mut helper)?;
+    build.executable(&helper)
+}
+
+/// Production builds only the completed Rust loader, never its C reference.
+pub fn build_nvenc(
+    build: &NativeBuild,
+    root: &Path,
+    core: &Path,
+    rust_archive: &Path,
+    options: &NvencOptions,
+) -> Result<NvencProductionArtifacts, String> {
+    let root = root.canonicalize().map_err(|e| e.to_string())?;
+    if !rust_archive.is_file() {
+        return Err(format!(
+            "Rust archive does not exist: {}",
+            rust_archive.display()
+        ));
+    }
+    let library = nvenc_library(build, &root, core, options)?;
+    Ok(NvencProductionArtifacts {
+        module: nvenc_rust_module(build, &root, rust_archive, library)?,
+        helper: nvenc_helper(build, &root)?,
+    })
+}
+
 pub fn build_nvenc_pair(
     build: &NativeBuild,
     root: &Path,
@@ -59,32 +171,12 @@ pub fn build_nvenc_pair(
     ffmpeg_ids: bool,
 ) -> Result<NvencArtifacts, String> {
     let root = root.canonicalize().map_err(|e| e.to_string())?;
-    pkg_config::Config::new()
-        .cargo_metadata(false)
-        .atleast_version("12")
-        .probe("ffnvcodec")
-        .map_err(|e| format!("NVENC requires ffnvcodec >=12: {e}"))?;
-    let mut library = module(build, &root, core, "obs-nvenc")?;
-    library.include_dirs.push(root.join("deps/glad/include"));
-    crate::platform::configure_nvenc(&build.target, &root, &mut library)?;
-    add_package(&mut library, &build.target, "ffnvcodec")?;
-    library.include_dirs.push(root.join("shared/opts-parser"));
-    library
-        .dependencies
-        .push(shared_archive(build, &root, "opts-parser")?);
-    library
-        .dependencies
-        .push(crate::graphics::build_glad(build, &root)?);
-    if ffmpeg_ids {
-        library
-            .definitions
-            .push(("REGISTER_FFMPEG_IDS".into(), None));
-    }
+    let mut library = nvenc_library(build, &root, core, &NvencOptions { ffmpeg_ids })?;
     // Both plugins share all objects except their CUDA driver loader.
     let mut common = library.clone();
     common.name = "obs-nvenc-common".into();
     library.precompiled_objects = build.objects(&common)?.2;
-    library.sources = vec![root.join("plugins/obs-nvenc/build/obs-nvenc.cuda-load+.h.c")];
+    library.sources = nvenc_sources(&root, "reference")?;
     let reference = Module {
         library: build.shared_library(&library)?,
         data: root.join("plugins/obs-nvenc/data"),
@@ -94,29 +186,12 @@ pub fn build_nvenc_pair(
         .library
         .file_name()
         .map(|name| name.to_string_lossy().into_owned());
-    library.sources = vec![root.join("plugins/obs-nvenc/build/obs-nvenc.cuda-load-rust+.h.c")];
-    library
-        .dependencies
-        .push(rust_archive.canonicalize().map_err(|e| e.to_string())?);
-    crate::platform::configure_nvenc_rust(&build.target, &mut library)?;
-    let with_rust = Module {
-        library: build.shared_library(&library)?,
-        data: reference.data.clone(),
-    };
-    let mut helper = SharedLibrary {
-        name: "obs-nvenc-test".into(),
-        sources: vec![
-            root.join("plugins/obs-nvenc/obs-nvenc-test/build/obs-nvenc-test.core+.hpp.cpp"),
-        ],
-        include_dirs: vec![root.clone()],
-        ..SharedLibrary::default()
-    };
-    add_package(&mut helper, &build.target, "ffnvcodec")?;
-    crate::platform::configure_nvenc_helper(&build.target, &mut helper)?;
+    library.sources.clear();
+    let with_rust = nvenc_rust_module(build, &root, rust_archive, library)?;
     Ok(NvencArtifacts {
         reference,
         with_rust,
-        helper: build.executable(&helper)?,
+        helper: nvenc_helper(build, &root)?,
     })
 }
 

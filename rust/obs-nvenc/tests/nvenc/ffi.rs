@@ -161,19 +161,22 @@ fn long_messages_are_truncated_and_terminated() {
 
 #[test]
 fn plugin_cmake_defaults_to_rust_and_keeps_an_explicit_c_reference() {
-    let cmake = std::fs::read_to_string(
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../plugins/obs-nvenc/CMakeLists.txt"),
-    )
-    .unwrap();
+    let plugin = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/obs-nvenc");
+    let cmake = std::fs::read_to_string(plugin.join("CMakeLists.txt")).unwrap();
+    let sources = std::fs::read_to_string(plugin.join("build/source-sets.json")).unwrap();
+    assert!(cmake.contains("include(cmake/sources.cmake)"));
+    assert!(cmake.contains("obs_nvenc_sources(_obs_nvenc_rust rust)"));
+    assert!(cmake.contains("obs_nvenc_sources(_obs_nvenc_reference reference)"));
+    assert!(sources.contains("\"build/obs-nvenc.cuda-load-rust+.h.c\""));
+    assert!(sources.contains("\"build/obs-nvenc.cuda-load+.h.c\""));
     assert!(cmake.contains("if(OBS_LIBOBS_BACKEND STREQUAL HYBRID)"));
     assert!(
-        cmake.contains("target_sources(obs-nvenc PRIVATE build/obs-nvenc.cuda-load-rust+.h.c)"),
+        cmake.contains("target_sources(obs-nvenc PRIVATE ${_obs_nvenc_rust})"),
         "the production hybrid plugin must build the Rust loader adapter"
     );
     assert!(cmake.contains("if(OBS_BUILD_C_REFERENCE)"));
     assert!(
-        cmake.contains("add_library(obs-nvenc-c-reference MODULE EXCLUDE_FROM_ALL ${_obs_nvenc_sources} build/obs-nvenc.cuda-load+.h.c)"),
+        cmake.contains("add_library(obs-nvenc-c-reference MODULE EXCLUDE_FROM_ALL ${_obs_nvenc_sources} ${_obs_nvenc_reference})"),
         "the C baseline must be explicit and excluded from default builds"
     );
     assert!(

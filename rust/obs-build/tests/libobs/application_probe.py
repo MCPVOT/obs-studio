@@ -150,6 +150,10 @@ def main() -> None:
         for name in ["libobs.so.30", "libobs-frontend-api.so.30", "libobs-opengl.so.33"]:
             assert str(runtime / "lib64" / name) in maps, f"staged {name} was not loaded"
         for name in json.loads((runtime / "expected-modules.json").read_text()):
+            nvenc = runtime / "expected-nvenc.json"
+            if name == "obs-nvenc" and nvenc.exists() and not json.loads(nvenc.read_text())["supported"]:
+                assert b"NVENC not supported" in log, "NVENC did not handle the helper's unsupported result"
+                continue
             assert str(runtime / "lib64/obs-modules/core" / (name + ".so")) in maps, f"module {name} was not loaded"
         if os.environ.get("OBS_BUILD_BROWSER"):
             assert str(runtime / "lib64/obs-modules/core/libcef.so") in maps, "staged CEF was not loaded"

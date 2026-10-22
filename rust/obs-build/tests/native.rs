@@ -164,11 +164,96 @@ fn production_runtime_stages_selected_artifacts_and_rejects_stale_outputs() {
     );
     let unsupported = NativeBuild {
         target: "x86_64-pc-windows-msvc".into(),
-        ..build
+        ..build.clone()
     };
     let rejected = temporary.path().join("unsupported");
     assert!(application::stage_runtime(&unsupported, &inputs, &rejected).is_err());
     assert!(!rejected.exists());
+
+    let nvenc_library = artifacts.join("obs-nvenc.so");
+    let nvenc_helper = artifacts.join("obs-nvenc-test");
+    fs::write(&nvenc_library, "selected Rust NVENC module").unwrap();
+    fs::write(&nvenc_helper, "selected capability helper").unwrap();
+    let nvenc_data = module.data.clone();
+    let production = application::Artifacts {
+        core,
+        api,
+        renderer,
+        executable,
+        modules: vec![module],
+        ffmpeg,
+        scripting: None,
+        browser: None,
+        nvenc: Some(plugins::NvencProductionArtifacts {
+            module: plugins::Module {
+                library: nvenc_library,
+                data: nvenc_data,
+            },
+            helper: nvenc_helper,
+        }),
+    };
+    let destination = temporary.path().join("production-runtime");
+    let runtime = production.stage(&build, &root, &destination).unwrap();
+    assert_eq!(
+        runtime.modules,
+        ["fixture-source", "obs-ffmpeg", "obs-nvenc"]
+    );
+    assert_eq!(
+        fs::read_to_string(destination.join("bin/obs-nvenc-test")).unwrap(),
+        "selected capability helper"
+    );
+    assert_eq!(
+        fs::read_to_string(destination.join("lib64/obs-modules/core/obs-nvenc.so")).unwrap(),
+        "selected Rust NVENC module"
+    );
+}
+
+#[test]
+fn production_nvenc_defaults_and_explicit_selection_match_cmake() {
+    use obs_build::{application::BuildOptions, cli};
+    let options = BuildOptions::for_target("x86_64-unknown-linux-gnu").unwrap();
+    assert!(
+        options
+            .core_module_names()
+            .iter()
+            .any(|name| name == "obs-nvenc"),
+        "the production graph must include CMake's default-enabled NVENC module"
+    );
+    assert!(options.nvenc.as_ref().unwrap().ffmpeg_ids);
+    for arguments in [
+        vec![
+            "build",
+            "--target",
+            "x86_64-unknown-linux-gnu",
+            "--without-nvenc",
+        ],
+        vec![
+            "build",
+            "--target",
+            "x86_64-unknown-linux-gnu",
+            "--without-nvenc-ffmpeg-ids",
+        ],
+    ] {
+        let cli::Invocation::Build(request) = cli::parse(arguments.clone()).unwrap() else {
+            panic!("expected a production build request");
+        };
+        let enabled = !arguments.contains(&"--without-nvenc");
+        assert_eq!(request.options.nvenc.is_some(), enabled);
+        if let Some(nvenc) = &request.options.nvenc {
+            assert_eq!(
+                nvenc.ffmpeg_ids,
+                !arguments.contains(&"--without-nvenc-ffmpeg-ids")
+            );
+        }
+        assert_eq!(
+            request
+                .options
+                .core_module_names()
+                .iter()
+                .any(|name| name == "obs-nvenc"),
+            enabled
+        );
+    }
 }
 
 #[test]
@@ -191,19 +276,23 @@ fn production_archive_command_uses_the_native_rust_cache_safeguard() {
     }
     if let Some(output) = std::env::var_os("OBS_NATIVE_CACHE_PROBE_OUTPUT") {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-        let result = obs_build::cli::run([
+        let mut arguments = vec![
             std::ffi::OsString::from("build"),
             "--root".into(),
             root.into_os_string(),
             "--output".into(),
             output,
-        ]);
+        ];
+        if std::env::var_os("OBS_NATIVE_CACHE_WITHOUT_NVENC").is_some() {
+            arguments.push("--without-nvenc".into());
+        }
+        let result = obs_build::cli::run(arguments);
         assert!(result.unwrap_err().contains("Rust archive build failed"));
         return;
     }
     let directory = tempfile::tempdir().unwrap();
     let soldr = directory.path().join("soldr");
-    fs::write(&soldr, "#!/bin/sh\nprintf '%s' \"${SOLDR_RUSTC_WRAPPER:-unset}\" > \"$OBS_NATIVE_CACHE_LOG\"\nexit 19\n").unwrap();
+    fs::write(&soldr, "#!/bin/sh\nprintf '%s\\n' \"${SOLDR_RUSTC_WRAPPER:-unset}\" \"$@\" > \"$OBS_NATIVE_CACHE_LOG\"\nexit 19\n").unwrap();
     assert!(
         std::process::Command::new("chmod")
             .arg("+x")
@@ -222,19 +311,34 @@ fn production_archive_command_uses_the_native_rust_cache_safeguard() {
         "{}::production_archive_command_uses_the_native_rust_cache_safeguard",
         module_path!().split_once("::").unwrap().1
     );
-    let status = std::process::Command::new(std::env::current_exe().unwrap())
-        .args(["--exact", &selector, "--nocapture"])
-        .env("PATH", path)
-        .env_remove("SOLDR_RUSTC_WRAPPER")
-        .env("OBS_NATIVE_CACHE_LOG", &marker)
-        .env(
-            "OBS_NATIVE_CACHE_PROBE_OUTPUT",
-            directory.path().join("output"),
-        )
-        .status()
-        .unwrap();
-    assert!(status.success());
-    assert_eq!(fs::read_to_string(marker).unwrap(), "none");
+    for nvenc in [true, false] {
+        let mut command = std::process::Command::new(std::env::current_exe().unwrap());
+        command
+            .args(["--exact", &selector, "--nocapture"])
+            .env("PATH", &path)
+            .env_remove("SOLDR_RUSTC_WRAPPER")
+            .env("OBS_NATIVE_CACHE_LOG", &marker)
+            .env(
+                "OBS_NATIVE_CACHE_PROBE_OUTPUT",
+                directory.path().join("output"),
+            );
+        if nvenc {
+            command.env_remove("OBS_NATIVE_CACHE_WITHOUT_NVENC");
+        } else {
+            command.env("OBS_NATIVE_CACHE_WITHOUT_NVENC", "1");
+        }
+        assert!(command.status().unwrap().success());
+        let invocation = fs::read_to_string(&marker).unwrap();
+        let mut lines = invocation.lines();
+        assert_eq!(lines.next(), Some("none"));
+        let arguments: Vec<_> = lines.collect();
+        assert_eq!(
+            arguments
+                .windows(2)
+                .any(|pair| pair == ["-p", "obs-nvenc-plugin"]),
+            nvenc
+        );
+    }
 }
 
 #[test]

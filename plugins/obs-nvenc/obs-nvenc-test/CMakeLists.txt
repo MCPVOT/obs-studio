@@ -6,7 +6,7 @@ find_package(Threads REQUIRED)
 
 add_executable(obs-nvenc-test)
 
-target_sources(obs-nvenc-test PRIVATE build/obs-nvenc-test.core+.hpp.cpp)
+target_sources(obs-nvenc-test PRIVATE ${_obs_nvenc_helper})
 target_link_libraries(obs-nvenc-test FFnvcodec::FFnvcodec Threads::Threads ${CMAKE_DL_LIBS})
 
 set_target_properties_obs(obs-nvenc-test PROPERTIES FOLDER plugins/obs-nvenc)

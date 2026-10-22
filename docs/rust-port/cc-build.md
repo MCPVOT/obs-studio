@@ -48,9 +48,23 @@ Profiles are `debug`, `release`, `relwithdebinfo` (default) and `minsizerel`.
 `--separate-core` and `--core-pch` select core compilation modes. Help lists the
 optional plugin/SDK and scripting selections. Native Linux is the only full
 application target currently accepted by this command; the macOS/Windows graphs
-below are intermediate component coverage. NVENC application selection, complete
-configuration parity, all-platform application orchestration, packaging and the
-controlled native cache/performance acceptance remain open.
+below are intermediate component coverage. Complete configuration parity,
+all-platform application orchestration, packaging and the controlled native
+cache/performance acceptance remain open.
+
+NVENC and its capability helper are enabled by default, matching CMake. The
+command builds only the existing Rust CUDA loader for production. Install
+`ffnvcodec >= 12` headers, or select `--without-nvenc` to omit the module,
+helper and Rust archive. `--without-nvenc-ffmpeg-ids` keeps NVENC enabled but
+omits its legacy FFmpeg encoder aliases. The manifest records this selection.
+The NVENC source inventory is shared with CMake through
+`plugins/obs-nvenc/build/source-sets.json`.
+
+On a host without usable NVIDIA driver libraries/devices, the helper reports
+`nvenc_supported=false` and OBS logs `NVENC not supported`; software encoders
+remain available. The application runtime test checks this outcome separately
+from module loading on supported hardware. A software recording does not prove
+hardware NVENC encoding.
 
 Frontend source groups are shared by CMake and Cargo through
 `frontend/build/source-sets.json`; the Qt wrapper host groups similarly use

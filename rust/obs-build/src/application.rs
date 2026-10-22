@@ -13,6 +13,7 @@ pub struct BuildOptions {
     pub browser: Option<plugins::BrowserOptions>,
     pub fdk: bool,
     pub qsv: Option<plugins::QsvOptions>,
+    pub nvenc: Option<plugins::NvencOptions>,
     pub webrtc: Option<(plugins::DataChannelSdk, plugins::WebRtcOptions)>,
 }
 
@@ -28,6 +29,7 @@ impl BuildOptions {
             browser: None,
             fdk: false,
             qsv: None,
+            nvenc: Some(plugins::NvencOptions::default()),
             webrtc: None,
         })
     }
@@ -51,6 +53,7 @@ impl BuildOptions {
             (self.websocket.is_some(), "obs-websocket"),
             (self.fdk, "obs-libfdk"),
             (self.qsv.is_some(), "obs-qsv11"),
+            (self.nvenc.is_some(), "obs-nvenc"),
             (self.webrtc.is_some(), "obs-webrtc"),
             (self.browser.is_some(), "obs-browser"),
         ] {
@@ -76,6 +79,7 @@ pub fn source_modules(
 pub struct RustArchives {
     pub core: PathBuf,
     pub gpu_status: PathBuf,
+    pub nvenc: PathBuf,
 }
 
 /// Artifacts of one production hybrid application, without compatibility probes.
@@ -88,6 +92,7 @@ pub struct Artifacts {
     pub ffmpeg: plugins::FfmpegArtifacts,
     pub scripting: Option<scripting::Artifacts>,
     pub browser: Option<plugins::BrowserArtifacts>,
+    pub nvenc: Option<plugins::NvencProductionArtifacts>,
 }
 
 impl Artifacts {
@@ -102,6 +107,7 @@ impl Artifacts {
             .iter()
             .chain(std::iter::once(&self.ffmpeg.module))
             .chain(self.browser.as_ref().map(|browser| &browser.module))
+            .chain(self.nvenc.as_ref().map(|nvenc| &nvenc.module))
             .collect();
         stage_runtime(
             build,
@@ -112,7 +118,7 @@ impl Artifacts {
                 api: &self.api,
                 renderer: &self.renderer,
                 ffmpeg: &self.ffmpeg,
-                nvenc_helper: None,
+                nvenc_helper: self.nvenc.as_ref().map(|nvenc| nvenc.helper.as_path()),
                 modules: &modules,
                 browser: self.browser.as_ref(),
                 scripting: self.scripting.as_ref(),
@@ -132,7 +138,10 @@ pub fn build(
     options: &BuildOptions,
 ) -> Result<Artifacts, String> {
     crate::platform::validate_application_build(build)?;
-    for archive in [&archives.core, &archives.gpu_status] {
+    for archive in [&archives.core, &archives.gpu_status]
+        .into_iter()
+        .chain(options.nvenc.as_ref().map(|_| &archives.nvenc))
+    {
         if !archive.is_file() {
             return Err(format!(
                 "Rust archive does not exist: {}",
@@ -177,6 +186,11 @@ pub fn build(
     if let Some(qsv) = &options.qsv {
         modules.push(plugins::build_qsv(build, root, &core, qsv)?);
     }
+    let nvenc = options
+        .nvenc
+        .as_ref()
+        .map(|options| plugins::build_nvenc(build, root, &core, &archives.nvenc, options))
+        .transpose()?;
     if let Some((sdk, webrtc)) = &options.webrtc {
         modules.push(plugins::build_webrtc(build, root, &core, sdk, webrtc)?);
     }
@@ -226,6 +240,7 @@ pub fn build(
         ffmpeg,
         scripting,
         browser,
+        nvenc,
     })
 }
 

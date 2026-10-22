@@ -22,23 +22,21 @@ find_package(FFnvcodec 12 REQUIRED)
 add_library(obs-nvenc MODULE)
 add_library(OBS::nvenc ALIAS obs-nvenc)
 
+include(cmake/sources.cmake)
+obs_nvenc_sources(_obs_nvenc_common common)
+obs_nvenc_sources(_obs_nvenc_linux linux)
+obs_nvenc_sources(_obs_nvenc_windows windows)
+obs_nvenc_sources(_obs_nvenc_headers headers)
+obs_nvenc_sources(_obs_nvenc_reference reference)
+obs_nvenc_sources(_obs_nvenc_rust rust)
+obs_nvenc_sources(_obs_nvenc_helper helper)
 add_subdirectory(obs-nvenc-test)
-
 set(
   _obs_nvenc_sources
-  $<$<PLATFORM_ID:Linux>:build/obs-nvenc.caps-cache-linux+.h.c>
-  $<$<PLATFORM_ID:Linux>:build/obs-nvenc.linux+.h.c>
-  $<$<PLATFORM_ID:Windows>:build/obs-nvenc.caps-cache-windows+.h.c>
-  $<$<PLATFORM_ID:Windows>:build/obs-nvenc.windows+.h.c>
-  build/obs-nvenc.caps-cache+.h.c
-  build/obs-nvenc.core+.h.c
-  build/obs-nvenc.override+.h.c
-  cuda-helpers.h
-  nvenc-caps-cache.h
-  nvenc-helpers.h
-  nvenc-internal.h
-  nvenc-override.h
-  obs-nvenc.h
+  "$<$<PLATFORM_ID:Linux>:${_obs_nvenc_linux}>"
+  "$<$<PLATFORM_ID:Windows>:${_obs_nvenc_windows}>"
+  ${_obs_nvenc_common}
+  ${_obs_nvenc_headers}
 )
 
 # Production uses the completed Rust CUDA loader. Its C baseline is explicit,
@@ -46,7 +44,7 @@ set(
 set(_obs_nvenc_targets obs-nvenc)
 target_sources(obs-nvenc PRIVATE ${_obs_nvenc_sources})
 if(OBS_LIBOBS_BACKEND STREQUAL HYBRID)
-  target_sources(obs-nvenc PRIVATE build/obs-nvenc.cuda-load-rust+.h.c)
+  target_sources(obs-nvenc PRIVATE ${_obs_nvenc_rust})
   corrosion_import_crate(
     MANIFEST_PATH "${CMAKE_SOURCE_DIR}/Cargo.toml"
     CRATES obs-nvenc-plugin
@@ -59,7 +57,7 @@ if(OBS_LIBOBS_BACKEND STREQUAL HYBRID)
     target_link_options(obs-nvenc PRIVATE "LINKER:--exclude-libs,ALL")
   endif()
   if(OBS_BUILD_C_REFERENCE)
-    add_library(obs-nvenc-c-reference MODULE EXCLUDE_FROM_ALL ${_obs_nvenc_sources} build/obs-nvenc.cuda-load+.h.c)
+    add_library(obs-nvenc-c-reference MODULE EXCLUDE_FROM_ALL ${_obs_nvenc_sources} ${_obs_nvenc_reference})
     list(APPEND _obs_nvenc_targets obs-nvenc-c-reference)
     set_target_properties(
       obs-nvenc-c-reference
@@ -72,7 +70,7 @@ if(OBS_LIBOBS_BACKEND STREQUAL HYBRID)
     )
   endif()
 else()
-  target_sources(obs-nvenc PRIVATE build/obs-nvenc.cuda-load+.h.c)
+  target_sources(obs-nvenc PRIVATE ${_obs_nvenc_reference})
 endif()
 
 foreach(target IN LISTS _obs_nvenc_targets)

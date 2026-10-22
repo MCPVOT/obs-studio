@@ -1,0 +1,32 @@
+{
+  "common": [
+    "build/obs-nvenc.caps-cache+.h.c",
+    "build/obs-nvenc.core+.h.c",
+    "build/obs-nvenc.override+.h.c"
+  ],
+  "linux": [
+    "build/obs-nvenc.caps-cache-linux+.h.c",
+    "build/obs-nvenc.linux+.h.c"
+  ],
+  "windows": [
+    "build/obs-nvenc.caps-cache-windows+.h.c",
+    "build/obs-nvenc.windows+.h.c"
+  ],
+  "reference": [
+    "build/obs-nvenc.cuda-load+.h.c"
+  ],
+  "rust": [
+    "build/obs-nvenc.cuda-load-rust+.h.c"
+  ],
+  "helper": [
+    "obs-nvenc-test/build/obs-nvenc-test.core+.hpp.cpp"
+  ],
+  "headers": [
+    "cuda-helpers.h",
+    "nvenc-caps-cache.h",
+    "nvenc-helpers.h",
+    "nvenc-internal.h",
+    "nvenc-override.h",
+    "obs-nvenc.h"
+  ]
+}

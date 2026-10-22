@@ -6,7 +6,7 @@ use std::{
     path::PathBuf,
 };
 
-pub const USAGE: &str = "Usage: obs-build build [OPTIONS]\n\nBuild and stage the Linux hybrid OBS application through Cargo and cc::Build.\n\n  --root PATH                 Source checkout (default: current directory)\n  --output PATH               Build directory (default: ROOT/build_cargo)\n  --target TRIPLE              Requested native target (default: this target)\n  --profile NAME               debug, release, relwithdebinfo, minsizerel\n  --separate-core             Compile core group members individually\n  --core-pch                  Enable core/backend precompiled headers\n  --disable-hevc              Disable HEVC\n  --disable-service-updates   Disable RTMP service updates\n  --without-websocket         Omit the original obs-websocket plugin\n  --without-frontend-tools    Omit the frontend Tools plugin\n  --without-scripting         Omit Lua/Python scripting\n  --without-lua               Omit Lua bindings\n  --without-python            Omit Python bindings\n  --with-vlc | --with-jack | --with-sndio | --with-fdk | --with-qsv\n  --cef-root PATH             Build browser source/panels using this CEF SDK\n  --without-browser-panels    Build browser source without panels\n  --datachannel-include PATH  WebRTC SDK headers (requires library)\n  --datachannel-library PATH  WebRTC SDK library (requires headers)\n  -h, --help                  Show help\n";
+pub const USAGE: &str = "Usage: obs-build build [OPTIONS]\n\nBuild and stage the Linux hybrid OBS application through Cargo and cc::Build.\n\n  --root PATH                 Source checkout (default: current directory)\n  --output PATH               Build directory (default: ROOT/build_cargo)\n  --target TRIPLE              Requested native target (default: this target)\n  --profile NAME               debug, release, relwithdebinfo, minsizerel\n  --separate-core             Compile core group members individually\n  --core-pch                  Enable core/backend precompiled headers\n  --disable-hevc              Disable HEVC\n  --disable-service-updates   Disable RTMP service updates\n  --without-nvenc             Omit the NVIDIA hardware encoder and helper\n  --without-nvenc-ffmpeg-ids  Do not register FFmpeg NVENC encoder aliases\n  --without-websocket         Omit the original obs-websocket plugin\n  --without-frontend-tools    Omit the frontend Tools plugin\n  --without-scripting         Omit Lua/Python scripting\n  --without-lua               Omit Lua bindings\n  --without-python            Omit Python bindings\n  --with-vlc | --with-jack | --with-sndio | --with-fdk | --with-qsv\n  --cef-root PATH             Build browser source/panels using this CEF SDK\n  --without-browser-panels    Build browser source without panels\n  --datachannel-include PATH  WebRTC SDK headers (requires library)\n  --datachannel-library PATH  WebRTC SDK library (requires headers)\n  -h, --help                  Show help\n";
 
 pub enum Invocation {
     Help,
@@ -70,6 +70,8 @@ where
             | "--disable-hevc"
             | "--disable-service-updates"
             | "--without-websocket"
+            | "--without-nvenc"
+            | "--without-nvenc-ffmpeg-ids"
             | "--without-frontend-tools"
             | "--without-scripting"
             | "--without-lua"
@@ -114,6 +116,11 @@ where
         }
     }
     options.frontend_tools = !flags.contains("--without-frontend-tools");
+    if flags.contains("--without-nvenc") {
+        options.nvenc = None;
+    } else if let Some(nvenc) = &mut options.nvenc {
+        nvenc.ffmpeg_ids = !flags.contains("--without-nvenc-ffmpeg-ids");
+    }
     if flags.contains("--without-websocket") {
         options.websocket = None;
     }
@@ -253,6 +260,9 @@ where
         .arg(&build.target)
         .arg("--target-dir")
         .arg(&rust_output);
+    if request.options.nvenc.is_some() {
+        cargo.args(["-p", "obs-nvenc-plugin"]);
+    }
     if !debug {
         cargo.arg("--release");
     }
@@ -307,6 +317,9 @@ where
         "hevc": request.options.core.hevc, "runtime": runtime.directory,
         "executable": runtime.executable, "modules": runtime.modules,
         "scripting": runtime.scripting,
+        "nvenc": request.options.nvenc.as_ref().map(|options| serde_json::json!({
+            "ffmpeg_ids": options.ffmpeg_ids,
+        })),
     });
     let manifest_path = runtime.directory.join("application-build.json");
     std::fs::write(

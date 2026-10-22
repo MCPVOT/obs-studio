@@ -71,6 +71,7 @@ fn c_and_rust_twins_preserve_public_data_lifecycle_and_module_apis() {
             // baseline must not request modules absent from that variant.
             application.frontend_tools = false;
             application.websocket = None;
+            application.nvenc = None;
             application.core_module_names()
         } else {
             vec![]

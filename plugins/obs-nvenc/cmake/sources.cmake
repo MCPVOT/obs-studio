@@ -1,0 +1,16 @@
+# Canonical NVENC sources shared by CMake and Cargo.
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_CURRENT_LIST_DIR}/../build/source-sets.json")
+
+function(obs_nvenc_sources output source_set)
+  file(READ "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../build/source-sets.json" _manifest)
+  string(JSON _count LENGTH "${_manifest}" "${source_set}")
+  set(_sources)
+  if(_count GREATER 0)
+    math(EXPR _last "${_count} - 1")
+    foreach(_index RANGE 0 ${_last})
+      string(JSON _source GET "${_manifest}" "${source_set}" ${_index})
+      list(APPEND _sources "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../${_source}")
+    endforeach()
+  endif()
+  set(${output} "${_sources}" PARENT_SCOPE)
+endfunction()

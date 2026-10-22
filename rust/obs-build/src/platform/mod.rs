@@ -80,6 +80,7 @@ pub fn application_rust_archives(
     Ok(crate::application::RustArchives {
         core: directory.join("liblibobs_rust.a"),
         gpu_status: directory.join("libobs_gpu_status_frontend.a"),
+        nvenc: directory.join("libobs_nvenc_plugin.a"),
     })
 }
 
@@ -968,11 +969,10 @@ pub fn configure_nvenc(
     if !target.contains("linux") {
         return Err("NVENC native graph is currently Linux-only".into());
     }
-    for group in ["caps-cache-linux", "linux", "caps-cache", "override"] {
-        library
-            .sources
-            .push(root.join(format!("plugins/obs-nvenc/build/obs-nvenc.{group}+.h.c")));
-    }
+    library.sources = crate::plugins::nvenc_sources(root, "common")?;
+    library
+        .sources
+        .extend(crate::plugins::nvenc_sources(root, "linux")?);
     Ok(())
 }
 
