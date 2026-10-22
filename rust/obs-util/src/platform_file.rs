@@ -181,8 +181,16 @@ fn read_from(file: &mut CFile, offset: i64) -> Option<Vec<u8>> {
     let len = usize::try_from(size.checked_sub(offset)?)
         .ok()
         .filter(|&len| len > 0)?;
-    let mut buf = vec![0u8; len];
     // `offset` is 0 or 3, so it fits any C `long`.
+    file.seek_long(offset as core::ffi::c_long, SEEK_SET);
+    // A directory is seekable on POSIX and `tell` then reports a bogus length
+    // (i64::MAX on glibc), so the reported size is not proof the stream can be
+    // read. Ask for one byte before allocating it (obs-rust/obs-studio#1768).
+    let mut first = [0u8; 1];
+    if file.read(&mut first) == 0 {
+        return None;
+    }
+    let mut buf = vec![0u8; len];
     file.seek_long(offset as core::ffi::c_long, SEEK_SET);
     let got = file.read(&mut buf);
     if got == 0 {

@@ -34,6 +34,7 @@
 #define P_MISSING ROOT "/missing.txt"
 #define P_SAFE ROOT "/safe.txt"
 #define P_SAFE_TMP ROOT "/safe.txt.tmp"
+#define P_DIR ROOT "/dir"
 
 static const char *const file_paths[] = {
 	P_WIDE, P_MBS, P_SIZE, P_SEEK, P_STAT, P_EMPTY_UTF8, P_EMPTY_MBS, P_MISSING, P_SAFE, P_SAFE_TMP,
@@ -44,6 +45,7 @@ static int group_setup(void **state)
 	UNUSED_PARAMETER(state);
 
 	os_mkdirs(ROOT);
+	os_mkdirs(P_DIR);
 	return 0;
 }
 
@@ -53,6 +55,7 @@ static int group_teardown(void **state)
 
 	for (size_t i = 0; i < sizeof(file_paths) / sizeof(file_paths[0]); i++)
 		os_unlink(file_paths[i]);
+	os_rmdir(P_DIR);
 	os_rmdir(ROOT);
 	return 0;
 }
@@ -244,15 +247,48 @@ static void test_get_file_size_null(void **state)
 	assert_int_equal(os_get_file_size(NULL), -1);
 }
 
+/* obs-rust/obs-studio#1768: `fopen` on a directory succeeds on POSIX and
+ * `ftell` then fails. The failed size must not be cast into `size_t`: doing so
+ * asked `bmalloc` for 2^63 bytes and aborted OBS on a first run, where the
+ * previous-log path is the empty log directory. */
+static void test_read_utf8_directory_returns_null(void **state)
+{
+	UNUSED_PARAMETER(state);
+
+	char *text = os_quick_read_utf8_file(P_DIR);
+	assert_null(text);
+}
+
+static void test_fread_mbs_directory_returns_zero(void **state)
+{
+	UNUSED_PARAMETER(state);
+
+	FILE *file = os_fopen(P_DIR, "rb");
+	if (!file)
+		skip();
+
+	char *text = NULL;
+	assert_int_equal(os_fread_mbs(file, &text), 0);
+	assert_null(text);
+	fclose(file);
+}
+
 int main(void)
 {
 	const struct CMUnitTest tests[] = {
-		cmocka_unit_test(test_fopen_null_path),       cmocka_unit_test(test_wfopen_non_ascii_path),
-		cmocka_unit_test(test_wfopen_missing),        cmocka_unit_test(test_fread_mbs_ascii),
-		cmocka_unit_test(test_fread_mbs_empty),       cmocka_unit_test(test_fgetsize_restores_position),
-		cmocka_unit_test(test_seek_tell_beyond_4gib), cmocka_unit_test(test_stat),
-		cmocka_unit_test(test_utf8_write_empty),      cmocka_unit_test(test_utf8_write_safe_ext_without_dot),
+		cmocka_unit_test(test_fopen_null_path),
+		cmocka_unit_test(test_wfopen_non_ascii_path),
+		cmocka_unit_test(test_wfopen_missing),
+		cmocka_unit_test(test_fread_mbs_ascii),
+		cmocka_unit_test(test_fread_mbs_empty),
+		cmocka_unit_test(test_fgetsize_restores_position),
+		cmocka_unit_test(test_seek_tell_beyond_4gib),
+		cmocka_unit_test(test_stat),
+		cmocka_unit_test(test_utf8_write_empty),
+		cmocka_unit_test(test_utf8_write_safe_ext_without_dot),
 		cmocka_unit_test(test_get_file_size_null),
+		cmocka_unit_test(test_read_utf8_directory_returns_null),
+		cmocka_unit_test(test_fread_mbs_directory_returns_zero),
 	};
 
 	return cmocka_run_group_tests(tests, group_setup, group_teardown);

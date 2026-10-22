@@ -1542,6 +1542,11 @@ area.
 
 ### Stability
 
+- Upload Previous Log File no longer aborts OBS when no previous log exists;
+  it reports that there is no log file. *Linux*, 2026-10-22. Issue
+  [#1768](https://github.com/obs-rust/obs-studio/issues/1768), PR
+  [#1824](https://github.com/obs-rust/obs-studio/pull/1824).
+
 - OBS detects when writing a configuration file to disk fails, instead of
   treating the save as successful. *All*, 2026-10-10. PRs
   [#70](https://github.com/obs-rust/obs-studio/pull/70),
