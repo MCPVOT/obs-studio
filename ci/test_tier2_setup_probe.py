@@ -68,6 +68,7 @@ class ProbeWorkflowTest(unittest.TestCase):
         self.assertIn("github.ref == 'refs/heads/master'", producer)
         self.assertIn('inputs.tier2-setup-probe', producer)
         self.assertIn('needs: build-project', producer)
+        self.assertIn('always() && !cancelled()', producer)
         normal = text.split('  build-project:', 1)[1].split('  tier2-setup-producer:', 1)[0]
         self.assertNotIn('tier2-setup-probe', normal)
         self.assertNotIn('actions/cache/save@', producer)

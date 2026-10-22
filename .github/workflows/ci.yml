@@ -78,7 +78,10 @@ jobs:
   # A short-lived Actions artifact avoids registry publication or credentials.
   tier2-setup-producer:
     name: Tier 2 Setup Producer 📦
-    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master' && inputs.tier2-setup-probe
+    # An unrelated platform failure must not suppress valid Linux evidence.
+    # Missing/invalid Tier 2 artifacts still fail the producer; the final gate
+    # independently requires the normal build-project result.
+    if: always() && !cancelled() && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master' && inputs.tier2-setup-probe
     needs: build-project
     runs-on: ubuntu-26.04
     timeout-minutes: 20

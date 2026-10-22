@@ -1408,11 +1408,17 @@ jobs:
           OBS_TIER2_STAGE: build
         run: bash rust/tools/linux-validate/validate.sh
 
+      - name: Record Tier 2 Runtime Packages 📦
+        run: >-
+          uv run --no-project python rust/tools/linux-validate/runtime-packages.py
+          "$RUNNER_TEMP/tier2/tree" "$RUNNER_TEMP/tier2-pack/runtime-packages.txt"
+
       - name: Upload Tier 2 Tree 🧾
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: tier2-tree
-          path: ${{ runner.temp }}/tier2-pack/tier2-tree.tar.zst
+          # One directory avoids multiline host/container path translation.
+          path: ${{ runner.temp }}/tier2-pack/
           retention-days: 1
           compression-level: 0
           if-no-files-found: error
@@ -1457,7 +1463,7 @@ jobs:
           apt-get update -qq
           apt-get install -y --no-install-recommends git ca-certificates curl sudo zstd
 
-      # Execute the prebuilt tree: no configure, version tags or submodule sources.
+      # Execute the prebuilt tree: no OBS configure, version tags or submodule sources.
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Set Up uv 🐍
@@ -1479,17 +1485,18 @@ jobs:
           path: /var/cache/apt/archives
           key: tier2-apt-ubuntu2604-f144425f-${{ hashFiles('rust/tools/linux-validate/apt-packages.txt') }}
 
-      # The package list is shared with the local Docker harness (run.sh).
-      - name: Install Tier 2 Packages 📦
-        run: |
-          # Install Git already refreshed these lists in this fresh container.
-          grep -v '^#' rust/tools/linux-validate/apt-packages.txt |
-            xargs "${GITHUB_WORKSPACE}/.github/scripts/retry" sudo apt-get install -y --no-install-recommends
-
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: tier2-tree
           path: ${{ runner.temp }}/tier2-pack
+
+      # Install the builder's exact runtime closure, including dlopen providers.
+      - name: Install Tier 2 Packages 📦
+        run: |
+          # Install Git already refreshed these lists in this fresh container.
+          test -s "$RUNNER_TEMP/tier2-pack/runtime-packages.txt"
+          xargs "${GITHUB_WORKSPACE}/.github/scripts/retry" sudo apt-get install -y --no-install-recommends < "$RUNNER_TEMP/tier2-pack/runtime-packages.txt"
+
       - name: Unpack Tier 2 Tree 📂
         run: |
           mkdir -p "$RUNNER_TEMP/tier2"
