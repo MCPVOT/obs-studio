@@ -294,6 +294,12 @@ boundary: seed lifetime and publisher image drift still require resolution
 before another complete qualification. It does not authorize an unchanged
 full-workflow retry or production adoption.
 
+The [second hosted qualification](2026-10-22-native-cache-second-hosted-qualification.md)
+records all four publications and required-source transport restorations
+passing. Its whole workflow concluded cancelled after Qt dependency setup hit
+the existing 30-minute job limit. Actual native compiler reuse and allocation
+reconciliation remain outstanding.
+
 GitHub documents [job-level token permissions](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idpermissions)
 and the [separate authenticated API rate limit](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api).
 Authentication avoids the observed shared unauthenticated allowance; it does
