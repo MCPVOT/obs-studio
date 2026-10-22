@@ -12,7 +12,13 @@ import textwrap
 import unittest
 
 WORKFLOW = Path(__file__).resolve().parent.parent / ".github/workflows/build-project.yaml"
+RUNTIME_PACKAGES = """flatpak xvfb dbus-daemon pipewire wireplumber pipewire-pulse pipewire-bin
+    pulseaudio-utils gstreamer1.0-tools gstreamer1.0-plugins-base gstreamer1.0-pipewire
+    libgl1-mesa-dri gcc pkg-config libglib2.0-dev libpipewire-0.3-dev libpulse-dev
+    libcurl4-openssl-dev ffmpeg gdb binutils"""
 PACKAGES = {
+    "flatpak-runtime-test": RUNTIME_PACKAGES,
+    "flatpak-runtime-reuse": RUNTIME_PACKAGES,
     "rust-tests-linux": "uuid-dev libglib2.0-dev",
     "linux-qt-frontend": """build-essential cmake ninja-build pkg-config ccache git curl zstd
         libcurl4-openssl-dev libjansson-dev libx11-dev libx11-xcb-dev libxcb1-dev
@@ -29,9 +35,11 @@ PACKAGES = {
 
 
 def dependency_script(job: str) -> str:
-    text = WORKFLOW.read_text(encoding="utf-8")
+    workflow = WORKFLOW.with_name("ci.yml") if job == "flatpak-runtime-reuse" else WORKFLOW
+    text = workflow.read_text(encoding="utf-8")
     body = re.search(rf"^  {job}:\n(.*?)(?=^  [a-z0-9-]+:|\Z)", text, re.S | re.M).group(1)
-    name = "Install libuuid and GIO" if job == "rust-tests-linux" else "Install Build Dependencies 📦"
+    name = ("Install Runtime Test Infrastructure" if job.startswith("flatpak-runtime-") else
+            "Install libuuid and GIO" if job == "rust-tests-linux" else "Install Build Dependencies 📦")
     step = body.split(f"      - name: {name}\n", 1)[1]
     run = re.search(r"^        run: (.*)\n", step, re.M)
     if run.group(1) != "|":
@@ -90,7 +98,7 @@ apt-get() {
                             remaining.append(call[index])
                             index += 1
                     self.assertCountEqual(options, ["Acquire::Retries=1", "Acquire::http::Timeout=15", "Acquire::https::Timeout=15"])
-                    expected = ["update"] if action == "update" else ["install", "-y"] + (["--no-install-recommends"] if job == "linux-qt-frontend" else []) + packages.split()
+                    expected = (["update", "-qq"] if job.startswith("flatpak-runtime-") else ["update"]) if action == "update" else ["install", "-y"] + (["--no-install-recommends"] if job != "rust-tests-linux" else []) + packages.split()
                     self.assertEqual(remaining, expected)
 
     def test_update_and_install_failures_propagate(self):

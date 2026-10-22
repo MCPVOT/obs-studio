@@ -711,7 +711,8 @@ failures are investigated through nightly reports rather than blocking the queue
 
 ### Host Ubuntu package acquisition (#1269)
 
-The existing Fast Gate, Qt frontend and full Ubuntu app jobs run
+The existing Fast Gate, Qt frontend, full Ubuntu app and both Flatpak
+saved-profile runtime jobs run
 `sudo bash ci/host_apt_mirrors.sh` before package work. It recognizes the
 runner-image mirror list with Azure HTTP priority 1 and Ubuntu archive HTTPS
 priority 2, then swaps those priorities. All URLs and security fallback remain
@@ -719,7 +720,7 @@ present. Missing, linked, duplicate or unfamiliar layouts keep their original
 configuration; an actual rewrite failure fails the step. The helper needs no
 download or additional setup tool.
 
-Fast Gate and Qt retain command-line acquire bounds of one retry and 15-second
+Fast Gate, Qt and both runtime jobs use command-line acquire bounds of one retry and 15-second
 HTTP/HTTPS timeouts, on both update and installation. Package lists, trust
 checks, job limits and required tests remain unchanged. The motivation is the
 observed Qt setup in run 39788036193: 104 MB took 19m25s with 347 ignored fetch
