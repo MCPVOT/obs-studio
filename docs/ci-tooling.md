@@ -141,9 +141,13 @@ above remains enabled.
 
 #### Qt compiler snapshot publication
 
-Qt compiler snapshots use `qt-ccache-linux-inputs-v1-<digest>` rather than a
+Qt compiler snapshots use `qt-ccache-linux-inputs-v2-<digest>` rather than a
 new key for every commit. On the clean CI checkout, the digest includes staged
-file identities except `docs/` and Markdown, the runner image, pinned Qt/FFmpeg
+file identities except `docs/`, Markdown, `.github/`, `ci/`, and `ci.toml`;
+the build workflow and `ci/linux_qt_frontend.sh` are explicitly included again.
+Thus CI policy/test metadata does not cause an upload, while workflow settings,
+dependency installation and the Qt build commands remain publication inputs.
+The digest also includes the runner image, pinned Qt/FFmpeg
 archives, and installed C, C++, CMake, ccache and Ninja versions. An exact restore
 skips the upload; changed inputs can restore the existing `qt-ccache-linux-`
 fallback and publish a new snapshot on master. Older archives are not purged.

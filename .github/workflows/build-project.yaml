@@ -1602,12 +1602,14 @@ jobs:
             libxcb-xkb1 libxkbcommon-x11-0 libxcb-shape0 libxcb-sync1 libegl1
 
       # Publication identity only: ccache still validates every compilation,
-      # and the build/tests always run. Avoid a ~1.16 GB upload for a docs SHA.
+      # and the build/tests always run. Ignore docs and unrelated CI metadata,
+      # but retain this workflow and the Qt build driver as publication inputs.
       - name: Qt Compiler Snapshot Identity
         id: qt-cache-identity
         run: |
           inputs="$RUNNER_TEMP/qt-compiler-inputs"
-          git ls-files --stage -z -- . ':!docs/**' ':!*.md' ':!**/*.md' > "$inputs"
+          git ls-files --stage -z -- . ':!docs/**' ':!*.md' ':!**/*.md' ':!.github/**' ':!ci/**' ':!ci.toml' > "$inputs"
+          git ls-files --stage -z -- .github/workflows/build-project.yaml ci/linux_qt_frontend.sh >> "$inputs"
           printf '\nimage=%s\nqt=%s\nffmpeg=%s\n' "${ImageVersion:-unknown}" "$QT_SHA256" "$FFMPEG_SHA256" >> "$inputs"
           cc --version >> "$inputs"
           c++ --version >> "$inputs"
@@ -1622,7 +1624,7 @@ jobs:
         id: qt-compiler-cache
         with:
           path: ${{ github.workspace }}/.qt-ccache
-          key: qt-ccache-linux-inputs-v1-${{ steps.qt-cache-identity.outputs.digest }}
+          key: qt-ccache-linux-inputs-v2-${{ steps.qt-cache-identity.outputs.digest }}
           restore-keys: qt-ccache-linux-
 
       - name: Set Qt Cache Limit 🗄️
@@ -1647,7 +1649,7 @@ jobs:
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master' && steps.qt-compiler-cache.outputs.cache-hit != 'true'
         with:
           path: ${{ github.workspace }}/.qt-ccache
-          key: qt-ccache-linux-inputs-v1-${{ steps.qt-cache-identity.outputs.digest }}
+          key: qt-ccache-linux-inputs-v2-${{ steps.qt-cache-identity.outputs.digest }}
 
       - name: Save Prebuilt Qt 💾
         if: github.ref == 'refs/heads/master' && steps.qt-libs-cache.outputs.cache-hit != 'true'
