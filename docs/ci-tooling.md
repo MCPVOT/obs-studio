@@ -703,6 +703,24 @@ required-check settings and runner use before enabling it. Do not add a security
 scan to `CI Gate`, merge rules or queue cancellation dependencies. Nightly
 failures are investigated through nightly reports rather than blocking the queue.
 
+### Host Ubuntu package acquisition (#1269)
+
+The existing Fast Gate, Qt frontend and full Ubuntu app jobs run
+`sudo bash ci/host_apt_mirrors.sh` before package work. It recognizes the
+runner-image mirror list with Azure HTTP priority 1 and Ubuntu archive HTTPS
+priority 2, then swaps those priorities. All URLs and security fallback remain
+present. Missing, linked, duplicate or unfamiliar layouts keep their original
+configuration; an actual rewrite failure fails the step. The helper needs no
+download or additional setup tool.
+
+Fast Gate and Qt retain command-line acquire bounds of one retry and 15-second
+HTTP/HTTPS timeouts, on both update and installation. Package lists, trust
+checks, job limits and required tests remain unchanged. The motivation is the
+observed Qt setup in run 39788036193: 104 MB took 19m25s with 347 ignored fetch
+records before successful fallback transfers. Hosted outcomes must still be
+measured; this observation is not a controlled speedup estimate or proof of
+the underlying network fault.
+
 ### Optional Windows cache budget experiment (#1269)
 
 Manual `ci.yml` dispatches accept `native-cache-probe` (default `false`).

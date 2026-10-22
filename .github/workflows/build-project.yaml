@@ -474,6 +474,9 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
+      - name: Configure Host apt Mirrors
+        run: sudo bash ci/host_apt_mirrors.sh
+
       # Compiler cache policy (zackees/ci.yml): only master pushes save, keyed by
       # commit so the cache follows master instead of freezing at its first save.
       - uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
@@ -1317,6 +1320,7 @@ jobs:
       # needs the headers even when the gio Cargo feature is off.
       - name: Install libuuid and GIO
         run: |
+          sudo bash ci/host_apt_mirrors.sh
           # Match runner-images' bounded mirror failover (#1269). CLI options
           # take precedence over older images' late apt.conf.d overrides.
           apt_options=(-o Acquire::Retries=1 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15)
@@ -1987,7 +1991,8 @@ jobs:
       # supply them.
       - name: Install Build Dependencies 📦
         run: |
-          # Preserve the runner's mirror list, but bound each failed acquire
+          sudo bash ci/host_apt_mirrors.sh
+          # Preserve the runner's fallback routes, but bound each failed acquire
           # before fallback. Installation errors still fail the job (#1269).
           apt_options=(-o Acquire::Retries=1 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15)
           sudo apt-get "${apt_options[@]}" update

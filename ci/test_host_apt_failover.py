@@ -43,7 +43,15 @@ def dependency_script(job: str) -> str:
 class HostAptFailoverTest(unittest.TestCase):
     def execute(self, job: str, fail: str = "") -> tuple[int, list[list[str]]]:
         mock = r'''
-sudo() { "$@"; }
+: > "$APT_TRACE"
+sudo() {
+    if [[ "$1" == bash && "$2" == ci/host_apt_mirrors.sh ]]; then
+        # Mirror rewriting is separately executed on isolated fixture files.
+        if [[ "$APT_FAIL" == mirror ]]; then return 42; fi
+        return 0
+    fi
+    "$@"
+}
 apt-get() {
     printf '%s\0' "$@" >> "$APT_TRACE"
     printf '\n' >> "$APT_TRACE"
@@ -87,7 +95,7 @@ apt-get() {
 
     def test_update_and_install_failures_propagate(self):
         for job in PACKAGES:
-            for action, count in (("update", 1), ("install", 2)):
+            for action, count in (("mirror", 0), ("update", 1), ("install", 2)):
                 with self.subTest(job=job, action=action):
                     code, calls = self.execute(job, action)
                     self.assertEqual(code, 42)
