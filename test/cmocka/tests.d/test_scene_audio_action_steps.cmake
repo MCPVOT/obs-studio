@@ -8,18 +8,4 @@
 # the port can run the item side against the Rust core in the staticlib (as
 # test_scene_bounds_place_rust does). test_scene_audio_actions covers the
 # callers through the real libobs.
-add_executable(
-  test_scene_audio_action_steps
-  test_scene_audio_action_steps.c
-  "${CMAKE_SOURCE_DIR}/libobs/obs-scene-audio-actions.c.h"
-  "${CMAKE_SOURCE_DIR}/libobs/obs-scene-item-audio-actions.c.h"
-)
-target_include_directories(
-  test_scene_audio_action_steps
-  PRIVATE ${CMOCKA_INCLUDE_DIR} "${CMAKE_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}/libobs" "${CMAKE_SOURCE_DIR}/deps/libcaption"
-)
-target_link_libraries(test_scene_audio_action_steps PRIVATE OBS::libobs OBS::caption Uthash::Uthash ${CMOCKA_LIBRARIES})
-obs_test_sanitize(test_scene_audio_action_steps "address,undefined")
-
-add_dependencies(cmocka-tests test_scene_audio_action_steps)
-add_test(test_scene_audio_action_steps ${CMAKE_CURRENT_BINARY_DIR}/test_scene_audio_action_steps)
+# Defined in ../build/test-graph.json.

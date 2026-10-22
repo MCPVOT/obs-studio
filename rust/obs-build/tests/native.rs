@@ -2,6 +2,925 @@
 use obs_build::{NativeBuild, SharedLibrary};
 use std::{fs, path::Path};
 
+#[test]
+fn native_test_graph_cmake_builds_and_runs_selected_contract() {
+    let fixture = tempfile::tempdir().unwrap();
+    let root = fixture.path();
+    let output = root.join("output");
+    let repository = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let consumer = repository.join("test/cmocka/native-test-graph.cmake");
+    fs::create_dir_all(root.join("dependency-include")).unwrap();
+    fs::create_dir_all(root.join("header-only-include")).unwrap();
+    fs::write(
+        root.join("header-only-include/headers-only.h"),
+        "#define HEADER_ONLY_ANSWER 17\n",
+    )
+    .unwrap();
+    fs::write(
+        root.join("dependency-include/dependency.h"),
+        "#define DEPENDENCY_ANSWER 42\n",
+    )
+    .unwrap();
+    fs::write(
+        root.join("answer.c"),
+        r#"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "dependency.h"
+#include "headers-only.h"
+#ifdef HEADER_POLICY_LEAKED
+#error Header imports must not inherit compile definitions or link policy
+#endif
+int selected_answer(void);
+int main(int argc, char **argv) {
+    const char *value = getenv("OBS_GRAPH_VALUE");
+    const char *wrapped = getenv("OBS_WRAPPER_VALUE");
+    if (!wrapped || strcmp(wrapped, "wrapped")) return 5;
+    if (COMPILER_OPTION_REQUIRED != 23 || HEADER_ONLY_ANSWER != 17 || selected_answer() != 42 || EXPECTED != 42 || DEPENDENCY_ANSWER != 42 || DEPENDENCY_REQUIRED != 5 || argc != 2 || strcmp(argv[1], "two words") ||
+        !value || strcmp(value, "first;second")) return 1;
+    FILE *module = fopen(ARTIFACT_PATH, "rb");
+    if (!module) return 4;
+    fclose(module);
+    FILE *input = fopen(SOURCE_HEADER, "r");
+    if (!input) return 3;
+    fclose(input);
+    FILE *file = fopen("marker.txt", "w");
+    if (!file) return 2;
+    return fclose(file);
+}
+"#,
+    )
+    .unwrap();
+    fs::write(
+        root.join("selected.c"),
+        "int selected_answer(void) { return 42; }\n",
+    )
+    .unwrap();
+    fs::write(
+        root.join("fixture-module.c"),
+        "int fixture_module(void) { return 7; }\n",
+    )
+    .unwrap();
+    let graph = serde_json::json!({
+        "schema": 1,
+        "targets": {
+            "answer": {"sources": ["answer.c", {"path": "selected.c", "requires": "GRAPH_FEATURE"}, {"path": "missing-disabled.c", "requires": "GRAPH_DISABLED"}], "definitions": ["EXPECTED=42", "SOURCE_HEADER=\"${source}/dependency-include/dependency.h\""],
+                "libraries": ["fixture-dependency", {"name": "disabled-library", "requires": "GRAPH_DISABLED"}],
+                "header_libraries": ["fixture-headers"],
+                "artifact_definitions": {"ARTIFACT_PATH": "fixture-module"},
+                "watch_inputs": ["dependency-include", "fixture-module.c"],
+                "compile_options": [{"name": "-DCOMPILER_OPTION_REQUIRED=23", "requires": "GRAPH_FEATURE"}, {"name": "-invalid-disabled-compiler-option", "requires": "GRAPH_DISABLED"}],
+                "requires": {"all": ["GRAPH_FEATURE", {"not": "GRAPH_DISABLED"}]}},
+            "disabled": {"sources": ["does-not-exist.c"], "requires": "GRAPH_DISABLED"}
+        },
+        "tests": {
+            "answer-case": {"target": "answer", "suite": "fixture", "optional_prefixes": [["cmake", "-E", "env", "OBS_WRAPPER_VALUE=outer"], ["obs-missing-wrapper-fixture-1332", "${source}", "${build}", "${runtime}", "${target}"], ["cmake", "-E", "env", "OBS_WRAPPER_VALUE=wrapped"]], "command": ["${target}", "two words"],
+                "environment": {"OBS_GRAPH_VALUE": "first;second"},
+                "working_directory": "${runtime}", "timeout_seconds": 17,
+                "skip_return_code": 77, "resource_locks": ["fixture-lock"]},
+            "disabled-case": {"target": "disabled"}
+        }
+    });
+    fs::write(root.join("graph.json"), graph.to_string()).unwrap();
+    fs::write(root.join("CMakeLists.txt"), format!(
+        "cmake_minimum_required(VERSION 3.28)\nproject(graph-fixture C)\nenable_testing()\nset(OBS_OUTPUT_DIR \"${{CMAKE_CURRENT_BINARY_DIR}}/runtime root\")\nfile(MAKE_DIRECTORY \"${{OBS_OUTPUT_DIR}}\" \"${{OBS_OUTPUT_DIR}}/Release\")\nadd_library(fixture-module MODULE fixture-module.c)\nset_target_properties(fixture-module PROPERTIES LIBRARY_OUTPUT_DIRECTORY \"${{CMAKE_CURRENT_BINARY_DIR}}/module output\")\nset(GRAPH_FEATURE ON)\nset(GRAPH_DISABLED OFF)\nadd_library(fixture-dependency INTERFACE)\ntarget_include_directories(fixture-dependency INTERFACE \"${{CMAKE_CURRENT_SOURCE_DIR}}/dependency-include\")\ntarget_compile_definitions(fixture-dependency INTERFACE DEPENDENCY_REQUIRED=5)\nadd_library(fixture-headers INTERFACE)\ntarget_include_directories(fixture-headers INTERFACE \"${{CMAKE_CURRENT_SOURCE_DIR}}/header-only-include\")\ntarget_compile_definitions(fixture-headers INTERFACE HEADER_POLICY_LEAKED=1)\ntarget_compile_options(fixture-headers INTERFACE -invalid-header-policy)\ntarget_link_libraries(fixture-headers INTERFACE missing-header-link-library)\ninclude(\"{}\")\nobs_native_test_graph(\"${{CMAKE_CURRENT_SOURCE_DIR}}/graph.json\" \"${{CMAKE_CURRENT_SOURCE_DIR}}\")\n",
+        consumer.to_string_lossy().replace('\\', "/")
+    )).unwrap();
+    let mut project = fs::read_to_string(root.join("CMakeLists.txt")).unwrap();
+    project.push_str(
+        r#"
+get_property(graph_inputs DIRECTORY PROPERTY CMAKE_CONFIGURE_DEPENDS)
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/watched-inputs.txt" "${graph_inputs}")
+"#,
+    );
+    fs::write(root.join("CMakeLists.txt"), project).unwrap();
+    for arguments in [
+        vec![
+            "-S".into(),
+            root.to_string_lossy().into_owned(),
+            "-B".into(),
+            output.to_string_lossy().into_owned(),
+            "-DCMAKE_BUILD_TYPE=Release".into(),
+        ],
+        vec![
+            "--build".into(),
+            output.to_string_lossy().into_owned(),
+            "--config".into(),
+            "Release".into(),
+        ],
+    ] {
+        let result = std::process::Command::new("cmake")
+            .args(arguments)
+            .output()
+            .unwrap();
+        assert!(
+            result.status.success(),
+            "{}\n{}",
+            String::from_utf8_lossy(&result.stdout),
+            String::from_utf8_lossy(&result.stderr)
+        );
+    }
+    let registered_inputs = fs::read_to_string(output.join("watched-inputs.txt")).unwrap();
+    for input in ["dependency-include", "fixture-module.c"] {
+        assert!(registered_inputs.contains(&root.join(input).to_string_lossy().replace('\\', "/")));
+    }
+    let inventory = std::process::Command::new("ctest")
+        .args([
+            "--test-dir",
+            output.to_str().unwrap(),
+            "-C",
+            "Release",
+            "--show-only=json-v1",
+        ])
+        .output()
+        .unwrap();
+    assert!(inventory.status.success());
+    let inventory: serde_json::Value = serde_json::from_slice(&inventory.stdout).unwrap();
+    let tests = inventory["tests"].as_array().unwrap();
+    assert_eq!(tests.len(), 1);
+    assert_eq!(tests[0]["name"], "answer-case");
+    for (name, value) in [
+        ("TIMEOUT", serde_json::json!(17.0)),
+        ("SKIP_RETURN_CODE", serde_json::json!(77)),
+        ("RESOURCE_LOCK", serde_json::json!(["fixture-lock"])),
+        ("LABELS", serde_json::json!(["native-fixture"])),
+        (
+            "WORKING_DIRECTORY",
+            serde_json::json!(
+                output
+                    .join("runtime root/Release")
+                    .to_string_lossy()
+                    .replace('\\', "/")
+            ),
+        ),
+    ] {
+        assert!(
+            tests[0]["properties"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|property| property["name"] == name && property["value"] == value),
+            "missing {name}: {tests:?}"
+        );
+    }
+    let result = std::process::Command::new("ctest")
+        .args([
+            "--test-dir",
+            output.to_str().unwrap(),
+            "-C",
+            "Release",
+            "--output-on-failure",
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        result.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&result.stdout),
+        String::from_utf8_lossy(&result.stderr)
+    );
+    assert!(output.join("runtime root/Release/marker.txt").is_file());
+    let rust_graph = obs_build::validation::graph::Graph::parse(&graph.to_string()).unwrap();
+    let build = NativeBuild {
+        host: obs_build::BUILD_HOST.into(),
+        target: obs_build::BUILD_TARGET.into(),
+        output: root.join("cargo-output"),
+        profile: Default::default(),
+    };
+    let facts = std::collections::BTreeMap::from([
+        ("GRAPH_FEATURE".into(), true),
+        ("GRAPH_DISABLED".into(), false),
+    ]);
+    let module_build = NativeBuild {
+        output: build.output.join("module output"),
+        ..build.clone()
+    };
+    let module = module_build
+        .shared_library(&SharedLibrary {
+            name: "fixture-module".into(),
+            sources: vec![root.join("fixture-module.c")],
+            ..Default::default()
+        })
+        .unwrap();
+    let dependencies = std::collections::BTreeMap::from([
+        (
+            "fixture-module".into(),
+            obs_build::validation::graph::Dependency {
+                artifacts: vec![module],
+                ..Default::default()
+            },
+        ),
+        (
+            "fixture-dependency".into(),
+            obs_build::validation::graph::Dependency {
+                include_dirs: vec![root.join("dependency-include")],
+                definitions: vec![("DEPENDENCY_REQUIRED".into(), Some("5".into()))],
+                ..Default::default()
+            },
+        ),
+        (
+            "fixture-headers".into(),
+            obs_build::validation::graph::Dependency {
+                include_dirs: vec![root.join("header-only-include")],
+                artifacts: vec![root.join("missing-header-library.a")],
+                definitions: vec![("HEADER_POLICY_LEAKED".into(), Some("1".into()))],
+                compile_options: vec!["-invalid-header-policy".into()],
+                link_options: vec!["-invalid-header-policy".into()],
+                ..Default::default()
+            },
+        ),
+    ]);
+    let artifacts = rust_graph
+        .compile(&build, root, &facts, &dependencies)
+        .unwrap();
+    assert_eq!(artifacts.len(), 1);
+    let selected = rust_graph.select(&facts).unwrap();
+    assert_eq!(
+        selected.tests.keys().copied().collect::<Vec<_>>(),
+        vec![tests[0]["name"].as_str().unwrap()]
+    );
+    let executable = obs_build::validation::Executable {
+        name: "answer-case".into(),
+        path: artifacts["answer"].clone(),
+        runtime: Some(selected.tests["answer-case"].clone()),
+        dependencies: rust_graph.targets["answer"]
+            .dependency_artifacts(&facts, &dependencies)
+            .unwrap(),
+    };
+    assert!(
+        executable.dependencies.is_empty(),
+        "header-only imports must not create runtime dependencies"
+    );
+    let mut with_artifact = dependencies.clone();
+    let imported = root.join("selected-imported-library.so");
+    with_artifact
+        .get_mut("fixture-dependency")
+        .unwrap()
+        .artifacts
+        .push(imported.clone());
+    assert_eq!(
+        rust_graph.targets["answer"]
+            .dependency_artifacts(&facts, &with_artifact)
+            .unwrap(),
+        vec![imported]
+    );
+    let runtime = build.output.join("runtime root");
+    fs::create_dir_all(&runtime).unwrap();
+    let mut command = executable
+        .command_in(root, &build.output, &runtime)
+        .unwrap();
+    assert_eq!(command.get_current_dir(), Some(runtime.as_path()));
+    let result = command.output().unwrap();
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    assert!(runtime.join("marker.txt").is_file());
+    for (pointer, value, message) in [
+        ("/schema", serde_json::json!(2), "schema"),
+        (
+            "/tests/answer-case/optional_prefixes",
+            serde_json::json!([[]]),
+            "prefix",
+        ),
+        (
+            "/tests/answer-case/optional_prefixes",
+            serde_json::json!([[""]]),
+            "prefix",
+        ),
+        (
+            "/tests/answer-case/optional_prefixes",
+            serde_json::json!([["${target}"]]),
+            "prefix",
+        ),
+        (
+            "/tests/answer-case/optional_prefixes",
+            serde_json::json!([["obs-missing-wrapper-fixture-1332", "${unknown}"]]),
+            "unknown",
+        ),
+        (
+            "/targets/answer/watch_inputs",
+            serde_json::json!([""]),
+            "watch input",
+        ),
+        (
+            "/targets/answer/watch_inputs",
+            serde_json::json!(["../outside"]),
+            "watch input",
+        ),
+        (
+            "/targets/answer/watch_inputs",
+            serde_json::json!(["/outside"]),
+            "watch input",
+        ),
+        (
+            "/targets/answer/watch_inputs",
+            serde_json::json!(["C:/outside"]),
+            "watch input",
+        ),
+        (
+            "/targets/answer/artifact_definitions",
+            serde_json::json!({"ARTIFACT_PATH":"absent-artifact"}),
+            "absent-artifact",
+        ),
+        (
+            "/targets/answer/artifact_definitions",
+            serde_json::json!({"BAD-NAME":"fixture-module"}),
+            "artifact",
+        ),
+        (
+            "/targets/answer/artifact_definitions",
+            serde_json::json!({"ARTIFACT_PATH":"fixture-headers"}),
+            "artifact",
+        ),
+        (
+            "/targets/answer/definitions",
+            serde_json::json!(["BAD=${runtime}"]),
+            "compile definition",
+        ),
+        ("/tests/answer-case/suite", serde_json::json!(42), "suite"),
+        (
+            "/targets/answer/compile_options",
+            serde_json::json!([{ "name": "-DUNKNOWN", "requires": "UNKNOWN_COMPILER_FEATURE" }]),
+            "UNKNOWN_COMPILER_FEATURE",
+        ),
+        (
+            "/targets/answer/header_libraries",
+            serde_json::json!(["absent-header-library"]),
+            "absent-header-library",
+        ),
+        (
+            "/targets/answer/sources",
+            serde_json::json!([{"path": "selected.c", "requires": "UNKNOWN_SOURCE_FEATURE"}]),
+            "UNKNOWN_SOURCE_FEATURE",
+        ),
+        (
+            "/targets/answer/sources",
+            serde_json::json!([{"path": "selected.c", "requires": false}]),
+            "sources",
+        ),
+        (
+            "/targets/answer/sources",
+            serde_json::json!([{"path": 42, "requires": true}]),
+            "source path",
+        ),
+        (
+            "/targets/answer/definitions",
+            serde_json::json!(["SELF=${target}"]),
+            "compile definition",
+        ),
+        (
+            "/targets/answer/requires",
+            serde_json::json!("UNKNOWN_FEATURE"),
+            "UNKNOWN_FEATURE",
+        ),
+        (
+            "/tests/answer-case/target",
+            serde_json::json!("absent"),
+            "absent",
+        ),
+        (
+            "/tests/answer-case/command",
+            serde_json::json!([]),
+            "command",
+        ),
+        (
+            "/tests/answer-case/command",
+            serde_json::json!(["${unknown}"]),
+            "unknown",
+        ),
+    ] {
+        let mut invalid = graph.clone();
+        *invalid.pointer_mut(pointer).unwrap() = value;
+        let rust_result = obs_build::validation::graph::Graph::parse(&invalid.to_string())
+            .and_then(|graph| graph.compile(&build, root, &facts, &dependencies));
+        assert!(
+            rust_result.is_err(),
+            "Cargo accepted invalid graph at {pointer}"
+        );
+        fs::write(root.join("graph.json"), invalid.to_string()).unwrap();
+        let result = std::process::Command::new("cmake")
+            .args(["-S", root.to_str().unwrap(), "-B", output.to_str().unwrap()])
+            .output()
+            .unwrap();
+        assert!(
+            !result.status.success(),
+            "CMake accepted invalid graph at {pointer}"
+        );
+        assert!(
+            String::from_utf8_lossy(&result.stderr).contains(message),
+            "{}",
+            String::from_utf8_lossy(&result.stderr)
+        );
+    }
+    let mut invalid = graph;
+    invalid["targets"]["answer"]["sorces"] = serde_json::json!(["typo.c"]);
+    fs::write(root.join("graph.json"), invalid.to_string()).unwrap();
+    let result = std::process::Command::new("cmake")
+        .args(["-S", root.to_str().unwrap(), "-B", output.to_str().unwrap()])
+        .output()
+        .unwrap();
+    assert!(!result.status.success());
+    assert!(String::from_utf8_lossy(&result.stderr).contains("sorces"));
+}
+
+#[test]
+fn native_test_graph_checks_selection_references_and_commands() {
+    use obs_build::validation::graph::Graph;
+    use std::collections::BTreeMap;
+    let fixture = serde_json::json!({
+        "schema": 1,
+        "targets": {
+            "portable": {"sources": ["test/cmocka/portable.c"]},
+            "pulse": {"sources": ["test/cmocka/pulse.c"],
+                "requires": {"all": ["OS_LINUX", "ENABLE_PULSEAUDIO"]}}
+        },
+        "tests": {
+            "portable-case": {"target": "portable"},
+            "pulse-case": {"target": "pulse", "command": [
+                "sh", "${source}/test/cmocka/pulse.sh", "${target}"],
+                "timeout_seconds": 60, "skip_return_code": 77,
+                "environment": {"LP_NUM_THREADS": "1"}}
+        }
+    });
+    let graph = Graph::parse(&fixture.to_string()).unwrap();
+    let mut flags = BTreeMap::from([
+        ("OS_LINUX".into(), true),
+        ("ENABLE_PULSEAUDIO".into(), false),
+    ]);
+    let selected = graph.select(&flags).unwrap();
+    assert_eq!(selected.targets.len(), 1);
+    assert_eq!(selected.tests.len(), 1);
+    assert!(selected.tests.contains_key("portable-case"));
+    assert_eq!(selected.tests["portable-case"].timeout_seconds, None);
+    flags.insert("ENABLE_PULSEAUDIO".into(), true);
+    let selected = graph.select(&flags).unwrap();
+    assert_eq!(selected.targets.len(), 2);
+    let pulse = &selected.tests["pulse-case"];
+    assert_eq!(pulse.skip_return_code, Some(77));
+    assert_eq!(pulse.timeout_seconds, Some(60));
+    assert_eq!(pulse.environment["LP_NUM_THREADS"], "1");
+    assert_eq!(pulse.command[2], "${target}");
+    flags.remove("ENABLE_PULSEAUDIO");
+    assert!(
+        graph
+            .select(&flags)
+            .unwrap_err()
+            .contains("ENABLE_PULSEAUDIO")
+    );
+    for (pointer, value, message) in [
+        ("/schema", serde_json::json!(2), "schema"),
+        (
+            "/tests/portable-case/target",
+            serde_json::json!("absent"),
+            "absent",
+        ),
+        (
+            "/tests/pulse-case/timeout_seconds",
+            serde_json::json!(-1),
+            "u32",
+        ),
+        (
+            "/tests/pulse-case/command",
+            serde_json::json!([]),
+            "command",
+        ),
+        (
+            "/tests/pulse-case/command",
+            serde_json::json!(["${unknown}"]),
+            "unknown",
+        ),
+        ("/targets/pulse/sources", serde_json::json!([]), "sources"),
+    ] {
+        let mut invalid = fixture.clone();
+        *invalid.pointer_mut(pointer).unwrap() = value;
+        assert!(
+            Graph::parse(&invalid.to_string())
+                .unwrap_err()
+                .contains(message)
+        );
+    }
+    let mut unbounded = fixture.clone();
+    unbounded["tests"]["pulse-case"]["timeout_seconds"] = serde_json::json!(0);
+    assert_eq!(
+        Graph::parse(&unbounded.to_string()).unwrap().tests["pulse-case"].timeout_seconds,
+        Some(0)
+    );
+    let mut invalid = fixture;
+    invalid["targets"]["portable"]["definitions"] = serde_json::json!(["SELF=${target}"]);
+    assert!(
+        Graph::parse(&invalid.to_string())
+            .unwrap_err()
+            .contains("compile definition")
+    );
+    invalid["targets"]["portable"]["definitions"] = serde_json::json!([]);
+    invalid["targets"]["pulse"]["sorces"] = serde_json::json!(["typo.c"]);
+    assert!(
+        Graph::parse(&invalid.to_string())
+            .unwrap_err()
+            .contains("sorces")
+    );
+}
+
+#[test]
+fn native_test_graph_replaces_legacy_utility_definitions() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let graph =
+        obs_build::validation::graph::Graph::load(&root.join("test/cmocka/build/test-graph.json"))
+            .unwrap();
+    assert!(
+        !root
+            .join("rust/obs-build/manifests/c-tests-linux.json")
+            .exists(),
+        "independent Linux test inventory remains"
+    );
+    for name in [
+        "test_menu_text",
+        "test_profile_remove",
+        "test_tbar_position",
+        "test_media_time",
+        "test_studio_mode_exit",
+        "test_studio_mode_swap",
+        "test_profile_activate",
+        "test_output_deactivate_state",
+        "test_cf_preprocessor",
+        "test_output_null_id",
+        "test_output_failed_start_encoders",
+        "test_output_rescale",
+        "test_output_start_twice",
+        "test_texture_encoder_raw_format",
+        "test_audio_restart_resampler_tail",
+        "test_obs_enum_outputs_removal",
+        "test_output_caption_queue",
+        "test_output_caption_text",
+        "test_scene_bounds_fit",
+        "test_scene_coords",
+        "test_encoder_fallback",
+        "test_scene_list_remove",
+        "test_output_filename_format",
+        "test_output_delay_e2e",
+        "test_encoder_video_reset",
+        "test_scene_private_canvas",
+        "test_scene_rotated_scale_filter",
+        "test_scene_duplicate_scale_ref",
+        "test_scene_dup_group_children",
+        "test_output_caption_codec",
+        "test_output_delay_restart",
+        "test_output_interleave_e2e",
+        "test_output_interleave_restart",
+        "test_audio_sync_offset_change",
+        "test_audio_capture_mix_race",
+        "test_audio_io_inlines",
+        "test_audio_math",
+        "test_bounds",
+        "test_calldata",
+        "test_decl",
+        "test_dstr_zero_len",
+        "test_audio_controls",
+        "test_audio_clock_drift",
+        "test_obs_data",
+        "test_obs_properties",
+        "test_obs_properties_leaks",
+        "test_missing_files",
+        "test_proc",
+        "test_signal",
+        "test_format_conversion",
+        "test_math_extra",
+        "test_matrix3",
+        "test_matrix4",
+        "test_plane",
+        "test_graphics_alias_ordinary",
+        "test_graphics_alias_rest",
+        "test_config_double_window",
+        "test_config_set_double_format",
+        "test_hotkey_name_map",
+        "test_hotkey_bindings_codec",
+        "test_hotkey_pair_steps",
+        "test_hotkey_press_steps",
+        "test_hotkey_translations",
+        "test_shader_param_names",
+        "test_utf8_insize0",
+        "test_whip_rtp_timestamp",
+        "test_whip_host_os_name",
+        "test_group_hide_transition_audio",
+        "test_vlc_drain_gate",
+        "test_vlc_host_path",
+        "test_vlc_channel_order",
+        "test_vlc_audio_track",
+        "test_vlc_audio_pacing",
+        "test_vlc_playlist_gap",
+        "test_amf",
+        "test_amf3_classname",
+        "test_amf3_terminator",
+        "test_mp4_mux_multichannel",
+        "test_mp4_split_time",
+        "test_null_output_stop_thread",
+        "test_rtmp_dbr_user_bitrate",
+        "test_rtmp_send_thread_leak",
+        "test_rtmp_error",
+        "test_rtmp_chunk_size",
+        "test_amf_decode",
+        "test_flv_mux",
+        "test_scene_audio_action_steps",
+        "test_serializer",
+        "test_darray",
+        "test_bitstream",
+        "test_os_path",
+        "test_config_save",
+        "test_file_serializer_safe",
+        "test_quick_write",
+        "test_hevc",
+        "test_deque",
+        "test_platform_time",
+        "test_cube_lut",
+        "test_pipewire_reconnect",
+        "test_pulse_reconnect",
+        "test_pulse_default_id",
+        "test_scene_blend",
+        "test_output_delay",
+        "test_output_interleave",
+        "test_context_name_helpers",
+        "test_video_output_plan",
+        "test_audio_buffering_subsample",
+        "test_portal_shortcut_ids",
+        "test_portal_shortcut_sets",
+        "test_hotkey_load",
+        "test_svt_av1",
+        "test_avc",
+        "test_formatted_filename",
+        "test_utf8",
+        "test_dstr_regressions",
+        "test_threading",
+        "test_video_stats_race",
+        "test_task",
+        "test_quat",
+        "test_axisang",
+        "test_vec2",
+        "test_vec3",
+        "test_vec4",
+    ] {
+        assert!(graph.targets.contains_key(name), "missing canonical {name}");
+    }
+    let facts = std::collections::BTreeMap::from([
+        ("OS_LINUX".into(), false),
+        ("ENABLE_PULSEAUDIO".into(), false),
+        ("MSVC".into(), true),
+        ("ENABLE_HEVC".into(), false),
+        ("OS_FREEBSD".into(), false),
+        ("OS_WINDOWS".into(), true),
+        ("OS_MACOS".into(), false),
+        ("HAVE_OBS_OPENGL".into(), false),
+        ("HAVE_VLC_MODULE".into(), false),
+        ("HAVE_OBS_OUTPUTS".into(), false),
+        ("HAVE_OBS_FILTERS".into(), false),
+        ("HAVE_OBS_PIPEWIRE".into(), false),
+        ("HAVE_OBS_PULSEAUDIO".into(), false),
+    ]);
+    for (suite, count) in [("core", 132), ("graphics", 12), ("vlc", 6), ("webrtc", 2)] {
+        let mut partition = obs_build::validation::graph::Graph::load(
+            &root.join("test/cmocka/build/test-graph.json"),
+        )
+        .unwrap();
+        partition.retain_suite(suite);
+        assert_eq!(partition.tests.len(), count);
+        assert!(partition.tests.values().all(|test| test.suite == suite));
+        assert_eq!(partition.targets.len(), count);
+        if suite != "core" {
+            assert!(
+                partition
+                    .targets
+                    .values()
+                    .all(|target| !target.watch_inputs.is_empty())
+            );
+        }
+    }
+    let selected = graph.select(&facts).unwrap();
+    for name in [
+        "test_audio_controls",
+        "test_missing_files",
+        "test_hotkey_bindings_codec",
+        "test_hotkey_translations",
+    ] {
+        assert_eq!(
+            graph.tests[name].optional_prefixes,
+            vec![vec!["xvfb-run", "-a"]]
+        );
+    }
+    assert_eq!(
+        graph.tests["test_audio_clock_drift"].timeout_seconds,
+        Some(300)
+    );
+    assert_eq!(
+        graph.tests["test_config_double_window"].timeout_seconds,
+        Some(20)
+    );
+    assert_eq!(graph.tests["test_svt_av1"].timeout_seconds, Some(60));
+    assert_eq!(graph.tests["test_svt_av1"].skip_return_code, Some(77));
+    for name in ["test_context_name_helpers", "test_video_output_plan"] {
+        assert_eq!(
+            graph.targets[name].sanitizers.as_deref(),
+            Some("address,undefined")
+        );
+    }
+    assert_eq!(
+        graph.tests["test_dstr_regressions"].timeout_seconds,
+        Some(60)
+    );
+    let raw: serde_json::Value =
+        serde_json::from_slice(&fs::read(root.join("test/cmocka/build/test-graph.json")).unwrap())
+            .unwrap();
+    assert!(
+        raw["targets"]["test_avc"]["includes"]
+            .as_array()
+            .is_some_and(|includes| includes.contains(&serde_json::json!("deps/libcaption"))),
+        "AVC's private implementation needs the caption headers from its group PCH"
+    );
+    for name in ["test_threading", "test_video_stats_race", "test_task"] {
+        let libraries = raw["targets"][name]["libraries"].as_array().unwrap();
+        assert!(libraries.contains(&serde_json::json!({
+            "name": "Threads::Threads", "requires": {"not": "MSVC"}
+        })));
+    }
+    assert_eq!(
+        raw["targets"]["test_video_stats_race"]["libraries"]
+            .as_array()
+            .unwrap()
+            .len(),
+        2
+    );
+    assert!(selected.tests.contains_key("test_serializer"));
+    for name in ["test_portal_shortcut_ids", "test_portal_shortcut_sets"] {
+        assert!(!selected.tests.contains_key(name));
+    }
+    let mut freebsd_facts = facts.clone();
+    freebsd_facts.insert("OS_FREEBSD".into(), true);
+    freebsd_facts.insert("MSVC".into(), false);
+    freebsd_facts.insert("OS_WINDOWS".into(), false);
+    let freebsd = graph.select(&freebsd_facts).unwrap();
+    for name in ["test_portal_shortcut_ids", "test_portal_shortcut_sets"] {
+        assert!(freebsd.tests.contains_key(name));
+    }
+    let plugin_tests = [
+        "test_cube_lut",
+        "test_pipewire_reconnect",
+        "test_pulse_reconnect",
+        "test_pulse_default_id",
+    ];
+    for name in plugin_tests {
+        assert!(!selected.tests.contains_key(name));
+    }
+    let mut plugins_enabled = facts.clone();
+    for (fact, value) in [
+        ("OS_LINUX", true),
+        ("OS_WINDOWS", false),
+        ("MSVC", false),
+        ("HAVE_OBS_FILTERS", true),
+        ("HAVE_OBS_PIPEWIRE", true),
+        ("HAVE_OBS_PULSEAUDIO", true),
+    ] {
+        plugins_enabled.insert(fact.into(), value);
+    }
+    let enabled = graph.select(&plugins_enabled).unwrap();
+    for name in plugin_tests {
+        assert!(enabled.tests.contains_key(name));
+    }
+    assert!(
+        !enabled.tests.contains_key("test_pulse_monitor_samples"),
+        "plugin availability must not enable core PulseAudio monitoring"
+    );
+    assert_eq!(
+        raw["targets"]["test_pulse_default_id"]["header_libraries"],
+        serde_json::json!(["PulseAudio::PulseAudio"])
+    );
+    let output_tests = [
+        "test_rtmp_error",
+        "test_rtmp_chunk_size",
+        "test_amf_decode",
+        "test_flv_mux",
+    ];
+    for name in output_tests {
+        assert!(!selected.tests.contains_key(name));
+    }
+    let mut with_outputs = facts.clone();
+    with_outputs.insert("HAVE_OBS_OUTPUTS".into(), true);
+    let output_selection = graph.select(&with_outputs).unwrap();
+    for name in output_tests {
+        assert!(output_selection.tests.contains_key(name));
+    }
+    for name in [
+        "test_amf",
+        "test_amf3_classname",
+        "test_amf3_terminator",
+        "test_mp4_mux_multichannel",
+        "test_mp4_split_time",
+    ] {
+        assert!(output_selection.tests.contains_key(name));
+        assert!(!selected.tests.contains_key(name));
+    }
+    for name in [
+        "test_null_output_stop_thread",
+        "test_rtmp_dbr_user_bitrate",
+        "test_rtmp_send_thread_leak",
+    ] {
+        assert!(!output_selection.tests.contains_key(name));
+        let mut linux_outputs = with_outputs.clone();
+        linux_outputs.insert("OS_LINUX".into(), true);
+        linux_outputs.insert("OS_WINDOWS".into(), false);
+        assert!(
+            graph
+                .select(&linux_outputs)
+                .unwrap()
+                .tests
+                .contains_key(name)
+        );
+    }
+    assert_eq!(
+        raw["targets"]["test_amf"]["libraries"],
+        serde_json::json!(["OBS::native-test-cmocka", {"name":"ws2_32", "requires":"OS_WINDOWS"}])
+    );
+    for name in ["test_amf3_classname", "test_amf3_terminator"] {
+        assert_eq!(graph.targets[name].sanitizers.as_deref(), Some("address"));
+    }
+    assert_eq!(
+        raw["targets"]["test_amf_decode"]["compile_options"][2],
+        serde_json::json!({"name": "-fsigned-char", "requires": {"not": "MSVC"}})
+    );
+    assert_eq!(
+        graph.targets["test_scene_audio_action_steps"]
+            .sanitizers
+            .as_deref(),
+        Some("address,undefined")
+    );
+    assert_eq!(
+        raw["targets"]["test_output_protocol_list_steps"]["sources"],
+        serde_json::json!([
+            "test/cmocka/test_output_protocol_list_steps.c",
+            "libobs/obs-output-protocols.c.h"
+        ])
+    );
+    assert_eq!(
+        raw["targets"]["test_output_protocol_list_steps"]["libraries"],
+        raw["targets"]["test_scene_audio_action_steps"]["libraries"]
+    );
+    assert_eq!(
+        graph.targets["test_output_protocol_list_steps"]
+            .sanitizers
+            .as_deref(),
+        Some("address,undefined")
+    );
+    assert!(selected.tests.contains_key("test_avc"));
+    assert!(!selected.tests.contains_key("test_formatted_filename"));
+    assert!(!selected.tests.contains_key("test_utf8"));
+    assert!(!selected.tests.contains_key("test_hevc"));
+    assert!(!selected.tests.contains_key("test_config_save"));
+    assert!(!selected.tests.contains_key("test_pulse_monitor_samples"));
+}
+
+#[test]
+fn native_test_graph_preserves_sources_and_runtime_requirements() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let path = root.join("test/cmocka/build/test-graph.json");
+    let graph: serde_json::Value = serde_json::from_slice(
+        &fs::read(&path).expect("CMake and Cargo need a shared native test graph"),
+    )
+    .unwrap();
+    assert_eq!(graph["schema"], 1);
+    let targets = graph["targets"].as_object().unwrap();
+    let tests = graph["tests"].as_object().unwrap();
+    for name in [
+        "test_scene_group_transform",
+        "test_shader_sampler_convert",
+        "test_pulse_monitor_samples",
+    ] {
+        let sources = targets[name]["sources"].as_array().unwrap();
+        assert!(sources.contains(&serde_json::json!(format!("test/cmocka/{name}.c"))));
+        assert_eq!(tests[name]["target"], name);
+    }
+    assert!(
+        targets["test_scene_group_transform"]["sources"]
+            .as_array()
+            .unwrap()
+            .contains(&serde_json::json!("libobs/obs-scene-group-transform.c.h"))
+    );
+    let pulse = &tests["test_pulse_monitor_samples"];
+    assert_eq!(
+        pulse["command"],
+        serde_json::json!([
+            "sh",
+            "${source}/test/cmocka/test_pulse_monitor_device.sh",
+            "${target}"
+        ])
+    );
+    assert_eq!(pulse["timeout_seconds"], 60);
+    assert_eq!(pulse["skip_return_code"], 77);
+    assert_eq!(
+        targets["test_pulse_monitor_samples"]["requires"],
+        serde_json::json!({"all": ["OS_LINUX", "ENABLE_PULSEAUDIO"]})
+    );
+}
+
 fn target(name: &str, source: &Path, dependencies: Vec<std::path::PathBuf>) -> SharedLibrary {
     SharedLibrary {
         name: name.into(),

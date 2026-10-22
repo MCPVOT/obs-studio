@@ -1,10 +1,2 @@
 # math-extra test (graphics/math-extra.c)
-add_executable(test_math_extra test_math_extra.c)
-target_include_directories(test_math_extra PRIVATE ${CMOCKA_INCLUDE_DIR})
-target_link_libraries(test_math_extra PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
-if(NOT MSVC)
-  target_link_libraries(test_math_extra PRIVATE m)
-endif()
-
-add_dependencies(cmocka-tests test_math_extra)
-add_test(test_math_extra ${CMAKE_CURRENT_BINARY_DIR}/test_math_extra)
+# Defined in ../build/test-graph.json.

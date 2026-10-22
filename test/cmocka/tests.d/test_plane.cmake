@@ -1,10 +1,2 @@
 # plane test (graphics/plane.c)
-add_executable(test_plane test_plane.c)
-target_include_directories(test_plane PRIVATE ${CMOCKA_INCLUDE_DIR})
-target_link_libraries(test_plane PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
-if(NOT MSVC)
-  target_link_libraries(test_plane PRIVATE m)
-endif()
-
-add_dependencies(cmocka-tests test_plane)
-add_test(test_plane ${CMAKE_CURRENT_BINARY_DIR}/test_plane)
+# Defined in ../build/test-graph.json.

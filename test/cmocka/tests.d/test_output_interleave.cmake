@@ -7,15 +7,4 @@
 # private libobs, libcaption, uthash and zlib headers.
 # output_interleave_fields_stub.c provides the output, caption track and
 # encoder accessors of obs-output.c and obs-encoder.c over the test's structs.
-add_executable(test_output_interleave test_output_interleave.c output_interleave_fields_stub.c)
-target_include_directories(
-  test_output_interleave
-  PRIVATE ${CMOCKA_INCLUDE_DIR} "${CMAKE_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}/libobs" "${CMAKE_SOURCE_DIR}/deps/libcaption"
-)
-target_link_libraries(
-  test_output_interleave
-  PRIVATE OBS::libobs OBS::caption Uthash::Uthash ZLIB::ZLIB ${CMOCKA_LIBRARIES}
-)
-
-add_dependencies(cmocka-tests test_output_interleave)
-add_test(test_output_interleave ${CMAKE_CURRENT_BINARY_DIR}/test_output_interleave)
+# test_output_interleave is defined in ../build/test-graph.json.

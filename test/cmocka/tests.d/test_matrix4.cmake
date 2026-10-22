@@ -1,10 +1,2 @@
 # matrix4 test (graphics/matrix4.c)
-add_executable(test_matrix4 test_matrix4.c)
-target_include_directories(test_matrix4 PRIVATE ${CMOCKA_INCLUDE_DIR})
-target_link_libraries(test_matrix4 PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
-if(NOT MSVC)
-  target_link_libraries(test_matrix4 PRIVATE m)
-endif()
-
-add_dependencies(cmocka-tests test_matrix4)
-add_test(test_matrix4 ${CMAKE_CURRENT_BINARY_DIR}/test_matrix4)
+# Defined in ../build/test-graph.json.

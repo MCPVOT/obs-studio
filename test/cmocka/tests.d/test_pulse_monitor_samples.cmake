@@ -4,14 +4,4 @@
 # with parec, against a private PipeWire sound server started by
 # test_pulse_monitor_device.sh. Skipped (exit 77) when PipeWire, WirePlumber,
 # pipewire-pulse or parec are not installed.
-if(OS_LINUX AND ENABLE_PULSEAUDIO)
-  add_executable(test_pulse_monitor_samples test_pulse_monitor_samples.c)
-  target_include_directories(test_pulse_monitor_samples PRIVATE ${CMOCKA_INCLUDE_DIR})
-  target_link_libraries(test_pulse_monitor_samples PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
-  add_dependencies(cmocka-tests test_pulse_monitor_samples)
-  add_test(
-    NAME test_pulse_monitor_samples
-    COMMAND sh "${CMAKE_CURRENT_SOURCE_DIR}/test_pulse_monitor_device.sh" $<TARGET_FILE:test_pulse_monitor_samples>
-  )
-  set_tests_properties(test_pulse_monitor_samples PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 60)
-endif()
+# Defined in build/test-graph.json and registered by the parent CMakeLists.txt.

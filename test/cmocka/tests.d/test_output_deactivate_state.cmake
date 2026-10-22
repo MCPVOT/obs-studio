@@ -1,6 +1,1 @@
-add_executable(test_output_deactivate_state test_output_deactivate_state.c)
-target_include_directories(test_output_deactivate_state PRIVATE ${CMOCKA_INCLUDE_DIR})
-target_link_libraries(test_output_deactivate_state PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
-add_dependencies(cmocka-tests test_output_deactivate_state)
-add_test(NAME test_output_deactivate_state COMMAND test_output_deactivate_state)
-set_tests_properties(test_output_deactivate_state PROPERTIES TIMEOUT 60)
+# Defined in ../build/test-graph.json.

@@ -31,6 +31,9 @@ class Tier2ConcurrencyTest(unittest.TestCase):
 project(concurrency_registration C)
 enable_testing()
 set(OS_LINUX TRUE)
+set(OS_WINDOWS FALSE)
+set(HAVE_OBS_OPENGL TRUE)
+set(HAVE_VLC_MODULE TRUE)
 set(PKG_CONFIG_FOUND TRUE)
 function(find_package)
 endfunction()
@@ -41,7 +44,7 @@ function(add_executable target)
 endfunction()
 add_library(fixture INTERFACE)
 set_target_properties(fixture PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}")
-foreach(alias OBS::libobs OBS::caption OBS::media-playback OBS::pipewire OBS::glad
+foreach(alias OBS::libobs OBS::caption OBS::native-test-cmocka OBS::media-playback OBS::pipewire OBS::glad
     FFmpeg::avcodec FFmpeg::avformat FFmpeg::avutil FFmpeg::swscale FFmpeg::swresample
     gio::gio PkgConfig::INHIBIT_TEST_GLIB PkgConfig::_portal_test_glib
     PkgConfig::_screencast_shm_test_glib PkgConfig::_screencast_resume_test_glib
@@ -57,8 +60,17 @@ add_custom_target(cmocka-tests)
 set(OBS_OUTPUT_DIR "${CMAKE_BINARY_DIR}/output")
 '''
         cmake += f'set(OBS_TEST_XVFB_RUN "{display_wrapper}")\n'
+        graph = json.loads((ROOT / "test/cmocka/build/test-graph.json").read_text())
+        canonical_tests = {name: graph["tests"][name] for name in TIMEOUTS if name in graph["tests"]}
         for name in TIMEOUTS:
-            cmake += f'include("{ROOT}/test/cmocka/tests.d/{name}.cmake")\n'
+            if name not in canonical_tests:
+                cmake += f'include("{ROOT}/test/cmocka/tests.d/{name}.cmake")\n'
+        if canonical_tests:
+            targets = {test["target"]: graph["targets"][test["target"]] for test in canonical_tests.values()}
+            (source / "graph.json").write_text(json.dumps({"schema": graph["schema"], "targets": targets,
+                                                        "tests": canonical_tests}))
+            cmake += f'include("{ROOT}/test/cmocka/native-test-graph.cmake")\n'
+            cmake += f'obs_native_test_graph("${{CMAKE_CURRENT_SOURCE_DIR}}/graph.json" "{ROOT}")\n'
         cmake += 'set_property(TEST test_audio_clock_drift APPEND PROPERTY ENVIRONMENT "EXISTING_SETTING=preserved")\n'
         cmake += f'include("{ROOT}/test/cmocka/parallel-environment.cmake" OPTIONAL)\n'
         (source / "CMakeLists.txt").write_text(cmake)

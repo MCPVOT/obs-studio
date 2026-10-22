@@ -1,10 +1,2 @@
 # bounds test (graphics/bounds.c)
-add_executable(test_bounds test_bounds.c)
-target_include_directories(test_bounds PRIVATE ${CMOCKA_INCLUDE_DIR})
-target_link_libraries(test_bounds PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
-if(NOT MSVC)
-  target_link_libraries(test_bounds PRIVATE m)
-endif()
-
-add_dependencies(cmocka-tests test_bounds)
-add_test(test_bounds ${CMAKE_CURRENT_BINARY_DIR}/test_bounds)
+# Defined in ../build/test-graph.json.

@@ -661,7 +661,6 @@ pub fn configure_webrtc_tests(
     }
     library.c_compile_options.push("-std=gnu17".into());
     library.cpp_compile_options.push("-std=gnu++17".into());
-    library.link_options.push("-lm".into());
     Ok(())
 }
 
@@ -864,7 +863,54 @@ pub fn configure_c_tests(
         core.display().to_string(),
         "-Wl,--as-needed".into(),
     ]);
+    configure_test_sanitizers(build, library, sanitizer)
+}
+
+pub fn native_test_facts(
+    target: &str,
+    pulseaudio: bool,
+    hevc: bool,
+) -> std::collections::BTreeMap<String, bool> {
+    std::collections::BTreeMap::from([
+        ("OS_LINUX".into(), target.contains("linux")),
+        ("OS_FREEBSD".into(), target.contains("freebsd")),
+        ("OS_WINDOWS".into(), target.contains("windows")),
+        ("OS_MACOS".into(), target.contains("apple")),
+        ("OS_OPENBSD".into(), target.contains("openbsd")),
+        ("ENABLE_PULSEAUDIO".into(), pulseaudio),
+        ("ENABLE_HEVC".into(), hevc),
+        ("MSVC".into(), target.contains("msvc")),
+    ])
+}
+
+/// Match the native thread interface: Darwin uses libSystem, while the other
+/// non-MSVC toolchains need the driver flag during both compilation and linking.
+pub fn native_test_thread_options(target: &str) -> Vec<String> {
+    if target.contains("msvc") || target.contains("apple") {
+        vec![]
+    } else {
+        vec!["-pthread".into()]
+    }
+}
+
+pub fn native_test_math_options(target: &str) -> Vec<String> {
+    if target.contains("msvc") {
+        vec![]
+    } else {
+        vec!["-lm".into()]
+    }
+}
+
+pub fn configure_test_sanitizers(
+    build: &crate::NativeBuild,
+    library: &mut crate::SharedLibrary,
+    sanitizer: Option<&str>,
+) -> Result<(), String> {
     let compiler = build.compiler(library, &build.output, false).get_compiler();
+    // CMake's per-target sanitizer policy excludes MSVC, including clang-cl.
+    if compiler.is_like_msvc() {
+        return Ok(());
+    }
     let mut already_sanitized = compiler
         .args()
         .iter()
@@ -1188,4 +1234,116 @@ pub fn configure_websocket(target: &str, library: &mut crate::SharedLibrary) -> 
         library.link_options.push("-lqrcodegencpp".into());
     }
     Ok(())
+}
+
+pub fn native_test_compiler_is_clang(build: &crate::NativeBuild) -> bool {
+    let compiler = build
+        .compiler(&crate::SharedLibrary::default(), &build.output, false)
+        .get_compiler();
+    compiler.is_like_clang() || compiler.is_like_clang_cl()
+}
+
+pub fn native_test_happy_includes(target: &str, root: &Path) -> Vec<PathBuf> {
+    let host = if target.contains("windows") {
+        "windows"
+    } else {
+        "posix"
+    };
+    vec![
+        root.join("shared/happy-eyeballs"),
+        root.join(format!("shared/happy-eyeballs/hosts/{host}")),
+    ]
+}
+
+pub fn native_test_system_library(target: &str, name: &str) -> Vec<String> {
+    vec![if target.contains("msvc") {
+        format!("{name}.lib")
+    } else {
+        format!("-l{name}")
+    }]
+}
+
+pub fn native_test_framework_options(target: &str, name: &str) -> Vec<String> {
+    if target.contains("apple") {
+        vec!["-framework".into(), name.into()]
+    } else {
+        vec![]
+    }
+}
+
+cfg_select! {
+    unix => {
+        fn native_program_wrapper(program: &str, executable: &Path, root: &Path, output: &Path) -> Result<PathBuf, String> {
+            use std::os::unix::fs::PermissionsExt;
+            let template = root.join("test/cmocka/xvfb-run-or-display.sh.in");
+            if program != "xvfb-run" || !template.is_file() { return Ok(executable.into()); }
+            let executable = executable.to_str().ok_or("non-UTF8 native test display program")?;
+            let quoted = executable.replace('\\', r"\\").replace('"', r#"\""#).replace('$', r"\$").replace('`', r"\`");
+            let content = std::fs::read_to_string(template).map_err(|error| error.to_string())?.replace("@OBS_XVFB_RUN_REAL@", &quoted);
+            let script = output.join("test-programs/xvfb-run-or-display.sh");
+            std::fs::create_dir_all(script.parent().ok_or("native test wrapper has no parent")?).map_err(|error| error.to_string())?;
+            crate::frontend::write(&script, &content)?;
+            std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).map_err(|error| error.to_string())?;
+            dunce::canonicalize(&script).map_err(|error| error.to_string())
+        }
+        fn native_program_suffixes() -> Vec<String> { vec![String::new()] }
+        fn native_program_executable(path: &Path) -> bool {
+            use std::os::unix::fs::PermissionsExt;
+            path.metadata().is_ok_and(|metadata| metadata.is_file() && metadata.permissions().mode() & 0o111 != 0)
+        }
+    }
+    windows => {
+        fn native_program_wrapper(_: &str, executable: &Path, _: &Path, _: &Path) -> Result<PathBuf, String> { Ok(executable.into()) }
+        fn native_program_suffixes() -> Vec<String> {
+            let extensions = std::env::var("PATHEXT").unwrap_or_else(|_| ".COM;.EXE;.BAT;.CMD".into());
+            let mut suffixes = vec![String::new()];
+            suffixes.extend(extensions.split(';').filter(|extension| !extension.is_empty()).map(str::to_owned));
+            suffixes
+        }
+        fn native_program_executable(path: &Path) -> bool { path.is_file() }
+    }
+    _ => {
+        fn native_program_wrapper(_: &str, executable: &Path, _: &Path, _: &Path) -> Result<PathBuf, String> { Ok(executable.into()) }
+        fn native_program_suffixes() -> Vec<String> { vec![String::new()] }
+        fn native_program_executable(path: &Path) -> bool { path.is_file() }
+    }
+}
+
+/// Resolve an optional test command on the execution host without a shell.
+pub fn native_test_program(program: &str) -> Option<PathBuf> {
+    let suffixes = native_program_suffixes();
+    let path = Path::new(program);
+    let candidates = if path.components().count() > 1 || path.is_absolute() {
+        vec![path.to_owned()]
+    } else {
+        std::env::split_paths(&std::env::var_os("PATH")?)
+            .map(|directory| directory.join(program))
+            .collect()
+    };
+    for candidate in candidates {
+        for suffix in &suffixes {
+            let mut path = candidate.as_os_str().to_owned();
+            path.push(suffix);
+            let path = PathBuf::from(path);
+            if native_program_executable(&path) {
+                // Keep symlinks: resolving a busybox-style executable changes argv[0].
+                return Some(if path.is_absolute() {
+                    path
+                } else {
+                    std::env::current_dir().ok()?.join(path)
+                });
+            }
+        }
+    }
+    None
+}
+
+pub fn native_test_command_program(
+    program: &str,
+    root: &Path,
+    output: &Path,
+) -> Result<Option<PathBuf>, String> {
+    native_test_program(program)
+        .map(|path| native_program_wrapper(program, &path, root, output))
+        .transpose()
 }

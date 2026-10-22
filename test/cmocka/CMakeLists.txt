@@ -1,6 +1,10 @@
 project(obs-cmocka)
 
 find_package(CMocka CONFIG REQUIRED)
+add_library(obs-native-test-cmocka INTERFACE)
+add_library(OBS::native-test-cmocka ALIAS obs-native-test-cmocka)
+target_include_directories(obs-native-test-cmocka INTERFACE ${CMOCKA_INCLUDE_DIR})
+target_link_libraries(obs-native-test-cmocka INTERFACE ${CMOCKA_LIBRARIES})
 if(NOT MSVC)
   find_package(Threads REQUIRED)
 endif()
@@ -65,35 +69,16 @@ function(obs_test_sanitize target sanitizers)
 endfunction()
 
 # Serializer test
-add_executable(test_serializer test_serializer.c)
-target_include_directories(test_serializer PRIVATE ${CMOCKA_INCLUDE_DIR})
-target_link_libraries(test_serializer PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
-add_dependencies(cmocka-tests test_serializer)
-add_test(test_serializer ${CMAKE_CURRENT_BINARY_DIR}/test_serializer)
+# test_serializer is defined in build/test-graph.json.
 
 # darray test
-add_executable(test_darray test_darray.c)
-target_include_directories(test_darray PRIVATE ${CMOCKA_INCLUDE_DIR})
-target_link_libraries(test_darray PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
-
-add_dependencies(cmocka-tests test_darray)
-add_test(test_darray ${CMAKE_CURRENT_BINARY_DIR}/test_darray)
+# test_darray is defined in build/test-graph.json.
 
 # bitstream test
-add_executable(test_bitstream test_bitstream.c)
-target_include_directories(test_bitstream PRIVATE ${CMOCKA_INCLUDE_DIR})
-target_link_libraries(test_bitstream PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
-
-add_dependencies(cmocka-tests test_bitstream)
-add_test(test_bitstream ${CMAKE_CURRENT_BINARY_DIR}/test_bitstream)
+# test_bitstream is defined in build/test-graph.json.
 
 # OS path test
-add_executable(test_os_path test_os_path.c)
-target_include_directories(test_os_path PRIVATE ${CMOCKA_INCLUDE_DIR})
-target_link_libraries(test_os_path PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
-
-add_dependencies(cmocka-tests test_os_path)
-add_test(test_os_path ${CMAKE_CURRENT_BINARY_DIR}/test_os_path)
+# test_os_path is defined in build/test-graph.json.
 
 # Product name shown by the frontend (frontend/utility/product-name.c), built
 # without Qt.
@@ -104,20 +89,7 @@ add_dependencies(cmocka-tests test_product_name)
 add_test(test_product_name ${CMAKE_CURRENT_BINARY_DIR}/test_product_name)
 
 # Exercise hotkey loading with an isolated core and no platform input thread.
-add_executable(
-  test_hotkey_load
-  test_hotkey_load.c
-  "${CMAKE_SOURCE_DIR}/libobs/obs-hotkey.c.h"
-  "${CMAKE_SOURCE_DIR}/libobs/obs-hotkey-bindings.c.h"
-  "${CMAKE_SOURCE_DIR}/libobs/obs-hotkey-translations.c.h"
-  "${CMAKE_SOURCE_DIR}/libobs/obs-hotkey-press.c.h"
-  "${CMAKE_SOURCE_DIR}/libobs/obs-hotkey-pair.c.h"
-)
-target_compile_definitions(test_hotkey_load PRIVATE obs=hotkey_test_obs)
-target_include_directories(test_hotkey_load PRIVATE ${CMOCKA_INCLUDE_DIR})
-target_link_libraries(test_hotkey_load PRIVATE OBS::libobs OBS::caption ${CMOCKA_LIBRARIES})
-add_dependencies(cmocka-tests test_hotkey_load)
-add_test(test_hotkey_load ${CMAKE_CURRENT_BINARY_DIR}/test_hotkey_load)
+# test_hotkey_load is defined in build/test-graph.json.
 
 # A core module that cannot be loaded (its file is missing, or a library it
 # needs, like libcef.so for obs-browser, is not installed) must not stop OBS
@@ -154,206 +126,79 @@ endif()
 
 # /dev/full reproduces delayed disk-write errors without fault injection.
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-  add_executable(test_config_save test_config_save.c)
-  target_include_directories(test_config_save PRIVATE ${CMOCKA_INCLUDE_DIR})
-  target_link_libraries(test_config_save PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
-  add_dependencies(cmocka-tests test_config_save)
-  add_test(test_config_save ${CMAKE_CURRENT_BINARY_DIR}/test_config_save)
+  # test_config_save is defined in build/test-graph.json.
 
-  add_executable(test_file_serializer_safe test_file_serializer_safe.c)
-  target_include_directories(test_file_serializer_safe PRIVATE ${CMOCKA_INCLUDE_DIR})
-  target_link_libraries(test_file_serializer_safe PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
-  add_dependencies(cmocka-tests test_file_serializer_safe)
-  add_test(test_file_serializer_safe ${CMAKE_CURRENT_BINARY_DIR}/test_file_serializer_safe)
+  # test_file_serializer_safe is defined in build/test-graph.json.
 
-  add_executable(test_quick_write test_quick_write.c)
-  target_include_directories(test_quick_write PRIVATE ${CMOCKA_INCLUDE_DIR})
-  target_link_libraries(test_quick_write PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
-  add_dependencies(cmocka-tests test_quick_write)
-  add_test(test_quick_write ${CMAKE_CURRENT_BINARY_DIR}/test_quick_write)
+  # test_quick_write is defined in build/test-graph.json.
 endif()
 
 # AV1 OBU helpers (obs-av1.c)
-add_executable(test_av1 test_av1.c)
-target_include_directories(test_av1 PRIVATE ${CMOCKA_INCLUDE_DIR})
-target_link_libraries(test_av1 PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
-
-add_dependencies(cmocka-tests test_av1)
-add_test(test_av1 ${CMAKE_CURRENT_BINARY_DIR}/test_av1)
+# test_av1 is defined in build/test-graph.json.
 
 # NAL start-code search (obs-nal.c)
-add_executable(test_nal test_nal.c)
-target_include_directories(test_nal PRIVATE ${CMOCKA_INCLUDE_DIR})
-target_link_libraries(test_nal PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
-
-add_dependencies(cmocka-tests test_nal)
-add_test(test_nal ${CMAKE_CURRENT_BINARY_DIR}/test_nal)
+# test_nal is defined in build/test-graph.json.
 
 # AVC header test. Where the toolchain supports it, obs-avc.c is compiled into
 # the test with UBSan (no recovery) so undefined behavior fails the test
 # (obs-rust/obs-studio#11); its definitions take precedence over libobs's.
-add_executable(test_avc test_avc.c)
-target_include_directories(test_avc PRIVATE ${CMOCKA_INCLUDE_DIR})
-target_link_libraries(test_avc PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
-if(NOT MSVC)
-  target_sources(test_avc PRIVATE "${CMAKE_SOURCE_DIR}/libobs/obs-avc.c.h")
-  obs_test_sanitize(test_avc undefined)
-endif()
-
-add_dependencies(cmocka-tests test_avc)
-add_test(test_avc ${CMAKE_CURRENT_BINARY_DIR}/test_avc)
+# test_avc is defined in build/test-graph.json.
 
 # AVC helpers through libobs only, so ENABLE_RUST_LIBOBS=ON tests the port
 # (test_avc above compiles its own obs-avc.c where UBSan is available).
-add_executable(test_avc_parse test_avc_parse.c)
-target_include_directories(test_avc_parse PRIVATE ${CMOCKA_INCLUDE_DIR})
-target_link_libraries(test_avc_parse PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
-
-add_dependencies(cmocka-tests test_avc_parse)
-add_test(test_avc_parse ${CMAKE_CURRENT_BINARY_DIR}/test_avc_parse)
+# test_avc_parse is defined in build/test-graph.json.
 
 # HEVC helpers (obs-hevc.c, built only with ENABLE_HEVC)
 if(ENABLE_HEVC)
-  add_executable(test_hevc test_hevc.c)
-  target_include_directories(test_hevc PRIVATE ${CMOCKA_INCLUDE_DIR})
-  target_link_libraries(test_hevc PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
-
-  add_dependencies(cmocka-tests test_hevc)
-  add_test(test_hevc ${CMAKE_CURRENT_BINARY_DIR}/test_hevc)
+  # test_hevc is defined in build/test-graph.json.
 endif()
 
 # Formatted filename test (obs-rust/obs-studio#21). platform-filename.c is
 # compiled into the test so the test's obs_get_video_info and time fixtures
 # replace libobs's and libc's and no obs core has to be started; its definitions
 # take precedence over libobs's.
-if(NOT MSVC)
-  add_executable(
-    test_formatted_filename
-    test_formatted_filename.c
-    "${CMAKE_SOURCE_DIR}/libobs/util/platform-filename.c.h"
-  )
-  target_include_directories(test_formatted_filename PRIVATE ${CMOCKA_INCLUDE_DIR})
-  target_link_libraries(test_formatted_filename PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
-  obs_test_sanitize(test_formatted_filename address,undefined)
-
-  add_dependencies(cmocka-tests test_formatted_filename)
-  add_test(test_formatted_filename ${CMAKE_CURRENT_BINARY_DIR}/test_formatted_filename)
-endif()
+# test_formatted_filename is defined in build/test-graph.json.
 
 # CRC32 test
-add_executable(test_crc32 test_crc32.c)
-target_include_directories(test_crc32 PRIVATE ${CMOCKA_INCLUDE_DIR})
-target_link_libraries(test_crc32 PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
-
-add_dependencies(cmocka-tests test_crc32)
-add_test(test_crc32 ${CMAKE_CURRENT_BINARY_DIR}/test_crc32)
+# test_crc32 is defined in build/test-graph.json.
 
 # UTF-8 test. utf8.c is not exported by libobs, so it is compiled into the test
 # (non-Windows only: the Windows implementation wraps the Win32 API).
-if(NOT MSVC)
-  add_executable(test_utf8 test_utf8.c "${CMAKE_SOURCE_DIR}/libobs/util/utf8.c.h")
-  target_include_directories(test_utf8 PRIVATE ${CMOCKA_INCLUDE_DIR})
-  target_link_libraries(test_utf8 PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
-  obs_test_sanitize(test_utf8 address,undefined)
-
-  add_dependencies(cmocka-tests test_utf8)
-  add_test(test_utf8 ${CMAKE_CURRENT_BINARY_DIR}/test_utf8)
-endif()
+# test_utf8 is defined in build/test-graph.json.
 
 # dstr test
-add_executable(test_dstr test_dstr.c)
-target_include_directories(test_dstr PRIVATE ${CMOCKA_INCLUDE_DIR})
-target_link_libraries(test_dstr PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
-
-add_dependencies(cmocka-tests test_dstr)
-add_test(test_dstr ${CMAKE_CURRENT_BINARY_DIR}/test_dstr)
+# test_dstr is defined in build/test-graph.json.
 
 # dstr regression tests (obs-rust/obs-studio#46, #47)
-add_executable(test_dstr_regressions test_dstr_regressions.c)
-target_include_directories(test_dstr_regressions PRIVATE ${CMOCKA_INCLUDE_DIR})
-target_link_libraries(test_dstr_regressions PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
-
-add_dependencies(cmocka-tests test_dstr_regressions)
-add_test(test_dstr_regressions ${CMAKE_CURRENT_BINARY_DIR}/test_dstr_regressions)
-# A regression of #47 loops forever: fail fast instead.
-set_tests_properties(test_dstr_regressions PROPERTIES TIMEOUT 60)
+# test_dstr_regressions is defined in build/test-graph.json.
 
 # lexer test
-add_executable(test_lexer test_lexer.c)
-target_include_directories(test_lexer PRIVATE ${CMOCKA_INCLUDE_DIR})
-target_link_libraries(test_lexer PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
-
-add_dependencies(cmocka-tests test_lexer)
-add_test(test_lexer ${CMAKE_CURRENT_BINARY_DIR}/test_lexer)
+# test_lexer is defined in build/test-graph.json.
 
 # cf lexer test
-add_executable(test_cf_lexer test_cf_lexer.c)
-target_include_directories(test_cf_lexer PRIVATE ${CMOCKA_INCLUDE_DIR})
-target_link_libraries(test_cf_lexer PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
-
-add_dependencies(cmocka-tests test_cf_lexer)
-add_test(test_cf_lexer ${CMAKE_CURRENT_BINARY_DIR}/test_cf_lexer)
+# test_cf_lexer is defined in build/test-graph.json.
 
 # text lookup test
-add_executable(test_text_lookup test_text_lookup.c)
-target_include_directories(test_text_lookup PRIVATE ${CMOCKA_INCLUDE_DIR})
-target_link_libraries(test_text_lookup PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
-
-add_dependencies(cmocka-tests test_text_lookup)
-add_test(test_text_lookup ${CMAKE_CURRENT_BINARY_DIR}/test_text_lookup)
+# test_text_lookup is defined in build/test-graph.json.
 
 # base (logging) test
-add_executable(test_base test_base.c)
-target_include_directories(test_base PRIVATE ${CMOCKA_INCLUDE_DIR})
-target_link_libraries(test_base PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
-
-add_dependencies(cmocka-tests test_base)
-add_test(test_base ${CMAKE_CURRENT_BINARY_DIR}/test_base)
+# test_base is defined in build/test-graph.json.
 
 # bmem test
-add_executable(test_bmem test_bmem.c)
-target_include_directories(test_bmem PRIVATE ${CMOCKA_INCLUDE_DIR})
-target_link_libraries(test_bmem PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
-
-add_dependencies(cmocka-tests test_bmem)
-add_test(test_bmem ${CMAKE_CURRENT_BINARY_DIR}/test_bmem)
+# test_bmem is defined in build/test-graph.json.
 
 # file serializer test (file-serializer.c, buffered-file-serializer.c)
-add_executable(test_file_serializer test_file_serializer.c)
-target_include_directories(test_file_serializer PRIVATE ${CMOCKA_INCLUDE_DIR})
-target_link_libraries(test_file_serializer PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
-
-add_dependencies(cmocka-tests test_file_serializer)
-add_test(test_file_serializer ${CMAKE_CURRENT_BINARY_DIR}/test_file_serializer)
+# test_file_serializer is defined in build/test-graph.json.
 
 # config file test (config-file.c)
-add_executable(test_config_file test_config_file.c)
-target_include_directories(test_config_file PRIVATE ${CMOCKA_INCLUDE_DIR})
-target_link_libraries(test_config_file PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
-
-add_dependencies(cmocka-tests test_config_file)
-add_test(test_config_file ${CMAKE_CURRENT_BINARY_DIR}/test_config_file)
+# test_config_file is defined in build/test-graph.json.
 
 # threading test (threading-posix.c, threading-windows.c)
-add_executable(test_threading test_threading.c)
-target_include_directories(test_threading PRIVATE ${CMOCKA_INCLUDE_DIR})
-target_link_libraries(test_threading PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
-if(NOT MSVC)
-  target_link_libraries(test_threading PRIVATE Threads::Threads)
-endif()
-
-add_dependencies(cmocka-tests test_threading)
-add_test(test_threading ${CMAKE_CURRENT_BINARY_DIR}/test_threading)
+# test_threading is defined in build/test-graph.json.
 
 # Concurrent reads and writes of the private video-stat storage (#175).
 # The sanitizer lane compiles this test with TSan to detect data races.
-add_executable(test_video_stats_race test_video_stats_race.c)
-target_link_libraries(test_video_stats_race PRIVATE OBS::libobs)
-if(NOT MSVC)
-  target_link_libraries(test_video_stats_race PRIVATE Threads::Threads)
-endif()
-add_dependencies(cmocka-tests test_video_stats_race)
-add_test(test_video_stats_race ${CMAKE_CURRENT_BINARY_DIR}/test_video_stats_race)
+# test_video_stats_race is defined in build/test-graph.json.
 
 # Qt-free concurrency check for the frontend meter's locked snapshot (#131).
 add_executable(test_volume_meter_snapshot test_volume_meter_snapshot.cpp)
@@ -364,296 +209,69 @@ add_dependencies(cmocka-tests test_volume_meter_snapshot)
 add_test(test_volume_meter_snapshot ${CMAKE_CURRENT_BINARY_DIR}/test_volume_meter_snapshot)
 
 # task test (task.c)
-add_executable(test_task test_task.c)
-target_include_directories(test_task PRIVATE ${CMOCKA_INCLUDE_DIR})
-target_link_libraries(test_task PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
-if(NOT MSVC)
-  target_link_libraries(test_task PRIVATE Threads::Threads)
-endif()
-
-add_dependencies(cmocka-tests test_task)
-add_test(test_task ${CMAKE_CURRENT_BINARY_DIR}/test_task)
+# test_task is defined in build/test-graph.json.
 
 # pipe test (pipe.c, pipe-posix.c, pipe-windows.c)
-add_executable(test_pipe test_pipe.c)
-target_include_directories(test_pipe PRIVATE ${CMOCKA_INCLUDE_DIR})
-target_link_libraries(test_pipe PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
-
-add_dependencies(cmocka-tests test_pipe)
-add_test(test_pipe ${CMAKE_CURRENT_BINARY_DIR}/test_pipe)
+# test_pipe is defined in build/test-graph.json.
 
 # profiler test (profiler.c, source-profiler.c)
-add_executable(test_profiler test_profiler.c)
-target_include_directories(test_profiler PRIVATE ${CMOCKA_INCLUDE_DIR})
-target_link_libraries(test_profiler PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
-
-add_dependencies(cmocka-tests test_profiler)
-add_test(test_profiler ${CMAKE_CURRENT_BINARY_DIR}/test_profiler)
+# test_profiler is defined in build/test-graph.json.
 
 # platform test (platform.c, platform-nix*.c, platform-windows.c)
-add_executable(test_platform test_platform.c)
-target_include_directories(test_platform PRIVATE ${CMOCKA_INCLUDE_DIR})
-target_link_libraries(test_platform PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
-
-add_dependencies(cmocka-tests test_platform)
-add_test(test_platform ${CMAKE_CURRENT_BINARY_DIR}/test_platform)
+# test_platform is defined in build/test-graph.json.
 
 # os_dtostr exponent normalization (obs-rust/obs-studio#754)
-add_executable(test_dtostr_exponent test_dtostr_exponent.c)
-target_include_directories(test_dtostr_exponent PRIVATE ${CMOCKA_INCLUDE_DIR})
-target_link_libraries(test_dtostr_exponent PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
-
-add_dependencies(cmocka-tests test_dtostr_exponent)
-add_test(test_dtostr_exponent ${CMAKE_CURRENT_BINARY_DIR}/test_dtostr_exponent)
+# test_dtostr_exponent is defined in build/test-graph.json.
 
 # quat test (graphics/quat.h inline setters)
-add_executable(test_quat test_quat.c)
-target_include_directories(test_quat PRIVATE ${CMOCKA_INCLUDE_DIR})
-target_link_libraries(test_quat PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
-if(NOT MSVC)
-  target_link_libraries(test_quat PRIVATE m)
-endif()
-
-add_dependencies(cmocka-tests test_quat)
-add_test(test_quat ${CMAKE_CURRENT_BINARY_DIR}/test_quat)
+# test_quat is defined in build/test-graph.json.
 
 # axisang test (graphics/axisang.c)
-add_executable(test_axisang test_axisang.c)
-target_include_directories(test_axisang PRIVATE ${CMOCKA_INCLUDE_DIR})
-target_link_libraries(test_axisang PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
-if(NOT MSVC)
-  target_link_libraries(test_axisang PRIVATE m)
-endif()
-
-add_dependencies(cmocka-tests test_axisang)
-add_test(test_axisang ${CMAKE_CURRENT_BINARY_DIR}/test_axisang)
+# test_axisang is defined in build/test-graph.json.
 
 # vec2 test (graphics/vec2.c)
-add_executable(test_vec2 test_vec2.c)
-target_include_directories(test_vec2 PRIVATE ${CMOCKA_INCLUDE_DIR})
-target_link_libraries(test_vec2 PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
-if(NOT MSVC)
-  target_link_libraries(test_vec2 PRIVATE m)
-endif()
-
-add_dependencies(cmocka-tests test_vec2)
-add_test(test_vec2 ${CMAKE_CURRENT_BINARY_DIR}/test_vec2)
+# test_vec2 is defined in build/test-graph.json.
 
 # vec3 test (graphics/vec3.c)
-add_executable(test_vec3 test_vec3.c)
-target_include_directories(test_vec3 PRIVATE ${CMOCKA_INCLUDE_DIR})
-target_link_libraries(test_vec3 PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
-if(NOT MSVC)
-  target_link_libraries(test_vec3 PRIVATE m)
-endif()
-
-add_dependencies(cmocka-tests test_vec3)
-add_test(test_vec3 ${CMAKE_CURRENT_BINARY_DIR}/test_vec3)
+# test_vec3 is defined in build/test-graph.json.
 
 # vec4 test (graphics/vec4.c)
-add_executable(test_vec4 test_vec4.c)
-target_include_directories(test_vec4 PRIVATE ${CMOCKA_INCLUDE_DIR})
-target_link_libraries(test_vec4 PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
-if(NOT MSVC)
-  target_link_libraries(test_vec4 PRIVATE m)
-endif()
-
-add_dependencies(cmocka-tests test_vec4)
-add_test(test_vec4 ${CMAKE_CURRENT_BINARY_DIR}/test_vec4)
+# test_vec4 is defined in build/test-graph.json.
 
 # video fourcc test (media-io/video-fourcc.c)
-add_executable(test_video_fourcc test_video_fourcc.c)
-target_include_directories(test_video_fourcc PRIVATE ${CMOCKA_INCLUDE_DIR})
-target_link_libraries(test_video_fourcc PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
-
-add_dependencies(cmocka-tests test_video_fourcc)
-add_test(test_video_fourcc ${CMAKE_CURRENT_BINARY_DIR}/test_video_fourcc)
+# test_video_fourcc is defined in build/test-graph.json.
 
 # video matrices test (media-io/video-matrices.c)
-add_executable(test_video_matrices test_video_matrices.c)
-target_include_directories(test_video_matrices PRIVATE ${CMOCKA_INCLUDE_DIR})
-target_link_libraries(test_video_matrices PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
-
-add_dependencies(cmocka-tests test_video_matrices)
-add_test(test_video_matrices ${CMAKE_CURRENT_BINARY_DIR}/test_video_matrices)
+# test_video_matrices is defined in build/test-graph.json.
 
 # video-io.h and frame-rate.h header-inline helpers
-add_executable(test_video_io_inlines test_video_io_inlines.c)
-target_include_directories(test_video_io_inlines PRIVATE ${CMOCKA_INCLUDE_DIR})
-target_link_libraries(test_video_io_inlines PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
-
-add_dependencies(cmocka-tests test_video_io_inlines)
-add_test(test_video_io_inlines ${CMAKE_CURRENT_BINARY_DIR}/test_video_io_inlines)
+# test_video_io_inlines is defined in build/test-graph.json.
 
 # util_uint64.h header-inline helper
-add_executable(test_util_uint64 test_util_uint64.c)
-target_include_directories(test_util_uint64 PRIVATE ${CMOCKA_INCLUDE_DIR})
-target_link_libraries(test_util_uint64 PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
-
-add_dependencies(cmocka-tests test_util_uint64)
-add_test(test_util_uint64 ${CMAKE_CURRENT_BINARY_DIR}/test_util_uint64)
+# test_util_uint64 is defined in build/test-graph.json.
 
 # Exercise AV1 encoder configuration against real FFmpeg options without a
 # running OBS video session, then encode a small synthetic sequence with SVT.
 find_package(FFmpeg 8.0 REQUIRED avcodec avformat avutil)
-add_executable(
-  test_svt_av1
-  test_svt_av1.c
-  "${CMAKE_SOURCE_DIR}/plugins/obs-ffmpeg/obs-ffmpeg-video-encoders.c.h"
-  "${CMAKE_SOURCE_DIR}/shared/opts-parser/opts-parser.c.h"
-)
-target_compile_definitions(
-  test_svt_av1
-  PRIVATE
-    obs_encoder_video=svt_test_encoder_video
-    video_output_get_info=svt_test_video_info
-    obs_encoder_get_width=svt_test_encoder_size
-    obs_encoder_get_height=svt_test_encoder_size
-    obs_encoder_get_name=svt_test_encoder_name
-    obs_encoder_set_last_error=svt_test_set_last_error
-)
-target_include_directories(test_svt_av1 PRIVATE ${CMOCKA_INCLUDE_DIR} "${CMAKE_SOURCE_DIR}/shared/opts-parser")
-target_link_libraries(
-  test_svt_av1
-  PRIVATE OBS::libobs FFmpeg::avcodec FFmpeg::avformat FFmpeg::avutil ${CMOCKA_LIBRARIES}
-)
-add_dependencies(cmocka-tests test_svt_av1)
-add_test(test_svt_av1 ${CMAKE_CURRENT_BINARY_DIR}/test_svt_av1)
-set_tests_properties(test_svt_av1 PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 60)
+# test_svt_av1 is defined in build/test-graph.json.
 
 # Exercise AMF decoding and RTMP server messages through the same
 # authentication-enabled sources as obs-outputs, without starting OBS or
 # connecting to a server.
-if(TARGET OBS::outputs)
-  foreach(test_name IN ITEMS test_rtmp_error test_rtmp_chunk_size test_amf_decode)
-    add_executable(
-      ${test_name}
-      ${test_name}.c
-      "${CMAKE_SOURCE_DIR}/plugins/obs-outputs/librtmp/rtmp.c"
-      "${CMAKE_SOURCE_DIR}/plugins/obs-outputs/librtmp/amf.c"
-      "${CMAKE_SOURCE_DIR}/plugins/obs-outputs/librtmp/log.c"
-      "${CMAKE_SOURCE_DIR}/plugins/obs-outputs/librtmp/parseurl.c"
-      "${CMAKE_SOURCE_DIR}/plugins/obs-outputs/librtmp/hashswf.c"
-    )
-    target_compile_definitions(${test_name} PRIVATE USE_MBEDTLS CRYPTO)
-    target_compile_options(
-      ${test_name}
-      PRIVATE
-        $<$<COMPILE_LANG_AND_ID:C,AppleClang,Clang>:-Wno-comma>
-        $<$<AND:$<PLATFORM_ID:Linux,FreeBSD,OpenBSD>,$<COMPILE_LANG_AND_ID:C,Clang>>:-Wno-error=unreachable-code>
-    )
-    target_include_directories(${test_name} PRIVATE ${CMOCKA_INCLUDE_DIR} "${CMAKE_SOURCE_DIR}/plugins/obs-outputs")
-    target_link_libraries(
-      ${test_name}
-      PRIVATE
-        OBS::libobs
-        OBS::happy-eyeballs
-        MbedTLS::mbedtls
-        ZLIB::ZLIB
-        ${CMOCKA_LIBRARIES}
-        $<$<PLATFORM_ID:Windows>:crypt32>
-        $<$<PLATFORM_ID:Windows>:iphlpapi>
-        $<$<PLATFORM_ID:Windows>:winmm>
-        $<$<PLATFORM_ID:Windows>:ws2_32>
-        "$<$<PLATFORM_ID:Darwin>:$<LINK_LIBRARY:FRAMEWORK,Foundation.framework>>"
-        "$<$<PLATFORM_ID:Darwin>:$<LINK_LIBRARY:FRAMEWORK,Security.framework>>"
-    )
-    add_dependencies(cmocka-tests ${test_name})
-    add_test(${test_name} ${CMAKE_CURRENT_BINARY_DIR}/${test_name})
-  endforeach()
-
-  if(NOT MSVC)
-    target_compile_options(test_amf_decode PRIVATE -fsigned-char)
-    obs_test_sanitize(test_amf_decode undefined)
-  endif()
-endif()
-
-# Build obs-outputs' FLV tags from flv-mux.c, without librtmp's network code.
-if(TARGET OBS::outputs)
-  add_executable(
-    test_flv_mux
-    test_flv_mux.c
-    "${CMAKE_SOURCE_DIR}/plugins/obs-outputs/flv-mux.c.h"
-    "${CMAKE_SOURCE_DIR}/plugins/obs-outputs/librtmp/amf.c"
-    "${CMAKE_SOURCE_DIR}/plugins/obs-outputs/librtmp/log.c"
-  )
-  # No network code is built, so librtmp's TLS types are not needed.
-  target_compile_definitions(test_flv_mux PRIVATE NO_CRYPTO)
-  target_include_directories(test_flv_mux PRIVATE ${CMOCKA_INCLUDE_DIR} "${CMAKE_SOURCE_DIR}/plugins/obs-outputs")
-  target_link_libraries(test_flv_mux PRIVATE OBS::libobs ${CMOCKA_LIBRARIES} $<$<PLATFORM_ID:Windows>:ws2_32>)
-  add_dependencies(cmocka-tests test_flv_mux)
-  add_test(test_flv_mux ${CMAKE_CURRENT_BINARY_DIR}/test_flv_mux)
-endif()
+# RTMP, AMF and FLV tests are defined in build/test-graph.json.
 
 # Load .cube LUTs through the Color Grade filter's loader.
-if(TARGET OBS::filters)
-  add_executable(test_cube_lut test_cube_lut.c "${CMAKE_SOURCE_DIR}/plugins/obs-filters/cube-lut.c.h")
-  target_include_directories(test_cube_lut PRIVATE ${CMOCKA_INCLUDE_DIR} "${CMAKE_SOURCE_DIR}/plugins/obs-filters")
-  target_link_libraries(test_cube_lut PRIVATE OBS::libobs ${CMOCKA_LIBRARIES} $<$<NOT:$<PLATFORM_ID:Windows>>:m>)
-  add_dependencies(cmocka-tests test_cube_lut)
-  add_test(test_cube_lut ${CMAKE_CURRENT_BINARY_DIR}/test_cube_lut)
-endif()
+# test_cube_lut defined in build/test-graph.json.
 
 # Linux capture reconnection after a PipeWire restart (obs-rust/obs-studio#108).
 # The decisions are compiled into the tests directly; no PipeWire daemon,
 # portal or PulseAudio server is needed.
-if(TARGET OBS::pipewire)
-  add_executable(
-    test_pipewire_reconnect
-    test_pipewire_reconnect.c
-    "${CMAKE_SOURCE_DIR}/plugins/linux-pipewire/reconnect-policy.c.h"
-  )
-  target_include_directories(
-    test_pipewire_reconnect
-    PRIVATE ${CMOCKA_INCLUDE_DIR} "${CMAKE_SOURCE_DIR}/plugins/linux-pipewire"
-  )
-  target_link_libraries(test_pipewire_reconnect PRIVATE OBS::libobs PipeWire::PipeWire ${CMOCKA_LIBRARIES})
-  add_dependencies(cmocka-tests test_pipewire_reconnect)
-  add_test(test_pipewire_reconnect ${CMAKE_CURRENT_BINARY_DIR}/test_pipewire_reconnect)
-endif()
+# test_pipewire_reconnect defined in build/test-graph.json.
 
-if(TARGET OBS::pulseaudio)
-  add_executable(
-    test_pulse_reconnect
-    test_pulse_reconnect.c
-    "${CMAKE_SOURCE_DIR}/plugins/linux-pulseaudio/pulse-reconnect.c.h"
-  )
-  target_include_directories(
-    test_pulse_reconnect
-    PRIVATE ${CMOCKA_INCLUDE_DIR} "${CMAKE_SOURCE_DIR}/plugins/linux-pulseaudio"
-  )
-  target_link_libraries(test_pulse_reconnect PRIVATE OBS::libobs PulseAudio::PulseAudio ${CMOCKA_LIBRARIES})
-  add_dependencies(cmocka-tests test_pulse_reconnect)
-  add_test(test_pulse_reconnect ${CMAKE_CURRENT_BINARY_DIR}/test_pulse_reconnect)
-
-  # obs-rust/obs-studio#158: pulseaudio-wrapper.c against a fake libpulse
-  # defined in the test (headers only, no libpulse link), with
-  # pulseaudio-monitor-format.c, whose device match devices_match() calls.
-  add_executable(
-    test_pulse_default_id
-    test_pulse_default_id.c
-    "${CMAKE_SOURCE_DIR}/libobs/audio-monitoring/pulse/pulseaudio-monitor-format.c.h"
-    "${CMAKE_SOURCE_DIR}/libobs/audio-monitoring/pulse/pulseaudio-wrapper.c.h"
-  )
-  target_include_directories(
-    test_pulse_default_id
-    PRIVATE
-      ${CMOCKA_INCLUDE_DIR}
-      "${CMAKE_SOURCE_DIR}/libobs/audio-monitoring/pulse"
-      $<TARGET_PROPERTY:PulseAudio::PulseAudio,INTERFACE_INCLUDE_DIRECTORIES>
-  )
-  target_link_libraries(test_pulse_default_id PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
-  add_dependencies(cmocka-tests test_pulse_default_id)
-  add_test(test_pulse_default_id ${CMAKE_CURRENT_BINARY_DIR}/test_pulse_default_id)
-endif()
+# test_pulse_reconnect and test_pulse_default_id defined in build/test-graph.json.
 
 # video frame test (media-io/video-frame.c + video-frame.h inlines)
-add_executable(test_video_frame test_video_frame.c)
-target_include_directories(test_video_frame PRIVATE ${CMOCKA_INCLUDE_DIR})
-target_link_libraries(test_video_frame PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
-
-add_dependencies(cmocka-tests test_video_frame)
-add_test(test_video_frame ${CMAKE_CURRENT_BINARY_DIR}/test_video_frame)
+# test_video_frame is defined in build/test-graph.json.
 
 # cmocka_qt_runtime(<test> <Qt target>): lets a Qt-linked test find Qt at run
 # time outside the app bundle, through the test's environment: macOS gets the
@@ -700,4 +318,53 @@ list(SORT _cmocka_test_fragments)
 foreach(_fragment IN LISTS _cmocka_test_fragments)
   include("${_fragment}")
 endforeach()
+include("${CMAKE_CURRENT_SOURCE_DIR}/native-test-graph.cmake")
+# Match the existing plugin-target guards independently of core feature options.
+foreach(_graph_plugin IN ITEMS filters pipewire pulseaudio outputs)
+  string(TOUPPER "${_graph_plugin}" _graph_plugin_upper)
+  if(TARGET OBS::${_graph_plugin})
+    set(HAVE_OBS_${_graph_plugin_upper} TRUE)
+  else()
+    set(HAVE_OBS_${_graph_plugin_upper} FALSE)
+  endif()
+endforeach()
+
+# These explicit false defaults retain the original if() semantics on hosts
+# where a platform-only option is not declared.
+foreach(
+  _graph_fact
+  IN
+  ITEMS MSVC OS_LINUX OS_FREEBSD OS_OPENBSD OS_WINDOWS OS_MACOS ENABLE_PULSEAUDIO ENABLE_HEVC
+)
+  if(NOT DEFINED ${_graph_fact})
+    set(${_graph_fact} FALSE)
+  endif()
+endforeach()
+set(HAVE_OBS_OPENGL FALSE)
+if(TARGET OBS::libobs-opengl)
+  set(HAVE_OBS_OPENGL TRUE)
+endif()
+set(HAVE_VLC_MODULE FALSE)
+if(TARGET vlc-video)
+  get_target_property(_graph_vlc_type vlc-video TYPE)
+  if(_graph_vlc_type STREQUAL "MODULE_LIBRARY")
+    set(HAVE_VLC_MODULE TRUE)
+  endif()
+endif()
+set(C_COMPILER_CLANG FALSE)
+if(CMAKE_C_COMPILER_ID MATCHES "^(AppleClang|Clang)$")
+  set(C_COMPILER_CLANG TRUE)
+endif()
+if(CMAKE_SYSTEM_NAME STREQUAL "OpenBSD")
+  set(OS_OPENBSD TRUE)
+endif()
+if(OS_MACOS)
+  foreach(_framework IN ITEMS Foundation Security)
+    string(TOLOWER "${_framework}" _framework_lower)
+    add_library(native-test-${_framework_lower} INTERFACE)
+    add_library(OBS::native-test-${_framework_lower} ALIAS native-test-${_framework_lower})
+    target_link_libraries(native-test-${_framework_lower} INTERFACE "$<LINK_LIBRARY:FRAMEWORK,${_framework}.framework>")
+  endforeach()
+endif()
+obs_native_test_graph("${CMAKE_CURRENT_SOURCE_DIR}/build/test-graph.json" "${CMAKE_SOURCE_DIR}")
 include("${CMAKE_CURRENT_SOURCE_DIR}/parallel-environment.cmake")

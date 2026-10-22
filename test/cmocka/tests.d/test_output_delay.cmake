@@ -7,15 +7,4 @@
 # which needs the private libobs, libcaption, uthash and zlib headers.
 # output_delay_fields_stub.c provides the delay field accessors of
 # obs-output.c over the test's struct obs_output.
-add_executable(test_output_delay test_output_delay.c output_delay_fields_stub.c)
-target_include_directories(
-  test_output_delay
-  PRIVATE ${CMOCKA_INCLUDE_DIR} "${CMAKE_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}/libobs" "${CMAKE_SOURCE_DIR}/deps/libcaption"
-)
-target_link_libraries(
-  test_output_delay
-  PRIVATE OBS::libobs OBS::caption Uthash::Uthash ZLIB::ZLIB ${CMOCKA_LIBRARIES}
-)
-
-add_dependencies(cmocka-tests test_output_delay)
-add_test(test_output_delay ${CMAKE_CURRENT_BINARY_DIR}/test_output_delay)
+# test_output_delay is defined in ../build/test-graph.json.

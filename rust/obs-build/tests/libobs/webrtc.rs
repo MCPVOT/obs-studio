@@ -15,10 +15,27 @@ fn original_whip_clock_and_host_tests_pass_without_a_core_or_sdk() {
     let tests = validation::build_webrtc_tests(&build, &root).unwrap();
     assert_eq!(tests.len(), 2);
     for test in tests {
-        let output = Command::new("timeout")
+        assert!(test.dependencies.is_empty());
+        assert!(test.runtime.is_some());
+        let prepared = test
+            .command_in(&root, &build.output, directory.path())
+            .unwrap();
+        let mut command = Command::new("timeout");
+        command
             .args(["--kill-after=5s", "60s"])
-            .arg(&test.path)
-            .current_dir(directory.path())
+            .arg(prepared.get_program())
+            .args(prepared.get_args());
+        for (name, value) in prepared.get_envs() {
+            if let Some(value) = value {
+                command.env(name, value);
+            } else {
+                command.env_remove(name);
+            }
+        }
+        if let Some(path) = prepared.get_current_dir() {
+            command.current_dir(path);
+        }
+        let output = command
             .env("CMOCKA_MESSAGE_OUTPUT", "STDOUT")
             .env_remove("CMOCKA_TEST_FILTER")
             .env_remove("CMOCKA_SKIP_FILTER")

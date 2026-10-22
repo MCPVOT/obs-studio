@@ -8,13 +8,4 @@
 # libobs's hidden base_default_log_handler), so it does not link on its own.
 # The Tier 3 parity tests in rust/obs-core compare the shims with this C
 # instead. test_context_names covers the callers through the real libobs.
-add_executable(test_context_name_helpers test_context_name_helpers.c "${CMAKE_SOURCE_DIR}/libobs/obs-context-names.c.h")
-target_include_directories(
-  test_context_name_helpers
-  PRIVATE ${CMOCKA_INCLUDE_DIR} "${CMAKE_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}/libobs" "${CMAKE_SOURCE_DIR}/deps/libcaption"
-)
-target_link_libraries(test_context_name_helpers PRIVATE OBS::libobs OBS::caption Uthash::Uthash ${CMOCKA_LIBRARIES})
-obs_test_sanitize(test_context_name_helpers "address,undefined")
-
-add_dependencies(cmocka-tests test_context_name_helpers)
-add_test(test_context_name_helpers ${CMAKE_CURRENT_BINARY_DIR}/test_context_name_helpers)
+# Defined in ../build/test-graph.json.

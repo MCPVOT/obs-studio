@@ -464,6 +464,7 @@ dependencies = [
  "dunce",
  "libloading",
  "pkg-config",
+ "serde",
  "serde_json",
  "tempfile",
 ]

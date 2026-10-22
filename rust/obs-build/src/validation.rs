@@ -1,99 +1,187 @@
 //! Build the unchanged native C tests through the Cargo native engine.
+pub mod graph;
+
 use crate::{NativeBuild, SharedLibrary, libobs::add_package};
 use std::{
-    collections::{BTreeSet, HashMap},
+    collections::BTreeMap,
     path::{Path, PathBuf},
 };
 
 pub struct Executable {
     pub name: String,
     pub path: PathBuf,
+    pub runtime: Option<graph::Test>,
+    /// Resolved link artifacts; used to verify core selection only when applicable.
+    pub dependencies: Vec<PathBuf>,
+}
+
+impl Executable {
+    pub fn command(&self, root: &Path, output: &Path) -> Result<std::process::Command, String> {
+        self.command_in(root, output, output)
+    }
+
+    pub fn command_in(
+        &self,
+        root: &Path,
+        output: &Path,
+        runtime: &Path,
+    ) -> Result<std::process::Command, String> {
+        let path = dunce::canonicalize(&self.path)
+            .map_err(|error| format!("native test executable {}: {error}", self.path.display()))?;
+        match &self.runtime {
+            Some(test) => test.command_in(root, output, &path, runtime),
+            None => Ok(std::process::Command::new(path)),
+        }
+    }
 }
 
 pub struct Options {
+    pub outputs: bool,
+    pub filters: bool,
+    pub pipewire: bool,
+    /// Plugin availability is independent of libobs audio monitoring.
+    pub pulseaudio_plugin: bool,
     pub hevc: bool,
+    pub pulseaudio: bool,
     pub per_target_sanitizers: bool,
 }
 
 impl Default for Options {
     fn default() -> Self {
         Self {
+            outputs: true,
+            filters: true,
+            pipewire: true,
+            pulseaudio_plugin: true,
             hevc: true,
+            pulseaudio: true,
             per_target_sanitizers: true,
         }
     }
 }
 
-/// Build the unchanged standalone WHIP clock and POSIX host tests.
-pub fn build_webrtc_tests(build: &NativeBuild, root: &Path) -> Result<Vec<Executable>, String> {
-    let root = dunce::canonicalize(root).map_err(|e| e.to_string())?;
-    let mut base = SharedLibrary {
-        include_dirs: vec![root.clone(), root.join("plugins/obs-webrtc")],
-        ..SharedLibrary::default()
-    };
-    crate::platform::configure_webrtc_tests(&build.target, &mut base)?;
-    add_package(&mut base, &build.target, "cmocka")?;
-    let mut result = Vec::new();
-    for (name, extension) in [
-        ("test_whip_rtp_timestamp", "c"),
-        ("test_whip_host_os_name", "cpp"),
-    ] {
-        let library = SharedLibrary {
-            name: name.into(),
-            sources: vec![root.join(format!("test/cmocka/{name}.{extension}"))],
-            ..base.clone()
-        };
-        result.push(Executable {
-            name: name.into(),
-            path: build.executable(&library)?,
-        });
-    }
-    for directory in ["test/cmocka", "plugins/obs-webrtc"] {
-        println!("cargo:rerun-if-changed={}", root.join(directory).display());
-    }
-    Ok(result)
+fn load_suite(root: &Path, suite: &str) -> Result<graph::Graph, String> {
+    let path = root.join("test/cmocka/build/test-graph.json");
+    println!("cargo:rerun-if-changed={}", path.display());
+    let mut graph = graph::Graph::load(&path)?;
+    graph.retain_suite(suite);
+    Ok(graph)
 }
 
-/// Build unchanged cmocka tests that require the native graphics module.
+fn compile_suite(
+    build: &NativeBuild,
+    root: &Path,
+    graph: &graph::Graph,
+    facts: &BTreeMap<String, bool>,
+    interfaces: &BTreeMap<String, graph::Dependency>,
+) -> Result<Vec<Executable>, String> {
+    let artifacts = graph.compile(build, root, facts, interfaces)?;
+    graph
+        .select(facts)?
+        .tests
+        .into_iter()
+        .map(|(name, test)| {
+            Ok(Executable {
+                name: name.into(),
+                path: artifacts
+                    .get(&test.target)
+                    .ok_or("selected native test artifact missing")?
+                    .clone(),
+                runtime: Some(test.clone()),
+                dependencies: graph.targets[&test.target]
+                    .dependency_artifacts(facts, interfaces)?,
+            })
+        })
+        .collect()
+}
+
+/// Build standalone WHIP tests from the shared graph, with no core or SDK.
+pub fn build_webrtc_tests(build: &NativeBuild, root: &Path) -> Result<Vec<Executable>, String> {
+    let root = dunce::canonicalize(root).map_err(|error| error.to_string())?;
+    let graph = load_suite(&root, "webrtc")?;
+    let mut cmocka = SharedLibrary::default();
+    add_package(&mut cmocka, &build.target, "cmocka")?;
+    crate::platform::configure_webrtc_tests(&build.target, &mut cmocka)?;
+    let interfaces = BTreeMap::from([
+        ("OBS::native-test-cmocka".into(), cmocka.into()),
+        (
+            "m".into(),
+            graph::Dependency {
+                link_options: crate::platform::native_test_math_options(&build.target),
+                ..Default::default()
+            },
+        ),
+    ]);
+    compile_suite(
+        build,
+        &root,
+        &graph,
+        &crate::platform::native_test_facts(&build.target, false, false),
+        &interfaces,
+    )
+}
+
+fn runtime_interfaces(
+    build: &NativeBuild,
+    root: &Path,
+    core: &Path,
+    graphics: &Path,
+) -> Result<BTreeMap<String, graph::Dependency>, String> {
+    let mut core_interface = SharedLibrary {
+        include_dirs: vec![
+            root.join("libobs"),
+            root.join("deps/libcaption"),
+            build.output.join("config"),
+        ],
+        dependencies: vec![core.into()],
+        ..Default::default()
+    };
+    crate::platform::configure_c_tests(build, &mut core_interface, None, core)?;
+    add_package(&mut core_interface, &build.target, "simde")?;
+    let mut cmocka = SharedLibrary::default();
+    add_package(&mut cmocka, &build.target, "cmocka")?;
+    Ok(BTreeMap::from([
+        ("OBS::libobs".into(), core_interface.into()),
+        ("OBS::native-test-cmocka".into(), cmocka.into()),
+        (
+            "OBS::caption".into(),
+            graph::Dependency {
+                artifacts: vec![crate::libobs::build_caption(build, root)?],
+                include_dirs: vec![root.join("deps/libcaption")],
+                ..Default::default()
+            },
+        ),
+        (
+            "OBS::libobs-opengl".into(),
+            graph::Dependency {
+                artifacts: vec![graphics.into()],
+                ..Default::default()
+            },
+        ),
+        (
+            "m".into(),
+            graph::Dependency {
+                link_options: crate::platform::native_test_math_options(&build.target),
+                ..Default::default()
+            },
+        ),
+    ]))
+}
+
 pub fn build_graphics_tests(
     build: &NativeBuild,
     root: &Path,
     core: &Path,
     graphics: &Path,
 ) -> Result<Vec<Executable>, String> {
-    let root = dunce::canonicalize(root).map_err(|e| e.to_string())?;
-    let graphics = dunce::canonicalize(graphics).map_err(|e| e.to_string())?;
-    let quoted = serde_json::to_string(graphics.to_str().ok_or("non-UTF8 graphics test path")?)
-        .map_err(|e| e.to_string())?;
-    let name = "test_group_hide_transition_audio";
-    let mut library = SharedLibrary {
-        name: name.into(),
-        sources: vec![root.join(format!("test/cmocka/{name}.c"))],
-        include_dirs: vec![
-            root.join("libobs"),
-            root.join("deps/libcaption"),
-            build.output.join("config"),
-        ],
-        definitions: vec![("GRAPHICS_MODULE_PATH".into(), Some(quoted))],
-        dependencies: vec![core.into(), crate::libobs::build_caption(build, &root)?],
-        ..SharedLibrary::default()
-    };
-    crate::platform::configure_c_tests(build, &mut library, None, core)?;
-    for package in ["cmocka", "simde"] {
-        add_package(&mut library, &build.target, package)?;
-    }
-    println!("cargo:rerun-if-changed={}", library.sources[0].display());
-    println!(
-        "cargo:rerun-if-changed={}",
-        root.join("libobs/data").display()
-    );
-    Ok(vec![Executable {
-        name: name.into(),
-        path: build.executable(&library)?,
-    }])
+    let root = dunce::canonicalize(root).map_err(|error| error.to_string())?;
+    let graph = load_suite(&root, "graphics")?;
+    let interfaces = runtime_interfaces(build, &root, core, graphics)?;
+    let mut facts = crate::platform::native_test_facts(&build.target, false, false);
+    facts.insert("HAVE_OBS_OPENGL".into(), true);
+    compile_suite(build, &root, &graph, &facts, &interfaces)
 }
 
-/// Build the unchanged VLC compatibility tests against the real native modules.
 pub fn build_vlc_tests(
     build: &NativeBuild,
     root: &Path,
@@ -101,60 +189,27 @@ pub fn build_vlc_tests(
     vlc: &crate::plugins::Module,
     graphics: &Path,
 ) -> Result<Vec<Executable>, String> {
-    let root = dunce::canonicalize(root).map_err(|e| e.to_string())?;
-    let mut base = SharedLibrary {
-        include_dirs: vec![
-            root.clone(),
-            root.join("libobs"),
-            root.join("test/cmocka"),
-            root.join("plugins/vlc-video"),
-            build.output.join("config"),
-        ],
-        dependencies: vec![core.into()],
-        ..SharedLibrary::default()
-    };
-    crate::platform::configure_c_tests(build, &mut base, None, core)?;
-    for package in ["cmocka", "simde"] {
-        add_package(&mut base, &build.target, package)?;
+    let root = dunce::canonicalize(root).map_err(|error| error.to_string())?;
+    let graph = load_suite(&root, "vlc")?;
+    let mut interfaces = runtime_interfaces(build, &root, core, graphics)?;
+    interfaces.insert(
+        "vlc-video".into(),
+        graph::Dependency {
+            artifacts: vec![vlc.library.clone()],
+            ..Default::default()
+        },
+    );
+    for component in ["avcodec", "avformat", "avutil"] {
+        let mut dependency = SharedLibrary::default();
+        add_package(&mut dependency, &build.target, &format!("lib{component}"))?;
+        interfaces.insert(format!("FFmpeg::{component}"), dependency.into());
     }
-    for (name, path) in [
-        ("VLC_MODULE_PATH", vlc.library.as_path()),
-        ("VLC_DATA_PATH", vlc.data.as_path()),
-        ("GRAPHICS_MODULE_PATH", graphics),
-    ] {
-        let path = dunce::canonicalize(path).map_err(|e| e.to_string())?;
-        let quoted = serde_json::to_string(path.to_str().ok_or("non-UTF8 VLC test path")?)
-            .map_err(|e| e.to_string())?;
-        base.definitions.push((name.into(), Some(quoted)));
-    }
-    let mut result = Vec::new();
-    for name in [
-        "test_vlc_drain_gate",
-        "test_vlc_host_path",
-        "test_vlc_channel_order",
-        "test_vlc_audio_track",
-        "test_vlc_audio_pacing",
-        "test_vlc_playlist_gap",
-    ] {
-        let mut library = SharedLibrary {
-            name: name.into(),
-            sources: vec![root.join(format!("test/cmocka/{name}.c"))],
-            ..base.clone()
-        };
-        if name == "test_vlc_audio_pacing" {
-            for package in ["libavcodec", "libavformat", "libavutil"] {
-                add_package(&mut library, &build.target, package)?;
-            }
-        }
-        result.push(Executable {
-            name: name.into(),
-            path: build.executable(&library)?,
-        });
-    }
-    for directory in ["test/cmocka", "plugins/vlc-video", "libobs/data"] {
-        println!("cargo:rerun-if-changed={}", root.join(directory).display());
-    }
-    Ok(result)
+    let mut facts = crate::platform::native_test_facts(&build.target, false, false);
+    facts.extend([
+        ("HAVE_OBS_OPENGL".into(), true),
+        ("HAVE_VLC_MODULE".into(), true),
+    ]);
+    compile_suite(build, &root, &graph, &facts, &interfaces)
 }
 
 pub fn build_c_tests(
@@ -164,141 +219,152 @@ pub fn build_c_tests(
     options: &Options,
 ) -> Result<Vec<Executable>, String> {
     let root = dunce::canonicalize(root).map_err(|e| e.to_string())?;
-    let manifest: Vec<serde_json::Value> =
-        serde_json::from_str(include_str!("../manifests/c-tests-linux.json"))
-            .map_err(|e| e.to_string())?;
-    let mut result = Vec::new();
-    let mut archives = HashMap::new();
-    let mut watched: BTreeSet<PathBuf> = ["libobs", "test/cmocka", "deps/libcaption"]
-        .into_iter()
-        .map(|path| root.join(path))
-        .collect();
-    let mut base = SharedLibrary {
+    let mut graph = load_suite(&root, "core")?;
+    if !options.per_target_sanitizers {
+        for target in graph.targets.values_mut() {
+            target.sanitizers = None;
+        }
+    }
+    let mut facts =
+        crate::platform::native_test_facts(&build.target, options.pulseaudio, options.hevc);
+    facts.extend([
+        ("HAVE_OBS_OUTPUTS".into(), options.outputs),
+        (
+            "C_COMPILER_CLANG".into(),
+            crate::platform::native_test_compiler_is_clang(build),
+        ),
+        ("HAVE_OBS_FILTERS".into(), options.filters),
+        ("HAVE_OBS_PIPEWIRE".into(), options.pipewire),
+        ("HAVE_OBS_PULSEAUDIO".into(), options.pulseaudio_plugin),
+    ]);
+    let mut core_interface = SharedLibrary {
         include_dirs: vec![
-            root.clone(),
             root.join("libobs"),
             root.join("deps/libcaption"),
-            root.join("test/cmocka"),
             build.output.join("config"),
         ],
         dependencies: vec![core.into()],
-        ..SharedLibrary::default()
+        ..Default::default()
     };
     if options.hevc {
-        base.definitions.push(("ENABLE_HEVC".into(), None));
+        core_interface
+            .definitions
+            .push(("ENABLE_HEVC".into(), None));
     }
-    for package in ["cmocka", "simde"] {
-        add_package(&mut base, &build.target, package)?;
+    add_package(&mut core_interface, &build.target, "simde")?;
+    headers_only(&mut core_interface, "jansson")?;
+    crate::platform::configure_c_tests(build, &mut core_interface, None, core)?;
+    let mut cmocka_interface = SharedLibrary::default();
+    add_package(&mut cmocka_interface, &build.target, "cmocka")?;
+    let thread_options = crate::platform::native_test_thread_options(&build.target);
+    let mut interfaces = BTreeMap::from([
+        (
+            "Threads::Threads".into(),
+            graph::Dependency {
+                compile_options: thread_options.clone(),
+                link_options: thread_options,
+                ..Default::default()
+            },
+        ),
+        ("OBS::libobs".into(), core_interface.into()),
+        ("OBS::native-test-cmocka".into(), cmocka_interface.into()),
+        (
+            "m".into(),
+            graph::Dependency {
+                link_options: crate::platform::native_test_math_options(&build.target),
+                ..Default::default()
+            },
+        ),
+    ]);
+    let caption = crate::libobs::build_caption(build, &root)?;
+    interfaces.insert(
+        "OBS::caption".into(),
+        graph::Dependency {
+            artifacts: vec![caption.clone()],
+            include_dirs: vec![root.join("deps/libcaption")],
+            ..Default::default()
+        },
+    );
+    for component in ["avcodec", "avformat", "avutil"] {
+        let mut dependency = SharedLibrary::default();
+        add_package(&mut dependency, &build.target, &format!("lib{component}"))?;
+        interfaces.insert(format!("FFmpeg::{component}"), dependency.into());
     }
-    // Shared group headers expose Jansson declarations even to a private AVC
-    // implementation fixture. Header discovery adds no new runtime link edge.
-    headers_only(&mut base, "jansson")?;
-    for spec in manifest {
-        let name = spec["name"].as_str().ok_or("C test name missing")?;
-        if name == "test_hevc" && !options.hevc {
-            continue;
-        }
-        let mut library = SharedLibrary {
-            name: name.into(),
-            ..base.clone()
+    let mut zlib = SharedLibrary::default();
+    add_package(&mut zlib, &build.target, "zlib")?;
+    interfaces.insert("ZLIB::ZLIB".into(), zlib.into());
+    // This Linux-only compatibility builder inherits the compiler's system
+    // header search (including CFLAGS/CPATH). Uthash is header-only and already
+    // required by the built core; it contributes no artifact or link flags.
+    interfaces.insert("Uthash::Uthash".into(), graph::Dependency::default());
+    if options.pipewire {
+        let mut dependency = SharedLibrary::default();
+        add_package(&mut dependency, &build.target, "libpipewire-0.3")?;
+        interfaces.insert("PipeWire::PipeWire".into(), dependency.into());
+    }
+    if options.pulseaudio_plugin {
+        let mut dependency = SharedLibrary::default();
+        add_package(&mut dependency, &build.target, "libpulse")?;
+        interfaces.insert("PulseAudio::PulseAudio".into(), dependency.into());
+    }
+    if options.outputs {
+        let mut happy = graph::Dependency {
+            artifacts: vec![crate::deps::shared_archive(build, &root, "happy-eyeballs")?],
+            include_dirs: crate::platform::native_test_happy_includes(&build.target, &root),
+            ..Default::default()
         };
-        let sanitizer = options
-            .per_target_sanitizers
-            .then(|| spec["sanitizers"].as_str())
-            .flatten();
-        crate::platform::configure_c_tests(build, &mut library, sanitizer, core)?;
-        for source in strings(&spec, "sources")? {
-            // Watch each selected component, including its group headers, rather
-            // than the repository root (which may contain native build output).
-            let component: PathBuf = Path::new(source).components().take(2).collect();
-            if source.starts_with("plugins/") || source.starts_with("shared/") {
-                watched.insert(root.join(component));
+        happy.artifacts.push(core.into());
+        interfaces.insert("OBS::happy-eyeballs".into(), happy);
+        let mut tls = SharedLibrary::default();
+        for package in ["mbedtls", "mbedx509", "mbedcrypto"] {
+            add_package(&mut tls, &build.target, package)?;
+        }
+        interfaces.insert("MbedTLS::mbedtls".into(), tls.into());
+        for name in ["opts-parser", "bpm"] {
+            let mut artifacts = vec![
+                crate::deps::shared_archive(build, &root, name)?,
+                core.into(),
+            ];
+            if name == "bpm" {
+                artifacts.push(caption.clone());
             }
-            let source = root.join(source);
-            let source = if source.to_string_lossy().ends_with(".c.h") {
-                let relative = source.strip_prefix(&root).map_err(|e| e.to_string())?;
-                let wrapper = build
-                    .output
-                    .join(name)
-                    .join("inputs")
-                    .join(relative)
-                    .with_extension("h.c");
-                let include = source
-                    .to_str()
-                    .ok_or("non-UTF8 C test source")?
-                    .replace('\\', "/");
-                if include.contains(['\n', '\r', '"']) {
-                    return Err(format!("unrepresentable C test include {include:?}"));
-                }
-                std::fs::create_dir_all(wrapper.parent().ok_or("C test wrapper has no parent")?)
-                    .map_err(|e| e.to_string())?;
-                crate::frontend::write(&wrapper, &format!("#include \"{include}\"\n"))?;
-                wrapper
-            } else {
-                source
-            };
-            library.sources.push(source);
+            interfaces.insert(
+                format!("OBS::{name}"),
+                graph::Dependency {
+                    artifacts,
+                    include_dirs: vec![root.join("shared").join(name)],
+                    ..Default::default()
+                },
+            );
         }
-        for include in strings(&spec, "includes")? {
-            library.include_dirs.push(root.join(include));
+        let mut jansson = SharedLibrary::default();
+        add_package(&mut jansson, &build.target, "jansson")?;
+        interfaces.insert("jansson::jansson".into(), jansson.into());
+        for name in ["crypt32", "iphlpapi", "winmm", "ws2_32"] {
+            interfaces.insert(
+                name.into(),
+                graph::Dependency {
+                    link_options: crate::platform::native_test_system_library(&build.target, name),
+                    ..Default::default()
+                },
+            );
         }
-        for define in strings(&spec, "definitions")? {
-            let (name, value) = define
-                .split_once('=')
-                .map_or((define, None), |(name, value)| {
-                    (name, Some(value.to_string()))
-                });
-            library.definitions.push((name.into(), value));
+        for name in ["Foundation", "Security"] {
+            interfaces.insert(
+                format!("OBS::native-test-{}", name.to_lowercase()),
+                graph::Dependency {
+                    link_options: crate::platform::native_test_framework_options(
+                        &build.target,
+                        name,
+                    ),
+                    ..Default::default()
+                },
+            );
         }
-        for package in strings(&spec, "packages")? {
-            add_package(&mut library, &build.target, package)?;
-        }
-        for package in strings(&spec, "header_packages")? {
-            headers_only(&mut library, package)?;
-        }
-        library.compile_options.extend(
-            strings(&spec, "compile_options")?
-                .into_iter()
-                .map(String::from),
-        );
-        for flag in strings(&spec, "compile_options_if_supported")? {
-            if build
-                .compiler(&library, &build.output, false)
-                .is_flag_supported(flag)
-                .map_err(|e| e.to_string())?
-            {
-                library.compile_options.push(flag.into());
-            }
-        }
-        library.link_options.extend(
-            strings(&spec, "link_options")?
-                .into_iter()
-                .map(String::from),
-        );
-        // Resolve native archive references before shared libobs. With GNU
-        // --as-needed, placing libobs first can drop it before happy-eyeballs
-        // introduces its allocator/event imports (test_rtmp_error).
-        let mut static_dependencies = Vec::new();
-        for archive in strings(&spec, "archives")? {
-            if !archives.contains_key(archive) {
-                let path = if archive == "caption" {
-                    crate::libobs::build_caption(build, &root)?
-                } else {
-                    crate::deps::shared_archive(build, &root, archive)?
-                };
-                archives.insert(archive.to_string(), path);
-            }
-            static_dependencies.push(archives[archive].clone());
-        }
-        static_dependencies.append(&mut library.dependencies);
-        library.dependencies = static_dependencies;
-        result.push(Executable {
-            name: name.into(),
-            path: build.executable(&library)?,
-        });
     }
-    for directory in watched {
-        println!("cargo:rerun-if-changed={}", directory.display());
+    let result = compile_suite(build, &root, &graph, &facts, &interfaces)?;
+    for directory in ["libobs", "test/cmocka", "deps/libcaption"] {
+        println!("cargo:rerun-if-changed={}", root.join(directory).display());
     }
     Ok(result)
 }
@@ -313,19 +379,4 @@ fn headers_only(library: &mut SharedLibrary, package: &str) -> Result<(), String
     definitions.sort();
     library.definitions.extend(definitions);
     Ok(())
-}
-
-fn strings<'a>(spec: &'a serde_json::Value, key: &str) -> Result<Vec<&'a str>, String> {
-    match spec.get(key) {
-        None => Ok(vec![]),
-        Some(value) => value
-            .as_array()
-            .ok_or_else(|| format!("C test {key} is not an array"))?
-            .iter()
-            .map(|item| {
-                item.as_str()
-                    .ok_or_else(|| format!("C test {key} entry is not a string"))
-            })
-            .collect(),
-    }
 }
