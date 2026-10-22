@@ -1,0 +1,6 @@
+# Gate policy: unchanged category binaries, every selected non-ignored test,
+# no retry-to-green. Documentation tests run separately through Cargo.
+[profile.default]
+default-filter = "all()"
+retries = 0
+fail-fast = false

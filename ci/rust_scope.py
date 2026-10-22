@@ -13,7 +13,7 @@ skip the tests: the lint lane still ran. Qt is never involved.
 from __future__ import annotations
 
 WORKSPACE_PREFIXES = ("libobs/", "dylints/", "deps/", ".cargo/", "rust/tools/", "plugins/obs-nvenc/")
-WORKSPACE_FILES = {"Cargo.toml", "Cargo.lock", "rust-toolchain.toml"}
+WORKSPACE_FILES = {"Cargo.toml", "Cargo.lock", "rust-toolchain.toml", "ci/local_gate.py", "ci/nextest_tool.py", "ci/nextest.toml"}
 
 
 def affected(files: list[str], crates: dict[str, tuple[str, set[str]]]):

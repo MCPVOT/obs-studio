@@ -46,9 +46,9 @@ class RustSourceProbeTest(unittest.TestCase):
         (scratch / "Cargo.lock").write_text('version = 3\n\n[[package]]\nname = "obs-gate-probe"\nversion = "0.1.0"\n')
         (scratch / "rust-toolchain.toml").write_bytes((local_gate.ROOT / "rust-toolchain.toml").read_bytes())
         source = scratch / "src" / "lib.rs"
-        source.write_text("pub mod nested;\n")
+        source.write_text("pub mod nested;\n#[test]\nfn current_source_is_ready() { assert!(nested::ready()); }\n")
         nested = scratch / "src" / "nested.rs"
-        nested.write_text('// compile_error!("GATE-SOURCE-PROBE");\npub fn ready() {}\n')
+        nested.write_text('// compile_error!("GATE-SOURCE-PROBE");\npub fn ready() -> bool { true }\n')
 
         output = []
 

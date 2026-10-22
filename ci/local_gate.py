@@ -36,6 +36,9 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from nextest_tool import ensure_nextest  # noqa: E402
+
 ROOT = Path(__file__).resolve().parent.parent
 CLANG_FORMAT = "clang-format==22.1.3"
 GERSEMI = "gersemi==0.25.0"
@@ -420,8 +423,29 @@ def lane_cross_release(fix: bool) -> None:
     cross_lint(RELEASE_CROSS_TARGETS, link=False)
 
 
+def rust_tests(packages: list[str]) -> None:
+    """Schedule unchanged category binaries globally; retain Cargo doctests."""
+    executable = ensure_nextest()
+    if executable is None:
+        soldr_cargo(["test", *packages, "--locked"])
+        return
+    env = {"PATH": str(executable.parent) + os.pathsep + os.environ.get("PATH", "")}
+    failure = None
+    try:
+        soldr_cargo(["nextest", "run", *packages, "--locked", "--no-fail-fast",
+                     "--test-threads", str(min(4, os.cpu_count() or 1)),
+                     "--profile", "default", "--config-file", str(Path(__file__).with_name("nextest.toml")),
+                     "--user-config-file", "none", "--ignore-default-filter", "--retries", "0",
+                     "--no-tests", "pass" if "-p" in packages else "fail"], env)
+    except subprocess.CalledProcessError as error:
+        failure = error
+    soldr_cargo(["test", *packages, "--locked", "--doc"])
+    if failure is not None:
+        raise failure
+
+
 def lane_rust_test(fix: bool) -> None:
-    soldr_cargo(["test", "--workspace", "--locked"])
+    rust_tests(["--workspace"])
     # Every test binary, C oracle included, must also link for a GCC-based
     # Windows target (obs-rust/obs-studio#291). soldr provides the
     # mingw-w64 cross toolchain; nothing runs, so no Wine is needed.
@@ -457,7 +481,7 @@ def test_diff(base: str) -> None:
     if mode == "skip":
         return
     pkgs = ["--workspace"] if mode == "workspace" else [a for n in names for a in ("-p", n)]
-    soldr_cargo(["test", *pkgs, "--locked"])
+    rust_tests(pkgs)
 
 
 def lane_tier2_linux(fix: bool) -> None:

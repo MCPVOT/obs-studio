@@ -732,3 +732,25 @@ on the affected Linux path, not universal gate savings; native platform work
 can still determine the final gate. Independent tests can consume runner time
 on a change whose Fast Gate later fails. Record that extra failed-run cost
 alongside successful latency during the #1694 post-rollout day.
+
+## Linux Rust execution
+
+The local gate's Linux Rust test commands use a checksum-pinned nextest
+0.9.143 binary to schedule the existing category tests globally, with at most
+four concurrent tests. The tool is installed in a local cache only when scope
+selects Rust tests; there is no new Actions-cache writer. Other hosts keep the
+existing Cargo runner. All commands still go through `soldr cargo`, with the
+existing Rust wrapper bypass.
+
+Nextest executes the same eight category binaries, not another set of test
+targets. Cargo still runs documentation tests separately, including after a
+unit-suite failure; neither failure can produce a passing lane. Scope applies
+to both commands, and no retries mask a failure. The explicit
+`ci/nextest.toml` configuration and runner installer are attested inputs and
+proof surfaces. Workspace execution must discover tests; a scoped crate with
+no test target retains Cargo's successful empty-suite behavior.
+
+See the [experiment and limits](ci-speed-2026-10-22.md#rust-execution-schedule-across-existing-binaries)
+for exact coverage and local timings. Native Windows/macOS workflow commands,
+C tests, OFF/ON execution, source assertions and Rust compiler/cache settings
+are unchanged.

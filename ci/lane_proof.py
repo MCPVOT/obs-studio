@@ -63,6 +63,8 @@ SURFACES = (
     "local-gate.toml",
     "ci/lane_proof.py",
     "ci/local_gate.py",
+    "ci/nextest_tool.py",
+    "ci/nextest.toml",
     ".github/workflows/*",
     ".github/actions/*",
     "rust/tools/linux-validate/*",

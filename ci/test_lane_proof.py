@@ -169,6 +169,12 @@ class Keys(unittest.TestCase):
         self.assertEqual(self.key()["key"], "")
         self.assertIn("local-gate.toml", self.key()["reason"])
 
+    def test_runner_install_policy_change_cannot_reuse_a_lane_proof(self):
+        self.write("ci/nextest_tool.py", "changed runner installer policy\n")
+        self.commit("runner policy")
+        self.assertEqual(self.key()["key"], "")
+        self.assertIn("ci/nextest_tool.py", self.key()["reason"])
+
     def test_declaration_is_read_from_the_base(self):
         # A head cannot widen its own exclusions: the base's keep list still
         # puts rust/ in the key even when the head's declaration drops it.

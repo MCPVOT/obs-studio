@@ -39,7 +39,7 @@ tools = ["uvx", "soldr"]
 run = ["uv", "run", "ci/local_gate.py", "--lane", "rust-test"]
 tools = ["soldr"]
 exclude = ["**"]
-keep = ["rust/**", "dylints/**", "Cargo.toml", "Cargo.lock", "rust-toolchain.toml", ".cargo/**", "libobs/**", "plugins/obs-nvenc/**", "deps/**"]
+keep = ["rust/**", "dylints/**", "Cargo.toml", "Cargo.lock", "rust-toolchain.toml", ".cargo/**", "libobs/**", "plugins/obs-nvenc/**", "deps/**", "ci/local_gate.py", "ci/nextest_tool.py", "ci/nextest.toml"]
 
 # Clippy and Dylint for x86_64-pc-windows-msvc and both macOS targets,
 # cross-checked from this host through soldr (#472).
@@ -74,6 +74,8 @@ mode = "enforce"
 skip = ["build-project.yaml:rust-tests-linux", "build-project.yaml:rust-linux-tier2", "build-project.yaml:rust-cross-lint"]
 covered-by = { "build-project.yaml:rust-tests-linux" = ["lint", "rust-test"], "build-project.yaml:rust-linux-tier2" = ["tier2-linux"], "build-project.yaml:rust-cross-lint" = ["cross"] }
 surfaces = [
+  "ci/nextest_tool.py",
+  "ci/nextest.toml",
   "rust/tools/linux-validate/**",
   "rust-toolchain.toml",
 ]

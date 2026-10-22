@@ -44,7 +44,8 @@ class AffectedTest(unittest.TestCase):
         self.assertEqual(affected(["rust/obs-gpu-status/src/lib.rs"], CRATES), ("packages", ["obs-gpu-status"]))
 
     def test_shared_inputs_test_the_workspace(self):
-        for f in ("libobs/obs-source.c.h", "Cargo.lock", "dylints/x/src/lib.rs", "rust-toolchain.toml", "rust/stray.txt"):
+        for f in ("libobs/obs-source.c.h", "Cargo.lock", "dylints/x/src/lib.rs", "rust-toolchain.toml", "rust/stray.txt",
+                  "ci/local_gate.py", "ci/nextest_tool.py"):
             self.assertEqual(affected([f], CRATES)[0], "workspace", f)
 
     def test_unrelated_files_skip(self):
