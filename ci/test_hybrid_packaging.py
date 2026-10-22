@@ -4,11 +4,14 @@ import importlib.util
 import json
 import os
 import re
+import runpy
 import shutil
 import subprocess
+import sys
 import tempfile
 import tomllib
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -172,6 +175,37 @@ set_target_properties(obs-nvenc PROPERTIES PREFIX "")
         self.assertTrue(cef["build-options"]["no-debuginfo"],
                         "the OBS install must still split CEF symbols at their installed runtime path")
 
+    def test_flatpak_pch_cache_uses_launcher_and_preserves_input_freshness(self):
+        manifest = json.loads((ROOT / "build-aux/com.obsproject.Studio.json").read_text())
+        obs = next(module for module in manifest["modules"] if module["name"] == "obs")
+        self.assertIn("-DENABLE_CCACHE=ON", obs["config-opts"],
+                      "activate the existing PCH-aware CMake compiler launcher")
+        self.assertIn("-DCMAKE_C_COMPILER=/usr/bin/cc", obs["config-opts"])
+        self.assertIn("-DCMAKE_CXX_COMPILER=/usr/bin/c++", obs["config-opts"],
+                      "avoid nesting the SDK masquerading wrapper inside the launcher")
+        env = obs["build-options"]["env"]
+        self.assertEqual(env.get("CCACHE_DEPEND"), "true",
+                         "PCH creation must not reuse a preprocessor result that omits changed macro definitions")
+        self.assertEqual(env.get("CCACHE_COMPILERCHECK"), "content",
+                         "a compiler replacement with preserved size/mtime must invalidate cached objects")
+        self.assertNotIn("CCACHE_SLOPPINESS", env,
+                         "keep the existing PCH helper's bounded settings; do not weaken header freshness")
+
+    def test_flatpak_pch_probe_preserves_failed_tool_diagnostics(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "evidence"
+            script = ROOT / "ci/flatpak_pch_probe.py"
+            error = subprocess.CalledProcessError(17, ["ccache", "--version"],
+                                                  output="fixture SDK identity unavailable\n")
+            with patch.object(sys, "argv", [str(script), "--output", str(output)]), \
+                 patch("subprocess.check_output", side_effect=["configured", "fixture compiler", error]):
+                with self.assertRaises(subprocess.CalledProcessError):
+                    runpy.run_path(str(script), run_name="__main__")
+            log = output / "failed-command.log"
+            self.assertTrue(log.exists(), "preserve SDK tool stderr instead of only an opaque CalledProcessError")
+            self.assertIn("fixture SDK identity unavailable", log.read_text())
+            self.assertIn('"ccache", "--version"', log.read_text())
+
     def test_flatpak_custom_key_matches_pinned_action_architecture_fallback(self):
         workflow = (ROOT / ".github/workflows/build-project.yaml").read_text()
         job = workflow.split("  flatpak-build:\n", 1)[1].split("\n  windows-build:", 1)[0]
@@ -192,7 +226,7 @@ set_target_properties(obs-nvenc PROPERTIES PREFIX "")
         job = workflow.split("  flatpak-build:\n", 1)[1].split("\n  windows-build:", 1)[0]
         self.assertIn("id: flatpak-builder-cache-lookup", job)
         lookup = job.split("id: flatpak-builder-cache-lookup", 1)[1].split("\n      - ", 1)[0]
-        self.assertIn("lookup-only: true", lookup)
+        self.assertNotIn("lookup-only: true", lookup, "restore the builder before its newer standalone compiler cache")
         self.assertIn("key: flatpak-builder-x86_64-${{ hashFiles('build-aux/com.obsproject.Studio.json') }}-x86_64", lookup)
         self.assertIn("restore-keys: flatpak-builder-x86_64", lookup)
         marker = "- name: Restore legacy Flatpak builder seed"
@@ -375,6 +409,63 @@ class FlatpakPrunedBuildTest(unittest.TestCase):
             self.assertTrue(screenshots[-1].endswith('/build/files/share/app-info/media'))
             self.assertLess(calls.index(screenshots), next(i for i, command in enumerate(calls) if command[0] == 'flatpak-builder-lint'))
 
+    def test_compiler_probe_requires_substantial_reuse_after_forced_rebuild(self):
+        probe = self.load_probe()
+        for hits, misses, cached_app, succeeds in ((300, 2, False, True), (0, 330, False, False),
+                                                  (5, 0, False, False), (100, 230, False, False),
+                                                  (300, 2, True, False)):
+            with self.subTest(hits=hits, misses=misses, cached_app=cached_app), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                state, manifest = self.fixture(root)
+                recipe = json.loads(manifest.read_text())
+                recipe.update(sdk='org.freedesktop.Sdk', **{'runtime-version': '26.08'})
+                manifest.write_text(json.dumps(recipe))
+                original = manifest.read_bytes()
+                calls, builds = [], []
+                def execute(command, seconds):
+                    calls.append(command)
+                    if 'flatpak-builder' in command:
+                        isolated = Path(command[command.index('--state-dir') + 1])
+                        prepared = json.loads(Path(command[-1]).read_text())
+                        builds.append(prepared)
+                        if len(builds) == 1:
+                            self.assertFalse((isolated / 'ccache').exists())
+                            (isolated / 'ccache').mkdir()
+                            (isolated / 'ccache/fresh').write_text('new compiler results')
+                        else:
+                            self.assertTrue((isolated / 'ccache/fresh').exists())
+                            self.assertFalse((isolated / 'ccache/original').exists())
+                            self.assertNotEqual(prepared, builds[0], 'warm build must invalidate application module')
+                        build = Path(command[-2])
+                        for relative in ('bin/obs', 'share/app-info/icons/flatpak/128x128/com.obsproject.Studio.png',
+                                         'share/app-info/xmls/com.obsproject.Studio.xml.gz'):
+                            path = build / 'files' / relative
+                            path.parent.mkdir(parents=True, exist_ok=True)
+                            path.write_text('fixture')
+                        if len(builds) == 2 and cached_app:
+                            return 'Cache hit for obs, skipping build\n'
+                        return ('Cache hit for dependency, skipping build\nOBS_PRUNED_REBUILD_EXECUTED\n'
+                                + ('OBS_COMPILER_REUSE_EXECUTED\n' if len(builds) == 2 else ''))
+                    if '--print-stats' in command:
+                        return f'direct_cache_hit {hits}\npreprocessed_cache_hit 0\ncache_miss {misses}\n'
+                    return '{}'
+                if succeeds:
+                    result = probe.measure(state, manifest, root, execute=execute, compiler_reuse=True)
+                    self.assertEqual(result['compiler_reuse']['hits'], 300)
+                    self.assertEqual(result['compiler_reuse']['misses'], 2)
+                    self.assertEqual(len(builds), 2)
+                    reset = next(i for i, command in enumerate(calls) if '--zero-stats' in command)
+                    builder_calls = [i for i, command in enumerate(calls) if 'flatpak-builder' in command]
+                    self.assertLess(builder_calls[0], reset)
+                    self.assertLess(reset, builder_calls[1])
+                    self.assertEqual(sum(command[0] == 'flatpak-builder-lint' for command in calls), 6)
+                else:
+                    with self.assertRaises(ValueError):
+                        probe.measure(state, manifest, root, execute=execute, compiler_reuse=True)
+                self.assertEqual(manifest.read_bytes(), original)
+                self.assertEqual((state / 'ccache/original').read_text(), 'ccache')
+                self.assertEqual(sorted(path.name for path in root.iterdir()), ['manifest.json', 'state'])
+
     def test_pruned_rebuild_failure_cleans_temporary_state_and_manifest(self):
         probe = self.load_probe()
         with tempfile.TemporaryDirectory() as directory:
@@ -405,6 +496,7 @@ class FlatpakPrunedBuildTest(unittest.TestCase):
         self.assertLess(workflow.index('- name: Validate repository'), workflow.index('- name: Probe Pruned Flatpak Rebuild'))
         self.assertIn('if: inputs.flatpak-pruned-build-probe', workflow)
         self.assertIn('uv run ci/flatpak_pruned_build_probe.py', workflow)
+        self.assertIn('--compiler-reuse', workflow)
 
     def test_pruned_rebuild_still_rejects_links_in_dependency_repository(self):
         probe = self.load_probe()
@@ -418,3 +510,327 @@ class FlatpakPrunedBuildTest(unittest.TestCase):
                 probe.measure(state, manifest, root, execute=forbidden)
             self.assertEqual((state / 'cache/original').read_text(), 'cache')
             self.assertEqual(sorted(p.name for p in root.iterdir()), ['manifest.json', 'state'])
+
+
+class FlatpakCompilerTransferTest(unittest.TestCase):
+    def load_transfer(self):
+        spec = importlib.util.spec_from_file_location('flatpak_compiler_cache', ROOT / 'ci/flatpak_compiler_cache.py')
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+
+    def test_roundtrip_and_reject_tampered_or_wrong_profile_before_overlay(self):
+        module = self.load_transfer()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / 'source'
+            (source / 'a').mkdir(parents=True)
+            (source / 'a/result').write_bytes(b'actual compiler bytes')
+            (source / 'bin').mkdir()
+            for compiler in ('cc', 'c++', 'gcc', 'g++'):
+                (source / 'bin' / compiler).symlink_to('/usr/bin/ccache')
+            profile = {'source': 'a' * 40, 'sdk': 'sdk-commit', 'compiler': 'compiler-sha', 'manifest': 'manifest-sha'}
+            artifact = root / 'artifact'
+            report = module.pack(source, artifact, profile)
+            self.assertEqual(report['payload_bytes'], 21)
+            target = root / 'target'
+            (target / 'bin').mkdir(parents=True)
+            for compiler in ('cc', 'c++', 'gcc', 'g++'):
+                (target / 'bin' / compiler).symlink_to('/usr/bin/ccache')
+            module.restore(artifact, target, profile)
+            self.assertTrue((target / 'bin/cc').is_symlink())
+            self.assertEqual(report['omitted_builder_wrappers'], ['bin/c++', 'bin/cc', 'bin/g++', 'bin/gcc'])
+            self.assertEqual((target / 'a/result').read_bytes(), b'actual compiler bytes')
+            with self.assertRaisesRegex(ValueError, 'profile'):
+                module.restore(artifact, root / 'wrong', dict(profile, compiler='changed'))
+            self.assertFalse((root / 'wrong').exists())
+            outside = root / 'outside'
+            outside.write_bytes(b'preserve')
+            wrong_wrapper = root / 'wrong-wrapper'
+            (wrong_wrapper / 'bin').mkdir(parents=True)
+            (wrong_wrapper / 'bin/cc').symlink_to(outside)
+            with self.assertRaisesRegex(ValueError, 'links'):
+                module.restore(artifact, wrong_wrapper, profile)
+            self.assertEqual(outside.read_bytes(), b'preserve')
+            with self.assertRaisesRegex(ValueError, 'link|wrapper'):
+                module.pack(wrong_wrapper, root / 'invalid-wrapper-artifact', profile)
+            archive = artifact / 'compiler-cache.tar'
+            archive.write_bytes(archive.read_bytes() + b'changed')
+            with self.assertRaisesRegex(ValueError, 'digest|size'):
+                module.restore(artifact, root / 'tampered', profile)
+            self.assertFalse((root / 'tampered').exists())
+
+    def test_archive_paths_links_and_limits_fail_before_destination_mutation(self):
+        module = self.load_transfer()
+        import hashlib
+        import io
+        import tarfile
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for name, kind in [('../escape', tarfile.REGTYPE), ('/absolute', tarfile.REGTYPE), ('bin/cc', tarfile.REGTYPE),
+                               ('link', tarfile.SYMTYPE), ('hardlink', tarfile.LNKTYPE)]:
+                artifact = root / ('artifact-' + str(len(list(root.iterdir()))))
+                artifact.mkdir()
+                archive = artifact / 'compiler-cache.tar'
+                with tarfile.open(archive, 'w') as output:
+                    entry = tarfile.TarInfo(name)
+                    entry.type = kind
+                    entry.linkname = '../escape' if kind != tarfile.REGTYPE else ''
+                    entry.size = 1 if kind == tarfile.REGTYPE else 0
+                    output.addfile(entry, io.BytesIO(b'x') if entry.size else None)
+                metadata = {'format': 1, 'profile': {}, 'archive_bytes': archive.stat().st_size,
+                            'sha256': hashlib.sha256(archive.read_bytes()).hexdigest(), 'payload_bytes': 1, 'files': 1}
+                (artifact / 'manifest.json').write_text(json.dumps(metadata))
+                with self.assertRaises(ValueError):
+                    module.restore(artifact, root / 'destination', {})
+                self.assertFalse((root / 'destination').exists())
+            source = root / 'source'
+            source.mkdir()
+            (source / 'link').symlink_to('/etc/passwd')
+            with self.assertRaisesRegex(ValueError, 'link|regular'):
+                module.pack(source, root / 'linked', {})
+            (source / 'link').rename(source / 'rejected-link')
+            source = root / 'bounded-source'
+            source.mkdir()
+            (source / 'large').write_bytes(b'ab')
+            with patch.object(module, 'MAX_PAYLOAD_BYTES', 1), self.assertRaisesRegex(ValueError, 'limit|size'):
+                module.pack(source, root / 'oversize', {})
+
+    def test_forced_consumer_changes_only_application_post_install(self):
+        module = self.load_transfer()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest = root / 'manifest.json'
+            recipe = {'sdk': 'sdk', 'modules': [{'name': 'dependency'}, {'name': 'obs',
+                      'config-opts': ['-DENABLE_CCACHE=ON'], 'post-install': ['original']}]}
+            manifest.write_text(json.dumps(recipe))
+            argv = ['flatpak_compiler_cache.py', 'force', '--manifest', str(manifest),
+                    '--cache', str(root / 'cache'), '--artifact', str(root)]
+            with patch.object(sys, 'argv', argv):
+                module.main()
+            actual = json.loads(manifest.read_text())
+            marker = actual['modules'][-1]['post-install'].pop()
+            self.assertIn('OBS_COMPILER_CONSUMER_EXECUTED', marker)
+            self.assertEqual(actual, recipe)
+
+    def test_consumer_counters_reject_trivial_or_low_reuse(self):
+        module = self.load_transfer()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest = root / 'manifest.json'
+            manifest.write_text(json.dumps({'sdk': 'org.freedesktop.Sdk', 'runtime-version': '26.08'}))
+            argv = ['flatpak_compiler_cache.py', 'verify', '--manifest', str(manifest),
+                    '--cache', str(root / 'cache'), '--artifact', str(root)]
+            for hits, misses, accepted in [(0, 330, False), (5, 0, False), (150, 100, False), (328, 2, True)]:
+                with self.subTest(hits=hits, misses=misses), patch.object(sys, 'argv', argv), \
+                     patch.object(module.subprocess, 'check_output', return_value=f'direct_cache_hit {hits}\ncache_miss {misses}\n'):
+                    if accepted:
+                        module.main()
+                    else:
+                        with self.assertRaisesRegex(ValueError, 'insufficient'):
+                            module.main()
+                    result = json.loads((root / 'consumer-result.json').read_text())
+                    self.assertEqual(result['status'], 'success' if accepted else 'failed')
+
+    def test_consumer_prepares_sdk_before_checking_transferred_profile(self):
+        workflow = (ROOT / '.github/workflows/build-project.yaml').read_text()
+        consumer = workflow.split('  flatpak-compiler-consumer:\n', 1)[1].split('  flatpak-runtime-test:', 1)[0]
+        prepare = consumer.index('      - name: Prepare Compiler Consumer SDK\n')
+        verify = consumer.index('      - name: Verify and Restore Compiler Artifact Last\n')
+        self.assertLess(prepare, verify)
+        block = consumer[prepare:verify]
+        self.assertIn('--install-deps-only', block)
+        self.assertIn('--install-deps-from=flathub', block)
+        self.assertIn('timeout 300s flatpak-builder', block)
+        self.assertIn('--state-dir "$RUNNER_TEMP/flatpak-sdk-prep"', block)
+
+    def test_sdk_mismatch_reports_both_profiles_without_restoring_cache(self):
+        module = self.load_transfer()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / 'source'
+            source.mkdir()
+            (source / 'result').write_bytes(b'cached output')
+            artifact = root / 'artifact'
+            producer = {'sdk': 'updated-sdk', 'compiler': 'updated-compiler'}
+            consumer = {'sdk': 'image-sdk', 'compiler': 'image-compiler'}
+            module.pack(source, artifact, producer)
+            with self.assertRaisesRegex(ValueError, 'profile'):
+                module.restore(artifact, root / 'destination', consumer)
+            self.assertFalse((root / 'destination').exists())
+            report = json.loads((artifact / 'profile-mismatch.json').read_text())
+            self.assertEqual(report['producer'], producer)
+            self.assertEqual(report['consumer'], consumer)
+            self.assertEqual(report['different_fields'], ['compiler', 'sdk'])
+
+    def test_consumer_bootstrap_path_is_applied_before_vendor_step(self):
+        workflow = (ROOT / '.github/workflows/build-project.yaml').read_text()
+        consumer = workflow.split('  flatpak-compiler-consumer:\n', 1)[1].split('  flatpak-runtime-test:', 1)[0]
+        self.assertRegex(consumer, r'cmake -P cmake/common/prepare-flatpak-soldr\.cmake\n'
+                         r'      - name: Vendor Flatpak Compiler Consumer Sources\n'
+                         r'        run: build-aux/prepare-flatpak-rust\.sh')
+
+    def test_container_artifacts_use_one_directory_to_preserve_the_cache_payload(self):
+        workflow = (ROOT / '.github/workflows/build-project.yaml').read_text()
+        upload = workflow.split('      - name: Upload Experimental Flatpak Compiler Artifact\n', 1)[1].split('      - name:', 1)[0]
+        # The hosted multiline container input uploaded only metadata beneath /.
+        # One controlled directory resolves once and includes both required files.
+        self.assertIn('path: ${{ runner.temp }}/flatpak-compiler-transfer\n', upload)
+        self.assertNotIn('path: |', upload)
+        consumer = workflow.split('  flatpak-compiler-consumer:\n', 1)[1].split('  flatpak-runtime-test:', 1)[0]
+        self.assertIn('Stage Compiler Consumer Measurements', consumer)
+        self.assertIn('path: ${{ runner.temp }}/flatpak-compiler-result\n', consumer)
+        self.assertIn('*.json', consumer)
+        self.assertNotIn('path: ${{ runner.temp }}/flatpak-compiler-transfer\n',
+                         consumer.split('      - name: Upload Compiler Consumer Measurements', 1)[1])
+
+    def test_transfer_is_explicit_manual_default_off_and_fresh_consumer(self):
+        workflow = (ROOT / '.github/workflows/build-project.yaml').read_text()
+        caller = (ROOT / '.github/workflows/ci.yml').read_text()
+        for text in [workflow, caller]:
+            declaration = text.split('      flatpak-compiler-transfer-probe:', 1)[1].split('      flatpak-', 1)[0]
+            self.assertIn('default: false', declaration)
+        self.assertIn("github.event_name == 'workflow_dispatch' && inputs.flatpak-compiler-transfer-probe", caller)
+        consumer = workflow.split('  flatpak-compiler-consumer:', 1)[1].split('  flatpak-runtime-test:', 1)[0]
+        self.assertIn('needs: flatpak-build', consumer)
+        self.assertIn('if: inputs.flatpak-compiler-transfer-probe', consumer)
+        self.assertIn('save-cache: false', consumer)
+        self.assertIn('restore-cache: false', consumer)
+        self.assertIn('ci/flatpak_compiler_cache.py pack', workflow)
+        self.assertIn('mirror-screenshots-url: https://dl.flathub.org/media', consumer)
+        self.assertIn('Prepare build space', consumer)
+        self.assertIn('required_gib=40', consumer)
+        self.assertIn('/usr/local/lib/android:/to_clean/android', consumer)
+        gate = tomllib.loads((ROOT / 'local-gate.toml').read_text())
+        self.assertIn('flatpak-compiler-consumer', gate['gate']['verify-exempt'])
+
+
+class FlatpakDependencyTransferTest(unittest.TestCase):
+    def load_transfer(self):
+        spec = importlib.util.spec_from_file_location('flatpak_dependency_cache', ROOT / 'ci/flatpak_dependency_cache.py')
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+
+    def test_real_archive_roundtrip_preserves_opaque_objects_and_checks_profile(self):
+        module = self.load_transfer()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / 'source'
+            object_path = source / 'objects/ab' / ('c' * 62 + '.file')
+            object_path.parent.mkdir(parents=True)
+            object_path.symlink_to('/opaque/payload/not/a/structural/path')
+            (source / 'config').write_text('[core]\nmode=bare-user-only\n')
+            profile = {'source': 'source-sha', 'sdk': 'sdk-sha'}
+            artifact = root / 'artifact'
+            with patch.object(module, 'fsck') as fsck:
+                report = module.pack(source, artifact, profile)
+                destination = root / 'destination'
+                module.restore(artifact, destination, profile)
+                self.assertEqual(fsck.call_count, 2)
+            self.assertEqual((destination / object_path.relative_to(source)).readlink(), object_path.readlink())
+            self.assertEqual((destination / 'config').read_bytes(), (source / 'config').read_bytes())
+            self.assertGreater(report['archive_bytes'], 0)
+            self.assertEqual(report['symbolic_objects'], 1)
+            with self.assertRaisesRegex(ValueError, 'profile'):
+                module.restore(artifact, root / 'wrong', {'source': 'source-sha', 'sdk': 'changed'})
+            self.assertFalse((root / 'wrong').exists())
+            archive = artifact / 'dependency-cache.tar.zst'
+            archive.write_bytes(archive.read_bytes() + b'corrupted')
+            with self.assertRaisesRegex(ValueError, 'digest|size'):
+                module.restore(artifact, root / 'corrupt', profile)
+            self.assertFalse((root / 'corrupt').exists())
+
+    def test_structural_links_and_unsafe_members_reject_before_destination_mutation(self):
+        module = self.load_transfer()
+        import tarfile
+        for name, kind in [('config', tarfile.SYMTYPE), ('../escape', tarfile.REGTYPE),
+                           ('/absolute', tarfile.REGTYPE), ('objects/a/file', tarfile.LNKTYPE),
+                           ('objects/ab/' + 'c' * 62 + '.file/child', tarfile.REGTYPE)]:
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                source = root / 'source'
+                source.mkdir()
+                (source / 'config').symlink_to(root / 'outside')
+                with self.assertRaisesRegex(ValueError, 'structural|link'):
+                    module.pack(source, root / 'artifact', {})
+                member = tarfile.TarInfo(name)
+                member.type = kind
+                member.linkname = '/outside'
+                with self.assertRaisesRegex(ValueError, 'unsafe|structural|link'):
+                    module.validate_member(member)
+
+    def test_nonportable_repository_metadata_is_rejected_and_failed_fsck_cleans_staging(self):
+        module = self.load_transfer()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / 'source'
+            source.mkdir()
+            (source / 'config').write_text('[core]\nmode=bare-user\n')
+            with patch.object(module, 'fsck'), self.assertRaisesRegex(ValueError, 'mode'):
+                module.pack(source, root / 'unsupported', {})
+            self.assertFalse((root / 'unsupported').exists())
+            (source / 'config').write_text('[core]\nmode=bare-user-only\n')
+            artifact = root / 'artifact'
+            with patch.object(module, 'fsck'):
+                module.pack(source, artifact, {})
+            with patch.object(module, 'fsck', side_effect=ValueError('fsck failed')):
+                with self.assertRaisesRegex(ValueError, 'fsck'):
+                    module.restore(artifact, root / 'destination', {})
+            self.assertFalse((root / 'destination').exists())
+            self.assertFalse(list(root.glob('flatpak-dependency-*')))
+            with patch.object(module, 'MAX_BYTES', 1), self.assertRaisesRegex(ValueError, 'limit'):
+                module.pack(source, root / 'oversized', {})
+
+    def test_dependency_probe_is_manual_and_restores_before_compiler(self):
+        workflow = (ROOT / '.github/workflows/build-project.yaml').read_text()
+        caller = (ROOT / '.github/workflows/ci.yml').read_text()
+        for text in [workflow, caller]:
+            block = text.split('      flatpak-dependency-transfer-probe:', 1)[1].split('      flatpak-', 1)[0]
+            self.assertIn('default: false', block)
+        self.assertIn("github.event_name == 'workflow_dispatch' && inputs.flatpak-dependency-transfer-probe", caller)
+        consumer = workflow.split('  flatpak-compiler-consumer:', 1)[1].split('  flatpak-runtime-test:', 1)[0]
+        self.assertIn('!inputs.flatpak-dependency-transfer-probe', consumer)
+        self.assertLess(consumer.index('Restore Experimental Dependency Artifact'),
+                        consumer.index('Verify and Restore Compiler Artifact Last'))
+        self.assertIn('Verify All Dependency Modules Were Reused', consumer)
+        self.assertIn('ci/flatpak_dependency_cache.py verify', consumer)
+
+    def test_builder_capture_preserves_arguments_failure_and_dependency_rebuild_guards(self):
+        module = self.load_transfer()
+        import contextlib
+        import io
+        import types
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            builder = root / 'real builder'
+            builder.write_text('#!/bin/bash\nprintf "%s\\n" "$@"\nexit 23\n')
+            builder.chmod(0o700)
+            artifact = root / 'artifact with spaces'
+            manifest = root / 'manifest.json'
+            dependencies = ['base', 'devel', 'tools', 'qt', 'cef', 'rust-toolchain']
+            manifest.write_text(json.dumps({'modules': [{'name': name} for name in dependencies + ['obs']]}))
+            argv = ['flatpak_dependency_cache.py', 'instrument', '--manifest', str(manifest),
+                    '--cache', str(root / 'cache'), '--artifact', str(artifact)]
+            with patch.dict(sys.modules, {'flatpak_compiler_cache': types.SimpleNamespace(context=lambda path: {})}):
+                with patch.object(sys, 'argv', argv), patch.object(module.shutil, 'which', return_value=str(builder)):
+                    with contextlib.redirect_stdout(io.StringIO()):
+                        module.main()
+                result = subprocess.run([str(artifact / 'bin/flatpak-builder'), 'literal $(false)'],
+                                        capture_output=True, text=True, check=False)
+                self.assertEqual(result.returncode, 23)
+                self.assertEqual((artifact / 'builder.log').read_text().strip(), 'literal $(false)')
+                good = ''.join('Cache hit for ' + name + ', skipping build\n' for name in dependencies)
+                for output, accepted in [(good + 'OBS_COMPILER_CONSUMER_EXECUTED\n', True),
+                                         (good, False),
+                                         (good + 'OBS_COMPILER_CONSUMER_EXECUTED\nCache hit for obs, skipping build\n', False)]:
+                    (artifact / 'builder.log').write_text(output)
+                    argv[1] = 'verify'
+                    with patch.object(sys, 'argv', argv), contextlib.redirect_stdout(io.StringIO()):
+                        if accepted:
+                            module.main()
+                        else:
+                            with self.assertRaisesRegex(ValueError, 'reuse|rebuild'):
+                                module.main()
+                    report = json.loads((artifact / 'dependency-result.json').read_text())
+                    self.assertEqual(report['status'], 'success' if accepted else 'failed')
