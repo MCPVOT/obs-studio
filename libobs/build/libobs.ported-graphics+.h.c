@@ -10,6 +10,7 @@
 #include "libobs/graphics/plane.c.h"
 #include "libobs/graphics/quat.c.h"
 #include "libobs/graphics/shader-param-names.c.h"
+#include "libobs/graphics/shader-sampler-convert.c.h"
 #include "libobs/graphics/vec2.c.h"
 #include "libobs/graphics/vec3.c.h"
 #include "libobs/graphics/vec4.c.h"

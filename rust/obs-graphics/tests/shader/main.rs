@@ -5,3 +5,7 @@ mod shader_param_names;
 mod shader_param_names_parity;
 
 mod effect_parser_lifecycle_parity;
+
+mod shader_sampler_convert;
+
+mod shader_sampler_convert_parity;
