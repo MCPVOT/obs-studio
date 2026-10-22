@@ -95,6 +95,37 @@ frontend, graphics, plugins, packaging and controlled compiler-cache measurement
 remain required before retiring CMake authority. Cross-built artifacts do not
 prove Windows runtime behavior.
 
+## Windows graphics graphs
+
+`graphics::build_d3d11` and `graphics::build_opengl` build the original Windows
+renderers against a selected Cargo core. Direct3D uses C++17, the original SDK
+libraries and a selectable integer GPU thread priority (zero by default).
+OpenGL retains the GL/WGL loader objects and system OpenGL linkage. Both renderers
+compile their existing Windows version-resource templates. Release metadata
+unification remains required; these resources currently follow the core API
+version and bootstrap strings, as the Cargo core does.
+
+The canonical `cmake/graphics-source-sets.json` supplies graphics/GLAD sources to
+the original CMake targets, cross checks and Cargo. The existing unity groups
+remain in source order; core `Options::unity` and `Options::pch` also select
+renderer compilation. GLAD retains separate translation units. Its generated GL
+and WGL loaders share a tentative C global; CMake and Cargo both request common
+symbols for clang-cl, matching MSVC without editing the generated sources.
+
+Set `OBS_BUILD_WINDOWS_GRAPHICS=1` on the existing Windows core integration
+contract to build both renderers. `OBS_BUILD_WINDOWS_GPU_PRIORITY` selects the
+D3D11 priority. `OBS_BUILD_WINDOWS_D3D11_REFERENCE` and
+`OBS_BUILD_WINDOWS_OPENGL_REFERENCE` require exact exported symbol agreement with
+actual CMake renderers. Cross builds produced 171 D3D11 and 151 OpenGL exports
+and version-resource sections; they do not prove native loading or rendering.
+
+The Windows Tier 2 path also builds the original CMake renderers and compares
+their exports. A fresh-process native probe checks the loaded renderer's file
+identity, public device name/type and version-resource description against each
+Cargo core, with a wrong-renderer negative control. The same probe exercises the
+CMake modules against those cores. These checks do not create a graphics device,
+verify rendered pixels or establish complete Windows application coverage.
+
 ## Requirements carried forward
 
 - Native C/C++ builds must be very fast. Reuse explicit unity groups, make unity

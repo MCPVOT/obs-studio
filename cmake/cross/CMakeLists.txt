@@ -356,12 +356,16 @@ if(_host STREQUAL WINDOWS)
     INCLUDES shared/opts-parser
   )
   # libobs-d3d11's unity group (BUILD.md).
-  _obs_cross_plugin(libobs-d3d11-cross DIR libobs-d3d11 SOURCES build/d3d11.core+.hpp.cpp DEFINES GPU_PRIORITY_VAL=0)
+  include("${OBS_SOURCE_ROOT}/cmake/common/graphics-sources.cmake")
+  obs_graphics_sources(_d3d11_sources D3D11_CORE "${OBS_SOURCE_ROOT}/libobs-d3d11")
+  _obs_cross_plugin(libobs-d3d11-cross DIR libobs-d3d11 SOURCES ${_d3d11_sources} DEFINES GPU_PRIORITY_VAL=0)
   # libobs-opengl's unity groups (BUILD.md): the shared renderer and WGL.
+  obs_graphics_sources(_opengl_sources OPENGL_CORE "${OBS_SOURCE_ROOT}/libobs-opengl")
+  obs_graphics_sources(_opengl_windows OPENGL_WINDOWS "${OBS_SOURCE_ROOT}/libobs-opengl")
   _obs_cross_plugin(
     libobs-opengl-cross
     DIR libobs-opengl
-    SOURCES build/opengl.core+.h.c build/opengl.windows+.h.c
+    SOURCES ${_opengl_sources} ${_opengl_windows}
     INCLUDES deps/glad/include
   )
 elseif(_host STREQUAL MACOS)

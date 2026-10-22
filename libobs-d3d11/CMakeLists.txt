@@ -5,7 +5,9 @@ add_library(OBS::libobs-d3d11 ALIAS libobs-d3d11)
 
 # Unity group (BUILD.md): build/d3d11.core+.hpp.cpp #includes the
 # implementation files (d3d11-foo.cpp.hpp) behind one precompiled header.
-target_sources(libobs-d3d11 PRIVATE build/d3d11.core+.hpp.cpp d3d11-shaderprocessor.hpp d3d11-subsystem.hpp)
+include("${CMAKE_CURRENT_SOURCE_DIR}/../cmake/common/graphics-sources.cmake")
+obs_graphics_sources(_d3d11_sources D3D11_CORE "${CMAKE_CURRENT_SOURCE_DIR}")
+target_sources(libobs-d3d11 PRIVATE ${_d3d11_sources} d3d11-shaderprocessor.hpp d3d11-subsystem.hpp)
 
 configure_file(cmake/windows/obs-module.rc.in libobs-d3d11.rc)
 target_sources(libobs-d3d11 PRIVATE libobs-d3d11.rc)

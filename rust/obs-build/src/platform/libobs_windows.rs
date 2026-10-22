@@ -208,7 +208,7 @@ fn api_version(root: &Path) -> Result<[String; 3], String> {
     version.try_into().map_err(|_| "invalid API version".into())
 }
 
-fn add_resource(
+pub(super) fn add_resource(
     root: &Path,
     template: &str,
     output: &Path,

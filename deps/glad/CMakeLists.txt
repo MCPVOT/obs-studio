@@ -5,13 +5,20 @@ find_package(OpenGL REQUIRED)
 add_library(obsglad OBJECT)
 add_library(OBS::glad ALIAS obsglad)
 
+include("${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/common/graphics-sources.cmake")
+obs_graphics_sources(_glad_sources GLAD_CORE "${CMAKE_CURRENT_SOURCE_DIR}")
+if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+  obs_graphics_sources(_glad_windows GLAD_WINDOWS "${CMAKE_CURRENT_SOURCE_DIR}")
+  list(APPEND _glad_sources ${_glad_windows})
+endif()
+if(TARGET OpenGL::EGL)
+  obs_graphics_sources(_glad_egl GLAD_EGL "${CMAKE_CURRENT_SOURCE_DIR}")
+  list(APPEND _glad_sources ${_glad_egl})
+endif()
+
 target_sources(
   obsglad
-  PRIVATE
-    src/glad.c
-    $<$<PLATFORM_ID:Windows>:src/glad_wgl.c>
-    $<$<TARGET_EXISTS:OpenGL::EGL>:src/glad_egl.c>
-    $<$<TARGET_EXISTS:OpenGL::EGL>:include/EGL/eglplatform.h>
+  PRIVATE ${_glad_sources} $<$<TARGET_EXISTS:OpenGL::EGL>:include/EGL/eglplatform.h>
   PUBLIC
     include/glad/glad.h
     "$<$<PLATFORM_ID:Windows>:${CMAKE_CURRENT_SOURCE_DIR}/include/glad/glad_wgl.h>"
@@ -19,6 +26,12 @@ target_sources(
 )
 
 target_compile_options(obsglad PRIVATE $<$<COMPILE_LANG_AND_ID:C,AppleClang,Clang>:-Wno-strict-prototypes>)
+
+# Generated GL/WGL loaders share a tentative C global; clang-cl otherwise
+# rejects the separate objects instead of matching MSVC's common symbols.
+if(CMAKE_C_COMPILER_ID STREQUAL "Clang" AND CMAKE_C_SIMULATE_ID STREQUAL "MSVC")
+  target_compile_options(obsglad PRIVATE /clang:-fcommon)
+endif()
 
 target_include_directories(obsglad PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 

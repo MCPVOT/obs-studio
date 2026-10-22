@@ -92,7 +92,7 @@ cmake --preset windows-ci-x64 -B $build `
 if ($LASTEXITCODE -ne 0) { throw "cmake configure failed ($LASTEXITCODE)" }
 
 cmake --build $build --config RelWithDebInfo `
-  --target libobs libobs-c-reference cmocka-tests
+  --target libobs libobs-c-reference cmocka-tests libobs-d3d11 libobs-opengl
 if ($LASTEXITCODE -ne 0) { throw "cmake build failed ($LASTEXITCODE)" }
 
 # obs.dll twice: libobs (C, what the tests link) and its Rust twin in
@@ -171,6 +171,15 @@ $env:OBS_BUILD_WINDOWS_RUST_ARCHIVE = $nativeArchive
 $env:OBS_BUILD_WINDOWS_PCH = '1'
 $env:OBS_BUILD_WINDOWS_REFERENCE = $cDll.FullName
 $env:OBS_BUILD_WINDOWS_EXPORT_TOOL = Find-Dumpbin
+$env:OBS_BUILD_WINDOWS_GRAPHICS = '1'
+$referenceRenderers = @{}
+foreach ($renderer in 'D3D11', 'OPENGL') {
+  $target = if ($renderer -eq 'D3D11') { 'libobs-d3d11' } else { 'libobs-opengl' }
+  $reference = Get-ChildItem -Path (Join-Path $build $target) -Recurse -Filter "$target.dll" | Select-Object -First 1
+  if (-not $reference) { throw "CMake renderer $target.dll not found" }
+  $referenceRenderers[$renderer] = $reference.FullName
+  Set-Item "env:OBS_BUILD_WINDOWS_$($renderer)_REFERENCE" $reference.FullName
+}
 soldr cargo test -p obs-studio-rust --features libobs-integration `
   --target $nativeTarget --target-dir $nativeTests --test obs-tests-app `
   native_libobs::windows_tests::core_builds_from_the_canonical_manifest -- --exact
@@ -235,6 +244,18 @@ foreach ($selected in $nativeArtifacts.reference, $nativeArtifacts.core) {
     # Negative control: same selected DLL, deliberately wrong expected file.
     & $nativeArtifacts.loader_probe $cDll.FullName
     if ($LASTEXITCODE -ne 14) { throw "Cargo loader negative control failed ($LASTEXITCODE)" }
+    foreach ($renderer in 'D3D11', 'OPENGL') {
+      $rendererPath = $nativeArtifacts.renderers.$renderer
+      if (-not $rendererPath) { throw "missing Cargo $renderer artifact" }
+      Write-Host "== Cargo $renderer module identity and version resource"
+      & $nativeArtifacts.graphics_probe $rendererPath $renderer
+      if ($LASTEXITCODE -ne 0) { throw "Cargo $renderer probe failed ($LASTEXITCODE)" }
+      $wrongRenderer = if ($renderer -eq 'D3D11') { 'OPENGL' } else { 'D3D11' }
+      & $nativeArtifacts.graphics_probe $rendererPath $wrongRenderer
+      if ($LASTEXITCODE -ne 14) { throw "Cargo $renderer identity negative control failed ($LASTEXITCODE)" }
+      & $nativeArtifacts.graphics_probe $referenceRenderers[$renderer] $renderer
+      if ($LASTEXITCODE -ne 0) { throw "CMake $renderer probe failed ($LASTEXITCODE)" }
+    }
     Write-Host "== Cargo [$($dll.Directory.Name)] unchanged ctest suite"
     ctest --test-dir $build -C RelWithDebInfo --output-on-failure --no-tests=error
     $ctestExit = $LASTEXITCODE

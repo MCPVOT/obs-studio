@@ -6,6 +6,7 @@ use std::{
     process::Command,
 };
 
+mod graphics_windows;
 mod libobs_linux;
 mod libobs_macos;
 mod libobs_windows;
@@ -242,12 +243,33 @@ pub fn configure_module(target: &str, library: &mut crate::SharedLibrary) -> Res
     }
 }
 
+pub fn configure_d3d11(
+    build: &crate::NativeBuild,
+    root: &Path,
+    options: &crate::libobs::Options,
+    library: &mut crate::SharedLibrary,
+    gpu_priority: i32,
+) -> Result<(), String> {
+    if build.target.contains("windows-msvc") {
+        graphics_windows::d3d11(build, root, options, library, gpu_priority)
+    } else {
+        Err(format!(
+            "native Direct3D 11 graph for {} is not implemented yet",
+            build.target
+        ))
+    }
+}
+
 pub fn configure_opengl(
-    target: &str,
+    build: &crate::NativeBuild,
     root: &Path,
     options: &crate::libobs::Options,
     library: &mut crate::SharedLibrary,
 ) -> Result<(), String> {
+    let target = &build.target;
+    if target.contains("windows-msvc") {
+        return graphics_windows::opengl(build, root, options, library);
+    }
     if !target.contains("linux") {
         return Err(format!(
             "native OpenGL graph for {target} is not implemented yet"
@@ -255,16 +277,12 @@ pub fn configure_opengl(
     }
     configure_module(target, library)?;
     library.file_name = Some("libobs-opengl.so.33".into());
-    library
-        .sources
-        .push(root.join("libobs-opengl/build/opengl.nix+.h.c"));
+    crate::graphics::append_sources(root, "OPENGL_LINUX", library)?;
     for package in ["simde", "libdrm", "gl", "egl", "x11", "x11-xcb", "xcb"] {
         crate::libobs::add_package(library, target, package)?;
     }
     if options.wayland {
-        library
-            .sources
-            .push(root.join("libobs-opengl/build/opengl.nix-wayland+.h.c"));
+        crate::graphics::append_sources(root, "OPENGL_WAYLAND", library)?;
         for package in ["wayland-egl", "wayland-client"] {
             crate::libobs::add_package(library, target, package)?;
         }
@@ -274,13 +292,16 @@ pub fn configure_opengl(
 }
 
 pub fn configure_glad(
-    target: &str,
+    build: &crate::NativeBuild,
     root: &Path,
     library: &mut crate::SharedLibrary,
 ) -> Result<(), String> {
+    let target = &build.target;
     if target.contains("linux") {
-        library.sources.push(root.join("deps/glad/src/glad_egl.c"));
-        Ok(())
+        configure_module(target, library)?;
+        crate::graphics::append_sources(root, "GLAD_EGL", library)
+    } else if target.contains("windows-msvc") {
+        graphics_windows::glad(build, root, library)
     } else {
         Err(format!(
             "native GL loader graph for {target} is not implemented yet"

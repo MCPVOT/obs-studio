@@ -1,0 +1,11 @@
+{
+  "OPENGL_CORE": ["libobs-opengl/build/opengl.core+.h.c"],
+  "OPENGL_LINUX": ["libobs-opengl/build/opengl.nix+.h.c"],
+  "OPENGL_WAYLAND": ["libobs-opengl/build/opengl.nix-wayland+.h.c"],
+  "OPENGL_MACOS": ["libobs-opengl/build/opengl.macos-cocoa+.h.m"],
+  "OPENGL_WINDOWS": ["libobs-opengl/build/opengl.windows+.h.c"],
+  "D3D11_CORE": ["libobs-d3d11/build/d3d11.core+.hpp.cpp"],
+  "GLAD_CORE": ["deps/glad/src/glad.c"],
+  "GLAD_WINDOWS": ["deps/glad/src/glad_wgl.c"],
+  "GLAD_EGL": ["deps/glad/src/glad_egl.c"]
+}
