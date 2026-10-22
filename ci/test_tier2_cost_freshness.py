@@ -103,7 +103,7 @@ class WorkflowTest(unittest.TestCase):
 
     def test_test_job_uploads_its_costs(self):
         j = job("rust-linux-tier2")
-        self.assertIn("OBS_TIER2_COST_DIR", j)
+        self.assertIn('--cost "$GITHUB_WORKSPACE/.tier2-cost"', j)
         self.assertIn("name: tier2-cost-${{ matrix.mode }}\n", j)
         self.assertIn("path: .tier2-cost/ctest-cost-${{ matrix.mode }}.txt", j)
 
@@ -115,7 +115,10 @@ class WorkflowTest(unittest.TestCase):
         restore = j.index("restore-keys: tier2-ctest-cost-")
         self.assertLess(restore, j.index("- name: Test Tier 2 ("))
         self.assertIn("path: .tier2-cost", j)
-        self.assertIn("OBS_TIER2_COST_DIR: ${{ github.workspace }}/.tier2-cost", j)
+        self.assertIn('--cost "$GITHUB_WORKSPACE/.tier2-cost"', j)
+        helper = (WORKFLOW.parents[2] / 'rust/tools/linux-validate/ci-runtime.py').read_text()
+        self.assertIn("(cost, COST, False)", helper)
+        self.assertIn("f'OBS_TIER2_COST_DIR={COST}'", helper)
 
     def test_done_job_merges_and_caches_on_master(self):
         j = job("rust-linux-tier2-done")
@@ -173,7 +176,7 @@ class WorkflowTest(unittest.TestCase):
     def test_build_job_restores_the_merged_costs(self):
         j = job("rust-linux-tier2-build")
         self.assertIn("restore-keys: tier2-ctest-cost-", j)
-        self.assertIn("OBS_TIER2_COST_DIR", j)
+        self.assertIn("OBS_TIER2_COST_DIR: ${{ github.workspace }}/.tier2-cost", j)
 
 
 class CheckCostsTest(unittest.TestCase):

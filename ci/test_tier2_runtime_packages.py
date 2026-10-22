@@ -102,11 +102,12 @@ class RuntimeWorkflowTest(unittest.TestCase):
         self.assertIn('runtime-packages.py', build)
         self.assertLess(build.index('runtime-packages.py'), build.index('Upload Tier 2 Tree'))
         self.assertIn('path: ${{ runner.temp }}/tier2-pack/', build)
-        self.assertLess(tests.index('actions/download-artifact@'), tests.index('Install Tier 2 Packages'))
-        install = tests.split('Install Tier 2 Packages', 1)[1].split('- name: Unpack', 1)[0]
-        self.assertIn('test -s "$RUNNER_TEMP/tier2-pack/runtime-packages.txt"', install)
-        self.assertIn('< "$RUNNER_TEMP/tier2-pack/runtime-packages.txt"', install)
-        self.assertNotIn("grep -v '^#'", install)
+        self.assertLess(tests.index('actions/download-artifact@'), tests.index('ci-runtime.py'))
+        self.assertIn('--packages "$RUNNER_TEMP/tier2-pack/runtime-packages.txt"', tests)
+        helper = (ROOT / 'rust/tools/linux-validate/ci-runtime.py').read_text()
+        self.assertLess(helper.index("selection.records(requirements, '=')"), helper.index('prepared_image(descriptor, requirements, args.state)'))
+        self.assertIn('*requirements.splitlines()', helper)
+        self.assertNotIn("grep -v '^#'", helper)
 
 
 if __name__ == '__main__':

@@ -57,7 +57,8 @@ class JobsTest(unittest.TestCase):
         """One runner, at most 8 test binaries at once. The timing tests that
         failed under -j8 (#938) were fixed to judge playback (#1001) and
         pass under that load without reserving processors."""
-        m = re.search(r"OBS_CTEST_JOBS:\s*(\d+)", WORKFLOW.read_text(encoding="utf-8"))
+        helper = WORKFLOW.parents[2] / 'rust/tools/linux-validate/ci-runtime.py'
+        m = re.search(r"OBS_CTEST_JOBS=(\d+)", helper.read_text(encoding="utf-8"))
         self.assertIsNotNone(m)
         self.assertLessEqual(int(m.group(1)), 8)
 

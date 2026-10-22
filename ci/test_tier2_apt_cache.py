@@ -3,7 +3,7 @@
 
     uv run python -m unittest ci/test_tier2_apt_cache.py
 
-Every Tier 2 Linux job (build + 6 shards) downloaded the same 339 MB of
+Every Tier 2 Linux job (build + complete OFF/ON suites) downloaded the same 339 MB of
 .debs (~20 s) into the stock ubuntu:26.04 container. The jobs now keep the
 downloads (the image's docker-clean apt config deletes them) and cache
 /var/cache/apt/archives, keyed on the package list and the image digest.
@@ -30,27 +30,33 @@ class AptCacheTest(unittest.TestCase):
         for name in ("rust-linux-tier2-build", "rust-linux-tier2"):
             j = job(name)
             self.assertRegex(j, r"uses: astral-sh/setup-uv@[0-9a-f]{40}", name)
-            self.assertLess(j.index("astral-sh/setup-uv@"), j.index("run: bash rust/tools/linux-validate/validate.sh"), name)
+            self.assertLess(j.index("astral-sh/setup-uv@"), j.index("run: bash rust/tools/linux-validate/validate.sh" if name.endswith("-build") else "uv run --no-project rust/tools/linux-validate/ci-runtime.py"), name)
 
     def test_every_tier2_linux_job_caches_apt_archives(self):
         for name in ("rust-linux-tier2-build", "rust-linux-tier2"):
             j = job(name)
-            self.assertIn("docker-clean", j, name)
+            self.assertIn("docker-clean", j if name.endswith("-build") else (WORKFLOW.parents[2]/"rust/tools/linux-validate/ci-runtime.py").read_text(), name)
             self.assertIn("path: /var/cache/apt/archives", j, name)
             self.assertIn("hashFiles('rust/tools/linux-validate/apt-packages.txt')", j, name)
 
     def test_cache_is_restored_before_the_install(self):
         for name in ("rust-linux-tier2-build", "rust-linux-tier2"):
             j = job(name)
-            self.assertLess(j.index("path: /var/cache/apt/archives"), j.index("Install Tier 2 Packages"), name)
+            self.assertLess(j.index("path: /var/cache/apt/archives"), j.index("Install Tier 2 Packages" if name.endswith("-build") else "Test Tier 2 ("), name)
             self.assertLess(j.index("actions/checkout@"), j.index("path: /var/cache/apt/archives"), name)
 
     def test_package_index_is_fetched_once_per_fresh_container(self):
         for name in ("rust-linux-tier2-build", "rust-linux-tier2"):
             j = job(name)
             updates = re.findall(r"^\s+(?:sudo )?apt-get update[^\n]*", j, re.M)
-            self.assertEqual(len(updates), 1, name)
-            self.assertLess(j.index(updates[0].strip()), j.index("actions/checkout@"), name)
+            if name.endswith("-build"):
+                self.assertEqual(len(updates), 1, name)
+                self.assertLess(j.index(updates[0].strip()), j.index("actions/checkout@"), name)
+            else:
+                helper = (WORKFLOW.parents[2]/"rust/tools/linux-validate/ci-runtime.py").read_text()
+                self.assertEqual(helper.count("'apt-get', 'update'"), 1)
+                self.assertIn("if variant == 'stock':", helper)
+                self.assertEqual(len(updates), 0)
 
     def test_zstd_is_there_before_the_restore(self):
         # actions/cache versions an entry by its compressor: restoring before
@@ -58,8 +64,11 @@ class AptCacheTest(unittest.TestCase):
         # so master missed its own cache (run 38888785774).
         for name in ("rust-linux-tier2-build", "rust-linux-tier2"):
             j = job(name)
-            install_git = j[j.index("Install Git"):j.index("actions/checkout@")]
-            self.assertIn("zstd", install_git, name)
+            if name.endswith("-build"):
+                install_git = j[j.index("Install Git"):j.index("actions/checkout@")]
+                self.assertIn("zstd", install_git, name)
+            else:
+                self.assertLess(j.index("command -v zstd"), j.index("actions/cache/restore@"))
 
     def test_scoped_host_archive_is_used_and_only_master_saves(self):
         text=WORKFLOW.read_text()
@@ -99,7 +108,7 @@ class AptCacheTest(unittest.TestCase):
             j = job(name)
             self.assertNotIn("uses: actions/cache@", j, name)
             self.assertIn("actions/cache/restore@", j, name)
-        self.assertNotIn("path: /var/cache/apt/archives", job("rust-linux-tier2").split("actions/cache/restore@")[1].split("Install Tier 2")[1])
+        self.assertNotIn("actions/cache/save@", job("rust-linux-tier2"))
         build = job("rust-linux-tier2-build")
         save = build[build.index("Save apt Downloads"):]
         self.assertIn("refs/heads/master", save.split("\n\n")[0])

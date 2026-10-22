@@ -5,11 +5,11 @@
   "environment": "local bosn; not hosted timing",
   "full_image": {
     "digest": "sha256:8bfa4af79039916a758817b4ca9f111e73c5adfa375e4bc0cb6173986359b41d",
-    "uncompressed_bytes": 541093691
+    "docker_reported_size_bytes": 541093691
   },
   "runtime_image": {
     "digest": "sha256:99a7975f1d611aeecaf3aa322fa5d8392173280cfd7b91edeb9a95f84f0fb12e",
-    "uncompressed_bytes": 445476013
+    "docker_reported_size_bytes": 445476013
   },
   "runtime_packages": [
     "cmake=4.2.3-2ubuntu2",

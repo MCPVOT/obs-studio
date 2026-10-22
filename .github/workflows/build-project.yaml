@@ -1456,11 +1456,8 @@ jobs:
   rust-linux-tier2:
     name: Rust Tier 2 Linux 🐧 (tests ${{ matrix.mode }})
     runs-on: ubuntu-26.04
-    # A stock image, no Dockerfile or image build (#966): run directly on the
-    # runner, two group tests failed while passing in a container with the
-    # same libraries, compiler, flags and CPU (#982). Packages install below.
-    container:
-      image: ubuntu:26.04@sha256:f144425ff09be612d6d9ad965196e9cdc23dae1f42110a8a11a3e9a8198759f7
+    # Load a verified prepared runtime, or install the exact closure in the
+    # same pinned stock base. The helper retains original artifact paths.
     timeout-minutes: 30
     needs: [check-event, ci-mode, rust-linux-tier2-build]
     # Tests consume the validated tree, not Fast Gate output. Overlap the
@@ -1478,13 +1475,6 @@ jobs:
       run:
         shell: bash
     steps:
-      # checkout needs git for tags and submodules; sudo keeps the shared
-      # install step below the same as on a plain runner.
-      - name: Install Git 📦
-        run: |
-          apt-get update -qq
-          apt-get install -y --no-install-recommends git ca-certificates curl sudo zstd
-
       # Execute the prebuilt tree: no OBS configure, version tags or submodule sources.
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
@@ -1495,12 +1485,13 @@ jobs:
           version: '0.13.1'
           enable-cache: false
 
-      # Reuse the 339 MB of .debs every Tier 2 job downloaded (#1055): keep
-      # them (the stock image's docker-clean config deletes them after each
-      # install) and restore the archive dir, keyed on the list and the image.
-      # zstd is installed above: the cache entry is versioned by compressor.
-      - name: Keep apt Downloads 📦
-        run: rm -f /etc/apt/apt.conf.d/docker-clean
+      # Restore the existing apt family for a stock fallback; tests never save it.
+      - name: Prepare apt Archive Directory
+        run: |
+          command -v zstd
+          command -v docker
+          sudo mkdir -p /var/cache/apt/archives
+          sudo chmod a+rwx /var/cache/apt/archives
       - uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         id: apt-cache
         with:
@@ -1511,13 +1502,6 @@ jobs:
         with:
           name: tier2-tree
           path: ${{ runner.temp }}/tier2-pack
-
-      # Install the builder's exact runtime closure, including dlopen providers.
-      - name: Install Tier 2 Packages 📦
-        run: |
-          # Install Git already refreshed these lists in this fresh container.
-          test -s "$RUNNER_TEMP/tier2-pack/runtime-packages.txt"
-          xargs "${GITHUB_WORKSPACE}/.github/scripts/retry" sudo apt-get install -y --no-install-recommends < "$RUNNER_TEMP/tier2-pack/runtime-packages.txt"
 
       - name: Unpack Tier 2 Tree 📂
         run: |
@@ -1535,18 +1519,22 @@ jobs:
           restore-keys: tier2-ctest-cost-
 
       - name: Test Tier 2 (${{ matrix.mode }}) ✅
-        env:
-          OBS_TIER2_SRC: ${{ github.workspace }}
-          OBS_TIER2_BUILD: ${{ runner.temp }}/tier2
-          OBS_TIER2_MODES: ${{ matrix.mode }}
-          OBS_TIER2_STAGE: test
-          # At most 8 test binaries at once. The two tests that failed under
-          # -j8 (#938) judged timing, not playback; #1001 fixed that.
-          OBS_CTEST_JOBS: 8
-          # Read before ctest (longest first), rewritten after; cached by
-          # rust-linux-tier2-done on master.
-          OBS_TIER2_COST_DIR: ${{ github.workspace }}/.tier2-cost
-        run: bash rust/tools/linux-validate/validate.sh
+        run: |
+          uv run --no-project rust/tools/linux-validate/ci-runtime.py \
+            --descriptor rust/tools/linux-validate/prepared-runtime.json \
+            --packages "$RUNNER_TEMP/tier2-pack/runtime-packages.txt" \
+            --source "$GITHUB_WORKSPACE" --build "$RUNNER_TEMP/tier2" \
+            --cost "$GITHUB_WORKSPACE/.tier2-cost" --uv "$(command -v uv)" \
+            --archives /var/cache/apt/archives \
+            --state "$RUNNER_TEMP/tier2-runtime" --mode '${{ matrix.mode }}'
+      - name: Upload Runtime Setup Measurement
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: tier2-runtime-${{ matrix.mode }}
+          path: ${{ runner.temp }}/tier2-runtime/runtime-measurement.json
+          retention-days: 1
+          if-no-files-found: warn
       - name: Upload Test Timings ⏱️
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always() && github.event_name == 'push' && github.ref == 'refs/heads/master'
