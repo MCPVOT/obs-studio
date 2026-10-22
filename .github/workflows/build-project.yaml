@@ -1571,9 +1571,9 @@ jobs:
       FFMPEG_ASSET: ffmpeg-8.1.2-linux-x86_64-glibc2.28-release.tar.zst
       FFMPEG_SHA256: 8796ecdb273688c21f90b75a4e84acfc84ab35e69cacb551a6d8ed452961fcb4
       CCACHE_DIR: ${{ github.workspace }}/.qt-ccache
-      # The measured warm entry is ~1.11 GB; preserve that working set and
-      # bound future growth below ci.toml's 1.3 GB archive allowance.
-      CCACHE_MAXSIZE: 1200M
+      # Post-pruning warm working set is ~508 MB (#1269/#1696). Keep >25%
+      # growth room below ci.toml's 750 MB archive allowance.
+      CCACHE_MAXSIZE: 650M
     defaults:
       run:
         shell: bash

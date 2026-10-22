@@ -161,7 +161,9 @@ publication/reuse measurements remain required after deployment.
 
 After the Qt build/tests, the runner's compiler cache evicts entries unused
 since preparation began, with a one-minute margin, then applies its existing
-1200M size limit. Hits refresh ccache entry timestamps, so current-build hits
+650M size limit. The measured pruned warm working store is 508,489,050 bytes;
+650M leaves over 25% working headroom, with a 750MB retention allowance in
+`ci.toml` (ci-lint interprets MB as MiB). Hits refresh ccache entry timestamps, so current-build hits
 and misses remain eligible for the next snapshot while stale objects can be
 removed. Missing preparation timestamps skip age eviction. Before/after byte
 counts are logged on PRs as well as master; remote uploads remain master-only.

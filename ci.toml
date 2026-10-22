@@ -104,8 +104,9 @@ tier2-ctest-cost = { prefix = "tier2-ctest-cost-", max = "1MB" }
 # October 21 snapshot: 41.4 MB Windows and 44.3 MB macOS; >3x growth room.
 windows-tier2-ccache = { prefix = "windows-tier2-ccache-", max = "128MB", evict = "lru" }
 macos-tier2-xcas = { prefix = "macos-tier2-xcas-", max = "128MB", evict = "lru" }
-# Measured warm archive ~1.11 GB; the job bounds ccache to 1200M before save.
-qt-ccache = { prefix = "qt-ccache-linux-", max = "1.3GB", evict = "lru" }
+# Pruned master archive 507,448,340 B; real warm consumer working store
+# 508,489,050 B. The 650M working cap preserves >25% growth room (#1269).
+qt-ccache = { prefix = "qt-ccache-linux-", max = "750MB", evict = "lru" }
 vcpkg-cmocka = { prefix = "vcpkg-bin-cmocka-", max = "100MB" }
 # Immutable dependency archives measured 25.3/66.3 MB; each allowance >2x.
 libs-qt = { prefix = "libs-qt-", max = "64MB" }
