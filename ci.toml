@@ -70,10 +70,10 @@ uv = { via = "setup-uv", max = "50MB" }
 # Queue OFF/ON objects share one measured ~475 MB archive. Independent LRU
 # protection prevents newer nightly writes from evicting that queue seed.
 zccache-tier2 = { prefix = "zccache-tier2-linux-", max = "550MB", evict = "lru" }
-# Compatible Ubuntu OFF/ON archives measured 712,847,430 + 795,699,586 B.
-# Separate first-match LRU from AppImage/sanitizer writes; both modes fit.
-# Capacity comes from the measured native/dependency allowances below (#1269).
-zccache-ubuntu = { prefix = "zccache-ubuntu-", max = "1.6GB", evict = "lru" }
+# Ubuntu's production app matrix is ON-only; C-reference OFF/ON coverage
+# remains in Tier 2. Observed ON archive 905,383,834 B; >30% growth room.
+# Separate first-match LRU protection from AppImage/sanitizer writes (#1269).
+zccache-ubuntu = { prefix = "zccache-ubuntu-", max = "1.1GB", evict = "lru" }
 zccache = { prefix = "zccache-", max = "500MB", evict = "lru", shapes = { appimage = { max = "400MB" }, sanitize = { max = "300MB" } } }
 # Windows compiler cache: ccache as cl.exe (build-project.yaml windows-build).
 windows-ccache = { prefix = "windows-ccache-", max = "800MB", evict = "lru" }
