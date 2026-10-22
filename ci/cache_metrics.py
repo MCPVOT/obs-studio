@@ -146,10 +146,11 @@ def parse_cache_logs(text: str) -> dict:
 
 
 def parse_rust_test_logs(text: str) -> dict:
-    """Observed Cargo test phases; no extra compile, no invented missing times.
+    """Observed Cargo/nextest phases; absent markers remain unknown.
 
-    Cargo's build summary includes linking. The first Running marker to the
-    last test-result line is an observed output span, not total process time.
+    Build summaries include linking. First execution marker to last result is
+    an output span, not total process time. Nextest's own reported execution
+    duration is separate; Cargo doctests remain a separate command sample.
     Linker-only costs and rebuild reasons are not available from these lines.
     """
     result = {}
@@ -170,11 +171,17 @@ def parse_rust_test_logs(text: str) -> dict:
             continue
         if body.startswith("+ soldr cargo "):
             active.pop(job, None)
-            if not body.startswith("+ soldr cargo test ") or "--no-run" in body.split():
+            nextest = body.startswith("+ soldr cargo nextest run ")
+            cargo = body.startswith("+ soldr cargo test ")
+            if not (nextest or cargo) or "--no-run" in body.split():
                 continue
-            observation = {"command_started_at": timestamp, "cargo_build_and_link_seconds": None,
+            runner = 'nextest' if nextest else ('cargo-doctests' if '--doc' in body.split() else 'cargo')
+            observation = {"runner": runner, "command_started_at": timestamp,
+                           "cargo_build_and_link_seconds": None,
                            "command_to_first_test_seconds": None, "observed_test_output_seconds": None,
-                           "result_summaries": 0}
+                           "observed_command_to_last_result_seconds": None,
+                           "nextest_reported_execution_seconds": None,
+                           "nextest_summaries": [], "cargo_results": [], "result_summaries": 0}
             result.setdefault(job, []).append(observation)
             active[job] = (observation, now, None)
         if job not in active:
@@ -185,12 +192,36 @@ def parse_rust_test_logs(text: str) -> dict:
             observation["cargo_build_and_link_seconds"] = sum(
                 float(number) * {"h": 3600, "m": 60, "s": 1}[unit]
                 for number, unit in re.findall(r"(\d+(?:\.\d+)?)([hms])", finished[1]))
-        if first_test is None and now >= started and re.search(r"\bRunning (?:unittests\b|tests/|benches/|examples/)", body):
+        starting = re.search(r"\bStarting (\d+) tests? across (\d+) binar(?:y|ies)\b", body)
+        if observation['runner'] == 'nextest' and starting:
+            observation['nextest_start'] = {'tests_scheduled': int(starting[1]), 'binaries': int(starting[2])}
+        execution_marker = (starting if observation['runner'] == 'nextest' else
+                            re.search(r"\b(?:Running (?:unittests\b|tests/|benches/|examples/)|Doc-tests\b)", body))
+        if first_test is None and now >= started and execution_marker:
             first_test = now
             observation["command_to_first_test_seconds"] = (now - started).total_seconds()
             active[job] = (observation, started, first_test)
-        if "test result:" in body:
+        summary = re.search(r"\bSummary\s+\[\s*((?:\d+(?:\.\d+)?[hms]\s*)+)\]\s+(\d+)(?:/(\d+))? tests? run:\s*(.*)$", body)
+        is_result = False
+        if observation['runner'] == 'nextest' and summary:
+            observation['nextest_reported_execution_seconds'] = sum(
+                float(number) * {'h': 3600, 'm': 60, 's': 1}[unit]
+                for number, unit in re.findall(r"(\d+(?:\.\d+)?)([hms])", summary[1]))
+            record = {'tests_run': int(summary[2]), 'summary_text': summary[4],
+                      'counts': {status.strip(): int(number) for number, status in
+                                 re.findall(r"(\d+)\s+([a-z][a-z -]*)(?:,|$)", summary[4])}}
+            if summary[3] is not None:
+                record['tests_scheduled'] = int(summary[3])
+            observation['nextest_summaries'].append(record)
+            is_result = True
+        elif observation['runner'] != 'nextest' and 'test result:' in body:
+            observation['cargo_results'].append({status: int(number) for number, status in
+                re.findall(r"(\d+) (passed|failed|ignored|measured|filtered out)\b", body)})
+            is_result = True
+        if is_result:
             observation["result_summaries"] += 1
+            if now >= started:
+                observation['observed_command_to_last_result_seconds'] = (now - started).total_seconds()
             if first_test is not None and now >= first_test:
                 observation["observed_test_output_seconds"] = (now - first_test).total_seconds()
     return result
@@ -244,20 +275,22 @@ def collect(repo: str, start: str, end: str, output: Path, per_group: int, inclu
         run_id = run["databaseId"]
         cached_path = output / f"run-{run_id}.json"
         cached = json.loads(cached_path.read_text()) if cached_path.exists() else None
-        if cached and all(cached.get(key) == run[key] for key in ("updatedAt", "headSha", "status", "conclusion")):
+        cache_valid = cached and all(cached.get(key) == run[key] for key in ("updatedAt", "headSha", "status", "conclusion"))
+        if cache_valid:
             jobs = cached["jobs"]
             detail = {"run_attempt": cached["run_attempt"], "pull_requests": []}
         else:
             detail = gh("api", f"repos/{repo}/actions/runs/{run_id}")
             pages = gh("api", f"repos/{repo}/actions/runs/{run_id}/jobs?per_page=100", "--paginate", "--slurp")
             jobs = [job for page in pages for job in page["jobs"]]
-        base = None
+        # A later PR/base update cannot change an unchanged historical sample.
+        base = cached.get("comparison_base") if cache_valid else None
         queue = re.search(r"/pr-\d+-([a-f0-9]{40})$", (run.get("headBranch") or ""))
         if queue:
             base = queue.group(1)
         elif detail.get("pull_requests"):
             base = detail["pull_requests"][0]["base"]["sha"]
-        elif run["event"] == "pull_request":
+        elif base is None and run["event"] == "pull_request":
             # GitHub often drops associations from old/merged run metadata.
             # Resolve only an unambiguous branch/lifetime match; never guess
             # docs from a missing association or the branch name itself.
