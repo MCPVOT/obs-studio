@@ -408,6 +408,13 @@ static void techniques_exist_in_the_effect(void **state)
 	text[len] = 0;
 	fclose(f);
 
+	/* A Windows checkout has CRLF line endings; match on LF only. */
+	char *w = text;
+	for (char *r = text; *r; r++)
+		if (*r != '\r')
+			*w++ = *r;
+	*w = 0;
+
 	size_t named = 0;
 	for (size_t i = 0; i < N(all_formats); i++) {
 		for (size_t c = 0; c < N(all_colorspaces); c++) {
