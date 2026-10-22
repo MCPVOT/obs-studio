@@ -20,6 +20,10 @@ on:
         description: Measure isolated Flatpak downloads and proxy compression after Flatpak output validation
         type: boolean
         default: false
+      native-cache-transport-probe:
+        description: Qualify bounded native cache release transport on master (writes cache-only prereleases)
+        type: boolean
+        default: false
       native-cache-probe:
         description: Opt-in manual Windows compiler-cache budget measurement; does not replace full validation
         type: boolean
@@ -315,6 +319,48 @@ jobs:
         with:
           path: ${{ steps.setup.outputs.xcodeCasPath }}
           key: ${{ runner.os }}-xcode-${{ matrix.target }}-${{ needs.check-event.outputs.config }}-${{ github.sha }}
+
+      # Identity evidence only; the separate manual publisher has its own token.
+      - name: Set Up uv for Native Transport Identity
+        if: inputs.native-cache-transport-probe
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          save-cache: ${{ github.ref == 'refs/heads/master' }}
+
+      - name: Record Native Transport Identity
+        if: inputs.native-cache-transport-probe
+        run: >-
+          uv run ci/native_cache_identity.py --platform macos
+          --architecture '${{ matrix.target }}' --configuration '${{ needs.check-event.outputs.config }}'
+          --output '${{ runner.temp }}/native-cache-identity.json'
+
+      - name: Qualify Local Native Cache Archive
+        shell: bash
+        if: inputs.native-cache-transport-probe
+        env:
+          CACHE_SOURCE: ${{ steps.setup.outputs.xcodeCasPath }}
+        run: >-
+          uv run ci/native_cache_transport.py verify-local
+          --identity '${{ runner.temp }}/native-cache-identity.json' --source "$CACHE_SOURCE"
+          --report '${{ runner.temp }}/native-cache-local.json'
+
+      - name: Upload Local Native Cache Evidence
+        if: always() && inputs.native-cache-transport-probe
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: native-cache-local-macos-${{ matrix.target }}
+          path: ${{ runner.temp }}/native-cache-local.json
+          retention-days: 1
+          if-no-files-found: warn
+
+      - name: Upload Native Transport Identity
+        if: inputs.native-cache-transport-probe
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: native-cache-identity-macos-${{ matrix.target }}
+          path: ${{ runner.temp }}/native-cache-identity.json
+          retention-days: 1
+          if-no-files-found: error
 
   ubuntu-build:
     name: Ubuntu 🐧 ${{ matrix.rust == 'ON' && '(OBS-Studio-Rust) ' || '' }}
@@ -911,6 +957,48 @@ jobs:
         with:
           name: obs-studio-windows-${{ matrix.architecture }}-${{ needs.check-event.outputs.commitHash }}
           path: ${{ github.workspace }}/build_${{ matrix.architecture }}/obs-studio-*-windows-${{ matrix.architecture }}.zip
+
+      # Identity evidence only; the separate manual publisher has its own token.
+      - name: Set Up uv for Native Transport Identity
+        if: inputs.native-cache-transport-probe
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          save-cache: ${{ github.ref == 'refs/heads/master' }}
+
+      - name: Record Native Transport Identity
+        if: inputs.native-cache-transport-probe
+        run: >-
+          uv run ci/native_cache_identity.py --platform windows
+          --architecture '${{ matrix.architecture }}' --configuration '${{ needs.check-event.outputs.config }}'
+          --output '${{ runner.temp }}/native-cache-identity.json'
+
+      - name: Qualify Local Native Cache Archive
+        shell: bash
+        if: inputs.native-cache-transport-probe
+        env:
+          CACHE_SOURCE: ${{ github.workspace }}/.ccache
+        run: >-
+          uv run ci/native_cache_transport.py verify-local
+          --identity '${{ runner.temp }}/native-cache-identity.json' --source "$CACHE_SOURCE"
+          --report '${{ runner.temp }}/native-cache-local.json'
+
+      - name: Upload Local Native Cache Evidence
+        if: always() && inputs.native-cache-transport-probe
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: native-cache-local-windows-${{ matrix.architecture }}
+          path: ${{ runner.temp }}/native-cache-local.json
+          retention-days: 1
+          if-no-files-found: warn
+
+      - name: Upload Native Transport Identity
+        if: inputs.native-cache-transport-probe
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: native-cache-identity-windows-${{ matrix.architecture }}
+          path: ${{ runner.temp }}/native-cache-identity.json
+          retention-days: 1
+          if-no-files-found: error
 
   # zackees/ci.yml GATE-008/010: an attested, in-policy PR head (local-gate.toml,
   # ci-attestations.yml) skips the Linux unit-test jobs the local gate already
