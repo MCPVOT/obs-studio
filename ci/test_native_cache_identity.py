@@ -41,6 +41,42 @@ class NativeCacheIdentityTest(unittest.TestCase):
                 with self.subTest(field=field), mock.patch.object(IDENTITY, 'tool_versions', return_value=dict(versions, **{field: value})):
                     self.assertNotEqual(IDENTITY.capture('windows', 'x64', 'RelWithDebInfo'), first)
 
+    def test_mismatch_preserves_captured_identity_and_still_fails(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            current = {'platform': 'windows', 'architecture': 'x64', 'configuration': 'RelWithDebInfo',
+                       'compiler': 'new-compiler', 'sdk': 'sdk', 'cache_format': 'ccache-4.14.1'}
+            expected = root / 'expected.json'
+            expected.write_text(json.dumps(dict(current, compiler='old-compiler')))
+            output = root / 'current.json'
+            arguments = ['identity', '--platform', 'windows', '--architecture', 'x64',
+                         '--configuration', 'RelWithDebInfo', '--output', str(output), '--expected', str(expected)]
+            with mock.patch.object(IDENTITY.sys, 'argv', arguments), mock.patch.object(IDENTITY, 'capture', return_value=current):
+                with self.assertRaisesRegex(ValueError, 'compiler'):
+                    IDENTITY.main()
+            self.assertEqual(json.loads(output.read_text()), current)
+            self.assertEqual(json.loads(expected.read_text())['compiler'], 'old-compiler')
+
+    def test_mismatch_diagnostics_record_image_and_only_differing_fields(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            current = {'platform': 'windows', 'architecture': 'x64', 'configuration': 'Release',
+                       'compiler': 'new', 'sdk': 'sdk', 'cache_format': 'ccache-4.14.1'}
+            expected = root / 'expected.json'
+            expected.write_text(json.dumps(dict(current, compiler='old')))
+            diagnostics = root / 'diagnostics.json'
+            arguments = ['identity', '--platform', 'windows', '--architecture', 'x64', '--configuration', 'Release',
+                         '--output', str(root / 'current.json'), '--expected', str(expected),
+                         '--diagnostics', str(diagnostics)]
+            with mock.patch.object(IDENTITY.sys, 'argv', arguments), mock.patch.object(IDENTITY, 'capture', return_value=current), mock.patch.dict(IDENTITY.os.environ, {'ImageVersion': '20261007.264.1', 'ImageOS': 'win25-vs2026'}, clear=True):
+                with self.assertRaises(ValueError):
+                    IDENTITY.main()
+            report = json.loads(diagnostics.read_text())
+            self.assertEqual(report['status'], 'mismatch')
+            self.assertEqual(report['differing_fields'], ['compiler'])
+            self.assertEqual(report['runner_image_version'], '20261007.264.1')
+            self.assertEqual(report['runner_image_os'], 'win25-vs2026')
+
     def test_configuration_and_architecture_are_explicit(self):
         versions = {'xcode': '26.5', 'compiler': 'clang18', 'sdk': '26.5', 'sdk_build': '26F10'}
         with mock.patch.object(IDENTITY, 'tool_versions', return_value=versions):

@@ -101,14 +101,35 @@ def main():
     parser.add_argument('--configuration', required=True)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--expected', type=Path)
+    parser.add_argument('--diagnostics', type=Path)
     args = parser.parse_args()
     identity = capture(args.platform, args.architecture, args.configuration)
-    if args.expected is not None:
-        if args.expected.stat().st_size > 64 << 10 or json.loads(args.expected.read_text()) != identity:
-            raise ValueError('native runner identity differs from completed build')
+    # Preserve the captured profile even when a fresh publisher VM has a
+    # different image. The mismatch still fails before any transport operation.
     with args.output.open('x') as stream:
         json.dump(identity, stream, sort_keys=True, indent=2)
         stream.write('\n')
+    differences = []
+    if args.expected is not None:
+        with args.expected.open('rb') as stream:
+            encoded = stream.read((64 << 10) + 1)
+        if len(encoded) > 64 << 10:
+            raise ValueError('expected native identity budget exceeded')
+        expected = json.loads(encoded)
+        if not isinstance(expected, dict) or set(expected) != set(identity):
+            differences = ['schema']
+        else:
+            differences = sorted(field for field in identity if identity[field] != expected[field])
+    if args.diagnostics is not None:
+        report = {'schema': 1, 'status': 'mismatch' if differences else 'match' if args.expected else 'recorded',
+                  'differing_fields': differences,
+                  'runner_image_os': os.environ.get('ImageOS', '')[:256],
+                  'runner_image_version': os.environ.get('ImageVersion', '')[:256]}
+        with args.diagnostics.open('x') as stream:
+            json.dump(report, stream, sort_keys=True, indent=2)
+            stream.write('\n')
+    if differences:
+        raise ValueError('native runner identity differs from completed build; fields: ' + ', '.join(differences))
 
 
 if __name__ == '__main__':

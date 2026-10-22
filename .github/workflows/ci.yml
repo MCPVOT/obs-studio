@@ -396,6 +396,7 @@ jobs:
           --architecture '${{ matrix.architecture }}' --configuration RelWithDebInfo
           --expected '${{ runner.temp }}/native-cache-build-identity/native-cache-identity.json'
           --output '${{ runner.temp }}/native-cache-current-identity.json'
+          --diagnostics '${{ runner.temp }}/native-cache-current-identity-diagnostics.json'
       - name: Select Native Cache Path
         id: path
         run: |
