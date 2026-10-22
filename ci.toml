@@ -79,9 +79,9 @@ zccache = { prefix = "zccache-", max = "500MB", evict = "lru", shapes = { appima
 windows-ccache = { prefix = "windows-ccache-", max = "800MB", evict = "lru" }
 # macOS: Xcode's compilation cache (build-project.yaml macos-build).
 xcode = { prefix = "macOS-xcode-", max = "500MB", evict = "lru" }
-# Flatpak: flatpak-builder's dependency cache and its SDK ccache.
+# Flatpak: the projected archive contains dependency OSTree and SDK ccache.
 flatpak-builder = { prefix = "flatpak-builder-", max = "2.5GB", evict = "lru" }
-flatpak-ccache = { prefix = "flatpak-ccache-", max = "200MB" }
+# The standalone compiler migration reader/writer is retired (#1801).
 # AppImage (appimage.yaml): cargo and the test images' packages.
 # Legacy apt-appimage- and ccache-appimage- have no consumers or live entries;
 # they deliberately have no retention family (#1269).

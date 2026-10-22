@@ -88,7 +88,7 @@ class FlatpakCacheWriterTest(unittest.TestCase):
             self.assertLess(job.index(marker), job.index('name: Publish Flatpak Projected State'))
         self.assertEqual(job.count('uses: actions/cache/save@'), 1)
 
-    def test_new_projected_state_suppresses_legacy_compiler_overlay(self):
+    def test_projected_state_has_no_legacy_overlay(self):
         workflow = (WORKFLOWS / "build-project.yaml").read_text()
         job = workflow.split("  flatpak-build:\n", 1)[1].split("  flatpak-compiler-consumer:", 1)[0]
         state = job.split('id: flatpak-state-cache', 1)[1].split('\n      - ', 1)[0]
@@ -96,9 +96,7 @@ class FlatpakCacheWriterTest(unittest.TestCase):
         self.assertIn('key: ' + key, state)
         self.assertIn('flatpak-builder-state-v1-x86_64-', state)
         for marker in ['id: flatpak-builder-cache-lookup', 'name: Restore legacy Flatpak builder seed', 'id: flatpak-compiler-cache']:
-            block = job.split(marker, 1)[1].split('\n      - ', 1)[0]
-            self.assertIn("steps.flatpak-state-cache.outputs.cache-matched-key == ''", block)
-        self.assertLess(job.index('id: flatpak-state-cache'), job.index('id: flatpak-builder-cache-lookup'))
+            self.assertFalse(marker in job, 'The observed projected/cold routes no longer need migration overlays')
         publisher = job.split('name: Publish Flatpak Projected State', 1)[1].split('\n      - ', 1)[0]
         self.assertIn('key: ' + key, publisher)
 
@@ -111,7 +109,7 @@ class FlatpakCacheWriterTest(unittest.TestCase):
         self.assertIn("--zero-stats", reset)
         self.assertIn('CCACHE_DIR=', reset)
         self.assertNotIn('continue-on-error', reset)
-        self.assertLess(job.index('id: flatpak-compiler-cache'), job.index(marker))
+        self.assertLess(job.index('id: flatpak-state-cache'), job.index(marker))
         self.assertLess(job.index(marker), job.index('- name: Build Flatpak Manifest'))
         self.assertIn('Flatpak Ccache Stats (this build)', job)
 
@@ -123,8 +121,7 @@ class FlatpakCacheWriterTest(unittest.TestCase):
         self.assertIn("flatpak-cold-build: ${{ github.event_name == 'workflow_dispatch' && inputs.flatpak-cold-build }}", caller)
         job = workflow.split("  flatpak-build:\n", 1)[1].split("\n  windows-build:", 1)[0]
         steps = job.split('\n      - ')
-        for marker in ('id: flatpak-state-cache', 'id: flatpak-builder-cache-lookup', 'name: Restore legacy Flatpak builder seed',
-                       'id: flatpak-compiler-cache', 'key: flatpak-ccache-x86_64-${{ github.sha }}'):
+        for marker in ('id: flatpak-state-cache',):
             matches = [step for step in steps if marker in step]
             self.assertTrue(matches, marker)
             for step in matches:
@@ -136,14 +133,11 @@ class FlatpakCacheWriterTest(unittest.TestCase):
         for validator in ('Validate AppStream', 'Validate build directory', 'Validate repository'):
             self.assertIn(validator, job)
 
-    def test_standalone_compiler_cache_is_migration_input_without_a_writer(self):
-        workflow = (WORKFLOWS / "build-project.yaml").read_text()
-        job = workflow.split("  flatpak-build:\n", 1)[1].split("  flatpak-compiler-consumer:", 1)[0]
-        marker = "key: flatpak-ccache-x86_64-${{ github.sha }}"
-        steps = [block for block in job.split('\n      - ') if marker in block]
-        self.assertEqual(len(steps), 1)
-        self.assertIn('uses: actions/cache/restore@', steps[0])
-        self.assertNotIn('uses: actions/cache/save@', steps[0])
+    def test_retired_standalone_compiler_cache_has_no_reader_writer_or_reservation(self):
+        for workflow in WORKFLOWS.glob('*.y*ml'):
+            with self.subTest(workflow=workflow.name):
+                self.assertFalse('flatpak-ccache-' in workflow.read_text(), 'Retired standalone cache still has a consumer')
+        self.assertFalse('flatpak-ccache' in load()['cache']['family'], 'Retired standalone reservation remains')
 
 
 class RetiredCacheFamilyTest(unittest.TestCase):

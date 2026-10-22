@@ -230,23 +230,17 @@ set_target_properties(obs-nvenc PROPERTIES PREFIX "")
         self.assertTrue(changed.startswith("flatpak-builder-x86_64"), changed)
         self.assertFalse(seed.startswith("flatpak-builder-aarch64"))
 
-    def test_flatpak_namespace_migration_preserves_legacy_seed_conditionally(self):
+    def test_flatpak_restores_one_projected_build_cache_before_compiling(self):
         workflow = (ROOT / ".github/workflows/build-project.yaml").read_text()
-        job = workflow.split("  flatpak-build:\n", 1)[1].split("\n  windows-build:", 1)[0]
-        self.assertIn("id: flatpak-builder-cache-lookup", job)
-        lookup = job.split("id: flatpak-builder-cache-lookup", 1)[1].split("\n      - ", 1)[0]
-        self.assertNotIn("lookup-only: true", lookup, "restore the builder before its newer standalone compiler cache")
-        self.assertIn("key: flatpak-builder-x86_64-${{ hashFiles('build-aux/com.obsproject.Studio.json') }}-x86_64", lookup)
-        self.assertIn("restore-keys: flatpak-builder-x86_64", lookup)
-        marker = "- name: Restore legacy Flatpak builder seed"
-        self.assertIn(marker, job)
-        legacy = job.split(marker, 1)[1].split("\n      - ", 1)[0]
-        self.assertIn("steps.flatpak-builder-cache-lookup.outputs.cache-matched-key == ''", legacy)
-        self.assertIn("path: .flatpak-builder", legacy)
-        self.assertIn("key: flatpak-builder-7bb71f0a48a885ca4bfe218d34814d0c108cb0ee80df664119c10c6a24945d77-x86_64", legacy)
-        self.assertNotIn("restore-keys:", legacy, "legacy bridge must not select another architecture")
-        self.assertLess(job.index(marker), job.index("id: flatpak-compiler-cache"))
-        self.assertLess(job.index("id: flatpak-compiler-cache"), job.index("- name: Build Flatpak Manifest"))
+        job = workflow.split("  flatpak-build:\n", 1)[1].split("\n  flatpak-compiler-consumer:", 1)[0]
+        restores = [step for step in job.split('\n      - ') if 'uses: actions/cache/restore@' in step]
+        self.assertEqual(len(restores), 1, 'Retired migration restores must not return on a projected miss')
+        restore = restores[0]
+        self.assertIn('id: flatpak-state-cache', restore)
+        self.assertIn('!inputs.flatpak-cold-build', restore)
+        paths = restore.split('          path: |\n', 1)[1].split('          key:', 1)[0]
+        self.assertEqual(paths.split(), ['.flatpak-builder/cache', '.flatpak-builder/ccache'])
+        self.assertLess(job.index('id: flatpak-state-cache'), job.index('- name: Build Flatpak Manifest'))
 
     def flatpak_cache_inventory_script(self):
         workflow = (ROOT / ".github/workflows/build-project.yaml").read_text()

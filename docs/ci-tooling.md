@@ -879,3 +879,17 @@ count those omissions as a Flatpak build speedup. Record full job/source/cache
 identities, failures and costs; do not restart a live observation on API lag.
 Manual master dispatches share their existing cancellation group, so wait for
 the entire preceding manual master workflow to finish before starting another.
+
+### Flatpak cache retention after migration (#1801)
+
+The production build restores one projected Actions archive containing
+`.flatpak-builder/cache` and `.flatpak-builder/ccache`. A miss builds cold;
+the old whole-builder and standalone compiler migration restores are retired.
+Current builds reset counters after restoration and still execute the full
+build, export and validators before trusted publication.
+
+The obsolete standalone compiler family no longer reserves 200 MiB. The
+[saved policy replay](ci-evidence/2026-10-22-flatpak-legacy-retirement.md)
+records the declaration reduction and unchanged deletion plans. This snapshot
+has no standalone entries to reclaim; global overcommit and native architecture
+retention remain open in #1801.

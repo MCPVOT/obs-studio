@@ -796,33 +796,6 @@ jobs:
             flatpak-builder-state-v1-x86_64-${{ hashFiles('build-aux/com.obsproject.Studio.json') }}-
             flatpak-builder-state-v1-x86_64-
 
-      # Migration only: restore an old whole builder and then its newer
-      # standalone compiler snapshot. Never overlay either on a new-state hit.
-      - uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        id: flatpak-builder-cache-lookup
-        if: ${{ !inputs.flatpak-cold-build && steps.flatpak-state-cache.outputs.cache-matched-key == '' }}
-        with:
-          path: .flatpak-builder
-          key: flatpak-builder-x86_64-${{ hashFiles('build-aux/com.obsproject.Studio.json') }}-x86_64
-          restore-keys: flatpak-builder-x86_64
-
-      - name: Restore legacy Flatpak builder seed
-        if: ${{ !inputs.flatpak-cold-build && steps.flatpak-state-cache.outputs.cache-matched-key == '' && steps.flatpak-builder-cache-lookup.outputs.cache-matched-key == '' }}
-        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        with:
-          path: .flatpak-builder
-          key: flatpak-builder-7bb71f0a48a885ca4bfe218d34814d0c108cb0ee80df664119c10c6a24945d77-x86_64
-
-      # Preserve the measured legacy overlay order only during migration.
-      # A restored projected state already contains its current compiler data.
-      - uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        id: flatpak-compiler-cache
-        if: ${{ !inputs.flatpak-cold-build && steps.flatpak-state-cache.outputs.cache-matched-key == '' }}
-        with:
-          path: .flatpak-builder/ccache
-          key: flatpak-ccache-x86_64-${{ github.sha }}
-          restore-keys: flatpak-ccache-x86_64-
-
       - name: Record Start Time ⏱️
         id: start
         run: echo "epoch=$(date +%s)" >> "${GITHUB_OUTPUT}"
@@ -830,7 +803,7 @@ jobs:
       - name: Reset Flatpak Compiler Counters
         run: |
           # The image already supplies this manifest's SDK. Reset only after
-          # both archives are restored, so old stats cannot replace the reset.
+          # the projected archive is restored, so old stats cannot replace the reset.
           ccache_dir="${PWD}/.flatpak-builder/ccache"
           mkdir -p "${ccache_dir}"
           sdk="org.freedesktop.Sdk//$(sed -n 's/^ *"runtime-version": *"\([^" ]*\)".*/\1/p' build-aux/com.obsproject.Studio.json)"
