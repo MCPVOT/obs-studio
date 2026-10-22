@@ -5,6 +5,10 @@ run-name: ${{ github.event.pull_request.title || github.ref_name }} pull request
 on:
   workflow_dispatch:
     inputs:
+      tier2-setup-probe:
+        description: Measure cold prepared-environment transfer against locked stock setup (one producer and six fresh consumers)
+        type: boolean
+        default: false
       native-cache-probe:
         description: Measure isolated Windows cache budgets after the full build (extra clean rebuilds)
         type: boolean
@@ -69,6 +73,133 @@ jobs:
     permissions:
       actions: read
       contents: read
+
+  # Opt-in evidence only: normal build/test selection stays intact; the gate also checks the probe.
+  # A short-lived Actions artifact avoids registry publication or credentials.
+  tier2-setup-producer:
+    name: Tier 2 Setup Producer 📦
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master' && inputs.tier2-setup-probe
+    needs: build-project
+    runs-on: ubuntu-26.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          version: '0.13.1'
+          save-cache: ${{ github.ref == 'refs/heads/master' }}
+          enable-cache: false
+      - name: Download Locked Tier 2 Inputs
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: tier2-tree
+          path: ${{ runner.temp }}/tier2-input
+      - name: Prepare apt Archive Directory
+        run: sudo install -d -m 0777 /var/cache/apt/archives
+      - name: Restore apt Archives
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: /var/cache/apt/archives
+          key: tier2-apt-ubuntu2604-f144425f-${{ hashFiles('rust/tools/linux-validate/apt-packages.txt') }}
+      - name: Produce Immutable Environment
+        run: >-
+          uv run --no-project python ci/tier2_setup_probe.py produce
+          --packages "$RUNNER_TEMP/tier2-input/runtime-packages.txt"
+          --bundle "$RUNNER_TEMP/setup-bundle" --archives /var/cache/apt/archives
+      - name: Upload Environment Metadata
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: tier2-setup-metadata
+          path: ${{ runner.temp }}/setup-bundle/bundle.json
+          retention-days: 1
+          if-no-files-found: error
+      - name: Upload Prepared Image
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: tier2-setup-image
+          path: ${{ runner.temp }}/setup-bundle/image.tar.zst
+          compression-level: 0
+          retention-days: 1
+          if-no-files-found: error
+
+  tier2-setup-consumer:
+    name: Tier 2 Setup (${{ matrix.variant }}, trial ${{ matrix.trial }})
+    needs: tier2-setup-producer
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [stock, prepared]
+        trial: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          version: '0.13.1'
+          save-cache: ${{ github.ref == 'refs/heads/master' }}
+          enable-cache: false
+      - name: Download Environment Metadata
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: tier2-setup-metadata
+          path: ${{ runner.temp }}/setup-bundle
+      - name: Prepare apt Archive Directory
+        if: matrix.variant == 'stock'
+        run: sudo install -d -m 0777 /var/cache/apt/archives
+      - name: Restore apt Archives
+        if: matrix.variant == 'stock'
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: /var/cache/apt/archives
+          key: tier2-apt-ubuntu2604-f144425f-${{ hashFiles('rust/tools/linux-validate/apt-packages.txt') }}
+      - name: Download Prepared Image
+        if: matrix.variant == 'prepared'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: tier2-setup-image
+          path: ${{ runner.temp }}/setup-bundle
+      - name: Measure Setup
+        env:
+          VARIANT: ${{ matrix.variant }}
+        run: >-
+          uv run --no-project python ci/tier2_setup_probe.py "$VARIANT"
+          --bundle "$RUNNER_TEMP/setup-bundle" --archives /var/cache/apt/archives
+      # Validate the prepared image itself with both unchanged complete suites.
+      # Coverage is recorded separately from setup, once per experimental image.
+      - name: Download Coverage Tree
+        if: matrix.variant == 'prepared' && matrix.trial == 1
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: tier2-tree
+          path: ${{ runner.temp }}/tier2-input
+      - name: Validate Prepared OFF and ON Suites
+        if: matrix.variant == 'prepared' && matrix.trial == 1
+        run: |
+          mkdir -p "$RUNNER_TEMP/tier2"
+          tar --zstd -xf "$RUNNER_TEMP/tier2-input/tier2-tree.tar.zst" -C "$RUNNER_TEMP/tier2"
+          image=$(uv run --no-project python -c 'import json,os; print(json.load(open(os.environ["RUNNER_TEMP"]+"/setup-bundle/bundle.json"))["image_id"])')
+          docker run --cpus 4 \
+            --mount "type=bind,src=$GITHUB_WORKSPACE,dst=/__w/obs-studio/obs-studio,readonly" \
+            --mount "type=bind,src=$RUNNER_TEMP/tier2,dst=/__w/_temp/tier2" \
+            --mount "type=bind,src=$(command -v uv),dst=/usr/local/bin/uv,readonly" \
+            --env OBS_TIER2_SRC=/__w/obs-studio/obs-studio --env OBS_TIER2_BUILD=/__w/_temp/tier2 \
+            --env OBS_TIER2_STAGE=test --env "OBS_TIER2_MODES=OFF ON" --env OBS_CTEST_JOBS=8 \
+            "$image" bash /__w/obs-studio/obs-studio/rust/tools/linux-validate/validate.sh
+      - name: Upload Setup Evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: tier2-setup-${{ matrix.variant }}-${{ matrix.trial }}
+          path: |
+            ${{ runner.temp }}/setup-bundle/*-measurement.json
+            ${{ runner.temp }}/tier2/*.ctest-*.log
+          retention-days: 7
+          if-no-files-found: warn
 
   # One runner for both data validators (#992); each step skips itself when
   # its files did not change.
@@ -138,7 +269,7 @@ jobs:
   ci-gate:
     name: CI Gate ✅
     if: always()
-    needs: [cancel-superseded, check-format, build-project, validate-data, update-documentation]
+    needs: [cancel-superseded, check-format, build-project, validate-data, update-documentation, tier2-setup-producer, tier2-setup-consumer]
     runs-on: ubuntu-26.04
     permissions:
       actions: read
