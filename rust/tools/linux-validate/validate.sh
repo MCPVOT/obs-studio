@@ -101,14 +101,15 @@ source "$SRC"/rust/tools/linux-validate/stale-build.sh
 rustc_version=
 if [ "$stage" != test ]; then
   rustc_version=$(cd "$SRC" && rustc -V)
+  # Configure needs these source trees; an unpacked test artifact does not.
+  for sub in plugins/obs-browser plugins/obs-websocket; do
+    if [ -z "$(ls -A "$SRC/$sub" 2>/dev/null)" ]; then
+      [ -w "$SRC" ] || { echo "FAIL: submodule $sub is empty in the read-only checkout; run.sh initializes it"; exit 1; }
+      git -C "$SRC" submodule update --init --depth 1 "$sub"
+    fi
+  done
 fi
 cd "$SRC"
-for sub in plugins/obs-browser plugins/obs-websocket; do
-  if [ -z "$(ls -A "$sub" 2>/dev/null)" ]; then
-    [ -w . ] || { echo "FAIL: submodule $sub is empty in the read-only checkout; run.sh initializes it"; exit 1; }
-    git submodule update --init --depth 1 "$sub"
-  fi
-done
 
 # Compiler cache: zccache as the CMake compiler launcher keeps cold builds (a
 # fresh clone or another worktree, whose mtimes differ, or a CI runner) from

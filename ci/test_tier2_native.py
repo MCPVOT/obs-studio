@@ -55,6 +55,10 @@ class ValidatePathsTest(unittest.TestCase):
         self.assertIn('SRC="${OBS_TIER2_SRC:-/ro}"', self.text)
         self.assertIn('BUILD="${OBS_TIER2_BUILD:-/build}"', self.text)
 
+    def test_submodules_are_initialized_only_when_building(self):
+        block = self.text.split('if [ "$stage" != test ]; then', 1)[1].split('\nfi', 1)[0]
+        self.assertIn('submodule update', block)
+
     def test_no_hardcoded_container_paths_remain(self):
         body = "\n".join(l for l in self.text.splitlines() if not l.lstrip().startswith("#"))
         body = body.replace('"${OBS_TIER2_SRC:-/ro}"', "").replace('"${OBS_TIER2_BUILD:-/build}"', "")
@@ -79,6 +83,16 @@ class WorkflowTest(unittest.TestCase):
         self.assertRegex(self.job, r"zackees/setup-soldr@[0-9a-f]{40}")
         self.assertIn("shims: true", self.job)
 
+    def test_test_runner_does_not_fetch_build_only_submodules_or_history(self):
+        text = WORKFLOW.read_text()
+        test = re.search(r"^  rust-linux-tier2:\n(.*?)(?=^  [a-z0-9-]+:\n)", text, re.S | re.M)[1]
+        checkout = test.split("uses: actions/checkout@", 1)[1].split("- name:", 1)[0]
+        self.assertNotIn("submodules: recursive", checkout)
+        self.assertNotIn("fetch-depth: 0", checkout)
+        build = re.search(r"^  rust-linux-tier2-build:\n(.*?)(?=^  [a-z0-9-]+:\n)", text, re.S | re.M)[1]
+        self.assertIn("submodules: recursive", build)
+        self.assertIn("fetch-depth: 0", build)
+
     def test_runs_validate_on_the_runner(self):
         self.assertIn("bash rust/tools/linux-validate/validate.sh", self.job)
         self.assertIn("OBS_TIER2_SRC: ${{ github.workspace }}", self.job)
@@ -101,7 +115,7 @@ class GitOwnershipTest(unittest.TestCase):
         self.assertIn(line, text)
         # Unconditional (not inside an if), and before the first git command.
         self.assertTrue(text.splitlines()[text[: text.index(line)].count("\n")].startswith("git config"))
-        self.assertLess(text.index(line), text.index("git submodule update"))
+        self.assertLess(text.index(line), text.index('git -C "$SRC" submodule update'))
 
     def test_no_temporary_diagnostic_left(self):
         self.assertNotIn("Diagnose Group Tests", WORKFLOW.read_text(encoding="utf-8"))

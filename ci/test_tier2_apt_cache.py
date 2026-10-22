@@ -45,6 +45,13 @@ class AptCacheTest(unittest.TestCase):
             self.assertLess(j.index("path: /var/cache/apt/archives"), j.index("Install Tier 2 Packages"), name)
             self.assertLess(j.index("actions/checkout@"), j.index("path: /var/cache/apt/archives"), name)
 
+    def test_package_index_is_fetched_once_per_fresh_container(self):
+        for name in ("rust-linux-tier2-build", "rust-linux-tier2"):
+            j = job(name)
+            updates = re.findall(r"^\s+(?:sudo )?apt-get update[^\n]*", j, re.M)
+            self.assertEqual(len(updates), 1, name)
+            self.assertLess(j.index(updates[0].strip()), j.index("actions/checkout@"), name)
+
     def test_zstd_is_there_before_the_restore(self):
         # actions/cache versions an entry by its compressor: restoring before
         # zstd is installed looks for a gzip entry the zstd save never wrote,

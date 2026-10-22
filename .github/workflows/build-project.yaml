@@ -1289,7 +1289,7 @@ jobs:
       # The package list is shared with the local Docker harness (run.sh).
       - name: Install Tier 2 Packages 📦
         run: |
-          sudo apt-get update -qq
+          # Install Git already refreshed these lists in this fresh container.
           grep -v '^#' rust/tools/linux-validate/apt-packages.txt |
             xargs "${GITHUB_WORKSPACE}/.github/scripts/retry" sudo apt-get install -y --no-install-recommends
       # One saver, master only: per-PR entries overflowed the 10 GB cache.
@@ -1421,11 +1421,8 @@ jobs:
           apt-get update -qq
           apt-get install -y --no-install-recommends git ca-certificates curl sudo zstd
 
-      # fetch-depth 0: versionconfig.cmake derives the OBS version from tags.
+      # Execute the prebuilt tree: no configure, version tags or submodule sources.
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          submodules: recursive
-          fetch-depth: 0
 
       - name: Set Up uv 🐍
         uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
@@ -1449,7 +1446,7 @@ jobs:
       # The package list is shared with the local Docker harness (run.sh).
       - name: Install Tier 2 Packages 📦
         run: |
-          sudo apt-get update -qq
+          # Install Git already refreshed these lists in this fresh container.
           grep -v '^#' rust/tools/linux-validate/apt-packages.txt |
             xargs "${GITHUB_WORKSPACE}/.github/scripts/retry" sudo apt-get install -y --no-install-recommends
 
