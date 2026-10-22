@@ -530,8 +530,10 @@ static void output_size_check_edges(void **state)
 	for (size_t w = 0; w < N(sizes); w++) {
 		for (size_t h = 0; h < N(sizes); h++) {
 			bool want = obs_video_size_valid(sizes[w], sizes[h]) && sizes[w] != 2 && sizes[w] != 3;
-			if (obs_video_output_size_valid(sizes[w], sizes[h]) != want)
-				fail_msg("output_size_valid(%u, %u) is not %d", sizes[w], sizes[h], want);
+			if (obs_video_output_size_valid(sizes[w], sizes[h]) != want) {
+				fprintf(stderr, "output_size_valid(%u, %u) is not %d\n", sizes[w], sizes[h], want);
+				fail();
+			}
 		}
 	}
 }
