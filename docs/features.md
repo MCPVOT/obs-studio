@@ -401,6 +401,13 @@ not get a line.
   downgrades. *Windows, macOS*, 2026-10-22. Issue
   [#1759](https://github.com/obs-rust/obs-studio/issues/1759).
 
+- **Hybrid daily builds ship as nightlies before release approval.** The
+  daily OBS-Studio-Rust pre-release, the `continuous` AppImage and the
+  nightly update feed publish while the hybrid release approval is pending.
+  Certifying a release (Latest, the stable feed) still needs the maintainer's
+  approved `hybrid-release-evidence.json` and dispatch. *All platforms*,
+  2026-10-22. Issue [#1811](https://github.com/obs-rust/obs-studio/issues/1811).
+
 ## Fixed upstream bugs
 
 Bugs inherited from OBS Studio (and obs-websocket) that are fixed here, by

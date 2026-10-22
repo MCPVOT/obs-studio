@@ -1,5 +1,11 @@
 #!/usr/bin/env -S uv run --script
-"""Refuse publication until the hybrid default's release evidence is reviewed."""
+"""Gate the hybrid default's releases by channel.
+
+`--channel nightly` (the daily pre-release) publishes while approval is pending:
+a pre-release is never Latest, so the stable updaters never offer it.
+`--channel blessed` (certify: Latest and the stable feed) requires the
+maintainer-approved hybrid-release-evidence.json.
+"""
 
 import datetime
 import json
@@ -26,9 +32,28 @@ def validate(evidence):
         raise ValueError("Link the maintainer review of platform coverage, performance bounds and release blockers")
 
 
+def check(channel, evidence):
+    """Return a notice for a channel that may publish, or raise ValueError."""
+    if channel == "blessed":
+        validate(evidence)
+        return "Hybrid release approval recorded; blessed promotion allowed"
+    if channel == "nightly":
+        try:
+            validate(evidence)
+        except ValueError as error:
+            return f"Publishing a nightly pre-release only; blessed promotion still refused: {error}"
+        return "Hybrid release approval recorded"
+    raise ValueError(f"Unknown release channel {channel!r}; use nightly or blessed")
+
+
 if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--channel", choices=("nightly", "blessed"), default="blessed")
+    args = parser.parse_args()
     try:
-        validate(json.loads(EVIDENCE.read_text()))
+        print(f"::notice::{check(args.channel, json.loads(EVIDENCE.read_text()))}")
     except (ValueError, TypeError, OSError) as error:
         print(f"::error::{error}", file=sys.stderr)
         raise SystemExit(1) from error

@@ -12,10 +12,19 @@ product identity (`OBS_BRAND_RUST`) does not select an implementation.
 ## Release approval for the hybrid default
 
 Changing developer defaults does not satisfy the production release gates.
-Publishing from `release-rust.yaml` or the AppImage tag workflow requires a
-reviewed `hybrid-release-evidence.json`, checked by `ci/hybrid_release_gate.py`.
-It starts **unapproved**. Candidate builds and validation may run while approval
-is pending; publication fails closed. Keep the first-release C rollback path.
+A **blessed** release (certified: Latest, the stable update feed) requires a
+reviewed `hybrid-release-evidence.json`, checked by
+`ci/hybrid_release_gate.py --channel blessed` in the `certify` job of
+`release-rust.yaml`. It starts **unapproved**. Approving that file is how the
+maintainer says a hybrid release may be blessed; certify still runs only on the
+maintainer's own dispatch.
+
+While approval is pending, the daily `release-rust.yaml` run still publishes
+its GitHub **pre-release**, the rolling `continuous` AppImage and the nightly
+feed (`--channel nightly` only logs that approval is pending). Pre-releases are
+never Latest, so `releases/latest` and the stable feed never pick them up, and
+a certify dispatch fails closed until the evidence is approved. Keep the
+first-release C rollback path.
 
 A maintainer review must establish every requirement below on the recorded
 release candidate, link the platform compatibility, application and performance
