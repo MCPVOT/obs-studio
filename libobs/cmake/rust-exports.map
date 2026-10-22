@@ -72,6 +72,10 @@
     obs_scene_size_from_absolute;
     obs_scene_item_canvas_scale;
     obs_scene_item_relative_scale;
+    /* obs-scene-group-transform.c. obs-scene.c calls them inside libobs.
+     * Not EXPORT. */
+    obs_scene_transform_val;
+    obs_scene_group_transform;
     /* obs-output-caption-text.c. obs-output.c calls it inside libobs. Not
      * EXPORT. */
     obs_output_caption_text_page;

@@ -1,4 +1,4 @@
-/* Unity group (BUILD.md): scene group transform. */
+/* Unity group (BUILD.md): ported scene group transform. */
 
 #include "libobs/build/libobs-scene-group-transform.pch.h"
 

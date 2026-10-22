@@ -3,5 +3,6 @@
 pub mod scene_blend;
 pub mod scene_bounds;
 pub mod scene_coords;
+pub mod scene_group_transform;
 
 pub mod scene_bounds_place;

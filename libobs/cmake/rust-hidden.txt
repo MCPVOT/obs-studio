@@ -61,6 +61,10 @@ obs_scene_size_to_absolute
 obs_scene_size_from_absolute
 obs_scene_item_canvas_scale
 obs_scene_item_relative_scale
+# obs-scene-group-transform.c: obs-scene.c calls them inside libobs. The C
+# file has no EXPORT, so the shims stay hidden the same way.
+obs_scene_transform_val
+obs_scene_group_transform
 # obs-output-caption-text.c: obs-output.c calls it inside libobs. Declared
 # in obs-internal.h without EXPORT, so the shim stays hidden the same way.
 obs_output_caption_text_page

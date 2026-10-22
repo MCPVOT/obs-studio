@@ -98,6 +98,7 @@ pub mod scene_blend;
 pub mod scene_bounds;
 pub mod scene_bounds_place;
 pub mod scene_coords;
+pub mod scene_group_transform;
 pub mod shader_param_names;
 pub mod signal;
 pub mod task;

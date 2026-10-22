@@ -57,6 +57,9 @@ _obs_scene_size_to_absolute
 _obs_scene_size_from_absolute
 _obs_scene_item_canvas_scale
 _obs_scene_item_relative_scale
+# obs-scene-group-transform.c: obs-scene.c calls them inside libobs. Not EXPORT.
+_obs_scene_transform_val
+_obs_scene_group_transform
 # obs-output-caption-text.c: obs-output.c calls it inside libobs. Not EXPORT.
 _obs_output_caption_text_page
 # obs-output-delay.c: obs-output.c calls them inside libobs. Not EXPORT.
