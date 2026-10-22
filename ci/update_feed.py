@@ -5,6 +5,8 @@
 # ///
 """Write the in-app update feed for a certified OBS-Studio-Rust release.
 
+    uv run --script ci/update_feed.py check-certifiable --facts facts.json \\
+        --min-age-days 2
     uv run --script ci/update_feed.py build --tag obs-studio-rust-v<version> \\
         --assets <dir> --mac-info mac.json --rsa-key key.pem --out feed
 
@@ -37,6 +39,7 @@ import html
 import json
 import re
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 from xml.sax.saxutils import quoteattr
 
@@ -139,6 +142,80 @@ def build(tag: str, assets: Path, mac_info: dict, key_pem: bytes, out: Path) -> 
         (out / name).write_bytes(data)
 
 
+PUBLISH_JOB = "Publish pre-release"
+CERTIFY_JOB = "Certify release"
+
+
+def parse_time(value: str) -> datetime:
+    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+
+def skippable(job: dict) -> bool:
+    """A skip that a successful release run has by design.
+
+    The certify job skips on every daily run, and a reusable workflow's own
+    jobs ("Release gate 🚦 / Flatpak 📦", "AppImage 📦 / Publish to GitHub
+    Releases 🚀") skip by their own conditions, decided by their caller job
+    which must itself succeed. A skipped top-level job (a build, a smoke test,
+    the gate) means the release was not fully verified.
+    """
+    if job.get("conclusion") != "skipped":
+        return False
+    return job["name"].startswith(CERTIFY_JOB) or " / " in job["name"]
+
+
+def check_certifiable(facts: dict, now: str, min_age_days: float) -> list[str]:
+    """Raise FeedError unless facts describe a certifiable release; return warnings.
+
+    facts (the certify job assembles it with `gh api`): tag, tag_sha (the
+    commit the tag names), release (isDraft, isPrerelease, publishedAt) and
+    runs, the release-rust runs for tag_sha, each with id, conclusion and
+    jobs [{name, conclusion}]. The run that published the tag is the newest
+    one whose "Publish pre-release" job succeeded; it must have concluded
+    success, and every one of its jobs must have succeeded (see skippable()).
+    """
+    tag = facts.get("tag", "")
+    if not TAG_RE.match(tag):
+        raise FeedError(f"{tag!r} is not an obs-studio-rust-v<version> release tag")
+    release = facts["release"]
+    if release.get("isDraft"):
+        raise FeedError(f"{tag} is a draft; only a published daily release can be certified")
+    if min_age_days < 0:
+        raise FeedError(f"min_age_days must be 0 or more, not {min_age_days}")
+
+    sha = facts["tag_sha"]
+    published = [
+        run
+        for run in facts.get("runs", [])
+        if run.get("head_sha") == sha
+        and any(
+            job["name"].startswith(PUBLISH_JOB) and job.get("conclusion") == "success" for job in run.get("jobs", [])
+        )
+    ]
+    if not published:
+        raise FeedError(f"no release-rust run for {sha[:9]} published {tag}")
+    run = max(published, key=lambda r: r["id"])
+    bad = [
+        f"{job['name']} ({job.get('conclusion') or 'unfinished'})"
+        for job in run.get("jobs", [])
+        if job.get("conclusion") != "success" and not skippable(job)
+    ]
+    if bad or run.get("conclusion") != "success":
+        detail = ", ".join(bad) or f"run concluded {run.get('conclusion') or 'unfinished'}"
+        raise FeedError(f"release-rust run {run['id']} that published {tag} did not fully succeed: {detail}")
+
+    age = parse_time(now) - parse_time(release["publishedAt"])
+    days = age.total_seconds() / 86400
+    if min_age_days == 0:
+        return [f"min_age_days=0: certifying {tag} {days:.1f} days after publishing, skipping the age gate (emergency)"]
+    if days < min_age_days:
+        raise FeedError(
+            f"{tag} is {days:.1f} days old; certify it once it is {min_age_days:g} days old"
+            " (min_age_days, 0 for an emergency)"
+        )
+    return []
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -148,7 +225,22 @@ def main(argv: list[str] | None = None) -> int:
     b.add_argument("--mac-info", required=True, type=Path)
     b.add_argument("--rsa-key", required=True, type=Path)
     b.add_argument("--out", required=True, type=Path)
+    c = sub.add_parser("check-certifiable")
+    c.add_argument("--facts", required=True, type=Path)
+    c.add_argument("--min-age-days", required=True, type=float)
+    c.add_argument("--now", default=None, help="ISO time (default: now)")
     args = parser.parse_args(argv)
+    if args.command == "check-certifiable":
+        now = args.now or datetime.now(timezone.utc).isoformat()
+        try:
+            warnings = check_certifiable(json.loads(args.facts.read_text(encoding="utf-8")), now, args.min_age_days)
+        except (FeedError, OSError, ValueError, KeyError) as error:
+            print(f"::error::update_feed: {error}")
+            return 1
+        for warning in warnings:
+            print(f"::warning::{warning}")
+        print("update_feed: the release is certifiable")
+        return 0
     try:
         build(
             args.tag,

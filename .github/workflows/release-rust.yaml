@@ -22,7 +22,9 @@ run-name: Daily OBS-Studio-Rust beta 🦀
 #   gh workflow run release-rust.yaml -f certify=obs-studio-rust-v<version>
 # The certify job attaches the update feed (ci/update_feed.py: Sparkle appcasts,
 # signed Windows manifest and branches.json) and then makes it a full release
-# marked Latest. The in-app updaters read releases/latest/download/, so they only
+# marked Latest. It refuses a release whose publishing run did not succeed in
+# every job, or that is younger than min_age_days (default 2; 0 for an
+# emergency). The in-app updaters read releases/latest/download/, so they only
 # ever offer a certified release. See docs/rust-port/release-criteria.md.
 on:
   schedule:
@@ -41,6 +43,10 @@ on:
         description: Certify this daily pre-release (obs-studio-rust-v...) for the in-app updaters; builds nothing
         type: string
         default: ''
+      min_age_days:
+        description: With certify, the days a release must have been out first (0 for an emergency, logged as a warning)
+        type: string
+        default: '2'
 permissions:
   contents: read
 concurrency:
@@ -679,6 +685,7 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       TAG: ${{ inputs.certify }}
+      MIN_AGE_DAYS: ${{ inputs.min_age_days }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -703,6 +710,23 @@ jobs:
             echo "::error::$TAG is a draft; only a published daily pre-release can be certified"
             exit 1
           fi
+          # The gate (#1757): the release-rust run that published the tag
+          # succeeded in every job, and the release is MIN_AGE_DAYS old.
+          sha=$(gh api "repos/$GITHUB_REPOSITORY/commits/$TAG" --jq .sha)
+          gh api "repos/$GITHUB_REPOSITORY/actions/workflows/release-rust.yaml/runs?head_sha=$sha&per_page=100" \
+            --jq '[.workflow_runs[] | {id, head_sha, event, status, conclusion}]' >runs.json
+          echo '[]' >runs-with-jobs.json
+          for id in $(jq -r '.[].id' runs.json); do
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/jobs?per_page=100" \
+              --jq '[.jobs[] | {name, conclusion}]' >jobs.json
+            jq --argjson id "$id" --slurpfile jobs jobs.json --slurpfile run runs.json \
+              '. + [($run[0][] | select(.id == $id)) + {jobs: $jobs[0]}]' \
+              runs-with-jobs.json >runs.new && mv runs.new runs-with-jobs.json
+          done
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,isPrerelease,publishedAt >release.json
+          jq -n --arg tag "$TAG" --arg sha "$sha" --slurpfile release release.json --slurpfile runs runs-with-jobs.json \
+            '{tag: $tag, tag_sha: $sha, release: $release[0], runs: $runs[0]}' >facts.json
+          uv run --script ci/update_feed.py check-certifiable --facts facts.json --min-age-days "$MIN_AGE_DAYS"
 
       - name: Download release assets 📥
         run: |

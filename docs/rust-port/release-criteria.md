@@ -217,7 +217,18 @@ gh workflow run release-rust.yaml -f certify=obs-studio-rust-v<version>
 ```
 
 The `certify` job accepts only a published `obs-studio-rust-v*` release
-(published only after the gate), checks its assets against `SHA256SUMS`, and
+(published only after the gate). Its "Check the release" step runs
+`ci/update_feed.py check-certifiable` (#1757), which refuses the tag unless:
+
+- the `release-rust.yaml` run that published it (the newest run for the
+  tag's commit whose "Publish pre-release" job succeeded) concluded success,
+  with every job successful. Only the certify job and a reusable workflow's
+  own jobs (`Release gate 🚦 / ...`, `AppImage 📦 / ...`) may be skipped;
+- the release has been out at least `min_age_days` days (default 2), so a
+  daily gets two days of use as a beta first. For an emergency,
+  `-f min_age_days=0` skips the age check and logs a warning.
+
+It then checks its assets against `SHA256SUMS`, and
 runs `ci/update_feed.py`. That script writes the Sparkle appcasts
 (`updates_<arch>_v2.xml`, DMGs signed with `OBS_RUST_SPARKLE_PRIVATE_KEY`),
 the Windows `manifest.json` (ZIP URL, SHA-256 and size) and `branches.json`,

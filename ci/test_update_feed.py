@@ -185,6 +185,167 @@ class UpdateFeedScriptTests(unittest.TestCase):
                 self.assertNotEqual(self.build(tag).returncode, 0)
 
 
+def load_update_feed():
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("update_feed", SCRIPT)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+SHA = "0123456789abcdef0123456789abcdef01234567"
+NOW = "2026-10-22T09:00:00Z"
+
+
+def green_run(run_id: int = 100, sha: str = SHA, event: str = "schedule") -> dict:
+    jobs = [
+        "Check version 🏷️",
+        "Build ubuntu-26.04 x86_64 🧱",
+        "Build windows-2025 x64 🧱",
+        "Build macos-26 arm64 🧱",
+        "AppImage 📦",
+        "Native macOS arm64 DMG startup 🧪",
+        "Release gate 🚦",
+        "Publish pre-release 🚀",
+        "Release gate 🚦 / Fast Gate ⚡",
+        "Continuous AppImage ♻️",
+    ]
+    return {
+        "id": run_id,
+        "head_sha": sha,
+        "event": event,
+        "status": "completed",
+        "conclusion": "success",
+        "jobs": [{"name": name, "conclusion": "success"} for name in jobs]
+        # Skipped by design: a reusable workflow's own job, and certify itself.
+        + [
+            {"name": "AppImage 📦 / Publish to GitHub Releases 🚀", "conclusion": "skipped"},
+            {"name": "Certify release 🏅", "conclusion": "skipped"},
+        ],
+    }
+
+
+def facts(published: str = "2026-10-20T09:00:00Z", runs: list | None = None) -> dict:
+    return {
+        "tag": TAG,
+        "tag_sha": SHA,
+        "release": {"isDraft": False, "isPrerelease": True, "publishedAt": published},
+        "runs": [green_run()] if runs is None else runs,
+    }
+
+
+class CheckCertifiableTests(unittest.TestCase):
+    """The certify gate (#1757): a fully green producing run, and an aged release."""
+
+    def setUp(self) -> None:
+        self.feed = load_update_feed()
+
+    def refused(self, data: dict, min_age_days: float = 2, now: str = NOW) -> str:
+        with self.assertRaises(self.feed.FeedError) as caught:
+            self.feed.check_certifiable(data, now, min_age_days)
+        return str(caught.exception)
+
+    def test_green_release_two_days_old_is_certifiable(self) -> None:
+        self.assertEqual(self.feed.check_certifiable(facts(), NOW, 2), [])
+
+    def test_refuses_a_release_younger_than_min_age(self) -> None:
+        message = self.refused(facts(published="2026-10-21T09:00:01Z"))
+        self.assertIn("days old", message)
+        self.assertIn("min_age_days", message)
+
+    def test_min_age_is_configurable(self) -> None:
+        young = facts(published="2026-10-21T21:00:00Z")
+        self.assertEqual(self.feed.check_certifiable(young, NOW, 0.5), [])
+        self.refused(young, min_age_days=3)
+
+    def test_zero_min_age_is_an_emergency_override_with_a_warning(self) -> None:
+        warnings = self.feed.check_certifiable(facts(published="2026-10-22T08:59:00Z"), NOW, 0)
+        self.assertEqual(len(warnings), 1)
+        self.assertIn("min_age_days=0", warnings[0])
+
+    def test_negative_min_age_is_rejected(self) -> None:
+        self.assertIn("min_age_days", self.refused(facts(), min_age_days=-1))
+
+    def test_refuses_when_any_job_of_the_producing_run_did_not_succeed(self) -> None:
+        for name, conclusion in (
+            ("Native macOS arm64 DMG startup 🧪", "failure"),
+            ("Build windows-2025 x64 🧱", "cancelled"),
+            ("AppImage 📦", "skipped"),
+            ("Continuous AppImage ♻️", "timed_out"),
+            ("Release gate 🚦", None),
+            ("Release gate 🚦", "skipped"),
+            ("Release gate 🚦 / Fast Gate ⚡", "failure"),
+        ):
+            with self.subTest(name=name, conclusion=conclusion):
+                run = green_run()
+                for job in run["jobs"]:
+                    if job["name"] == name:
+                        job["conclusion"] = conclusion
+                run["conclusion"] = "failure"
+                message = self.refused(facts(runs=[run]))
+                self.assertIn(name, message)
+                self.assertIn("run 100", message)
+
+    def test_refuses_when_the_run_itself_did_not_succeed(self) -> None:
+        run = green_run()
+        run["conclusion"] = "failure"
+        self.assertIn("run 100", self.refused(facts(runs=[run])))
+
+    def test_refuses_without_a_run_that_published_the_tag(self) -> None:
+        other = green_run(sha="f" * 40)
+        unpublished = green_run(run_id=101)
+        for job in unpublished["jobs"]:
+            if job["name"].startswith("Publish pre-release"):
+                job["conclusion"] = "skipped"
+        self.assertIn(SHA[:9], self.refused(facts(runs=[other, unpublished])))
+        self.assertIn(SHA[:9], self.refused(facts(runs=[])))
+
+    def test_the_latest_publishing_run_decides(self) -> None:
+        failed = green_run(run_id=100)
+        failed["conclusion"] = "failure"
+        failed["jobs"][-3]["conclusion"] = "failure"  # continuous, after publishing
+        repair = green_run(run_id=105, event="workflow_dispatch")
+        self.assertEqual(self.feed.check_certifiable(facts(runs=[failed, repair]), NOW, 2), [])
+        self.refused(facts(runs=[repair, {**failed, "id": 110}]))
+
+    def test_ignores_the_running_certify_dispatch(self) -> None:
+        certify = {
+            "id": 200,
+            "head_sha": SHA,
+            "event": "workflow_dispatch",
+            "status": "in_progress",
+            "conclusion": None,
+            "jobs": [{"name": "Check version 🏷️", "conclusion": "skipped"}, {"name": "Certify release 🏅", "conclusion": None}],
+        }
+        self.assertEqual(self.feed.check_certifiable(facts(runs=[green_run(), certify]), NOW, 2), [])
+
+    def test_refuses_a_draft_or_mismatched_tag(self) -> None:
+        draft = facts()
+        draft["release"]["isDraft"] = True
+        self.assertIn("draft", self.refused(draft))
+        bad = facts()
+        bad["tag"] = "continuous"
+        self.refused(bad)
+
+    @unittest.skipUnless(UV, "uv is required")
+    def test_command_line_reports_and_exits_nonzero(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "facts.json"
+            env = {k: v for k, v in os.environ.items() if k != "VIRTUAL_ENV"}
+            base = [UV, "run", "--script", str(SCRIPT), "check-certifiable", "--facts", str(path), "--now", NOW]
+            path.write_text(json.dumps(facts()))
+            ok = subprocess.run([*base, "--min-age-days", "2"], capture_output=True, text=True, env=env)
+            self.assertEqual(ok.returncode, 0, ok.stderr)
+            override = subprocess.run([*base, "--min-age-days", "0"], capture_output=True, text=True, env=env)
+            self.assertEqual(override.returncode, 0, override.stderr)
+            self.assertIn("::warning::", override.stdout)
+            path.write_text(json.dumps(facts(published="2026-10-21T12:00:00Z")))
+            young = subprocess.run([*base, "--min-age-days", "2"], capture_output=True, text=True, env=env)
+            self.assertNotEqual(young.returncode, 0)
+            self.assertIn("::error::", young.stdout + young.stderr)
+
+
 class CertifiedReleaseWorkflowTests(unittest.TestCase):
     def setUp(self) -> None:
         self.text = RELEASE.read_text(encoding="utf-8")
@@ -223,6 +384,11 @@ class CertifiedReleaseWorkflowTests(unittest.TestCase):
         # publishes after the gate) whose assets match its SHA256SUMS.
         self.assertIn("obs-studio-rust-v", certify)
         self.assertIn("isPrerelease", certify)
+        # The gate (#1757): a fully green producing run, an aged release.
+        self.assertIn("ci/update_feed.py check-certifiable", certify)
+        self.assertIn("inputs.min_age_days", certify)
+        self.assertLess(certify.index("check-certifiable"), upload)
+        self.assertRegex(inputs, r"\n      min_age_days:\n(?:        .*\n)*?        default: '2'\n")
         # The daily build must not run on a certify dispatch.
         self.assertIn("inputs.certify == ''", job(self.text, "check"))
 

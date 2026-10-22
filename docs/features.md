@@ -388,7 +388,8 @@ not get a line.
   obs-rust/obs-studio, never a daily beta or upstream OBS Studio. Daily betas
   are GitHub pre-releases; a maintainer certifies one, which attaches an
   RSA-signed update manifest and EdDSA-signed Sparkle appcasts and makes it
-  the Latest release. Windows downloads the release ZIP, checks its SHA-256
+  the Latest release. Only a daily whose release run passed every job and
+  that has been out at least two days can be certified (#1757). Windows downloads the release ZIP, checks its SHA-256
   against the signed manifest, installs it and restarts. *Windows, macOS*,
   2026-10-22. PR [#1742](https://github.com/obs-rust/obs-studio/pull/1742).
 
