@@ -562,6 +562,11 @@ separately for each event. Its companion and offline reproduction preserve
 the API evidence; the mixed population does not establish code-only latency
 or billed runner cost.
 
+The [janitor report acceptance audit](ci-evidence/2026-10-22-janitor-report-disposition.md)
+maps the original incident criteria to hosted evidence and continuing owners.
+Global capacity and useful-seed durability remain tracked in #1801; the report
+does not certify the broader CI backlog as complete.
+
 ## Where this is going (open gaps)
 
 For a reproducible traffic/cache snapshot, run the read-only collector:
