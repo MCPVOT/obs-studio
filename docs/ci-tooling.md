@@ -556,6 +556,12 @@ record that churn separately from the still-open whole-budget allocation and
 durability work. A current inventory below the global budget does not prove
 that useful seeds survive the next nightly writer burst.
 
+The [24-hour PR and merge-group cohort](ci-evidence/2026-10-22-ci-cache-day-cohort.md)
+records gate latency, failures, cancellations and incomplete timing proxies
+separately for each event. Its companion and offline reproduction preserve
+the API evidence; the mixed population does not establish code-only latency
+or billed runner cost.
+
 ## Where this is going (open gaps)
 
 For a reproducible traffic/cache snapshot, run the read-only collector:
