@@ -1247,7 +1247,7 @@ jobs:
     # A hung test held a runner for 4.5 h without a timeout (#983).
     timeout-minutes: 30
     # Compilation consumes no Fast Gate output and can overlap its runner.
-    # Keep proof/scope checks here; OFF/ON execution still waits for Fast Gate.
+    # Keep proof/scope checks here; OFF/ON execution waits only for this build.
     needs: [check-event, ci-mode]
     if: ${{ needs.check-event.outputs.tier2 == 'true' && needs.ci-mode.outputs.skip_rust-linux-tier2 != 'true' && needs.ci-mode.outputs.tier2-linux_hit != 'true' }}
     defaults:
@@ -1398,10 +1398,11 @@ jobs:
     container:
       image: ubuntu:26.04@sha256:f144425ff09be612d6d9ad965196e9cdc23dae1f42110a8a11a3e9a8198759f7
     timeout-minutes: 30
-    needs: [check-event, ci-mode, rust-linux-tier2-build, rust-tests-linux]
-    # A local Rust attestation can skip Fast Gate without covering Tier 2.
-    # Preserve that case; failed/canceled gates and missing builds run no tests.
-    if: ${{ always() && !cancelled() && needs.rust-linux-tier2-build.result == 'success' && (needs.rust-tests-linux.result == 'success' || needs.rust-tests-linux.result == 'skipped') }}
+    needs: [check-event, ci-mode, rust-linux-tier2-build]
+    # Tests consume the validated tree, not Fast Gate output. Overlap the
+    # remaining lint/Rust work; the caller's required gate still needs both.
+    # Failed/skipped builds and workflow cancellation cannot start tests.
+    if: ${{ always() && !cancelled() && needs.rust-linux-tier2-build.result == 'success' }}
     # One complete suite per backend (#1662): nine serial barriers were
     # removed in #1643. Retain deinterlace isolation within each suite and
     # avoid repeating runner setup for a second shard.

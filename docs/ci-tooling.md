@@ -713,3 +713,22 @@ are not compressed GitHub archive sizes. Two samples per size from one runner
 do not establish representative-day latency, repository retention, or a
 universal size recommendation. Compare compile time and actual hits/misses
 before deciding whether to change the production limit.
+
+## Tier 2 execution and Fast Gate overlap
+
+The complete OFF/ON test jobs start after successful Tier 2 compilation and
+scope/proof checks, without waiting for Fast Gate. No artifact from Fast Gate
+is consumed by these jobs. Fast Gate remains a required job in the reusable
+workflow, and its failure/cancellation still makes the caller's required gate
+fail even when both CTest suites pass. A missing/failed build or workflow
+cancellation does not start tests. Local Rust-only attestation can still skip
+Fast Gate without covering Tier 2.
+
+This removes a measured dependency wait: in the October 22 baseline, four
+of nine successful PR runs and four of nine successful queue runs with both
+jobs finished Fast Gate after the build, by up to 133/127 seconds. The median
+opportunity across all nine in each event was zero. These are upper bounds
+on the affected Linux path, not universal gate savings; native platform work
+can still determine the final gate. Independent tests can consume runner time
+on a change whose Fast Gate later fails. Record that extra failed-run cost
+alongside successful latency during the #1694 post-rollout day.
