@@ -19,6 +19,7 @@ class PortedSourceTest(unittest.TestCase):
         self.assertIn("obs-data.c.h.o", objects)
         self.assertIn("obs-hevc.c.h.o", objects)
         self.assertIn("audio-monitoring/pulse/pulseaudio-stream-flags.c.h.o", objects)
+        self.assertIn("audio-monitoring/pulse/pulseaudio-monitor-format.c.h.o", objects)
         self.assertIn("util/platform-nix-dbus.c.h.o", objects)
         self.assertNotIn("util/platform-nix-dbus.c.h.o", PORTED.ported_objects(ROOT, "linux", gio=False))
         self.assertIn("util/platform-nix-portal.c.h.o", objects)
@@ -26,6 +27,8 @@ class PortedSourceTest(unittest.TestCase):
         self.assertNotIn("util/platform-nix-portal.c.h.o", PORTED.ported_objects(ROOT, "linux", gio=False))
         self.assertNotIn("util/platform-nix-portal.c.h.o", PORTED.ported_objects(ROOT, "macos"))
         self.assertNotIn("audio-monitoring/pulse/pulseaudio-stream-flags.c.h.o",
+                         PORTED.ported_objects(ROOT, "linux", pulse=False))
+        self.assertNotIn("audio-monitoring/pulse/pulseaudio-monitor-format.c.h.o",
                          PORTED.ported_objects(ROOT, "linux", pulse=False))
         self.assertIn("obs-nix-hotkey-state.c.h.o", objects)
         self.assertNotIn("obs-nix-hotkey-state.c.h.o",
