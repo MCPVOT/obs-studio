@@ -250,10 +250,24 @@ and cargo caches live in bosn volumes, and the AppImage lands in
 `build_appimage/` (#899). (`bosn ci run` can't run that job through act: its
 `ubuntu-26.04` label isn't supported there.)
 
-Tier 2 Linux in CI runs natively on the runner (#966): the
-`rust-linux-tier2` job installs `rust/tools/linux-validate/apt-packages.txt`
-and runs `validate.sh` directly: one build, then one job per libobs (C or with Rust) and shard. The
-intended local equivalent is bosn running that same job through act2:
+Tier 2 Linux in CI builds once in `rust-linux-tier2-build`, using the pinned
+stock Ubuntu job container and full `apt-packages.txt` development inputs.
+It transfers both implementations' compiled tree and an exact runtime-package
+manifest. `rust-linux-tier2` runs one complete suite per OFF/ON matrix mode,
+with no shards. Its host invokes `rust/tools/linux-validate/ci-runtime.py`:
+the helper downloads and verifies the immutable prepared runtime pinned in
+`prepared-runtime.json`, then runs `validate.sh` in a four-CPU container with
+the original source/build paths and writable CTest timing history. Source is
+read-only. Each suite retains eight CTest workers and existing serial isolation.
+
+A changed package closure or unavailable release asset selects installation
+in the same pinned stock base. Archive size/checksum, image identity or inventory
+errors fail the job. The existing apt cache remains available for fallback;
+test jobs never publish it. Runtime assets use the existing public
+`obs-rust/obs-studio-libs` release/catalogue route without additional CI
+credentials. Producer and cold-transfer measurements are recorded in
+[the speed report](ci-speed-2026-10-22.md#fresh-prepared-runtime-experiment-and-production-candidate-1717).
+The intended local equivalent is bosn running the job through act2:
 
 ```sh
 bosn ci run --workflow build-project.yaml --job rust-linux-tier2 --trigger pr --wait
@@ -265,10 +279,12 @@ job's `check-event` and `ci-mode` dependencies unsupported and skips Tier 2
 ("some jobs need runners bosn cannot supervise"). Until it does, use
 `./unittest` (the Docker lane below) locally.
 
-Remaining gap: `rust/tools/linux-validate/run.sh` (the local gate's Tier 2
-lane, `./unittest`) still calls `docker build` and `docker run` directly, so
-concurrent local gates from many agents run unmanaged. It reads the same
-package list; moving it under bosn is the open step.
+The local gate's Tier 2 lane (`./unittest`) uses
+`rust/tools/linux-validate/run.sh` and `ci/docker-task.sh`, the current stand-in
+for zackees/bosn#666. It has per-checkout build volumes and container ownership,
+shared compiler/crate caches, and explicit storage budgets. Run local Docker
+work through bosn as described below; the prepared CI consumer does not change
+the local build harness or its development-package inputs.
 
 ### act2: GitHub Actions, locally
 
@@ -356,7 +372,7 @@ Cargo files test the workspace), on every PR. No Qt is installed there.
 | Paths | Lane |
 |---|---|
 | everything | Fast Gate: 1) fmt, clippy, Dylint; 2) unit tests of the touched crates; 3) Linux build of touched `plugins/<x>`/`shared/<x>` targets (ENABLE_FRONTEND=OFF, no Qt) |
-| `libobs/` (not platform-only files), crates linked into libobs, `test/cmocka/`, `deps/`, `rust/tools/linux-validate/`, Cargo files | Tier 2 Linux: compilation overlaps Fast Gate; OFF/ON tests wait for it, with one complete suite per mode |
+| `libobs/` (not platform-only files), crates linked into libobs, `test/cmocka/`, `deps/`, `rust/tools/linux-validate/`, Cargo files | Tier 2 Linux: compilation overlaps Fast Gate; OFF/ON tests wait for the Tier 2 build, with one complete suite per mode |
 | `frontend/`, Qt-linked tests, `shared/qt`, the Qt job's own files | Qt Frontend Linux (the only Qt). Frontend platform files start no Windows/macOS Rust or Tier 2 job; Windows/macOS Qt lanes are a follow-up |
 | files matching `/platform[/-](windows, macos, linux, posix)[/.]` (posix = linux+macos), legacy OS names, shared build files (`cmake/common`, `cmake/finders`, `libobs/cmake`, root CMake, crate-root `build.rs`, `platform/mod.rs`, C++ cmocka tests) | macOS / Windows Rust tests, Tier 2, cross lint |
 | `build-aux/`, `.gitmodules`, submodules | compiled on Linux only; no full build from a PR |
@@ -365,11 +381,13 @@ Cargo files test the workspace), on every PR. No Qt is installed there.
 The macOS, Windows and cross jobs wait for Fast Gate. Qt starts on an
 independent runner after successful scope detection; its compilation and tests
 can overlap Fast Gate (#1581). Tier 2 Linux compilation also overlaps on an
-independent runner after scope/proof checks. OFF/ON execution waits for both the build and a
-successful Fast Gate, or its valid attestation skip. Failed/canceled Fast Gates
-start neither test suite. The final required gate still includes every check.
-This trades possible wasted compilation and Qt tests on a red PR for a shorter
-successful queue path; independent work can finish after Fast Gate fails.
+independent runner after scope/proof checks. OFF/ON execution requires a
+successful Tier 2 build and a non-canceled workflow; it can overlap remaining
+Fast Gate work. A failed or skipped build starts neither suite. Fast Gate
+remains independently required by the final gate, so its failure prevents
+merging even if both suites pass. This trades possible wasted compilation,
+Tier 2 and Qt tests on a red PR for a shorter successful queue path;
+independent work can finish after Fast Gate fails.
 Measure runner cost and actual gate time rather than treating the theoretical
 overlap as a proven speedup (#930, #1286).
 
