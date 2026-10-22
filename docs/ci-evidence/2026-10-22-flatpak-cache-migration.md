@@ -82,3 +82,13 @@ CI Gate. Its log identifies deletion of one superseded 7,366-byte timing
 entry9316347423 while retaining newer9316639430. Twelve current dependency/
 trusted-event tests passed. This proves the isolation acceptance, not global
 capacity or native-cache retention.
+
+### Later full-run completion
+
+Run39716240224 subsequently completed successfully on the same immutable
+source. The JSON's `later_parent_completion_observation` preserves the final
+run metadata and platform test excerpts without rewriting the earlier
+capture-time status. Windows completed four 174-test CTest passes; macOS
+completed four passes with 199 registered, 198 executed and one test_svt_av1
+skip each. Both platform differential tests passed. No new-namespace seed
+was published by this branch run; that validation remains separate.
