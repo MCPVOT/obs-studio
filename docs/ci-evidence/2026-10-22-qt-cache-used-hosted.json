@@ -102,6 +102,35 @@
         "2026-10-22T01:59:52.1461665Z   Misses:            13 / 310 ( 4.19%)",
         "2026-10-22T01:59:56.0125169Z Cache saved with key: qt-ccache-linux-inputs-v2-7021a2ec3e14af5bf46e4fa736dbce3d876a44a8f2325d8cec330852ec663168"
       ]
+    },
+    {
+      "source_log": "warm-consumer-qt.log",
+      "lines": [
+        "2026-10-22T02:15:15.8261918Z Cache Size: ~0 MB (1065 B)",
+        "2026-10-22T02:15:17.3510989Z Cache Size: ~24 MB (25342371 B)",
+        "2026-10-22T02:15:19.1798707Z Cache Size: ~63 MB (66331281 B)",
+        "2026-10-22T02:16:40.8626175Z Cache Size: ~484 MB (507448340 B)",
+        "2026-10-22T02:16:41.4436829Z Cache restored from key: qt-ccache-linux-inputs-v2-7021a2ec3e14af5bf46e4fa736dbce3d876a44a8f2325d8cec330852ec663168",
+        "2026-10-22T02:18:03.2035725Z Ran 5 tests in 15.567s",
+        "2026-10-22T02:18:15.0499557Z 100% tests passed out of 19",
+        "2026-10-22T02:18:15.0499907Z Total Test time (real) =   8.98 sec",
+        "2026-10-22T02:18:15.2350642Z qt-cache phase=before bytes=509142950",
+        "2026-10-22T02:18:15.3702389Z qt-cache phase=after bytes=508489050",
+        "2026-10-22T02:18:15.3745175Z Cacheable calls:    310 / 310 (100.0%)",
+        "2026-10-22T02:18:15.3745521Z   Hits:             306 / 310 (98.71%)",
+        "2026-10-22T02:18:15.3746597Z   Misses:             4 / 310 ( 1.29%)",
+        "2026-10-22T02:18:15.3748256Z   Files:            620",
+        "2026-10-22T02:18:15.3748658Z   Hits:             306 / 310 (98.71%)",
+        "2026-10-22T02:18:15.3748889Z   Misses:             4 / 310 ( 1.29%)",
+        "2026-10-22T02:18:18.5755845Z Cache saved with key: qt-ccache-linux-inputs-v2-503f01dfd2251754a7c94c53d8717b3220ae65266ea98d8a85e8ebcdab1fff7e"
+      ]
+    },
+    {
+      "source_log": "qt-janitor-observed.log",
+      "lines": [
+        "2026-10-22T02:09:41.2028941Z   id=9313657491 key='qt-ccache-linux-inputs-v2-e60dbb1e6c3eeaa5aadb97c03f66fbcea67f7641ee50c4beb5a7539a687b25a0' 1187113796B -- CACHE-006: cache id=9313657491 is a superseded 'qt-ccache' entry (last_accessed_at='2026-10-22T01:57:53.861376Z'; kept newest id=9314403583 last_accessed_at='2026-10-22T01:59:55.925949Z')",
+        "2026-10-22T02:09:41.2048276Z qt-ccache                         2   1694562136          1    507448340"
+      ]
     }
   ],
   "master_publication": {
@@ -129,7 +158,42 @@
       "version": "bc592582f8d9967a37b5977af62255fe180730a4a7aced98d54062a7e3d2ef02"
     },
     "archive_reduction_vs_restored_bytes": 679665456,
-    "limitation": "Archive replacement observation, not matched timing or subsequent consumer qualification."
+    "limitation": "Archive replacement observation, not matched timing or subsequent consumer qualification.",
+    "parent_run_final_conclusion": "success"
   },
-  "subsequent_consumer": "pending"
+  "subsequent_consumer": {
+    "run": 39710022658,
+    "job": 119599861846,
+    "source": "4f28621ffb1f3a12690303ab241e08863bfd913e",
+    "job_conclusion": "success",
+    "restored_archive_bytes": 507448340,
+    "restored_key": "qt-ccache-linux-inputs-v2-7021a2ec3e14af5bf46e4fa736dbce3d876a44a8f2325d8cec330852ec663168",
+    "cacheable_calls": 310,
+    "hits": 306,
+    "misses": 4,
+    "local_before_bytes": 509142950,
+    "local_after_bytes": 508489050,
+    "stored_files_after": 620,
+    "facade_tests_passed": 5,
+    "ctest_registered_passed": 19,
+    "new_saved_key": "qt-ccache-linux-inputs-v2-503f01dfd2251754a7c94c53d8717b3220ae65266ea98d8a85e8ebcdab1fff7e",
+    "limitations": [
+      "One later source revision; not a matched timing experiment",
+      "Successful Qt job does not establish parent workflow success",
+      "No representative-day durability claim"
+    ]
+  },
+  "observed_janitor": {
+    "run": 39709813400,
+    "job": 119598202010,
+    "conclusion": "success",
+    "deleted_old_id": 9313657491,
+    "deleted_old_bytes": 1187113796,
+    "retained_new_id": 9314403583,
+    "family_before_entries": 2,
+    "family_before_bytes": 1694562136,
+    "family_after_entries": 1,
+    "family_after_bytes": 507448340,
+    "timestamp": "2026-10-22T02:09:41Z"
+  }
 }

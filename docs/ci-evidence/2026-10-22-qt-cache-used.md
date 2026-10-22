@@ -75,7 +75,7 @@ Both removed 689,078,793 local bytes (57.59%), ending with 615 stored files.
 These related source observations are not independent randomized trials.
 The hit counts were measured during builds before pruning; they do not
 establish the next consumer's hit rate. Neither event publishes a remote
-replacement. Master archive publication is recorded below; subsequent reuse remains pending.
+replacement. Master archive publication is recorded below; subsequent reuse is recorded below.
 
 The [rollout-day baseline](2026-10-21-rollout-day.md) separately reports code
 PR and queue timing/cost samples; it precedes this pruning publication and
@@ -95,5 +95,27 @@ The API inventory reports **507,448,340 compressed archive bytes**, created
 2026-10-22T01:59:55.925949Z: 679,665,456 fewer than the archive restored by
 this producer. This is an observed replacement size, not a causal speedup
 or proof of future retention. The parent run was still in progress when
-these completed-job logs were captured. A later real warm consumer remains
-required.
+these completed-job logs were captured. The later real warm consumer is recorded below.
+
+## Observed cleanup and later warm consumer
+
+Janitor job [119598202010](https://github.com/obs-rust/obs-studio/actions/runs/39709813400/job/119598202010)
+explicitly deleted superseded cache 9313657491 at 02:09:41Z, retaining cache
+9314403583. Its Qt family row fell from two entries / 1,694,562,136 bytes to
+one / 507,448,340 bytes. This identifies the actual deletion actor; no manual
+cache deletion was performed. A following API inventory contained only the
+new seed. The producer's full run 39707134569 subsequently passed.
+
+The later master consumer on source `4f28621ff`, Qt job
+[119599861846](https://github.com/obs-rust/obs-studio/actions/runs/39710022658/job/119599861846),
+restored the exact 507,448,340-byte published archive. It passed five facade
+tests and all 19 CTest cases, with **306 hits / 310 cacheable calls (98.71%)**
+and four misses. Local bytes were 509,142,950 before cleanup and 508,489,050
+afterward, with 620 stored files. It published a new source-identity key
+`qt-ccache-linux-inputs-v2-503f01dfd2251754a7c94c53d8717b3220ae65266ea98d8a85e8ebcdab1fff7e`.
+
+This qualifies actual reuse of the pruned archive after observed janitor
+cleanup, across one later source revision. It is not a matched timing
+experiment, an independent population sample, representative-day durability,
+or proof that the later parent workflow passed. Global allocation and native
+architecture retention remain unresolved under #1269.
