@@ -131,10 +131,21 @@ size_t os_fread_mbs(FILE *file, char **pstr)
 	size_t len = 0;
 
 	fseek(file, 0, SEEK_END);
-	size = (size_t)os_ftelli64(file);
+	int64_t end = os_ftelli64(file);
 	*pstr = NULL;
 
-	if (size > 0) {
+	/* POSIX `fopen` accepts a directory and `ftell` then reports a bogus
+	 * length with no error (2^63 here), so a positive size is not proof the
+	 * file can be read. Ask for one byte before trusting it: a directory (or
+	 * any unreadable stream) fails the read instead of asking `bmalloc` for
+	 * 2^63 bytes (obs-rust/obs-studio#1768). */
+	if (end > 0) {
+		fseek(file, 0, SEEK_SET);
+		if (fgetc(file) == EOF)
+			return len;
+
+		size = (size_t)end;
+
 		char *mbstr = bmalloc(size + 1);
 
 		fseek(file, 0, SEEK_SET);
@@ -160,9 +171,17 @@ size_t os_fread_utf8(FILE *file, char **pstr)
 	*pstr = NULL;
 
 	fseek(file, 0, SEEK_END);
-	size = (size_t)os_ftelli64(file);
+	/* As in `os_fread_mbs`: a directory's `ftell` reports a bogus length with
+	 * no error, so probe one byte before trusting it (#1768). */
+	int64_t end = os_ftelli64(file);
 
-	if (size > 0) {
+	if (end > 0) {
+		fseek(file, 0, SEEK_SET);
+		if (fgetc(file) == EOF)
+			return len;
+
+		size = (size_t)end;
+
 		char bom[3];
 		char *utf8str;
 		off_t offset;
@@ -178,9 +197,12 @@ size_t os_fread_utf8(FILE *file, char **pstr)
 
 		offset = (astrcmp_n(bom, "\xEF\xBB\xBF", 3) == 0) ? 3 : 0;
 
-		size -= offset;
-		if (size == 0)
+		/* `size` was measured before the BOM read, so a file that grew past
+		 * the BOM in between would underflow here (#1768). */
+		if (size <= (size_t)offset)
 			return 0;
+
+		size -= offset;
 
 		utf8str = bmalloc(size + 1);
 		fseek(file, offset, SEEK_SET);
