@@ -46,9 +46,6 @@ pub fn configure(
     }
     if options.gio {
         add_package(library, target, "gio-2.0")?;
-        library
-            .sources
-            .push(root.join("libobs/build/libobs.nix-dbus+.h.c"));
     }
     if options.wayland {
         for package in ["wayland-client", "xkbcommon"] {

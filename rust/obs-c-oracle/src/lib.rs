@@ -84,6 +84,8 @@ pub mod platform_number;
 pub mod platform_time;
 #[cfg(all(windows, target_env = "msvc"))]
 pub mod platform_windows;
+#[cfg(any(target_os = "linux", target_os = "freebsd"))]
+pub mod portal_inhibit;
 pub mod portal_shortcut_ids;
 pub mod proc;
 pub mod profiler;

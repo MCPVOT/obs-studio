@@ -36,5 +36,9 @@ mod platform_time_parity;
 mod platform_windows;
 mod platform_windows_layout;
 mod platform_windows_parity;
+#[cfg(any(target_os = "linux", target_os = "freebsd"))]
+mod portal_inhibit;
+#[cfg(any(target_os = "linux", target_os = "freebsd"))]
+mod portal_inhibit_parity;
 mod scratch_cleanup;
 mod sleep_duration;

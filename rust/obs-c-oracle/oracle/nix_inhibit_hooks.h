@@ -2,10 +2,13 @@
  * original libobs/util/platform-nix-inhibit.c, so that what it calls outside
  * itself goes to the counted stand-ins in nix_inhibit_stubs_posix.c. Defined
  * before any header, so the system and libobs prototypes take the new names
- * too. The portal stand-ins keep their real names. The D-Bus stand-ins
- * have separate names because the new Rust shim owns the original symbols. */
+ * too. The portal and session D-Bus stand-ins have separate names because
+ * the Rust shims own the original symbols. */
 #pragma once
 
+#define portal_inhibit_info_create oracle_stub_portal_inhibit_info_create
+#define portal_inhibit oracle_stub_portal_inhibit
+#define portal_inhibit_info_destroy oracle_stub_portal_inhibit_info_destroy
 #define dbus_sleep_info_create oracle_stub_dbus_sleep_info_create
 #define dbus_inhibit_sleep oracle_stub_dbus_inhibit_sleep
 #define dbus_sleep_info_destroy oracle_stub_dbus_sleep_info_destroy

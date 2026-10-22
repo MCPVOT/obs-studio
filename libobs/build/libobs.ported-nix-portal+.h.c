@@ -1,4 +1,4 @@
-/* Unity group (BUILD.md): GIO: D-Bus and the XDG portal. */
+/* Unity group (BUILD.md): ported XDG portal inhibitor, with GIO. */
 
 #include "libobs/build/libobs-nix-dbus.pch.h"
 

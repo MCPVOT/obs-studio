@@ -25,6 +25,10 @@
     dbus_sleep_info_create;
     dbus_inhibit_sleep;
     dbus_sleep_info_destroy;
+    /* platform-nix-portal.c: no EXPORT; called within libobs only. */
+    portal_inhibit_info_create;
+    portal_inhibit;
+    portal_inhibit_info_destroy;
     /* platform-nix.c. obs-module.c calls it; the C build does not export it. */
     get_plugin_info;
     /* obs-hotkey-name-map.c. Declared in obs-internal.h; obs.c calls it on

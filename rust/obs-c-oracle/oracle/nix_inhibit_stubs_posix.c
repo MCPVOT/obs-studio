@@ -24,9 +24,9 @@ struct portal_inhibit_info;
 struct dbus_sleep_info;
 
 /* What the original file and the Rust test host call. */
-struct portal_inhibit_info *portal_inhibit_info_create(void);
-void portal_inhibit(struct portal_inhibit_info *portal, const char *reason, bool active);
-void portal_inhibit_info_destroy(struct portal_inhibit_info *portal);
+struct portal_inhibit_info *oracle_stub_portal_inhibit_info_create(void);
+void oracle_stub_portal_inhibit(struct portal_inhibit_info *portal, const char *reason, bool active);
+void oracle_stub_portal_inhibit_info_destroy(struct portal_inhibit_info *portal);
 struct dbus_sleep_info *oracle_stub_dbus_sleep_info_create(void);
 void oracle_stub_dbus_inhibit_sleep(struct dbus_sleep_info *dbus, const char *sleep, bool active);
 void oracle_stub_dbus_sleep_info_destroy(struct dbus_sleep_info *dbus);
@@ -116,19 +116,19 @@ static const char *text(const char *reason)
 	return reason ? reason : "(null)";
 }
 
-struct portal_inhibit_info *portal_inhibit_info_create(void)
+struct portal_inhibit_info *oracle_stub_portal_inhibit_info_create(void)
 {
 	void *handle = new_handle(portal_ok);
 	append("portal_create %ld", handle_number(handle));
 	return handle;
 }
 
-void portal_inhibit(struct portal_inhibit_info *portal, const char *reason, bool active)
+void oracle_stub_portal_inhibit(struct portal_inhibit_info *portal, const char *reason, bool active)
 {
 	append("portal_inhibit %ld [%s] %d", handle_number(portal), text(reason), active);
 }
 
-void portal_inhibit_info_destroy(struct portal_inhibit_info *portal)
+void oracle_stub_portal_inhibit_info_destroy(struct portal_inhibit_info *portal)
 {
 	append("portal_destroy %ld", handle_number(portal));
 }

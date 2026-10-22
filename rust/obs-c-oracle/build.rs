@@ -364,9 +364,13 @@ fn main() {
         .filter(|p| p.extension().is_some_and(|e| e == "c"))
         .filter(|p| unix || !p.to_string_lossy().ends_with("_posix.c"))
         .filter(|p| windows || !p.to_string_lossy().ends_with("_windows.c"))
-        // Only the D-Bus oracle needs GIO headers. Keep other oracle
+        // The D-Bus and portal oracles need GIO headers. Keep other oracle
         // families testable on hosts where GIO is not installed.
-        .filter(|p| gio.is_some() || p.file_name().is_none_or(|n| n != "dbus_inhibit_posix.c"))
+        .filter(|p| {
+            gio.is_some()
+                || p.file_name()
+                    .is_none_or(|n| n != "dbus_inhibit_posix.c" && n != "portal_inhibit_posix.c")
+        })
         // The original platform-windows.c has only ever been an MSVC
         // translation unit; under MinGW -Wall -Werror (#516) it fails on
         // headers and format checks, not on anything the port compares.

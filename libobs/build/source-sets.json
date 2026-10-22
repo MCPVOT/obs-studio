@@ -192,7 +192,8 @@
     "build/libobs.ported-pulse+.h.c"
   ],
   "LIBOBS_NIX_GIO_PORTED_SOURCES": [
-    "build/libobs.ported-nix-dbus+.h.c"
+    "build/libobs.ported-nix-dbus+.h.c",
+    "build/libobs.ported-nix-portal+.h.c"
   ],
   "LIBOBS_WAYLAND_PORTED_SOURCES": [
     "build/libobs.ported-nix-hotkey-state+.h.c"

@@ -10,6 +10,10 @@ wchar_to_utf8
 dbus_sleep_info_create
 dbus_inhibit_sleep
 dbus_sleep_info_destroy
+# platform-nix-portal.c: same. The sleep inhibitor calls these inside libobs.
+portal_inhibit_info_create
+portal_inhibit
+portal_inhibit_info_destroy
 # platform-nix.c: obs-module.c calls this inside libobs. The C file is not
 # exported (no EXPORT). The unix shim is hidden the same way.
 get_plugin_info

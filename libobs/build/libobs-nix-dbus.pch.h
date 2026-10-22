@@ -1,6 +1,7 @@
-/* Precompiled header (BUILD.md) for the libobs unity groups libobs.nix-dbus. C.
- * Every implementation file in them includes this header and nothing else: the includes and macro setup below are
- * theirs, in group and file order. */
+/* Precompiled header (BUILD.md) for the ported GIO groups libobs.ported-nix-dbus
+ * and libobs.ported-nix-portal. Every implementation file in them includes this
+ * header and nothing else: the includes and macro setup below are theirs, in
+ * file order. */
 
 #pragma once
 

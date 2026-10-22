@@ -2,12 +2,11 @@
 //! The core is [`crate::platform::unix::nix_inhibit`]; macOS has its own in
 //! `platform_cocoa`, Windows in `platform_windows`.
 //!
-//! The portal inhibitor stays C (`util/platform-nix-portal.c`), while the
-//! session D-Bus inhibitor is Rust (`ffi::dbus_inhibit`). With the `gio`
-//! feature, which CMake sets when GIO is found (`GIO_FOUND`), [`CHost`]
-//! calls them; without it libobs has no such
-//! symbols, and the core only uses the xdg-screensaver fallback, as the C
-//! compiled without GIO does.
+//! The portal inhibitor is Rust (`ffi::portal_inhibit`). The session D-Bus
+//! inhibitor is Rust (`ffi::dbus_inhibit`). With the `gio` feature, which
+//! CMake sets when GIO is found (`GIO_FOUND`), [`CHost`] calls them; without
+//! it libobs has no such symbols, and the core only uses the xdg-screensaver
+//! fallback, as the C compiled without GIO does.
 
 use core::ffi::{CStr, c_char, c_int, c_void};
 use core::ptr::{self, NonNull};
@@ -20,8 +19,9 @@ unsafe extern "C" {
     fn blog(log_level: c_int, format: *const c_char, ...);
 }
 
-/// The C inhibitors. Without GIO libobs has no such symbols; the core never
-/// calls these then (`CHost::GIO` is false), and they do nothing.
+/// Production builds call the Rust portal and session D-Bus shims. Without
+/// GIO, libobs has no such symbols; the core never calls these
+/// (`CHost::GIO` is false), and they do nothing.
 #[cfg(all(feature = "gio", not(test)))]
 mod gio {
     use core::ffi::{c_char, c_void};
@@ -36,17 +36,20 @@ mod gio {
     }
 }
 
-// The original platform-nix-inhibit Tier 3 test drives its C oracle and
-// this Rust shim through the same counted inhibitor stand-ins. Production
-// builds call the ported D-Bus shim above; the direct D-Bus port has its own
-// differential test and the unchanged C test exercises the production path.
+// `cargo test` links the counted stand-ins, so the nix-inhibit parity test
+// can drive this shim and the C oracle through the same log. Each inhibitor
+// has its own differential test. `cfg(test)` is set for this crate's lib
+// tests (`tests/suite.rs`).
 #[cfg(all(feature = "gio", test))]
 mod gio {
     use core::ffi::{c_char, c_void};
 
     unsafe extern "C" {
+        #[link_name = "oracle_stub_portal_inhibit_info_create"]
         pub fn portal_inhibit_info_create() -> *mut c_void;
+        #[link_name = "oracle_stub_portal_inhibit"]
         pub fn portal_inhibit(portal: *mut c_void, reason: *const c_char, active: bool);
+        #[link_name = "oracle_stub_portal_inhibit_info_destroy"]
         pub fn portal_inhibit_info_destroy(portal: *mut c_void);
         #[link_name = "oracle_stub_dbus_sleep_info_create"]
         pub fn dbus_sleep_info_create() -> *mut c_void;

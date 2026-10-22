@@ -14,9 +14,13 @@ unsafe extern "C" {
     pub fn oracle_gio_os_inhibit_sleep_set_active(info: *mut c_void, active: bool) -> bool;
     pub fn oracle_gio_os_inhibit_sleep_destroy(info: *mut c_void);
 
-    /// Counted stand-ins for the portal and session D-Bus inhibitors.
+    /// Counted stand-ins. The Rust shims own the original portal and
+    /// session D-Bus names, so these resolve to the oracle copies.
+    #[link_name = "oracle_stub_portal_inhibit_info_create"]
     pub fn portal_inhibit_info_create() -> *mut c_void;
+    #[link_name = "oracle_stub_portal_inhibit"]
     pub fn portal_inhibit(portal: *mut c_void, reason: *const c_char, active: bool);
+    #[link_name = "oracle_stub_portal_inhibit_info_destroy"]
     pub fn portal_inhibit_info_destroy(portal: *mut c_void);
     #[link_name = "oracle_stub_dbus_sleep_info_create"]
     pub fn dbus_sleep_info_create() -> *mut c_void;

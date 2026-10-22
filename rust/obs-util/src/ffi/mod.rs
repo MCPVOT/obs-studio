@@ -33,6 +33,8 @@ pub mod platform_number;
 pub mod platform_time;
 #[cfg(windows)]
 pub mod platform_windows;
+#[cfg(all(unix, not(target_os = "macos"), feature = "gio"))]
+pub mod portal_inhibit;
 pub mod profiler;
 pub mod profiler_snapshot;
 pub mod task;

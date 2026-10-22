@@ -15,7 +15,7 @@
 # - LIBOBS_HEVC_PORTED_SOURCES, LIBOBS_PULSE_PORTED_SOURCES,
 #   LIBOBS_NIX_GIO_PORTED_SOURCES,
 #   LIBOBS_WAYLAND_PORTED_SOURCES, LIBOBS_WAYLAND_GIO_PORTED_SOURCES: ported
-#   C behind ENABLE_HEVC (below), ENABLE_PULSEAUDIO, ENABLE_WAYLAND, and
+#   C behind ENABLE_HEVC (below), ENABLE_PULSEAUDIO, GIO, ENABLE_WAYLAND, and
 #   ENABLE_WAYLAND with GIO (os-linux.cmake, os-freebsd.cmake).
 # - No-op host capabilities (#1051) are not listed: each host file includes
 #   the obs-host/noop/<capability>.hpp headers for what it lacks.
