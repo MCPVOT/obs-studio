@@ -218,8 +218,12 @@ static void check_plan(enum video_format format, enum video_colorspace cs, uint3
 		ok = ok && got.planes[c].width == want.planes[c].width &&
 		     got.planes[c].height == want.planes[c].height && got.planes[c].format == want.planes[c].format;
 	}
-	if (!ok)
-		fail_msg("plan differs for %s", what);
+	if (!ok) {
+		/* fail_msg() expands to cm_print_error(), which the Windows cmocka
+		 * library does not export; report via stdio and use plain fail(). */
+		fprintf(stderr, "plan differs for %s\n", what);
+		fail();
+	}
 }
 
 /* ------------------------------------------------------------------------- */
@@ -414,9 +418,11 @@ static void techniques_exist_in_the_effect(void **state)
 					continue;
 				char needle[64];
 				snprintf(needle, sizeof(needle), "\ntechnique %s\n", p.conversion_techs[t]);
-				if (!strstr(text, needle))
-					fail_msg("technique %s is not in format_conversion.effect",
-						 p.conversion_techs[t]);
+				if (!strstr(text, needle)) {
+					fprintf(stderr, "technique %s is not in format_conversion.effect\n",
+						p.conversion_techs[t]);
+					fail();
+				}
 				named++;
 			}
 		}
@@ -442,8 +448,10 @@ static void size_check_edges(void **state)
 	for (size_t w = 0; w < N(cases); w++) {
 		for (size_t h = 0; h < N(cases); h++) {
 			bool want = cases[w].valid && cases[h].valid;
-			if (obs_video_size_valid(cases[w].size, cases[h].size) != want)
-				fail_msg("size_valid(%u, %u) is not %d", cases[w].size, cases[h].size, want);
+			if (obs_video_size_valid(cases[w].size, cases[h].size) != want) {
+				fprintf(stderr, "size_valid(%u, %u) is not %d\n", cases[w].size, cases[h].size, want);
+				fail();
+			}
 		}
 	}
 }
