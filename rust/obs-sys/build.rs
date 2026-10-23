@@ -32,8 +32,13 @@ fn main() {
         ] {
             println!("cargo:rerun-if-env-changed={variable}");
         }
+        for variable in obs_build::CARGO_CONFIGURATION_VARIABLES {
+            println!("cargo:rerun-if-env-changed={variable}");
+        }
+        let profile = obs_build::NativeProfile::from_cargo_lookup(|name| std::env::var_os(name))
+            .unwrap_or_else(|error| panic!("configure bundled native profile: {error}"));
         let build = obs_build::NativeBuild {
-            profile: Default::default(),
+            profile,
             host: std::env::var("HOST").unwrap(),
             target: std::env::var("TARGET").unwrap(),
             output: std::path::PathBuf::from(std::env::var_os("OUT_DIR").unwrap()).join("native"),

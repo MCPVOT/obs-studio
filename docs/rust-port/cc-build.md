@@ -1110,6 +1110,20 @@ request and batch overhead; they do not establish an intrinsic PCH speed limit.
 
 The `bundled` feature exposes the core build modes through environment variables:
 
+Bundled native optimization and debug symbols follow Cargo's effective
+`OPT_LEVEL` (`0`, `1`, `2`, `3`, `s`, `z`) and `DEBUG` (`true` or `false`),
+including custom profiles. Cargo's `PROFILE` name is not used. Set
+`OBS_SYS_NATIVE_PROFILE` to `debug`, `release`, `relwithdebinfo` or `minsizerel`
+to select the corresponding standalone native policy explicitly.
+
+Native assertions default on at optimization level `0` and off otherwise.
+`OBS_SYS_NATIVE_ASSERTIONS=0|1` overrides this independently of debug symbols
+and named native profiles. This is a native policy: Cargo does not expose a
+reliable target debug-assertion setting to build scripts, so custom Rust
+assertion settings are not discovered. Swift receives the same native
+assertion policy explicitly. All four configuration inputs are tracked for
+Cargo rebuilds; invalid values fail before compilation.
+
 | Variable | Values | Default |
 | --- | --- | --- |
 | `OBS_SYS_UNITY` | `0` or `1` | `1` |

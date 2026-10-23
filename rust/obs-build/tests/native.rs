@@ -3,6 +3,73 @@ use obs_build::{NativeBuild, SharedLibrary};
 use std::{fs, path::Path};
 
 #[test]
+fn cargo_native_profile_uses_effective_optimization_and_symbols() {
+    use obs_build::NativeProfile;
+    for (optimization, symbols, expected) in [
+        ("0", "true", NativeProfile::Debug),
+        ("3", "false", NativeProfile::Release),
+        ("2", "true", NativeProfile::RelWithDebInfo),
+        ("s", "false", NativeProfile::MinSizeRel),
+    ] {
+        let actual = NativeProfile::from_cargo_lookup(|key| match key {
+            "OPT_LEVEL" => Some(optimization.into()),
+            "DEBUG" => Some(symbols.into()),
+            // Deliberately misleading: effective settings must win.
+            "PROFILE" => Some("debug".into()),
+            _ => None,
+        })
+        .unwrap();
+        assert_eq!(actual, expected);
+    }
+    for (key, value) in [
+        ("OPT_LEVEL", "fast"),
+        ("DEBUG", "yes"),
+        ("OBS_SYS_NATIVE_PROFILE", "fast"),
+        ("OBS_SYS_NATIVE_ASSERTIONS", "yes"),
+    ] {
+        let error = NativeProfile::from_cargo_lookup(|name| match name {
+            name if name == key => Some(value.into()),
+            "OPT_LEVEL" => Some("2".into()),
+            "DEBUG" => Some("true".into()),
+            _ => None,
+        })
+        .unwrap_err();
+        assert!(error.contains(key), "{error}");
+    }
+    for (optimization, expected_level) in [
+        ("0", obs_build::NativeOptimization::None),
+        ("1", obs_build::NativeOptimization::One),
+        ("2", obs_build::NativeOptimization::Two),
+        ("3", obs_build::NativeOptimization::Three),
+        ("s", obs_build::NativeOptimization::Size),
+        ("z", obs_build::NativeOptimization::MinSize),
+    ] {
+        let actual = NativeProfile::from_cargo_lookup(|key| match key {
+            "OPT_LEVEL" => Some(optimization.into()),
+            "DEBUG" => Some("false".into()),
+            "OBS_SYS_NATIVE_ASSERTIONS" => Some("1".into()),
+            _ => None,
+        })
+        .unwrap();
+        assert_eq!(
+            actual,
+            NativeProfile::Custom {
+                optimization: expected_level,
+                debug_info: false,
+                assertions: true,
+            }
+        );
+    }
+    assert_eq!(
+        NativeProfile::from_cargo_lookup(
+            |key| (key == "OBS_SYS_NATIVE_PROFILE").then(|| "debug".into())
+        )
+        .unwrap(),
+        NativeProfile::Debug
+    );
+}
+
+#[test]
 fn native_test_graph_rejects_colliding_qt_ui_outputs() {
     let root = tempfile::tempdir().unwrap();
     let graph = serde_json::json!({"schema": 1, "targets": {
@@ -1538,6 +1605,26 @@ fn native_profile_switch_rebuilds_assertion_policy() {
         (Release, 1),
         (RelWithDebInfo, 1),
         (MinSizeRel, 1),
+        (
+            obs_build::NativeProfile::from_cargo_lookup(|key| match key {
+                "OPT_LEVEL" => Some("3".into()),
+                "DEBUG" => Some("true".into()),
+                "OBS_SYS_NATIVE_ASSERTIONS" => Some("1".into()),
+                _ => None,
+            })
+            .unwrap(),
+            0,
+        ),
+        (
+            obs_build::NativeProfile::from_cargo_lookup(|key| match key {
+                "OPT_LEVEL" => Some("0".into()),
+                "DEBUG" => Some("false".into()),
+                "OBS_SYS_NATIVE_ASSERTIONS" => Some("0".into()),
+                _ => None,
+            })
+            .unwrap(),
+            1,
+        ),
         (Debug, 0),
     ] {
         let artifact = build
@@ -1908,7 +1995,7 @@ fn swift_bridge_preserves_native_linkage_header_flags_and_source_rebuilds() {
     let bridge = root.join("bridge.h");
     fs::write(&bridge, "#include \"value.h\"\nstatic const int bridge_value = HEADER_VALUE;\nstatic const int build_flag = BUILD_FLAG;\nint base_value(void);\n").unwrap();
     let source = root.join("fixture.swift");
-    let text = "@_cdecl(\"obs_fixture_swift\")\npublic func obs_fixture_swift() -> Int32 { return base_value() + bridge_value + build_flag }\n";
+    let text = "@_cdecl(\"obs_fixture_swift\")\npublic func obs_fixture_swift() -> Int32 { return base_value() + bridge_value + build_flag }\n@_cdecl(\"obs_fixture_swift_assertions\")\npublic func obs_fixture_swift_assertions() -> Int32 { return _isDebugAssertConfiguration() ? 1 : 0 }\n";
     fs::write(&source, text).unwrap();
     let mut library = obs_build::SwiftLibrary {
         name: "fixture-swift".into(),
@@ -1955,6 +2042,25 @@ fn swift_bridge_preserves_native_linkage_header_flags_and_source_rebuilds() {
         .unwrap();
     // The unchanged Swift dylib must observe the rebuilt shared dependency.
     assert_native_answer_fresh(&artifact, "obs_fixture_swift", 58, &selector);
+    for (optimization, assertions, expected) in [("3", "1", 1), ("0", "0", 0)] {
+        let profile = obs_build::NativeProfile::from_cargo_lookup(|key| match key {
+            "OPT_LEVEL" => Some(optimization.into()),
+            "DEBUG" => Some("true".into()),
+            "OBS_SYS_NATIVE_ASSERTIONS" => Some(assertions.into()),
+            _ => None,
+        })
+        .unwrap();
+        let artifact = build
+            .with_profile(profile)
+            .swift_shared_library(&library)
+            .unwrap();
+        assert_native_answer_fresh(
+            &artifact,
+            "obs_fixture_swift_assertions",
+            expected,
+            &selector,
+        );
+    }
 }
 
 #[test]

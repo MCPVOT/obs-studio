@@ -229,6 +229,7 @@ where
         NativeProfile::Release => "release",
         NativeProfile::RelWithDebInfo => "relwithdebinfo",
         NativeProfile::MinSizeRel => "minsizerel",
+        NativeProfile::Custom { .. } => "custom",
     };
     let mut build = NativeBuild {
         host: crate::BUILD_HOST.into(),

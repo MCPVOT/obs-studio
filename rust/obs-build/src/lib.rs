@@ -107,24 +107,136 @@ pub enum NativeProfile {
     #[default]
     RelWithDebInfo,
     MinSizeRel,
+    Custom {
+        optimization: NativeOptimization,
+        debug_info: bool,
+        assertions: bool,
+    },
 }
 
+/// Native compiler optimization levels accepted from Cargo.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum NativeOptimization {
+    None,
+    One,
+    Two,
+    Three,
+    Size,
+    MinSize,
+}
+
+impl NativeOptimization {
+    fn value(self) -> &'static str {
+        match self {
+            Self::None => "0",
+            Self::One => "1",
+            Self::Two => "2",
+            Self::Three => "3",
+            Self::Size => "s",
+            Self::MinSize => "z",
+        }
+    }
+}
+
+pub const CARGO_CONFIGURATION_VARIABLES: [&str; 4] = [
+    "OPT_LEVEL",
+    "DEBUG",
+    "OBS_SYS_NATIVE_PROFILE",
+    "OBS_SYS_NATIVE_ASSERTIONS",
+];
+
 impl NativeProfile {
+    /// Select bundled native policy from effective Cargo settings and explicit overrides.
+    pub fn from_cargo_lookup(
+        mut lookup: impl FnMut(&str) -> Option<std::ffi::OsString>,
+    ) -> Result<Self, String> {
+        let mut value = |name: &str| -> Result<Option<String>, String> {
+            lookup(name)
+                .map(|value| {
+                    value
+                        .into_string()
+                        .map_err(|_| format!("{name} must be UTF-8"))
+                })
+                .transpose()
+        };
+        let named = value("OBS_SYS_NATIVE_PROFILE")?;
+        let assertion_override = match value("OBS_SYS_NATIVE_ASSERTIONS")?.as_deref() {
+            None => None,
+            Some("0") => Some(false),
+            Some("1") => Some(true),
+            _ => return Err("OBS_SYS_NATIVE_ASSERTIONS must be 0 or 1".into()),
+        };
+        let (optimization, debug_info, assertions) = if let Some(named) = named {
+            let profile = match named.as_str() {
+                "debug" => Self::Debug,
+                "release" => Self::Release,
+                "relwithdebinfo" => Self::RelWithDebInfo,
+                "minsizerel" => Self::MinSizeRel,
+                _ => return Err(
+                    "OBS_SYS_NATIVE_PROFILE must be debug, release, relwithdebinfo or minsizerel"
+                        .into(),
+                ),
+            };
+            (
+                profile.optimization().to_owned(),
+                profile.debug_info(),
+                profile.assertions(),
+            )
+        } else {
+            let optimization = value("OPT_LEVEL")?.ok_or("OPT_LEVEL is required")?;
+            let debug_info = match value("DEBUG")?.as_deref() {
+                Some("true") => true,
+                Some("false") => false,
+                _ => return Err("DEBUG must be true or false".into()),
+            };
+            let assertions = optimization == "0";
+            (optimization, debug_info, assertions)
+        };
+        let optimization = match optimization.as_str() {
+            "0" => NativeOptimization::None,
+            "1" => NativeOptimization::One,
+            "2" => NativeOptimization::Two,
+            "3" => NativeOptimization::Three,
+            "s" => NativeOptimization::Size,
+            "z" => NativeOptimization::MinSize,
+            _ => return Err("OPT_LEVEL must be 0, 1, 2, 3, s or z".into()),
+        };
+        let assertions = assertion_override.unwrap_or(assertions);
+        Ok(match (optimization, debug_info, assertions) {
+            (NativeOptimization::None, true, true) => Self::Debug,
+            (NativeOptimization::Three, false, false) => Self::Release,
+            (NativeOptimization::Two, true, false) => Self::RelWithDebInfo,
+            (NativeOptimization::Size, false, false) => Self::MinSizeRel,
+            _ => Self::Custom {
+                optimization,
+                debug_info,
+                assertions,
+            },
+        })
+    }
+
     pub(crate) fn optimization(self) -> &'static str {
         match self {
             Self::Debug => "0",
             Self::Release => "3",
             Self::RelWithDebInfo => "2",
             Self::MinSizeRel => "s",
+            Self::Custom { optimization, .. } => optimization.value(),
         }
     }
 
     pub(crate) fn debug_info(self) -> bool {
-        matches!(self, Self::Debug | Self::RelWithDebInfo)
+        match self {
+            Self::Custom { debug_info, .. } => debug_info,
+            _ => matches!(self, Self::Debug | Self::RelWithDebInfo),
+        }
     }
 
     pub(crate) fn assertions(self) -> bool {
-        self == Self::Debug
+        match self {
+            Self::Custom { assertions, .. } => assertions,
+            _ => self == Self::Debug,
+        }
     }
 }
 
