@@ -21,7 +21,11 @@ if(ENABLE_SCRIPTING_LUA)
     PRIVATE
       $<$<BOOL:${ENABLE_FRONTEND}>:build/obs-scripting.lua-frontend+.h.c>
       build/obs-scripting.lua+.h.c
+      $<$<PLATFORM_ID:Darwin>:build/obs-scripting.lua-host-macos+.h.c>
+      $<$<PLATFORM_ID:Linux,FreeBSD,OpenBSD>:build/obs-scripting.lua-host-posix+.h.c>
+      $<$<PLATFORM_ID:Windows>:build/obs-scripting.lua-host-windows+.h.c>
       obs-scripting-lua.h
+      obs-scripting-lua-host.h
       swig/swigluarun.h
   )
 
@@ -29,10 +33,19 @@ if(ENABLE_SCRIPTING_LUA)
   target_compile_options(obs-scripting PRIVATE $<$<COMPILE_LANG_AND_ID:C,AppleClang,Clang,GNU>:-Wno-cast-qual>)
 
   target_compile_definitions(obs-scripting PUBLIC LUAJIT_FOUND)
+  # The Lua C module suffix the startup scripts splice in (obs-scripting-lua-host.h).
+  target_compile_definitions(obs-scripting PRIVATE OBS_LUA_SO_EXT="$<IF:$<PLATFORM_ID:Windows>,dll,so>")
 
   set_source_files_properties(
     build/obs-scripting.lua+.h.c
     PROPERTIES COMPILE_OPTIONS $<$<COMPILE_LANG_AND_ID:C,AppleClang,Clang>:-Wno-error=shorten-64-to-32>
+  )
+  # The SWIG runtime obs-scripting-lua.h includes: unused parameters and
+  # locals, narrowing conversions (MSVC C4100, C4189, C4244, C4267).
+  set_property(
+    SOURCE build/obs-scripting.lua+.h.c build/obs-scripting.lua-frontend+.h.c
+    APPEND
+    PROPERTY COMPILE_OPTIONS "$<$<C_COMPILER_ID:MSVC>:/wd4100;/wd4189;/wd4244;/wd4267>"
   )
 
   target_link_libraries(obs-scripting PRIVATE Luajit::Luajit)

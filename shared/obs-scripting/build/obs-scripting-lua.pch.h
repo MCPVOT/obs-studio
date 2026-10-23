@@ -15,6 +15,7 @@
 /* obs-scripting-lua.c */
 #include <util/base.h>
 #include <util/dstr.h>
+#include "shared/obs-scripting/obs-scripting-lua-host.h"
 
 #include <obs.h>
 
@@ -24,13 +25,4 @@
 #define ARCH_DIR "64bit"
 #else
 #define ARCH_DIR "32bit"
-#endif
-
-#ifdef __APPLE__
-#define SO_EXT "so"
-#elif defined(_WIN32)
-#include <windows.h>
-#define SO_EXT "dll"
-#else
-#define SO_EXT "so"
 #endif

@@ -28,7 +28,7 @@ static const char get_script_path_func[] = "\
 function script_path()\n\
 	 return \"%s\"\n\
 end\n\
-package.cpath = package.cpath .. \";\" .. script_path() .. \"/?." SO_EXT "\"\n\
+package.cpath = package.cpath .. \";\" .. script_path() .. \"/?." OBS_LUA_SO_EXT "\"\n\
 package.path = package.path .. \";\" .. script_path() .. \"/?.lua\"\n";
 
 static char *startup_script = NULL;
@@ -1288,7 +1288,7 @@ void obs_lua_script_save(obs_script_t *s)
 
 static inline void add_package_cpath(struct dstr *cpath, const char *path)
 {
-	dstr_catf(cpath, " .. \";\" .. \"%s\" .. \"/?." SO_EXT "\"", path);
+	dstr_catf(cpath, " .. \";\" .. \"%s\" .. \"/?." OBS_LUA_SO_EXT "\"", path);
 }
 
 void obs_lua_load(void)
@@ -1302,38 +1302,10 @@ void obs_lua_load(void)
 	/* ---------------------------------------------- */
 	/* Initialize Lua startup script                  */
 
-#if defined(_WIN32)
-#define PATH_MAX MAX_PATH
-#endif
-
 	struct dstr package_cpath = {0};
-	char import_path[PATH_MAX];
-
-#ifdef __APPLE__
-	struct dstr bundle_path;
-
-	dstr_init_move_array(&bundle_path, os_get_executable_path_ptr(""));
-	dstr_cat(&bundle_path, "../PlugIns");
-	char *absolute_plugin_path = os_get_abs_path_ptr(bundle_path.array);
-
-	if (absolute_plugin_path != NULL) {
-		strcpy(import_path, absolute_plugin_path);
-		bfree(absolute_plugin_path);
-	}
-	dstr_free(&bundle_path);
-#else
-	strcpy(import_path, "./");
-#endif
 	dstr_cat(&package_cpath, "package.cpath = package.cpath");
 
-	add_package_cpath(&package_cpath, import_path);
-
-#if !defined(_WIN32) && !defined(__APPLE__)
-	char *relative_script_path = os_get_executable_path_ptr("../" SCRIPT_DIR);
-	if (relative_script_path)
-		add_package_cpath(&package_cpath, relative_script_path);
-	bfree(relative_script_path);
-#endif
+	obs_lua_host_module_dirs(&package_cpath, add_package_cpath);
 
 	add_package_cpath(&package_cpath, SCRIPT_DIR);
 	dstr_cat(&package_cpath, "\n");
@@ -1359,6 +1331,3 @@ void obs_lua_unload(void)
 #undef call_func
 #undef ls_get_libobs_obj
 #undef ls_push_libobs_obj
-
-/* File-local macros (BUILD.md): out of the next file in the unity group. */
-#undef PATH_MAX
