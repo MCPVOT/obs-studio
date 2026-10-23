@@ -489,8 +489,8 @@ comparison against an existing CMake artifact in the integration test.
 
 `qt::moc` runs Qt's meta-object compiler with the native target's include paths and
 definitions and compiles its generated translation unit explicitly. It preserves
-unchanged output contents/mtime. `OBS_QT_MOC` selects a host tool explicitly;
-default discovery uses Qt6Core's pkg-config libexec directory. Application builds
+unchanged output contents/mtime. Host tools come from explicit Qt SDK inputs
+(see [Explicit Qt SDK inputs](#explicit-qt-sdk-inputs)). Application builds
 still need UI/resource generation and complete build-script input tracking.
 
 Enable `OBS_BUILD_QT=1` to build the real VST module and frontend API. Both cores
@@ -523,6 +523,54 @@ embedded OBS PNG, exercise both OBS spinbox types and their metaobject, process
 UI events and accept the dialog through its OK button. This passes locally.
 This widget test does not yet start the complete OBS application or validate a
 packaged runtime/plugin path.
+
+## Explicit Qt SDK inputs
+
+`OBS_QT_TARGET_PREFIX` names the Qt SDK the target links, and
+`OBS_QT_HOST_PREFIX` names the SDK whose `moc`, `uic` and `rcc` run on the build
+host (`libexec/` on Linux and macOS hosts, `bin/*.exe` on Windows hosts).
+`OBS_QT_MOC`, `OBS_QT_UIC` and `OBS_QT_RCC` still override one tool each. A
+native build may give only the target prefix, which then also supplies the
+tools. With neither prefix, a native build keeps the system Qt6 pkg-config
+path. A cross build must name both SDKs: `qt::package` and `qt::Tools` refuse
+to fall back to the host's pkg-config, which would select host libraries. The
+inputs are read, never written back to the process environment.
+
+`qt::Sdk` reads the SDK's own exported CMake targets
+(`lib/cmake/Qt6*/Qt6*Targets*.cmake`) as data. CMake is never run. For a module
+and its `Qt6::` dependencies it evaluates the include directories, definitions,
+compile options and link libraries for the Cargo target. It evaluates only the
+generator expressions Qt exports (compiler, language, configuration, unset
+consumer properties) and fails on any other. `libobs::add_package` and
+`Dependency::package` route every `Qt6<Module>` package through it when a target
+prefix is given. Before anything compiles it checks:
+
+- **Architecture:** the module binary's ELF, PE or Mach-O header (every slice of
+  a universal framework) must contain the target architecture.
+- **Version:** `QT_VERSION_STR` in QtCore's `qconfig.h` must be Qt 6, and every
+  host tool's `--version` must report the same release as the target SDK.
+- **Configuration and CRT:** only configurations with a
+  `Qt6<Module>Targets-<config>.cmake` export count; Qt's AdditionalTargetInfo
+  aliases are skipped. Rust's MSVC targets always link the release CRT, so a
+  Windows SDK whose only configuration is DEBUG (`/MDd`) is rejected, as is
+  `crt-static`. Multi-configuration SDKs use their release configuration.
+
+Linux links the versioned `libQt6*.so` with an rpath to the SDK. Windows links the
+import libraries (`lib/Qt6*.lib`) and the system libraries Qt exports, and
+returns the DLL directory as the `PATH` runtime prepend for graph tests. macOS
+links the framework binaries, Qt's exported system frameworks (each once) and an
+rpath to the frameworks' directory.
+
+The Linux, Windows x86_64 and macOS universal2 SDKs published in
+`obs-rust/obs-studio-libs` (`qt6-6.11.1`) all resolve.
+`qt_sdk_resolves_published_sdks` checks them when `OBS_QT_TEST_LINUX_PREFIX`,
+`OBS_QT_TEST_WINDOWS_PREFIX` and `OBS_QT_TEST_MACOS_PREFIX` name the extracted
+archives. With `OBS_QT_TARGET_PREFIX` set to the Linux SDK and no Qt visible to
+pkg-config, the metaobject/UI/resource graph test and the unchanged remux queue
+test compile and pass through Cargo and CMake. Qt is never built in CI; SDKs come
+only from obs-studio-libs. Compiling against the Windows and macOS SDKs on those
+hosts, Windows ARM64, MinGW and Linux distribution (multiarch) layouts as explicit
+prefixes are not yet covered.
 
 ## Linux frontend executable checkpoint
 

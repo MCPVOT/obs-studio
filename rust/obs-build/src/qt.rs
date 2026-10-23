@@ -6,7 +6,7 @@ use std::{
 };
 
 /// Generate one moc translation unit using the target's includes and definitions.
-/// Cross builds can provide a host executable through OBS_QT_MOC.
+/// Tools come from explicit SDK inputs (see [`Tools::resolve`]).
 pub fn moc(library: &mut SharedLibrary, header: &Path, output: &Path) -> Result<PathBuf, String> {
     let mut command = command("moc")?;
     for directory in &library.include_dirs {
@@ -68,15 +68,23 @@ pub fn rcc(
 }
 
 fn command(name: &str) -> Result<Command, String> {
-    let variable = format!("OBS_QT_{}", name.to_ascii_uppercase());
-    println!("cargo:rerun-if-env-changed={variable}");
-    let executable = if let Some(path) = std::env::var_os(variable) {
-        PathBuf::from(path)
-    } else {
-        PathBuf::from(pkg_config::get_variable("Qt6Core", "libexecdir").map_err(|e| e.to_string())?)
-            .join(name)
-    };
-    Ok(Command::new(executable))
+    let (host, target) = build_triples();
+    let inputs = Inputs::from_env();
+    let tools = Tools::resolve(&host, &target, &inputs)?;
+    if let Some(prefix) = &inputs.target_prefix {
+        // One check per build script: the generators match the target SDK.
+        static CHECKED: std::sync::OnceLock<Result<(), String>> = std::sync::OnceLock::new();
+        CHECKED
+            .get_or_init(|| {
+                tools.check_version(Sdk::open(&target, prefix, inputs.crt_static)?.version())
+            })
+            .clone()?;
+    }
+    Ok(Command::new(match name {
+        "moc" => tools.moc,
+        "uic" => tools.uic,
+        _ => tools.rcc,
+    }))
 }
 
 fn run(mut command: Command, input: &Path) -> Result<Vec<u8>, String> {
@@ -151,4 +159,169 @@ pub fn combine_moc(
     library.sources.retain(|path| !is_moc(path));
     library.sources.push(output.into());
     Ok(())
+}
+
+mod sdk;
+pub use sdk::Sdk;
+
+/// Explicit Qt SDK inputs. A target prefix selects the libraries Cargo links;
+/// a host prefix (or per-tool override) selects the generators that run.
+#[derive(Clone, Debug, Default)]
+pub struct Inputs {
+    pub target_prefix: Option<PathBuf>,
+    pub host_prefix: Option<PathBuf>,
+    pub moc: Option<PathBuf>,
+    pub uic: Option<PathBuf>,
+    pub rcc: Option<PathBuf>,
+    /// The target links the static CRT (`crt-static`).
+    pub crt_static: bool,
+}
+
+const VARIABLES: [&str; 6] = [
+    "OBS_QT_TARGET_PREFIX",
+    "OBS_QT_HOST_PREFIX",
+    "OBS_QT_MOC",
+    "OBS_QT_UIC",
+    "OBS_QT_RCC",
+    "CARGO_CFG_TARGET_FEATURE",
+];
+
+impl Inputs {
+    pub fn from_lookup(lookup: impl Fn(&str) -> Option<std::ffi::OsString>) -> Self {
+        let path = |name: &str| {
+            lookup(name)
+                .filter(|value| !value.is_empty())
+                .map(PathBuf::from)
+        };
+        Self {
+            target_prefix: path(VARIABLES[0]),
+            host_prefix: path(VARIABLES[1]),
+            moc: path(VARIABLES[2]),
+            uic: path(VARIABLES[3]),
+            rcc: path(VARIABLES[4]),
+            crt_static: lookup(VARIABLES[5]).is_some_and(|features| {
+                features
+                    .to_string_lossy()
+                    .split(',')
+                    .any(|feature| feature == "crt-static")
+            }),
+        }
+    }
+
+    /// Read the inputs and register them with Cargo; nothing is written back.
+    pub fn from_env() -> Self {
+        for variable in VARIABLES {
+            println!("cargo:rerun-if-env-changed={variable}");
+        }
+        Self::from_lookup(|name| std::env::var_os(name))
+    }
+
+    fn tool(&self, name: &str) -> Option<&PathBuf> {
+        match name {
+            "moc" => self.moc.as_ref(),
+            "uic" => self.uic.as_ref(),
+            _ => self.rcc.as_ref(),
+        }
+    }
+}
+
+/// Host executables bound to one Qt SDK.
+#[derive(Clone, Debug)]
+pub struct Tools {
+    pub moc: PathBuf,
+    pub uic: PathBuf,
+    pub rcc: PathBuf,
+}
+
+impl Tools {
+    /// Per-tool override, then the host SDK. A native build may use its target
+    /// SDK, or the system Qt6Core libexecdir when no SDK is given; a cross build
+    /// must name its host tools.
+    pub fn resolve(host: &str, target: &str, inputs: &Inputs) -> Result<Self, String> {
+        let prefix = inputs
+            .host_prefix
+            .as_ref()
+            .or(inputs.target_prefix.as_ref().filter(|_| host == target));
+        let tool = |name: &str| -> Result<PathBuf, String> {
+            let path = if let Some(path) = inputs.tool(name) {
+                path.clone()
+            } else if let Some(prefix) = prefix {
+                crate::platform::qt_tool(host, prefix, name)
+            } else if host != target {
+                return Err(format!(
+                    "cross build {host} -> {target} needs OBS_QT_HOST_PREFIX or OBS_QT_{} for Qt host tools",
+                    name.to_ascii_uppercase()
+                ));
+            } else {
+                return Ok(PathBuf::from(
+                    pkg_config::get_variable("Qt6Core", "libexecdir").map_err(|e| e.to_string())?,
+                )
+                .join(name));
+            };
+            if !path.is_file() {
+                return Err(format!("Qt host tool {} is missing", path.display()));
+            }
+            Ok(path)
+        };
+        Ok(Self {
+            moc: tool("moc")?,
+            uic: tool("uic")?,
+            rcc: tool("rcc")?,
+        })
+    }
+
+    /// Generators must come from the same Qt release as the target SDK.
+    pub fn check_version(&self, version: &str) -> Result<(), String> {
+        for tool in [&self.moc, &self.uic, &self.rcc] {
+            let output = Command::new(tool)
+                .arg("--version")
+                .output()
+                .map_err(|error| format!("{}: {error}", tool.display()))?;
+            let reported = String::from_utf8_lossy(&output.stdout);
+            if reported.split_whitespace().last() != Some(version) {
+                return Err(format!(
+                    "Qt host tool {} reports {:?}; the target SDK is Qt {version}",
+                    tool.display(),
+                    reported.trim()
+                ));
+            }
+        }
+        Ok(())
+    }
+}
+
+/// Resolve a Qt6 package from explicit inputs; `None` leaves a native build on
+/// its system package path.
+pub fn package(
+    host: &str,
+    target: &str,
+    package: &str,
+    inputs: &Inputs,
+) -> Result<Option<crate::validation::graph::Dependency>, String> {
+    let Some(module) = package
+        .strip_prefix("Qt6")
+        .filter(|module| module.starts_with(|c: char| c.is_ascii_uppercase()))
+    else {
+        return Ok(None);
+    };
+    let Some(prefix) = &inputs.target_prefix else {
+        if host != target {
+            return Err(format!(
+                "cross build {host} -> {target} needs OBS_QT_TARGET_PREFIX for {package}; the host's pkg-config would select host libraries"
+            ));
+        }
+        return Ok(None);
+    };
+    Sdk::open(target, prefix, inputs.crt_static)?
+        .interface(module)
+        .map(Some)
+}
+
+/// Host and target of the current build script, or of this build engine.
+pub(crate) fn build_triples() -> (String, String) {
+    let triple = |name, fallback: &str| std::env::var(name).unwrap_or_else(|_| fallback.into());
+    (
+        triple("HOST", crate::BUILD_HOST),
+        triple("TARGET", crate::BUILD_TARGET),
+    )
 }

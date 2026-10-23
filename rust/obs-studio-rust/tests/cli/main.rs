@@ -12,5 +12,7 @@ mod native_build;
 #[cfg(feature = "libobs-integration")]
 #[path = "../../../obs-build/tests/libobs.rs"]
 mod native_libobs;
+#[path = "../../../obs-build/tests/qt_sdk.rs"]
+mod qt_sdk;
 #[path = "../../../obs-build/src/platform/shared_library.rs"]
 mod shared_library;

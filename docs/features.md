@@ -1749,3 +1749,9 @@ area.
   *Linux*, 2026-10-22. Issue [#1332](https://github.com/obs-rust/obs-studio/issues/1332),
   PRs [#1725](https://github.com/obs-rust/obs-studio/pull/1725),
   [#1772](https://github.com/obs-rust/obs-studio/pull/1772).
+- **Explicit Qt SDKs for Cargo builds.** `OBS_QT_TARGET_PREFIX` and
+  `OBS_QT_HOST_PREFIX` select the target Qt SDK and its host tools. Cargo resolves
+  Qt Core, Gui and Widgets from the SDK's exported targets, validates the
+  architecture, Qt version and CRT, and cross builds no longer fall back to
+  host pkg-config. *Linux; Windows and macOS SDK resolution*, 2026-10-22.
+  Issue [#1869](https://github.com/obs-rust/obs-studio/issues/1869).

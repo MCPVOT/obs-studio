@@ -13,6 +13,7 @@ mod libobs_linux;
 mod libobs_macos;
 mod libobs_windows;
 mod plugins_macos;
+mod qt_sdk;
 pub(crate) mod resources;
 mod swift_macos;
 
@@ -290,6 +291,11 @@ pub fn configure_shared_link(
 }
 
 mod shared_library;
+pub use qt_sdk::{
+    qt_architecture, qt_binary_architectures, qt_check_target, qt_compiler_id,
+    qt_configuration_usable, qt_imported_target, qt_link_artifact, qt_runtime_directory,
+    qt_system_library, qt_tool,
+};
 pub use shared_library::package_shared_library;
 
 pub fn configure_libobs_variant(

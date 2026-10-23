@@ -376,8 +376,14 @@ impl From<SharedLibrary> for Dependency {
 
 impl Dependency {
     /// Resolve a native SDK package into its compile and link interface.
-    /// Callers also supply runtime paths when the SDK is outside the system loader.
+    /// Qt6 packages come from explicit SDK inputs when given (see [`crate::qt::package`]),
+    /// carrying their loader paths; other callers supply runtime paths themselves.
     pub fn package(target: &str, package: &str) -> Result<Self, String> {
+        let (host, _) = crate::qt::build_triples();
+        let inputs = crate::qt::Inputs::from_env();
+        if let Some(qt) = crate::qt::package(&host, target, package, &inputs)? {
+            return Ok(qt);
+        }
         let mut library = SharedLibrary::default();
         crate::libobs::add_package(&mut library, target, package)?;
         Ok(library.into())
