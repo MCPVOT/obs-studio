@@ -2,10 +2,11 @@
 # /// script
 # requires-python = ">=3.11"
 # ///
-"""Build the OBS-Studio-Rust AppImage on an Ubuntu 26.04 host or container.
+"""Build the OBS-Studio-Rust AppImage in the glibc 2.28 image
+(build-aux/appimage/manylinux/Dockerfile, #926), whose /opt/obs-deps holds
+every library it bundles.
 
     uv run build-aux/appimage/build.py                      # every step
-    uv run build-aux/appimage/build.py --skip-deps          # image has the packages
     uv run build-aux/appimage/build.py --steps version,configure --dry-run
 
 These are the build steps of .github/workflows/appimage.yaml, which calls this
@@ -45,54 +46,6 @@ class Step:
     script: str
     env: dict[str, str] = field(default_factory=dict)
 
-
-DEPS = r"""
-sudo apt-get update
-mkdir -p .apt-cache/partial
-# Same set as .github/scripts/utils.zsh/setup_ubuntu, minus CEF/VLC/Python
-# (obs-webrtc stays: libdatachannel-dev, for WHIP, obs-rust/obs-studio#1744)
-# (not shipped in the AppImage), plus tools for packaging, plus what the
-# bundled libpipewire loads at runtime: its modules (libpipewire-0.3-modules)
-# and client.conf (pipewire-bin). assemble-appdir.sh fails without them
-# (obs-rust/obs-studio#426).
-sudo -E apt-get install -y --no-install-recommends -o DPkg::Lock::Timeout=120 -o Dir::Cache::archives="$PWD/.apt-cache" \
-  build-essential cmake ninja-build pkg-config git curl ca-certificates \
-  patchelf desktop-file-utils file squashfs-tools zsync \
-  libglib2.0-dev extra-cmake-modules libcurl4-openssl-dev \
-  libavcodec-dev libavdevice-dev libavfilter-dev libavformat-dev libavutil-dev \
-  libswresample-dev libswscale-dev libjansson-dev libx11-xcb-dev libgles2-mesa-dev \
-  libwayland-dev libpipewire-0.3-dev libpulse-dev libx264-dev libmbedtls-dev \
-  libpipewire-0.3-modules pipewire-bin \
-  libgl1-mesa-dev libgbm-dev ffmpeg uthash-dev libsimde-dev libluajit-5.1-dev swig libxss-dev libglvnd-dev \
-  libx11-dev libxcb-randr0-dev libxcb-shm0-dev libxcb-xinerama0-dev libxcb-composite0-dev \
-  libxinerama-dev libxcb1-dev libxcb-xfixes0-dev libxkbcommon-dev libxkbcommon-x11-dev \
-  libatk1.0-dev libatk-bridge2.0-dev libxcomposite-dev libxdamage-dev \
-  libasound2-dev libfdk-aac-dev libfontconfig-dev libfreetype6-dev libjack-jackd2-dev \
-  libsndio-dev libspeexdsp-dev libudev-dev libv4l-dev libva-dev libpci-dev libdrm-dev \
-  nlohmann-json3-dev libwebsocketpp-dev libasio-dev libqrcodegencpp-dev libdatachannel-dev \
-  libffmpeg-nvenc-dev librist-dev libsrt-openssl-dev libvpl-dev libvpl2 \
-  qt6-base-dev qt6-base-private-dev libqt6svg6-dev qt6-svg-plugins qt6-wayland \
-  libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 \
-  libxcb-shape0 libxcb-xkb1 libxcb-sync1 libxcb-xinerama0
-sudo chown -R "$(id -u):$(id -g)" .apt-cache # apt ran as root; the cache action must read it
-# The ubuntu-ci preset's compiler launcher, pinned and checksum-verified.
-sudo rust/tools/linux-validate/install-zccache.sh /usr/local/bin
-"""
-
-LIBAVUTIL = r"""
-# Keep Ubuntu's complete feature configuration. Only the optional
-# newer VA mapping API is adapted; exports/backends are audited.
-sudo sed -i 's/^Types: deb$/Types: deb deb-src/' /etc/apt/sources.list.d/ubuntu.sources
-sudo apt-get update -qq
-sudo -E apt-get -y -qq -o DPkg::Lock::Timeout=120 -o Dir::Cache::archives="$PWD/.apt-cache" build-dep --arch-only ffmpeg=7:8.0.1-3ubuntu2
-sudo chown -R "$(id -u):$(id -g)" .apt-cache
-uv run --no-project build-aux/appimage/build_vaapi_compat.py avutil-compat
-# FFmpeg's recipe replaces this with libsrt-gnutls-dev, which lacks
-# the library name OBS's finder expects. Restore OBS's build input
-# after the audited avutil build; keep MPEG-TS/SRT enabled.
-sudo -E apt-get -y -qq -o DPkg::Lock::Timeout=120 -o Dir::Cache::archives="$PWD/.apt-cache" install libsrt-openssl-dev
-sudo chown -R "$(id -u):$(id -g)" .apt-cache
-"""
 
 VERSION = r"""
 # Same tag filter as cmake/common/versionconfig.cmake: this repository also carries
@@ -155,9 +108,7 @@ ARCH=x86_64 squashfs-root/AppRun --no-appstream "${update[@]}" AppDir "$asset"
 ls -lh OBS-Studio-*
 """
 
-STEP_NAMES = ("deps", "libavutil", "version", "configure", "build", "appdir", "appimage")
-# The glibc 2.28 image (--base manylinux) has the dependencies prebuilt (#926).
-MANYLINUX_SKIPPED = ("deps", "libavutil")
+STEP_NAMES = ("version", "configure", "build", "appdir", "appimage")
 # Left behind by an earlier local run; a CI checkout never has them.
 STALE = {"appdir": ("AppDir",), "appimage": ("appimagetool", "squashfs-root")}
 
@@ -180,11 +131,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--steps", default=",".join(STEP_NAMES),
                    help=f"comma-separated subset of {','.join(STEP_NAMES)} (run in that order)")
-    p.add_argument("--skip-deps", action="store_true", help="skip the build-dependency install (preinstalled image)")
-    p.add_argument("--base", choices=("ubuntu", "manylinux"), default="ubuntu",
-                   help="ubuntu: Ubuntu 26.04 with apt (bundles glibc); manylinux: the glibc 2.28 image "
-                        "build-aux/appimage/manylinux/Dockerfile, whose /opt/obs-deps holds every library "
-                        "(no deps or libavutil step; nothing of glibc is bundled, #926)")
+    # The only base since the Ubuntu 26.04 one was retired (#1999); kept so the
+    # workflow's `--base manylinux` stays valid.
+    p.add_argument("--base", choices=("manylinux",), default="manylinux",
+                   help="the glibc 2.28 image build-aux/appimage/manylinux/Dockerfile (#926)")
     p.add_argument("--rust-libobs", type=bool_flag, default="true", help="ENABLE_RUST_LIBOBS (workflow input rust_libobs)")
     p.add_argument("--qsv", type=bool_flag, default="false", help="ENABLE_QSV11 (workflow input qsv)")
     p.add_argument("--rust-version", default="", help="OBS_RUST_VERSION to embed (workflow input rust_version)")
@@ -200,10 +150,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     unknown = sorted(set(steps) - set(STEP_NAMES))
     if unknown:
         p.error(f"unknown step(s): {', '.join(unknown)}")
-    skipped = {"deps"} if args.skip_deps else set()
-    if args.base == "manylinux":
-        skipped |= set(MANYLINUX_SKIPPED)  # the image has them (and its own FFmpeg)
-    args.steps = [s for s in STEP_NAMES if s in steps and s not in skipped]
+    args.steps = [s for s in STEP_NAMES if s in steps]
     if args.sha is None:
         args.sha = default_sha()
     return args
@@ -212,25 +159,19 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 def plan(args: argparse.Namespace) -> list[Step]:
     """The steps to run, in workflow order, with each one's environment."""
     every = {
-        "deps": Step("deps", "Install build dependencies", DEPS,
-                     {"DEBIAN_FRONTEND": "noninteractive", "NEEDRESTART_SUSPEND": "1"}),
-        "libavutil": Step("libavutil", "Build libavutil with host VA compatibility", LIBAVUTIL),
         "version": Step("version", "Determine version", VERSION, {"GITHUB_SHA": args.sha}),
         "configure": Step("configure", "Configure", CONFIGURE, {
             "RUST_LIBOBS": args.rust_libobs, "QSV": args.qsv, "OBS_RUST_VERSION": args.rust_version,
         }),
         "build": Step("build", "Build", BUILD),
         "appdir": Step("appdir", "Assemble AppDir", APPDIR, {
-            "AVUTIL_LIB": "/opt/obs-deps/ffmpeg/lib/libavutil.so.60" if args.base == "manylinux"
-            else "avutil-compat/libavutil.so.60",
+            "AVUTIL_LIB": "/opt/obs-deps/ffmpeg/lib/libavutil.so.60",
         }),
         "appimage": Step("appimage", "Create AppImage", APPIMAGE, {
             "APPIMAGETOOL_VERSION": APPIMAGETOOL_VERSION, "APPIMAGETOOL_SHA256": APPIMAGETOOL_SHA256,
             # The glibc 2.28 image has it from obs-rust/obs-studio-libs (the same bytes, so the
-            # same sha256 check applies); the Ubuntu base downloads the release.
-            "APPIMAGETOOL_URL": "file:///opt/obs-deps/appimagetool/appimagetool-x86_64.AppImage"
-            if args.base == "manylinux" else
-            f"https://github.com/AppImage/appimagetool/releases/download/{APPIMAGETOOL_VERSION}/appimagetool-x86_64.AppImage",
+            # same sha256 check applies).
+            "APPIMAGETOOL_URL": "file:///opt/obs-deps/appimagetool/appimagetool-x86_64.AppImage",
             "PUBLISH_CONTINUOUS": args.publish_continuous, "GITHUB_REPOSITORY": args.repository,
         }),
     }
@@ -265,18 +206,14 @@ def main(argv: list[str] | None = None) -> int:
             print(step.script.strip("\n"))
         return 0
 
-    if args.base == "manylinux":
-        # The exact glibc OBS is linked against: the digest-pinned manylinux_2_28
-        # image's (#926). Anything else would silently move the AppImage's floor.
-        libc = os.confstr("CS_GNU_LIBC_VERSION") or ""
-        if libc != "glibc 2.28":
-            print(f"==> refusing to build: {libc or 'unknown libc'}, expected exactly glibc 2.28 "
-                  "(build-aux/appimage/manylinux/Dockerfile)", file=sys.stderr)
-            return 1
+    # The exact glibc OBS is linked against: the digest-pinned manylinux_2_28
+    # image's (#926). Anything else would silently move the AppImage's floor.
+    libc = os.confstr("CS_GNU_LIBC_VERSION") or ""
+    if libc != "glibc 2.28":
+        print(f"==> refusing to build: {libc or 'unknown libc'}, expected exactly glibc 2.28 "
+              "(build-aux/appimage/manylinux/Dockerfile)", file=sys.stderr)
+        return 1
     shim = SUDO_SHIM if needs_sudo_shim() else ""
-    # The deps step creates the apt archive dir that later steps' apt-get
-    # calls use; with --skip-deps nothing else would.
-    (ROOT / ".apt-cache" / "partial").mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="obs-appimage-build-") as scratch:
         # Like Actions: GITHUB_ENV carries values to later steps; GITHUB_OUTPUT
         # stays the runner's when there is one (the configure step's `rust`).

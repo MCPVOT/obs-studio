@@ -12,7 +12,6 @@ import unittest
 ROOT = Path(__file__).resolve().parent.parent
 # The Dockerfiles bosn.toml builds with the repo root as their context.
 ROOT_CONTEXT_DOCKERFILES = (
-    "build-aux/appimage/Dockerfile",
     "build-aux/appimage/manylinux/Dockerfile",
 )
 

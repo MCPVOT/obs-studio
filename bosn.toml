@@ -1,24 +1,6 @@
 # Local Docker work under bosn (docs/ci-tooling.md). `bosn run --task appimage`
 # builds the AppImage like .github/workflows/appimage.yaml does, without act or
 # GitHub: build-aux/appimage/build.py on the workflow's glibc 2.28 base (#899, #926).
-# The Ubuntu 26.04 stack below is the old base; no workflow builds on it.
-
-[stack.appimage]
-dockerfile = "build-aux/appimage/Dockerfile"
-family = "obs-appimage"
-workdir = "/src"
-
-[stack.appimage.env]
-ZCCACHE_CACHE_DIR = "/zccache"
-
-[stack.appimage.mounts]
-src = { source = ".", destination = "/src" }
-
-[stack.appimage.volumes]
-zccache = { scope = "machine", destination = "/zccache" }
-cargo-registry = { scope = "machine", destination = "/usr/local/cargo/registry" }
-cargo-git = { scope = "machine", destination = "/usr/local/cargo/git" }
-build = { scope = "stack", destination = "/src/build_ubuntu" }
 
 # glibc 2.28 base for the AppImage (#926): manylinux_2_28 (AlmaLinux 8) with
 # the bundled libraries built from source into /opt/obs-deps.

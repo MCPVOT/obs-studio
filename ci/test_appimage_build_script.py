@@ -22,6 +22,7 @@ import tempfile
 import textwrap
 import unittest
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parent.parent
 SCRIPT = ROOT / "build-aux/appimage/build.py"
@@ -29,8 +30,6 @@ WORKFLOW = ROOT / ".github/workflows/appimage.yaml"
 # origin/master just before the move: the last appimage.yaml with inline scripts.
 BEFORE = "2c38ec153b622ec6873b90b8ebe5c359ff3d4129"
 OLD_STEPS = {
-    "deps": "Install build dependencies",
-    "libavutil": "Build libavutil with host VA compatibility",
     "version": "Determine version",
     "configure": "Configure",
     "build": "Build 🧱",
@@ -39,19 +38,6 @@ OLD_STEPS = {
 }
 # Deliberate changes to the scripts since the move, as (old, new) edits.
 LATER = {
-    # #957: zccache, installed pinned, replaces ccache as the compiler launcher.
-    "deps": [
-        ("ninja-build ccache pkg-config", "ninja-build pkg-config"),
-        ("# apt ran as root; the cache action must read it\n",
-         "# apt ran as root; the cache action must read it\n"
-         "# The ubuntu-ci preset's compiler launcher, pinned and checksum-verified.\n"
-         "sudo rust/tools/linux-validate/install-zccache.sh /usr/local/bin\n"),
-
-        # #1744: obs-webrtc (WHIP) ships, so its libdatachannel is installed.
-        ("minus CEF/VLC/Python\n",
-         "minus CEF/VLC/Python\n# (obs-webrtc stays: libdatachannel-dev, for WHIP, obs-rust/obs-studio#1744)\n"),
-        ("libqrcodegencpp-dev \\\n", "libqrcodegencpp-dev libdatachannel-dev \\\n"),
-    ],
     # #1744: the AppImage ships obs-webrtc.
     "configure": [
         ("-DENABLE_WEBRTC=OFF", "-DENABLE_WEBRTC=ON"),
@@ -168,6 +154,21 @@ class BosnTaskTest(unittest.TestCase):
         stack = bosn["stack"][task["stack"]]
         self.assertEqual(stack["dockerfile"], "build-aux/appimage/manylinux/Dockerfile")
 
+    def test_the_ubuntu_base_is_retired(self):
+        # #1999: no workflow built on the Ubuntu 26.04 base, and it no longer
+        # built (Ubuntu 26.04 has no libdatachannel-dev). Only the glibc 2.28
+        # image remains.
+        args = build.parse_args(["--sha", "0" * 40])
+        self.assertEqual(args.base, "manylinux")
+        self.assertNotEqual(run_script("--dry-run", "--base", "ubuntu").returncode, 0)
+        self.assertNotIn("deps", build.STEP_NAMES)
+        self.assertNotIn("libavutil", build.STEP_NAMES)
+        self.assertFalse((ROOT / "build-aux/appimage/Dockerfile").exists())
+        import tomllib
+
+        stacks = tomllib.loads((ROOT / "bosn.toml").read_text())["stack"]
+        self.assertNotIn("build-aux/appimage/Dockerfile", [s["dockerfile"] for s in stacks.values()])
+
 
 class BuildScriptTest(unittest.TestCase):
     def test_scripts_are_the_former_inline_workflow_steps(self):
@@ -206,7 +207,7 @@ class BuildScriptTest(unittest.TestCase):
                 called += line.split("--steps ", 1)[1].split()[0].split(",")
         # The workflow builds on the glibc 2.28 image, which has the dependencies (#926).
         self.assertIn("--base manylinux --steps", WORKFLOW.read_text())
-        self.assertEqual(called, [s for s in build.STEP_NAMES if s not in build.MANYLINUX_SKIPPED])
+        self.assertEqual(called, list(build.STEP_NAMES))
 
     def test_workflow_passes_every_input(self):
         text = WORKFLOW.read_text()
@@ -225,14 +226,6 @@ class BuildScriptTest(unittest.TestCase):
         self.assertIn("env RUST_LIBOBS=true", result.stdout)
         self.assertIn(f"env APPIMAGETOOL_SHA256={build.APPIMAGETOOL_SHA256}", result.stdout)
 
-    def test_skip_deps_drops_only_the_install(self):
-        result = run_script("--dry-run", "--skip-deps", "--qsv", "true", "--rust-libobs", "false")
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertNotIn("deps: Install build dependencies", result.stdout)
-        self.assertIn("libavutil: Build libavutil", result.stdout)
-        self.assertIn("env QSV=true", result.stdout)
-        self.assertIn("env RUST_LIBOBS=false", result.stdout)
-
     def test_rejects_unknown_steps_and_values(self):
         self.assertNotEqual(run_script("--dry-run", "--steps", "bogus").returncode, 0)
         self.assertNotEqual(run_script("--dry-run", "--rust-libobs", "yes").returncode, 0)
@@ -244,10 +237,13 @@ class BuildScriptTest(unittest.TestCase):
             stub.write_text(f'#!/bin/sh\nprintf "%s\\n" "$@" > "{log}"\n')
             stub.chmod(0o755)
             output = Path(scratch) / "output"
-            env = {**os.environ, "PATH": f"{scratch}:{os.environ['PATH']}", "GITHUB_OUTPUT": str(output)}
-            result = run_script("--steps", "version,configure", "--rust-libobs", "false", "--qsv", "true",
-                                "--sha", "0123456789abcdef", env=env)
-            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            env = {"PATH": f"{scratch}:{os.environ['PATH']}", "GITHUB_OUTPUT": str(output)}
+            # The build runs only on the glibc 2.28 image (#926); this host is not it.
+            with mock.patch.dict(os.environ, env), \
+                    mock.patch.object(build.os, "confstr", return_value="glibc 2.28"):
+                code = build.main(["--steps", "version,configure", "--rust-libobs", "false", "--qsv", "true",
+                                   "--sha", "0123456789abcdef"])
+            self.assertEqual(code, 0)
             argv = log.read_text().splitlines()
             self.assertEqual(argv[:2], ["--preset", "ubuntu-ci"])
             self.assertIn("-DENABLE_RUST_LIBOBS=FALSE", argv)

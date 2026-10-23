@@ -32,14 +32,6 @@ class HostDriverStackTest(unittest.TestCase):
         for package in ("libva2", "libva-drm2", "libva-x11-2"):
             self.assertIn(package, result.stdout.splitlines())
 
-    def test_ffmpeg_build_dependencies_do_not_remove_obs_srt_support(self):
-        workflow = (ROOT / "build-aux/appimage/build.py").read_text()
-        bootstrap = workflow.index("build_vaapi_compat.py avutil-compat")
-        configure = workflow.index("\nVERSION = ", bootstrap)
-        self.assertIn("install", workflow[bootstrap:configure])
-        self.assertIn("libsrt-openssl-dev", workflow[bootstrap:configure])
-        self.assertNotIn("-DENABLE_NEW_MPEGTS_OUTPUT=OFF", workflow)
-
     def test_assembly_requires_the_source_built_compatibility_library(self):
         with tempfile.TemporaryDirectory(prefix="obs-appdir-compat-") as scratch:
             root = Path(scratch)
@@ -58,15 +50,12 @@ class HostDriverStackTest(unittest.TestCase):
                 list(root.iterdir()), [], "invalid input must fail before assembly"
             )
 
-    def test_workflow_builds_and_passes_the_compatible_library(self):
+    def test_workflow_passes_the_image_ffmpeg_libavutil(self):
         workflow = (ROOT / "build-aux/appimage/build.py").read_text()
-        self.assertIn("build_vaapi_compat.py avutil-compat", workflow)
         self.assertIn('assemble-appdir.sh AppDir "${AVUTIL_LIB}"', workflow)
-        # The Ubuntu base passes the compatibility build; the glibc 2.28 base
-        # (#926) passes its own FFmpeg's, built against AlmaLinux 8's libva.
-        self.assertIn('else "avutil-compat/libavutil.so.60"', workflow)
-        self.assertIn('"/opt/obs-deps/ffmpeg/lib/libavutil.so.60" if args.base == "manylinux"', workflow)
-        self.assertIn("build-dep --arch-only", workflow)
+        # The glibc 2.28 base (#926) passes its own FFmpeg's, built against
+        # AlmaLinux 8's libva (the Ubuntu base was retired in #1999).
+        self.assertIn('"AVUTIL_LIB": "/opt/obs-deps/ffmpeg/lib/libavutil.so.60"', workflow)
 
     def test_driver_libraries_are_excluded_without_excluding_app_dependencies(self):
         source = (ROOT / "build-aux/appimage/assemble-appdir.sh").read_text()
