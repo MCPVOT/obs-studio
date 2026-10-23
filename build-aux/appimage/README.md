@@ -25,8 +25,9 @@ pre-release, a tag push attaches it to that tag's release.
 
 The workflow's build steps live in `build.py`; the workflow calls it one step
 at a time. To build the AppImage on your machine, under
-[bosn](../../docs/ci-tooling.md#bosn-docker-under-supervision) in an Ubuntu
-26.04 container (`Dockerfile`, declared in the root `bosn.toml`):
+[bosn](../../docs/ci-tooling.md#bosn-docker-under-supervision) in the same glibc
+2.28 container the workflow uses (`manylinux/Dockerfile`, declared in the root
+`bosn.toml`), with the submodules checked out (`git submodule update --init`):
 
 ```sh
 bosn run --task appimage

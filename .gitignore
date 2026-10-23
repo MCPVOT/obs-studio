@@ -52,3 +52,10 @@ build-aux/flatpak-github-action-modified-*
 
 # Offline Flatpak Rust dependencies prepared before entering the sandbox.
 /.flatpak-rust/
+
+# AppImage build intermediates written into the checkout (build-aux/appimage/README.md)
+/AppDir/
+/appimagetool
+/squashfs-root/
+/avutil-compat/
+/.apt-cache/

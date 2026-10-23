@@ -241,9 +241,10 @@ What not to do:
 - Install bosn unasked, or add stacks to `bosn.toml` without a reason. It's
   manifest-driven, and the machine owner decides what runs.
 
-The repo's `bosn.toml` declares one stack so far: `appimage`, an Ubuntu 26.04
-image (`build-aux/appimage/Dockerfile`) with the AppImage build dependencies
-preinstalled. `bosn run --task appimage` builds the AppImage locally by
+The repo's `bosn.toml` declares the AppImage stacks: `appimage-228`, the
+glibc 2.28 image (`build-aux/appimage/manylinux/Dockerfile`) the workflow
+builds on, and `appimage`, the older Ubuntu 26.04 image no workflow uses.
+`bosn run --task appimage` builds the AppImage locally on the 2.28 image by
 running `build-aux/appimage/build.py`, the same script the AppImage workflow
 calls, with no act and no GitHub involved. The source is bind-mounted, the zccache
 and cargo caches live in bosn volumes, and the AppImage lands in

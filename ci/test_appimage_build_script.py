@@ -8,6 +8,7 @@
 - The workflow calls every step, in order, and passes every input.
 - --dry-run prints the plan; --skip-deps drops only the dependency install.
 - version + configure, run against a stub cmake, pass the flags through.
+- `bosn run --task appimage` builds on the same base as the workflow.
 """
 
 from __future__ import annotations
@@ -153,6 +154,19 @@ class ManylinuxLauncherTest(unittest.TestCase):
         temporary = environment["RUNNER_TEMP"]
         self.assertIn(f"{temporary}:{temporary}", mounts)
         self.assertIn(f"{environment['HOME']}/.cargo/registry:/usr/local/cargo/registry", mounts)
+
+
+class BosnTaskTest(unittest.TestCase):
+    def test_local_task_uses_the_workflow_base(self):
+        import tomllib
+
+        bases = set(re.findall(r"build\.py --base (\w+)", WORKFLOW.read_text()))
+        self.assertEqual(bases, {"manylinux"})
+        bosn = tomllib.loads((ROOT / "bosn.toml").read_text())
+        task = bosn["task"]["appimage"]
+        self.assertIn("--base manylinux", task["cmd"])
+        stack = bosn["stack"][task["stack"]]
+        self.assertEqual(stack["dockerfile"], "build-aux/appimage/manylinux/Dockerfile")
 
 
 class BuildScriptTest(unittest.TestCase):
