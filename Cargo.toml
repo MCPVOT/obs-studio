@@ -13,6 +13,12 @@ publish = false
 [workspace.dependencies]
 libloading = "=0.8.9"
 
+# Glob imports hide where a name comes from (#1873). Clippy keeps its
+# defaults: `use super::*` in test modules and `*::prelude::*` stay allowed.
+[workspace.lints.clippy]
+wildcard_imports = "deny"
+enum_glob_use = "deny"
+
 [profile.release]
 # libobs links the Rust staticlib; keep panics from unwinding across the C ABI.
 panic = "abort"

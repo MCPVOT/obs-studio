@@ -150,7 +150,11 @@ fn ver_of(ver: host::WinVer) -> win_version_info {
 
 #[cfg(windows)]
 mod shims {
-    use super::*;
+    use super::{
+        DirHandle, alloc_bytes, c_char, c_int, c_void, copy_out, cstr, host, os_dirent,
+        os_glob_info, os_proc_memory_usage, ptr, reg_dword, store_glob, store_name, ver_of,
+        win_version_info, wstr,
+    };
 
     /// # Safety
     /// `path` is a C string or null.

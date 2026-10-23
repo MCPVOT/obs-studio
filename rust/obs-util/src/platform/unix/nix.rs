@@ -684,7 +684,7 @@ pub fn program_data_path(name: Option<&[u8]>) -> Option<Vec<u8>> {
 // util/platform-nix-inhibit.c, ported in `super::nix_inhibit`.
 #[cfg(not(target_os = "macos"))]
 mod host {
-    use super::*;
+    use super::{CStr, MaybeUninit, c_path};
     use std::sync::Mutex;
 
     /// `os_cpu_usage_info`.

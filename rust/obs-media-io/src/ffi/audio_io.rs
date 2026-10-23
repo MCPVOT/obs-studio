@@ -127,7 +127,7 @@ pub const AUDIO_OUTPUT_FAIL: c_int = -2;
 crate::platform::with_audio_thread_port! {
     pub use engine::*;
     mod engine {
-    use super::*;
+    use super::{c_int, c_void, audio_data, audio_output_info, AUDIO_OUTPUT_SUCCESS, audio_convert_info};
     use crate::audio_io::AudioOutput;
 
     /// Mirrors `struct resample_info` (`media-io/audio-resampler.h`).

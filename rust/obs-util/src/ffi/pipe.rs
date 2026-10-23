@@ -91,7 +91,7 @@ pub use process::*;
 
 #[cfg(any(unix, windows))]
 mod process {
-    use super::*;
+    use super::{Args, bytes, c_char, ptr};
     use crate::pipe::Pipe;
     use core::ffi::c_int;
 

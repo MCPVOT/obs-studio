@@ -43,7 +43,10 @@ unsafe fn alloc_terminated(bytes: &[u8]) -> *mut c_char {
 
 #[cfg(unix)]
 mod shims {
-    use super::*;
+    use super::{
+        alloc_bytes, alloc_terminated, c_char, c_int, c_void, cocoa, cstr, dstr, dstr_ffi,
+        os_proc_memory_usage, ptr, slice,
+    };
 
     /// # Safety
     /// No pointer arguments.

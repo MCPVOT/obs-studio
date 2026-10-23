@@ -8,6 +8,9 @@ rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
 
+[lints]
+workspace = true
+
 [features]
 # GIO_FOUND: os_inhibit_sleep_* on Linux and FreeBSD calls the portal and
 # session D-Bus inhibitors, both Rust. Set by libobs-rust, which CMake
