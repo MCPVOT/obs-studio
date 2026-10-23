@@ -274,7 +274,7 @@ if(_host STREQUAL WINDOWS)
     SOURCES build/obs-nvenc.core+.h.c build/obs-nvenc.windows+.h.c build/obs-nvenc.cuda-load+.h.c build/obs-nvenc.override+.h.c
     INCLUDES shared/opts-parser
   )
-  _obs_cross_plugin(coreaudio-encoder-cross DIR plugins/coreaudio-encoder SOURCES build/coreaudio-encoder.core+.hpp.cpp)
+  _obs_cross_plugin(coreaudio-encoder-cross DIR plugins/coreaudio-encoder SOURCES build/coreaudio-encoder.windows+.hpp.cpp INCLUDES plugins/coreaudio-encoder/hosts/windows)
   # The Windows-only shared libraries' unity groups (BUILD.md), which the
   # Windows plugins compile through their INTERFACE libraries.
   _obs_cross_plugin(
@@ -395,7 +395,7 @@ elseif(_host STREQUAL MACOS)
     decklink-cross
     DIR plugins/decklink
     SOURCES build/decklink.core+.hpp.cpp build/decklink.audio-repack+.h.c build/decklink.macos+.hpp.cpp
-    INCLUDES plugins/decklink/mac/decklink-sdk deps/libcaption
+    INCLUDES plugins/decklink/mac/decklink-sdk plugins/decklink/hosts/macos deps/libcaption
   )
   # mac-virtualcam's unity groups (BUILD.md): the DAL plug-in and the output.
   _obs_cross_plugin(
@@ -428,7 +428,7 @@ elseif(_host STREQUAL MACOS)
     INCLUDES deps/glad/include
     DEFINES GL_SILENCE_DEPRECATION
   )
-  _obs_cross_plugin(coreaudio-encoder-cross DIR plugins/coreaudio-encoder SOURCES build/coreaudio-encoder.core+.hpp.cpp)
+  _obs_cross_plugin(coreaudio-encoder-cross DIR plugins/coreaudio-encoder SOURCES build/coreaudio-encoder.macos+.hpp.cpp INCLUDES plugins/coreaudio-encoder/hosts/macos)
 endif()
 
 # obs-ffmpeg's unity groups (BUILD.md) but VA-API, with every optional one.
