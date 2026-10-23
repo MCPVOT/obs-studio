@@ -37,9 +37,20 @@ echo "::group::Graphics driver the NixOS way (/run/opengl-driver)"
 # AppRun points EGL, GBM, VA-API and Vulkan there (#722). No GPU here: Mesa's
 # software rasterizer, as the other lanes use.
 mesa="$("${nix[@]}" build --no-link --print-out-paths "$NIXPKGS#mesa")"
-mkdir -p /run
-ln -sfn "$mesa" /run/opengl-driver
+# A directory of links into Mesa rather than one link, so the NVIDIA stand-in
+# below can sit beside Mesa's libraries.
+mkdir -p /run/opengl-driver
+cp -rs "$mesa"/. /run/opengl-driver/
+chmod -R u+w /run/opengl-driver
 ls /run/opengl-driver/share/glvnd/egl_vendor.d
+# The NVIDIA driver puts NVML there too, outside the loader path. A stand-in
+# (fake-nvml.c) records the path OBS's GPU usage sampler loads it from
+# (#1028); NixOS has no other copy for it to find.
+HERE="$(dirname "$(realpath "$0")")"
+"${nix[@]}" shell "$NIXPKGS#gcc" --command \
+    gcc -O2 -Wall -Wextra -Werror -shared -fPIC -o /run/opengl-driver/lib/libnvidia-ml.so.1 "$HERE/fake-nvml.c" -ldl
+export OBS_TEST_NVML_MARKER="$(realpath "$OUT")/nvml-loaded"
+rm -f "$OBS_TEST_NVML_MARKER"
 export LIBGL_ALWAYS_SOFTWARE=1
 echo "::endgroup::"
 
@@ -72,6 +83,11 @@ grep -qE "Switched to scene|Loaded scenes|Created scene collection" "$log" ||
 grep -qE "Loading up OpenGL on adapter" "$log" || error "OBS did not initialize OpenGL"
 grep -E "hostlib: va" "$log" || true
 grep -E "Loading up OpenGL on adapter|OBS-Studio-Rust [0-9]" "$log" | head -3 || true
+if grep -qx /run/opengl-driver/lib/libnvidia-ml.so.1 "$OBS_TEST_NVML_MARKER" 2>/dev/null; then
+    echo "NVML: loaded from /run/opengl-driver/lib"
+else
+    error "OBS's GPU usage sampler did not load NVML from /run/opengl-driver/lib ($(cat "$OBS_TEST_NVML_MARKER" 2>/dev/null || echo 'not loaded'))"
+fi
 if grep -qE "error while loading shared libraries|Segmentation fault|SIGSEGV" "$log"; then
     error "OBS crashed or could not load its libraries on NixOS"
 fi
