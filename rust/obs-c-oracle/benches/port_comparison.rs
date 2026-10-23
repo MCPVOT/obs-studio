@@ -64,24 +64,24 @@ fn measure_pair<T>(
 }
 
 fn comparisons(criterion: &mut Criterion) {
-    util::benchmarks(criterion);
-    graphics::benchmarks(criterion);
-    codecs::benchmarks(criterion);
+    audio::benchmarks(criterion);
     callback::benchmarks(criterion);
+    codecs::benchmarks(criterion);
     conversions::benchmarks(criterion);
     core_units::benchmarks(criterion);
-    audio::benchmarks(criterion);
-    service::benchmarks(criterion);
-    source_profiler::benchmarks(criterion);
-    media_remux::benchmarks(criterion);
-    scene::benchmarks(criterion);
-    view::benchmarks(criterion);
-    source_audio_timing::benchmarks(criterion);
-    module_source_rules::benchmarks(criterion);
-    scene_crop::benchmarks(criterion);
-    source_deinterlace_pacing::benchmarks(criterion);
     encoder_roi::benchmarks(criterion);
+    graphics::benchmarks(criterion);
+    media_remux::benchmarks(criterion);
+    module_source_rules::benchmarks(criterion);
+    scene::benchmarks(criterion);
+    scene_crop::benchmarks(criterion);
+    service::benchmarks(criterion);
+    source_audio_timing::benchmarks(criterion);
     source_color_space::benchmarks(criterion);
+    source_deinterlace_pacing::benchmarks(criterion);
+    source_profiler::benchmarks(criterion);
+    util::benchmarks(criterion);
+    view::benchmarks(criterion);
 }
 
 criterion_group!(benches, comparisons);

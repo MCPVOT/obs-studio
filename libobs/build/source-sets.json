@@ -123,20 +123,20 @@
     "build/libobs.nsgif+.h.c"
   ],
   "LIBOBS_PORTED_SOURCES": [
-    "build/libobs.ported-effect-lifecycle+.h.c",
-    "build/libobs.ported-util+.h.c",
-    "build/libobs.ported-util-io+.h.c",
-    "build/libobs.ported-profiler-io+.h.c",
-    "build/libobs.ported-platform+.h.c",
-    "build/libobs.ported-media+.h.c",
+    "build/libobs.ported-audio-controls+.h.c",
+    "build/libobs.ported-audio-mix+.h.c",
     "build/libobs.ported-callback+.h.c",
     "build/libobs.ported-context-names+.h.c",
     "build/libobs.ported-data+.h.c",
+    "build/libobs.ported-effect-lifecycle+.h.c",
+    "build/libobs.ported-encoder-roi+.h.c",
     "build/libobs.ported-graphics+.h.c",
     "build/libobs.ported-hotkey-bindings+.h.c",
     "build/libobs.ported-hotkey-pair+.h.c",
     "build/libobs.ported-hotkey-press+.h.c",
     "build/libobs.ported-hotkey-translations+.h.c",
+    "build/libobs.ported-media+.h.c",
+    "build/libobs.ported-media-remux+.h.c",
     "build/libobs.ported-missing-files+.h.c",
     "build/libobs.ported-module-locale+.h.c",
     "build/libobs.ported-module-names+.h.c",
@@ -146,9 +146,8 @@
     "build/libobs.ported-output-delay+.h.c",
     "build/libobs.ported-output-interleave+.h.c",
     "build/libobs.ported-output-protocols+.h.c",
-    "build/libobs.ported-encoder-roi+.h.c",
-    "build/libobs.ported-service-getters+.h.c",
-    "build/libobs.ported-view+.h.c",
+    "build/libobs.ported-platform+.h.c",
+    "build/libobs.ported-profiler-io+.h.c",
     "build/libobs.ported-scene-audio-actions+.h.c",
     "build/libobs.ported-scene-blend+.h.c",
     "build/libobs.ported-scene-bounds+.h.c",
@@ -157,14 +156,15 @@
     "build/libobs.ported-scene-crop+.h.c",
     "build/libobs.ported-scene-extent+.h.c",
     "build/libobs.ported-scene-group-transform+.h.c",
+    "build/libobs.ported-service-getters+.h.c",
     "build/libobs.ported-source-audio-timing+.h.c",
     "build/libobs.ported-source-color-space+.h.c",
     "build/libobs.ported-source-deinterlace-pacing+.h.c",
-    "build/libobs.ported-video-plan+.h.c",
-    "build/libobs.ported-audio-controls+.h.c",
-    "build/libobs.ported-audio-mix+.h.c",
     "build/libobs.ported-source-profiler+.h.c",
-    "build/libobs.ported-media-remux+.h.c"
+    "build/libobs.ported-util+.h.c",
+    "build/libobs.ported-util-io+.h.c",
+    "build/libobs.ported-video-plan+.h.c",
+    "build/libobs.ported-view+.h.c"
   ],
   "LIBOBS_RUST_SOURCES": [
     "build/libobs.rust-variadic+.h.c"
@@ -198,9 +198,9 @@
     "build/libobs.macos-loader+.h.m"
   ],
   "LIBOBS_MACOS_PORTED_SOURCES": [
+    "build/libobs.ported-macos-cocoa+.h.m",
     "build/libobs.ported-posix+.h.c",
-    "build/libobs.ported-posix-threading+.h.c",
-    "build/libobs.ported-macos-cocoa+.h.m"
+    "build/libobs.ported-posix-threading+.h.c"
   ],
   "LIBOBS_LINUX_SOURCES": [
     "obs-nix-platform.h",

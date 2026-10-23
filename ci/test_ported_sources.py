@@ -12,74 +12,59 @@ PORTED = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(PORTED)
 
 
+# One entry per line, sorted (ci/test_sorted_shared_lists.py, #1997): ports
+# add rows here instead of appending assertions at the end.
+# Ported on Linux, Windows and macOS.
+PORTED_ON_EVERY_HOST = (
+    "obs-audio-mix.c.h.o",
+    "obs-context-names.c.h.o",
+    "obs-encoder-roi.c.h.o",
+    "obs-hotkey-pair.c.h.o",
+    "obs-hotkey-press.c.h.o",
+    "obs-module-locale.c.h.o",
+    "obs-module-names.c.h.o",
+    "obs-module-paths.c.h.o",
+    "obs-module-source-rules.c.h.o",
+    "obs-output-protocols.c.h.o",
+    "obs-scene-audio-actions.c.h.o",
+    "obs-scene-crop.c.h.o",
+    "obs-scene-extent.c.h.o",
+    "obs-service-getters.c.h.o",
+    "obs-source-audio-timing.c.h.o",
+    "obs-source-color-space.c.h.o",
+    "obs-source-deinterlace-pacing.c.h.o",
+    "obs-view-api.c.h.o",
+)
+# Ported, checked on Linux.
+PORTED_ON_LINUX = (
+    "obs-data.c.h.o",
+    "obs-hevc.c.h.o",
+    "obs-video-plan.c.h.o",
+)
+# The unported remainder of a split file: still compiled as C.
+NOT_PORTED = (
+    "obs-audio.c.h.o",
+    "obs-encoder.c.h.o",
+    "obs-module.c.h.o",
+    "obs-scene-item-audio-actions.c.h.o",
+    "obs-scene.c.h.o",
+    "obs-source-deinterlace.c.h.o",
+    "obs-source.c.h.o",
+)
+
+
 class PortedSourceTest(unittest.TestCase):
     def test_current_linux_inventory_keeps_the_existing_exclusion_floor(self):
         objects = PORTED.ported_objects(ROOT, "linux")
         self.assertGreaterEqual(len(objects), 20)
-        self.assertIn("obs-data.c.h.o", objects)
-        self.assertIn("obs-hevc.c.h.o", objects)
-        self.assertIn("obs-video-plan.c.h.o", objects)
-        self.assertIn("obs-context-names.c.h.o", objects)
-        self.assertIn("obs-context-names.c.h.o", PORTED.ported_objects(ROOT, "windows"))
-        self.assertIn("obs-context-names.c.h.o", PORTED.ported_objects(ROOT, "macos"))
-        self.assertIn("obs-module-locale.c.h.o", objects)
-        self.assertIn("obs-module-locale.c.h.o", PORTED.ported_objects(ROOT, "windows"))
-        self.assertIn("obs-module-locale.c.h.o", PORTED.ported_objects(ROOT, "macos"))
-        self.assertIn("obs-module-names.c.h.o", objects)
-        self.assertIn("obs-module-names.c.h.o", PORTED.ported_objects(ROOT, "windows"))
-        self.assertIn("obs-module-names.c.h.o", PORTED.ported_objects(ROOT, "macos"))
-        self.assertIn("obs-module-paths.c.h.o", objects)
-        self.assertIn("obs-module-paths.c.h.o", PORTED.ported_objects(ROOT, "windows"))
-        self.assertIn("obs-module-paths.c.h.o", PORTED.ported_objects(ROOT, "macos"))
-        self.assertIn("obs-module-source-rules.c.h.o", objects)
-        self.assertIn("obs-module-source-rules.c.h.o", PORTED.ported_objects(ROOT, "windows"))
-        self.assertIn("obs-module-source-rules.c.h.o", PORTED.ported_objects(ROOT, "macos"))
-        self.assertNotIn("obs-module.c.h.o", objects)
-        self.assertIn("obs-hotkey-press.c.h.o", objects)
-        self.assertIn("obs-hotkey-press.c.h.o", PORTED.ported_objects(ROOT, "windows"))
-        self.assertIn("obs-hotkey-press.c.h.o", PORTED.ported_objects(ROOT, "macos"))
-        self.assertIn("obs-hotkey-pair.c.h.o", objects)
-        self.assertIn("obs-hotkey-pair.c.h.o", PORTED.ported_objects(ROOT, "windows"))
-        self.assertIn("obs-hotkey-pair.c.h.o", PORTED.ported_objects(ROOT, "macos"))
-        self.assertIn("obs-output-protocols.c.h.o", objects)
-        self.assertIn("obs-output-protocols.c.h.o", PORTED.ported_objects(ROOT, "windows"))
-        self.assertIn("obs-output-protocols.c.h.o", PORTED.ported_objects(ROOT, "macos"))
-        self.assertIn("obs-encoder-roi.c.h.o", objects)
-        self.assertIn("obs-encoder-roi.c.h.o", PORTED.ported_objects(ROOT, "windows"))
-        self.assertIn("obs-encoder-roi.c.h.o", PORTED.ported_objects(ROOT, "macos"))
-        self.assertNotIn("obs-encoder.c.h.o", objects)
-        self.assertIn("obs-service-getters.c.h.o", objects)
-        self.assertIn("obs-service-getters.c.h.o", PORTED.ported_objects(ROOT, "windows"))
-        self.assertIn("obs-service-getters.c.h.o", PORTED.ported_objects(ROOT, "macos"))
-        self.assertIn("obs-view-api.c.h.o", objects)
-        self.assertIn("obs-view-api.c.h.o", PORTED.ported_objects(ROOT, "windows"))
-        self.assertIn("obs-view-api.c.h.o", PORTED.ported_objects(ROOT, "macos"))
-        self.assertIn("obs-scene-audio-actions.c.h.o", objects)
-        self.assertIn("obs-scene-audio-actions.c.h.o", PORTED.ported_objects(ROOT, "windows"))
-        self.assertIn("obs-scene-audio-actions.c.h.o", PORTED.ported_objects(ROOT, "macos"))
-        self.assertNotIn("obs-scene-item-audio-actions.c.h.o", objects)
-        self.assertIn("obs-scene-extent.c.h.o", objects)
-        self.assertIn("obs-scene-extent.c.h.o", PORTED.ported_objects(ROOT, "windows"))
-        self.assertIn("obs-scene-extent.c.h.o", PORTED.ported_objects(ROOT, "macos"))
-        self.assertIn("obs-scene-crop.c.h.o", objects)
-        self.assertIn("obs-scene-crop.c.h.o", PORTED.ported_objects(ROOT, "windows"))
-        self.assertIn("obs-scene-crop.c.h.o", PORTED.ported_objects(ROOT, "macos"))
-        self.assertNotIn("obs-scene.c.h.o", objects)
-        self.assertIn("obs-source-audio-timing.c.h.o", objects)
-        self.assertIn("obs-source-audio-timing.c.h.o", PORTED.ported_objects(ROOT, "windows"))
-        self.assertIn("obs-source-audio-timing.c.h.o", PORTED.ported_objects(ROOT, "macos"))
-        self.assertNotIn("obs-source.c.h.o", objects)
-        self.assertIn("obs-source-color-space.c.h.o", objects)
-        self.assertIn("obs-source-color-space.c.h.o", PORTED.ported_objects(ROOT, "windows"))
-        self.assertIn("obs-source-color-space.c.h.o", PORTED.ported_objects(ROOT, "macos"))
-        self.assertIn("obs-source-deinterlace-pacing.c.h.o", objects)
-        self.assertIn("obs-source-deinterlace-pacing.c.h.o", PORTED.ported_objects(ROOT, "windows"))
-        self.assertIn("obs-source-deinterlace-pacing.c.h.o", PORTED.ported_objects(ROOT, "macos"))
-        self.assertNotIn("obs-source-deinterlace.c.h.o", objects)
-        self.assertIn("obs-audio-mix.c.h.o", objects)
-        self.assertIn("obs-audio-mix.c.h.o", PORTED.ported_objects(ROOT, "windows"))
-        self.assertIn("obs-audio-mix.c.h.o", PORTED.ported_objects(ROOT, "macos"))
-        self.assertNotIn("obs-audio.c.h.o", objects)
+        for name in PORTED_ON_LINUX:
+            self.assertIn(name, objects)
+        for name in PORTED_ON_EVERY_HOST:
+            for host in ("linux", "windows", "macos"):
+                with self.subTest(name=name, host=host):
+                    self.assertIn(name, PORTED.ported_objects(ROOT, host))
+        for name in NOT_PORTED:
+            self.assertNotIn(name, objects)
         self.assertIn("audio-monitoring/pulse/pulseaudio-stream-flags.c.h.o", objects)
         self.assertIn("audio-monitoring/pulse/pulseaudio-monitor-format.c.h.o", objects)
         self.assertIn("util/platform-nix-dbus.c.h.o", objects)
