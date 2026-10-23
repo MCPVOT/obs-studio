@@ -436,6 +436,7 @@ dependencies = [
  "obs-output",
  "obs-properties",
  "obs-scene",
+ "obs-source",
  "obs-util",
 ]
 
@@ -519,6 +520,7 @@ dependencies = [
  "obs-output",
  "obs-properties",
  "obs-scene",
+ "obs-source",
  "obs-util",
  "pkg-config",
 ]
@@ -567,6 +569,7 @@ dependencies = [
  "obs-output",
  "obs-properties",
  "obs-scene",
+ "obs-source",
  "obs-util",
  "proptest",
 ]
@@ -679,6 +682,10 @@ version = "0.1.0"
 dependencies = [
  "obs-graphics",
 ]
+
+[[package]]
+name = "obs-source"
+version = "0.1.0"
 
 [[package]]
 name = "obs-studio-rust"

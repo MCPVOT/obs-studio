@@ -97,6 +97,8 @@
 
 /* obs-source.c */
 
+#include "obs-source-audio-timing.h"
+
 #include "media-io/audio-io.h"
 #include "obs-host/default-monitoring-device.h"
 #include "graphics/matrix3.h"
