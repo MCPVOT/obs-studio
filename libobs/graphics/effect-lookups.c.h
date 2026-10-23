@@ -15,7 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "libobs/build/libobs.pch.h"
+#include "libobs/build/libobs-ported-graphics.pch.h"
 
 gs_technique_t *gs_effect_get_technique(const gs_effect_t *effect, const char *name)
 {

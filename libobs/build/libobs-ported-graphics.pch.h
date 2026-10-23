@@ -15,6 +15,10 @@
 #include "graphics/matrix4.h"
 #include "graphics/plane.h"
 
+/* graphics/effect-lookups.c */
+#include <string.h>
+#include "graphics/effect.h"
+
 /* graphics/math-extra.c */
 #include <stdlib.h>
 #include "graphics/vec2.h"
