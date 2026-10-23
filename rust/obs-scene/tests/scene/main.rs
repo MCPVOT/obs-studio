@@ -5,6 +5,8 @@ mod audio_actions_parity;
 mod blend;
 mod bounds;
 mod coords;
+mod crop;
+mod crop_parity;
 mod extent;
 mod extent_parity;
 
