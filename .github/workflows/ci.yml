@@ -319,6 +319,7 @@ jobs:
   # One runner for both data validators (#992); each step skips itself when
   # its files did not change.
   validate-data:
+    timeout-minutes: 10
     name: Validate Data 🕵️
     if: ${{ !cancelled() && github.base_ref == 'master' }}
     runs-on: ubuntu-latest
@@ -356,6 +357,7 @@ jobs:
           runServiceChecks: false
 
   update-documentation:
+    timeout-minutes: 20
     name: Update Documentation 📖
     if: ${{ !cancelled() && github.repository_owner == 'obsproject' && github.base_ref == 'master' }}
     runs-on: ubuntu-26.04
@@ -430,6 +432,7 @@ jobs:
           if-no-files-found: warn
 
   ci-gate:
+    timeout-minutes: 10
     name: CI Gate ✅
     if: always()
     needs: [cancel-superseded, check-format, build-project, validate-data, update-documentation, tier2-setup-producer, tier2-setup-consumer, native-cache-consumer, flatpak-runtime-reuse]

@@ -61,6 +61,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   build:
+    timeout-minutes: 120
     name: Build AppImage 🧱
     runs-on: ubuntu-26.04
     outputs:
@@ -201,6 +202,7 @@ jobs:
   # distribution. Slow, so never in PR CI: only when a release is being made
   # (release-rust.yaml passes platform_tests, and a tag push publishes).
   test:
+    timeout-minutes: 90
     name: Test on ${{ matrix.image }} 🧪
     needs: build
     if: github.event_name == 'push' || inputs.platform_tests
@@ -335,6 +337,7 @@ jobs:
           if-no-files-found: ignore
 
   test-nixos:
+    timeout-minutes: 45
     name: Test on NixOS 🧪
     needs: build
     if: github.event_name == 'push' || inputs.platform_tests
@@ -362,6 +365,7 @@ jobs:
           if-no-files-found: ignore
 
   release:
+    timeout-minutes: 30
     name: Publish to GitHub Releases 🚀
     needs: [build, test, test-nixos]
     # Only after the AppImage has run on every distribution in the matrix

@@ -68,6 +68,7 @@ env:
   SOLDR_RUSTC_WRAPPER: none
 jobs:
   check-event:
+    timeout-minutes: 10
     name: Event Data 🔎
     runs-on: ubuntu-26.04
     defaults:
@@ -238,6 +239,7 @@ jobs:
           echo "full=${full} core=${core} macos=${macos} windows=${windows} qt=${qt} tier2=${tier2}"
 
   macos-build:
+    timeout-minutes: 90
     name: macOS 🍏
     runs-on: macos-26
     needs: check-event
@@ -480,6 +482,7 @@ jobs:
           if-no-files-found: error
 
   ubuntu-build:
+    timeout-minutes: 90
     name: Ubuntu 🐧 ${{ matrix.rust == 'ON' && '(OBS-Studio-Rust) ' || '' }}
     strategy:
       fail-fast: false
@@ -672,6 +675,7 @@ jobs:
           key: zccache-ubuntu-${{ matrix.os }}-x86_64-rust${{ matrix.rust }}-${{ needs.check-event.outputs.config }}-${{ github.sha }}
 
   flatpak-build:
+    timeout-minutes: 120
     name: Flatpak 📦
     runs-on: ubuntu-26.04
     needs: check-event
@@ -1249,6 +1253,7 @@ jobs:
           retention-days: 7
 
   windows-build:
+    timeout-minutes: 90
     name: Windows 🪟
     strategy:
       # A missing qualification profile must not cancel the other axis.
@@ -1577,6 +1582,7 @@ jobs:
         run: uv run ci/lane_proof.py check --lane tier2-linux --base "${BASE}" --repo "${GITHUB_REPOSITORY}"
 
   rust-tests-linux:
+    timeout-minutes: 60
     name: Fast Gate ⚡
     runs-on: ubuntu-26.04
     needs: [check-event, ci-mode]
@@ -1762,6 +1768,7 @@ jobs:
   # Linux through soldr (#472). Every PR push runs it unless the head is
   # attested for the same gates (the `cross` local-gate lane).
   rust-cross-lint:
+    timeout-minutes: 45
     name: Rust Cross Lint 🦀 (Windows, macOS)
     runs-on: ubuntu-26.04
     needs: [check-event, ci-mode, rust-tests-linux]
@@ -1806,6 +1813,7 @@ jobs:
           if-no-files-found: error
 
   rust-cross-lint-release:
+    timeout-minutes: 45
     name: Rust Cross Lint 🦀 (release targets)
     # Release gate only (#955): Windows arm64, macOS x64 and Linux arm64 on top
     # of the PR gate's targets.
@@ -1838,6 +1846,7 @@ jobs:
         run: uv run ci/local_gate.py --lane cross-release
 
   rust-tests:
+    timeout-minutes: 60
     name: Rust Tests 🦀
     # Only the platforms the change touches (#436); Linux is rust-tests-linux.
     if: ${{ always() && !cancelled() && needs.rust-tests-linux.result != 'failure' && (needs.check-event.outputs.platform_os != '[]') }}
@@ -2364,6 +2373,7 @@ jobs:
           key: libs-ffmpeg-${{ env.FFMPEG_SHA256 }}
 
   rust-tier2:
+    timeout-minutes: 90
     name: Rust Tier 2 ${{ matrix.os }}
     strategy:
       fail-fast: false

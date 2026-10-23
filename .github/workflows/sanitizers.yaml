@@ -40,6 +40,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   matrix:
+    timeout-minutes: 180
     name: Select passes 🎯
     # Not in forks: a fork's schedule fails there and mails its owner (#1258).
     if: github.event_name != 'schedule' || github.repository == 'obs-rust/obs-studio'

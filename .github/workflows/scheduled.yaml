@@ -11,6 +11,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   services-availability:
+    timeout-minutes: 30
     name: Check Service Availability 🛜
     if: github.repository_owner == 'obsproject'
     runs-on: macos-26
@@ -44,6 +45,7 @@ jobs:
     secrets: inherit
 
   report-nightly-failure:
+    timeout-minutes: 10
     name: Report Nightly Failure 🚨
     # The fast PR path (#992) skips Rust tests, Tier 2 and the app builds, so
     # this nightly full run is what catches a break that slipped through.
@@ -82,6 +84,7 @@ jobs:
 
   # Explicit security scans belong to nightly/manual runs, never PR/merge_group.
   codeql:
+    timeout-minutes: 60
     name: Nightly CodeQL (${{ matrix.language }})
     if: (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && (github.event_name != 'schedule' || github.repository == 'obs-rust/obs-studio')
     runs-on: ubuntu-24.04
@@ -104,6 +107,7 @@ jobs:
           category: nightly-${{ matrix.language }}
 
   upload-language-files:
+    timeout-minutes: 30
     name: Upload Language Files 🌐
     if: github.repository_owner == 'obsproject' && github.ref_name == 'master'
     runs-on: ubuntu-26.04
@@ -157,6 +161,7 @@ jobs:
           GITHUB_EVENT_BEFORE: ${{ steps.nightly-checks.outputs.lastNightly }}
 
   steam-upload:
+    timeout-minutes: 60
     name: Upload Steam Builds 🚂
     needs: [build-project]
     if: github.repository_owner == 'obsproject'

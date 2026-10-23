@@ -37,6 +37,7 @@ permissions:
   contents: write
 jobs:
   services-validation:
+    timeout-minutes: 30
     name: Validate Services 🕵️
     if: github.repository_owner == 'obsproject' && inputs.job == 'services'
     runs-on: macos-26
@@ -57,6 +58,7 @@ jobs:
           createPullRequest: true
 
   download-language-files:
+    timeout-minutes: 30
     name: Download Language Files 🌐
     if: github.repository_owner == 'obsproject' && inputs.job == 'translations'
     runs-on: ubuntu-26.04
@@ -71,6 +73,7 @@ jobs:
       - uses: obsproject/obs-crowdin-sync/download@4b488c7ced03aa109d9f12529bd91c26c54b3e89
 
   steam-upload:
+    timeout-minutes: 60
     name: Upload Steam Builds 🚂
     if: github.repository_owner == 'obsproject' && inputs.job == 'steam'
     runs-on: macos-26
@@ -89,6 +92,7 @@ jobs:
           preview: false
 
   update-documentation:
+    timeout-minutes: 30
     name: Update Documentation 📖
     if: github.repository_owner == 'obsproject' && inputs.job == 'documentation'
     runs-on: ubuntu-26.04
@@ -97,6 +101,7 @@ jobs:
       - uses: ./.github/actions/generate-docs
 
   update-documentation-cloudflare:
+    timeout-minutes: 30
     name: Update Documentation for Cloudflare ☁️
     if: github.repository_owner == 'obsproject' && inputs.job == 'documentation'
     runs-on: ubuntu-26.04
@@ -107,6 +112,7 @@ jobs:
           disableLinkExtensions: true
 
   deploy-documentation:
+    timeout-minutes: 30
     name: Deploy Documentation to Cloudflare ☁️
     if: github.repository_owner == 'obsproject' && inputs.job == 'documentation'
     runs-on: ubuntu-26.04
@@ -137,6 +143,7 @@ jobs:
           command: pages publish . --project-name=${{ vars.CF_PAGES_PROJECT }} --commit-hash='${{ steps.setup.outputs.commitHash }}'
 
   windows-patches:
+    timeout-minutes: 60
     name: Create Windows Patches 🩹
     if: github.repository_owner == 'obsproject' && inputs.job == 'patches'
     runs-on: windows-2025-vs2026

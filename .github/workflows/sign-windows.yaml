@@ -3,6 +3,7 @@ on:
   workflow_call:
 jobs:
   create-windows-update:
+    timeout-minutes: 60
     name: Sign Windows Build 🥩
     strategy:
       matrix:

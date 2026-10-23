@@ -3,6 +3,7 @@ on:
   workflow_call:
 jobs:
   windows:
+    timeout-minutes: 90
     name: Windows 🪟 (PVS-Studio)
     runs-on: windows-2025-vs2026
     if: false && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && github.repository_owner == 'obsproject'
@@ -40,6 +41,7 @@ jobs:
           config: Debug
 
   macos:
+    timeout-minutes: 90
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     name: macOS 🍏 (clang-analyze)
     runs-on: macos-26

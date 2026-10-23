@@ -57,6 +57,7 @@ env:
   SOLDR_RUSTC_WRAPPER: none
 jobs:
   check:
+    timeout-minutes: 15
     name: Check version 🏷️
     # Not in forks: a fork's schedule fails there and mails its owner (#1258).
     # A certify dispatch only promotes an existing release (the certify job).
@@ -107,6 +108,7 @@ jobs:
           } >>"$GITHUB_OUTPUT"
 
   build:
+    timeout-minutes: 240
     name: Build ${{ matrix.os }} ${{ matrix.target }} 🧱
     needs: check
     if: needs.check.outputs.skip != 'true'
@@ -375,6 +377,7 @@ jobs:
       contents: write
 
   windows_arm64_smoke:
+    timeout-minutes: 30
     name: Launch packaged Windows ${{ matrix.target }} 🧪
     needs: [check, build]
     if: always() && needs.check.result == 'success' && needs.check.outputs.skip != 'true'
@@ -453,6 +456,7 @@ jobs:
           $global:LASTEXITCODE = 0
 
   macos_smoke:
+    timeout-minutes: 30
     name: Native macOS ${{ matrix.target }} DMG startup 🧪
     needs: [check, build]
     if: always() && needs.check.result == 'success' && needs.check.outputs.skip != 'true'
@@ -531,6 +535,7 @@ jobs:
       contents: write
 
   release:
+    timeout-minutes: 30
     name: Publish pre-release 🚀
     needs: [check, gate, build, appimage, windows_arm64_smoke, macos_smoke]
     # Only a complete release: the full gate and every platform build (and the

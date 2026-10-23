@@ -7,6 +7,7 @@ jobs:
   # and gersemi checks run in the Fast Gate's lint lane (same pinned tools,
   # same files), so they run here only on pushes.
   checks:
+    timeout-minutes: 20
     runs-on: ubuntu-latest
     outputs:
       swift: ${{ steps.diff.outputs.swift }}
@@ -57,6 +58,7 @@ jobs:
         run: uv run python -m unittest discover -s ci -p "test_*.py"
 
   swift-format:
+    timeout-minutes: 20
     runs-on: macos-26
     needs: checks
     if: needs.checks.outputs.swift == 'true'
