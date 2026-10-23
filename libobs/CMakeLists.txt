@@ -199,23 +199,6 @@ set(
   util/util_uint64.h
 )
 
-if(OS_WINDOWS)
-  list(
-    APPEND public_headers
-    util/threading-windows.h
-    util/windows/ComPtr.hpp
-    util/windows/CoTaskMemPtr.hpp
-    util/windows/device-enum.h
-    util/windows/HRError.hpp
-    util/windows/win-registry.h
-    util/windows/win-version.h
-    util/windows/window-helpers.h
-    util/windows/WinHandle.hpp
-  )
-elseif(OS_MACOS)
-  list(APPEND public_headers util/apple/cfstring-utils.h)
-endif()
-
 if(ENABLE_HEVC)
   list(APPEND public_headers obs-hevc.h)
 endif()

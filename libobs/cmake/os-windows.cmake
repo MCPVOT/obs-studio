@@ -71,3 +71,19 @@ foreach(target IN LISTS LIBOBS_SHARED_TARGETS)
   target_link_options(${target} PRIVATE /IGNORE:4098 /SAFESEH:NO)
   set_target_properties(${target} PROPERTIES PREFIX "" OUTPUT_NAME "obs")
 endforeach()
+
+set_property(
+  TARGET libobs
+  APPEND
+  PROPERTY
+    OBS_PUBLIC_HEADERS
+      util/threading-windows.h
+      util/windows/ComPtr.hpp
+      util/windows/CoTaskMemPtr.hpp
+      util/windows/device-enum.h
+      util/windows/HRError.hpp
+      util/windows/win-registry.h
+      util/windows/win-version.h
+      util/windows/window-helpers.h
+      util/windows/WinHandle.hpp
+)

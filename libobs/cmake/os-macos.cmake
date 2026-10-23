@@ -24,3 +24,4 @@ set_property(
   PROPERTY COMPILE_OPTIONS -fobjc-arc
 )
 set_property(TARGET ${LIBOBS_SHARED_TARGETS} PROPERTY FRAMEWORK TRUE)
+set_property(TARGET libobs APPEND PROPERTY OBS_PUBLIC_HEADERS util/apple/cfstring-utils.h)
