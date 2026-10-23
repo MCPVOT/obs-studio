@@ -1183,6 +1183,7 @@ fn native_test_graph_replaces_legacy_utility_definitions() {
         "test_output_delay_e2e",
         "test_encoder_video_reset",
         "test_scene_private_canvas",
+        "test_source_profiler",
         "test_scene_rotated_scale_filter",
         "test_scene_duplicate_scale_ref",
         "test_scene_dup_group_children",
@@ -1306,7 +1307,7 @@ fn native_test_graph_replaces_legacy_utility_definitions() {
     let (mut covered_tests, mut covered_targets) = (0, 0);
     for (suite, count) in [
         ("core", None),
-        ("graphics", Some(12)),
+        ("graphics", Some(13)),
         ("vlc", Some(6)),
         ("webrtc", Some(2)),
         ("qt", Some(1)),

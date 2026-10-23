@@ -145,6 +145,19 @@ _obs_video_align_output_size
 _obs_video_output_size_valid
 _obs_video_scale_type_name
 _obs_video_output_plan
+# util/source-profiler.c: the frame hooks libobs calls inside itself. Not
+# EXPORT.
+_source_profiler_reset_video
+_source_profiler_render_begin
+_source_profiler_render_end
+_source_profiler_frame_begin
+_source_profiler_frame_collect
+_source_profiler_async_frame_received
+_source_profiler_source_tick_start
+_source_profiler_source_tick_end
+_source_profiler_source_render_begin
+_source_profiler_source_render_end
+_source_profiler_remove_source
 # compiler-rt @available helpers (__isOSVersionAtLeast,
 # __isPlatformVersionAtLeast) that Rust's compiler_builtins brings in; the C
 # build does not export them. Wildcards: no error if absent.

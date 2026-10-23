@@ -18,6 +18,8 @@ mod core_units;
 mod graphics;
 #[path = "port_comparison/service.rs"]
 mod service;
+#[path = "port_comparison/source_profiler.rs"]
+mod source_profiler;
 #[path = "port_comparison/util.rs"]
 mod util;
 
@@ -52,6 +54,7 @@ fn comparisons(criterion: &mut Criterion) {
     core_units::benchmarks(criterion);
     audio::benchmarks(criterion);
     service::benchmarks(criterion);
+    source_profiler::benchmarks(criterion);
 }
 
 criterion_group!(benches, comparisons);

@@ -15,7 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "build/libobs.pch.h"
+#include "build/libobs-ported-source-profiler.pch.h"
 
 struct frame_sample {
 	uint64_t tick;

@@ -2216,6 +2216,27 @@
         "libobs/data"
       ]
     },
+    "test_source_profiler": {
+      "sources": [
+        "test/cmocka/test_source_profiler.c"
+      ],
+      "libraries": [
+        "OBS::libobs",
+        "OBS::native-test-cmocka"
+      ],
+      "requires": {
+        "all": [
+          "OS_LINUX",
+          "HAVE_OBS_OPENGL"
+        ]
+      },
+      "artifact_definitions": {
+        "GRAPHICS_MODULE_PATH": "OBS::libobs-opengl"
+      },
+      "watch_inputs": [
+        "libobs/data"
+      ]
+    },
     "test_scene_rotated_scale_filter": {
       "sources": [
         "test/cmocka/test_scene_rotated_scale_filter.c"
@@ -3420,6 +3441,15 @@
     },
     "test_scene_private_canvas": {
       "target": "test_scene_private_canvas",
+      "command": [
+        "${target}"
+      ],
+      "suite": "graphics",
+      "working_directory": "${runtime}",
+      "timeout_seconds": 120
+    },
+    "test_source_profiler": {
+      "target": "test_source_profiler",
       "command": [
         "${target}"
       ],

@@ -121,11 +121,6 @@
 #include <stdio.h>
 #include "util/cf-lexer.h"
 
-/* util/source-profiler.c */
-#include "util/source-profiler.h"
-
-#include "util/uthash.h"
-
 /* graphics/effect-parser.c */
 #include <assert.h>
 #include <limits.h>

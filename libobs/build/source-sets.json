@@ -111,7 +111,6 @@
     "build/libobs.core+.h.c",
     "build/libobs.core-output+.h.c",
     "build/libobs.core-source+.h.c",
-    "build/libobs.util+.h.c",
     "build/libobs.util-cf+.h.c",
     "build/libobs.graphics+.h.c",
     "build/libobs.media+.h.c",
@@ -148,7 +147,8 @@
     "build/libobs.ported-scene-group-transform+.h.c",
     "build/libobs.ported-video-plan+.h.c",
     "build/libobs.ported-audio-controls+.h.c",
-    "build/libobs.ported-audio-mix+.h.c"
+    "build/libobs.ported-audio-mix+.h.c",
+    "build/libobs.ported-source-profiler+.h.c"
   ],
   "LIBOBS_RUST_SOURCES": [
     "build/libobs.rust-variadic+.h.c"
