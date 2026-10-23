@@ -17,140 +17,78 @@
 
 #include "libobs/build/libobs.pch.h"
 
-bool obs_view_init(struct obs_view *view, enum view_type type)
-{
-	if (!view)
-		return false;
+/* struct obs_view's side of the views (#1933). The view functions moved to
+ * obs-view-api.c, which the Rust port (obs-core's view module) replaces;
+ * struct obs_view stays here, embedded in struct obs_canvas, and these
+ * hidden accessors (declared in obs-internal.h) are all that the C file and
+ * the Rust shims see of it, of a source's removed flag and of the video
+ * mixes list. Each does one step on the struct and nothing else. */
 
+size_t obs_view_struct_size(void)
+{
+	return sizeof(struct obs_view);
+}
+
+bool obs_view_mutex_init(struct obs_view *view)
+{
 	pthread_mutex_init_value(&view->channels_mutex);
-
-	if (pthread_mutex_init(&view->channels_mutex, NULL) != 0) {
-		blog(LOG_ERROR, "obs_view_init: Failed to create mutex");
-		return false;
-	}
-
-	view->type = type;
-	return true;
+	return pthread_mutex_init(&view->channels_mutex, NULL) == 0;
 }
 
-obs_view_t *obs_view_create(void)
+void obs_view_mutex_destroy(struct obs_view *view)
 {
-	struct obs_view *view = bzalloc(sizeof(struct obs_view));
-
-	if (!obs_view_init(view, AUX_VIEW)) {
-		bfree(view);
-		view = NULL;
-	}
-
-	return view;
-}
-
-void obs_view_free(struct obs_view *view)
-{
-	if (!view)
-		return;
-
-	for (size_t i = 0; i < MAX_CHANNELS; i++) {
-		struct obs_source *source = view->channels[i];
-		if (source) {
-			obs_source_deactivate(source, view->type);
-			obs_source_release(source);
-		}
-	}
-
-	memset(view->channels, 0, sizeof(view->channels));
 	pthread_mutex_destroy(&view->channels_mutex);
 }
 
-void obs_view_destroy(obs_view_t *view)
+void obs_view_lock(struct obs_view *view)
 {
-	if (view) {
-		obs_view_free(view);
-		bfree(view);
-	}
+	pthread_mutex_lock(&view->channels_mutex);
 }
 
-obs_source_t *obs_view_get_source(obs_view_t *view, uint32_t channel)
+void obs_view_unlock(struct obs_view *view)
 {
-	obs_source_t *source;
-	assert(channel < MAX_CHANNELS);
-
-	if (!view)
-		return NULL;
-	if (channel >= MAX_CHANNELS)
-		return NULL;
-
-	pthread_mutex_lock(&view->channels_mutex);
-	source = obs_source_get_ref(view->channels[channel]);
 	pthread_mutex_unlock(&view->channels_mutex);
-
-	return source;
 }
 
-void obs_view_set_source(obs_view_t *view, uint32_t channel, obs_source_t *source)
+enum view_type obs_view_get_type(const struct obs_view *view)
 {
-	struct obs_source *prev_source;
+	return view->type;
+}
 
-	assert(channel < MAX_CHANNELS);
+void obs_view_set_type(struct obs_view *view, enum view_type type)
+{
+	view->type = type;
+}
 
-	if (!view)
-		return;
-	if (channel >= MAX_CHANNELS)
-		return;
+obs_source_t *obs_view_channel(const struct obs_view *view, size_t channel)
+{
+	return view->channels[channel];
+}
 
-	pthread_mutex_lock(&view->channels_mutex);
-	source = obs_source_get_ref(source);
-	prev_source = view->channels[channel];
+void obs_view_set_channel(struct obs_view *view, size_t channel, obs_source_t *source)
+{
 	view->channels[channel] = source;
-
-	pthread_mutex_unlock(&view->channels_mutex);
-
-	if (source)
-		obs_source_activate(source, view->type);
-
-	if (prev_source) {
-		obs_source_deactivate(prev_source, view->type);
-		obs_source_release(prev_source);
-	}
 }
 
-void obs_view_render(obs_view_t *view)
+void obs_view_clear_channels(struct obs_view *view)
 {
-	if (!view)
-		return;
-
-	pthread_mutex_lock(&view->channels_mutex);
-
-	for (size_t i = 0; i < MAX_CHANNELS; i++) {
-		struct obs_source *source;
-
-		source = view->channels[i];
-
-		if (source) {
-			if (source->removed) {
-				obs_source_release(source);
-				view->channels[i] = NULL;
-			} else {
-				obs_source_video_render(source);
-			}
-		}
-	}
-
-	pthread_mutex_unlock(&view->channels_mutex);
+	memset(view->channels, 0, sizeof(view->channels));
 }
 
-video_t *obs_view_add(obs_view_t *view)
+bool obs_view_source_removed(const obs_source_t *source)
+{
+	return source->removed;
+}
+
+struct obs_video_info *obs_view_main_mix_info(void)
 {
 	if (!obs->data.main_canvas->mix)
 		return NULL;
-	return obs_view_add2(view, &obs->data.main_canvas->mix->ovi);
+	return &obs->data.main_canvas->mix->ovi;
 }
 
-video_t *obs_view_add2(obs_view_t *view, struct obs_video_info *ovi)
+video_t *obs_view_mix_add(struct obs_view *view, struct obs_video_info *ovi)
 {
-	if (!view || !ovi)
-		return NULL;
-
 	struct obs_core_video_mix *mix = obs_create_video_mix(ovi);
 	if (!mix) {
 		return NULL;
@@ -164,30 +102,32 @@ video_t *obs_view_add2(obs_view_t *view, struct obs_video_info *ovi)
 	return mix->video;
 }
 
-void obs_view_remove(obs_view_t *view)
+void obs_view_mixes_lock(void)
 {
-	if (!view)
-		return;
-
 	pthread_mutex_lock(&obs->video.mixes_mutex);
-	for (size_t i = 0, num = obs->video.mixes.num; i < num; i++) {
-		if (obs->video.mixes.array[i]->view == view)
-			obs->video.mixes.array[i]->view = NULL;
-	}
+}
+
+void obs_view_mixes_unlock(void)
+{
 	pthread_mutex_unlock(&obs->video.mixes_mutex);
 }
 
-void obs_view_enum_video_info(obs_view_t *view, bool (*enum_proc)(void *, struct obs_video_info *), void *param)
+size_t obs_view_mix_count(void)
 {
-	pthread_mutex_lock(&obs->video.mixes_mutex);
+	return obs->video.mixes.num;
+}
 
-	for (size_t i = 0, num = obs->video.mixes.num; i < num; i++) {
-		struct obs_core_video_mix *mix = obs->video.mixes.array[i];
-		if (mix->view != view)
-			continue;
-		if (!enum_proc(param, &mix->ovi))
-			break;
-	}
+struct obs_view *obs_view_mix_view(size_t i)
+{
+	return obs->video.mixes.array[i]->view;
+}
 
-	pthread_mutex_unlock(&obs->video.mixes_mutex);
+void obs_view_mix_clear_view(size_t i)
+{
+	obs->video.mixes.array[i]->view = NULL;
+}
+
+struct obs_video_info *obs_view_mix_info(size_t i)
+{
+	return &obs->video.mixes.array[i]->ovi;
 }

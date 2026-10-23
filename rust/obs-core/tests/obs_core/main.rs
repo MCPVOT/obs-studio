@@ -15,3 +15,5 @@ mod source_profiler;
 mod source_profiler_parity;
 mod video_plan;
 mod video_plan_parity;
+mod view;
+mod view_parity;

@@ -1,0 +1,9 @@
+obs_view_add
+obs_view_add2
+obs_view_create
+obs_view_destroy
+obs_view_enum_video_info
+obs_view_get_source
+obs_view_remove
+obs_view_render
+obs_view_set_source

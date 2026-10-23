@@ -386,6 +386,29 @@ struct obs_view {
 extern bool obs_view_init(struct obs_view *view, enum view_type type);
 extern void obs_view_free(struct obs_view *view);
 
+/* Hidden accessors (obs-view.c) for obs-view-api.c and its Rust port
+ * (obs-core's view module, #1933): struct obs_view, a source's removed flag
+ * and the video mixes list, one step each. */
+extern size_t obs_view_struct_size(void);
+extern bool obs_view_mutex_init(struct obs_view *view);
+extern void obs_view_mutex_destroy(struct obs_view *view);
+extern void obs_view_lock(struct obs_view *view);
+extern void obs_view_unlock(struct obs_view *view);
+extern enum view_type obs_view_get_type(const struct obs_view *view);
+extern void obs_view_set_type(struct obs_view *view, enum view_type type);
+extern obs_source_t *obs_view_channel(const struct obs_view *view, size_t channel);
+extern void obs_view_set_channel(struct obs_view *view, size_t channel, obs_source_t *source);
+extern void obs_view_clear_channels(struct obs_view *view);
+extern bool obs_view_source_removed(const obs_source_t *source);
+extern struct obs_video_info *obs_view_main_mix_info(void);
+extern video_t *obs_view_mix_add(struct obs_view *view, struct obs_video_info *ovi);
+extern void obs_view_mixes_lock(void);
+extern void obs_view_mixes_unlock(void);
+extern size_t obs_view_mix_count(void);
+extern struct obs_view *obs_view_mix_view(size_t i);
+extern void obs_view_mix_clear_view(size_t i);
+extern struct obs_video_info *obs_view_mix_info(size_t i);
+
 /* ------------------------------------------------------------------------- */
 /* displays */
 

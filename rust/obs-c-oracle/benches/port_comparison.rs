@@ -26,6 +26,8 @@ mod service;
 mod source_profiler;
 #[path = "port_comparison/util.rs"]
 mod util;
+#[path = "port_comparison/view.rs"]
+mod view;
 
 fn pair<T: PartialEq + Debug>(
     criterion: &mut Criterion,
@@ -61,6 +63,7 @@ fn comparisons(criterion: &mut Criterion) {
     source_profiler::benchmarks(criterion);
     media_remux::benchmarks(criterion);
     scene::benchmarks(criterion);
+    view::benchmarks(criterion);
 }
 
 criterion_group!(benches, comparisons);

@@ -196,4 +196,8 @@
     obs_service_activate;
     obs_service_deactivate;
     obs_service_initialize;
+    /* obs-view.c (#1933). obs-canvas.c calls them inside libobs. Not
+     * EXPORT. */
+    obs_view_init;
+    obs_view_free;
 };

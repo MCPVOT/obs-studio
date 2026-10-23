@@ -182,3 +182,7 @@ _obs_service_destroy
 _obs_service_activate
 _obs_service_deactivate
 _obs_service_initialize
+
+# obs-view.c (#1933): internal view init and free.
+_obs_view_init
+_obs_view_free

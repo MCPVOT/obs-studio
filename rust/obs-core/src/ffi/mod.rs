@@ -7,3 +7,4 @@ pub mod module_names;
 pub mod module_paths;
 pub mod source_profiler;
 pub mod video_plan;
+pub mod view;

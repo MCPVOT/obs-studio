@@ -204,3 +204,8 @@ obs_service_destroy
 obs_service_activate
 obs_service_deactivate
 obs_service_initialize
+
+# obs-view.c (#1933): obs-canvas.c calls them on the view embedded in each
+# canvas; the C has no EXPORT.
+obs_view_init
+obs_view_free
