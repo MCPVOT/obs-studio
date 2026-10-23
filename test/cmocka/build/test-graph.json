@@ -2694,6 +2694,15 @@
         "frontend/utility",
         "test/cmocka"
       ]
+    },
+    "test_service_getters": {
+      "sources": [
+        "test/cmocka/test_service_getters.c"
+      ],
+      "libraries": [
+        "OBS::libobs",
+        "OBS::native-test-cmocka"
+      ]
     }
   },
   "tests": {
@@ -3593,6 +3602,20 @@
       "target": "test_missing_source_types",
       "command": [
         "${target}"
+      ]
+    },
+    "test_service_getters": {
+      "target": "test_service_getters",
+      "command": [
+        "${target}"
+      ],
+      "optional_prefixes": [
+        [
+          "xvfb-run",
+          "-a",
+          "-s",
+          "-screen 0 1280x1024x24 -noreset"
+        ]
       ]
     }
   }
