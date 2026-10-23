@@ -191,7 +191,7 @@ the supplied render node. Each probe has a bounded timeout.
 - **`/tmp` must allow executing files.** On a system where `/tmp` is mounted
   `noexec` the AppImage cannot start.
 - **x86_64 only.**
-- **Left out of the AppImage:** the browser source (CEF), VLC, WebRTC, AJA,
+- **Left out of the AppImage:** the browser source (CEF), VLC, AJA,
   Python scripting and the Intel QSV plugin. QSV probes the Intel GPU through
   the host's libvpl runtime at startup, which no CI runner can exercise; build
   it in with the workflow's `qsv` input.

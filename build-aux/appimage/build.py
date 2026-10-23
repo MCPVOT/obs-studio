@@ -50,6 +50,7 @@ DEPS = r"""
 sudo apt-get update
 mkdir -p .apt-cache/partial
 # Same set as .github/scripts/utils.zsh/setup_ubuntu, minus CEF/VLC/Python
+# (obs-webrtc stays: libdatachannel-dev, for WHIP, obs-rust/obs-studio#1744)
 # (not shipped in the AppImage), plus tools for packaging, plus what the
 # bundled libpipewire loads at runtime: its modules (libpipewire-0.3-modules)
 # and client.conf (pipewire-bin). assemble-appdir.sh fails without them
@@ -68,7 +69,7 @@ sudo -E apt-get install -y --no-install-recommends -o DPkg::Lock::Timeout=120 -o
   libatk1.0-dev libatk-bridge2.0-dev libxcomposite-dev libxdamage-dev \
   libasound2-dev libfdk-aac-dev libfontconfig-dev libfreetype6-dev libjack-jackd2-dev \
   libsndio-dev libspeexdsp-dev libudev-dev libv4l-dev libva-dev libpci-dev libdrm-dev \
-  nlohmann-json3-dev libwebsocketpp-dev libasio-dev libqrcodegencpp-dev \
+  nlohmann-json3-dev libwebsocketpp-dev libasio-dev libqrcodegencpp-dev libdatachannel-dev \
   libffmpeg-nvenc-dev librist-dev libsrt-openssl-dev libvpl-dev libvpl2 \
   qt6-base-dev qt6-base-private-dev libqt6svg6-dev qt6-svg-plugins qt6-wayland \
   libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 \
@@ -119,7 +120,7 @@ cmake --preset ubuntu-ci \
   -DENABLE_RELOCATABLE=ON \
   -DENABLE_RUST_LIBOBS="${RUST_LIBOBS^^}" \
   -DENABLE_QSV11="${QSV^^}" \
-  -DENABLE_BROWSER=OFF -DENABLE_VLC=OFF -DENABLE_WEBRTC=OFF -DENABLE_AJA=OFF \
+  -DENABLE_BROWSER=OFF -DENABLE_VLC=OFF -DENABLE_WEBRTC=ON -DENABLE_AJA=OFF \
   -DENABLE_SCRIPTING_PYTHON=OFF
 """
 

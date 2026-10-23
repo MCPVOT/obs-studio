@@ -373,6 +373,12 @@ if [ ! -f "$INVENTORY" ]; then
     find "$PACKAGE_MODULES" -name '*.so' -printf '%f\n' | sort >"$PWD/modules.txt"
     INVENTORY="$PWD/modules.txt"
 fi
+# Modules users depend on that a build must not quietly leave out. The saved
+# profile run below then requires every inventoried module to load.
+#   obs-webrtc.so: the WHIP service and output (obs-rust/obs-studio#1744)
+for m in obs-webrtc.so; do
+    grep -qx "$m" "$INVENTORY" || fail "the AppImage does not ship $m"
+done
 
 # ============================================================================
 # No desktop-session package is installed in this scenario, so nothing in the

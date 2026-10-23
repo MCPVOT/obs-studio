@@ -45,6 +45,15 @@ LATER = {
          "# apt ran as root; the cache action must read it\n"
          "# The ubuntu-ci preset's compiler launcher, pinned and checksum-verified.\n"
          "sudo rust/tools/linux-validate/install-zccache.sh /usr/local/bin\n"),
+
+        # #1744: obs-webrtc (WHIP) ships, so its libdatachannel is installed.
+        ("minus CEF/VLC/Python\n",
+         "minus CEF/VLC/Python\n# (obs-webrtc stays: libdatachannel-dev, for WHIP, obs-rust/obs-studio#1744)\n"),
+        ("libqrcodegencpp-dev \\\n", "libqrcodegencpp-dev libdatachannel-dev \\\n"),
+    ],
+    # #1744: the AppImage ships obs-webrtc.
+    "configure": [
+        ("-DENABLE_WEBRTC=OFF", "-DENABLE_WEBRTC=ON"),
     ],
     "build": [
         ("ccache -s\n", "zccache status || true\n"
