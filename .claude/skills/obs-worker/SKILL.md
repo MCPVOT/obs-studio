@@ -50,6 +50,9 @@ don't delete local branches you didn't create.
    an open PR (`gh pr list --repo obs-rust/obs-studio --search "<topic>"`).
    For port work, follow the port order in testing-policy.md and the
    trackers on #4.
+   A claim, assignment or authored issue under the account you act as
+   (`gh api user --jq .login`) is already yours, fresh or stale: resume it
+   without asking anyone, and comment that you are continuing it.
 2. Prefer, in order: issues that unblock other contributors, bugs with a
    clear failing-test sketch, then the next unit in the port order.
 3. Claim it: comment `Claiming: <item>` with a short numbered plan (one PR
