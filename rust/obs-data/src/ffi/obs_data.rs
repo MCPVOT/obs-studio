@@ -13,6 +13,7 @@
 
 use std::borrow::Cow;
 use std::ffi::{CStr, CString, c_char, c_int, c_void};
+use std::mem::ManuallyDrop;
 use std::ptr;
 use std::sync::{Arc, RwLock};
 
@@ -115,6 +116,19 @@ fn borrow_data(ptr: *mut c_void) -> Option<Data> {
     })
 }
 
+/// The caller's object without a reference of its own: no atomic count
+/// change per call (#1453). It must not outlive the call.
+fn peek_data(ptr: *mut c_void) -> Option<ManuallyDrop<Data>> {
+    if ptr.is_null() {
+        return None;
+    }
+    // SAFETY: `ptr` is a live data object; `ManuallyDrop` never releases
+    // the caller's reference.
+    Some(ManuallyDrop::new(Data {
+        inner: unsafe { Arc::from_raw(ptr as *const RwLock<DataInner>) },
+    }))
+}
+
 fn take_data(ptr: *mut c_void) -> Option<Data> {
     if ptr.is_null() {
         return None;
@@ -190,7 +204,7 @@ fn leak_array(array: Array) -> *mut c_void {
 }
 
 fn named<R>(data: *mut c_void, name: *const c_char, f: impl FnOnce(&Data, &str) -> R) -> Option<R> {
-    let data = borrow_data(data)?;
+    let data = peek_data(data)?;
     let name = c_str(name)?;
     Some(f(&data, &name))
 }
@@ -349,8 +363,11 @@ fn set_quat(data: *mut c_void, name: *const c_char, val: *const quat, slot: u8) 
     }
 }
 
-fn named_pair<'a>(data: *mut c_void, name: *const c_char) -> Option<(Data, Cow<'a, str>)> {
-    Some((borrow_data(data)?, c_str(name)?))
+fn named_pair<'a>(
+    data: *mut c_void,
+    name: *const c_char,
+) -> Option<(ManuallyDrop<Data>, Cow<'a, str>)> {
+    Some((peek_data(data)?, c_str(name)?))
 }
 
 fn get_vec2(data: *mut c_void, name: *const c_char, val: *mut vec2, slot: u8) {

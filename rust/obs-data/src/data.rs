@@ -820,6 +820,10 @@ impl DataInner {
         if let Some(index) = &mut self.index {
             index.insert(NameKey(Arc::clone(&item)));
         }
+        if self.items.is_empty() {
+            // Room for a typical settings object in one allocation (#1453).
+            self.items.reserve(INDEX_MIN);
+        }
         self.items.push(item);
         if self.index.is_none() && self.items.len() > INDEX_MIN {
             // The key hashes and compares only the item's name, which never
@@ -1075,15 +1079,17 @@ impl Data {
     }
 
     pub fn get_int(&self, name: &str) -> i64 {
-        self.item(name).map(|item| item.get_int()).unwrap_or(0)
+        self.read_item(name, |item| item.user_int()).unwrap_or(0)
     }
 
     pub fn get_double(&self, name: &str) -> f64 {
-        self.item(name).map(|item| item.get_double()).unwrap_or(0.0)
+        self.read_item(name, |item| item.user_double())
+            .unwrap_or(0.0)
     }
 
     pub fn get_bool(&self, name: &str) -> bool {
-        self.item(name).map(|item| item.get_bool()).unwrap_or(false)
+        self.read_item(name, |item| item.user_bool())
+            .unwrap_or(false)
     }
 
     pub fn get_obj(&self, name: &str) -> Option<Data> {
@@ -1101,20 +1107,17 @@ impl Data {
     }
 
     pub fn get_default_int(&self, name: &str) -> i64 {
-        self.item(name)
-            .map(|item| item.get_default_int())
+        self.read_item(name, |item| item.slot_int(Slot::Default))
             .unwrap_or(0)
     }
 
     pub fn get_default_double(&self, name: &str) -> f64 {
-        self.item(name)
-            .map(|item| item.get_default_double())
+        self.read_item(name, |item| item.slot_double(Slot::Default))
             .unwrap_or(0.0)
     }
 
     pub fn get_default_bool(&self, name: &str) -> bool {
-        self.item(name)
-            .map(|item| item.get_default_bool())
+        self.read_item(name, |item| item.slot_bool(Slot::Default))
             .unwrap_or(false)
     }
 
@@ -1133,20 +1136,17 @@ impl Data {
     }
 
     pub fn get_autoselect_int(&self, name: &str) -> i64 {
-        self.item(name)
-            .map(|item| item.get_autoselect_int())
+        self.read_item(name, |item| item.slot_int(Slot::Autoselect))
             .unwrap_or(0)
     }
 
     pub fn get_autoselect_double(&self, name: &str) -> f64 {
-        self.item(name)
-            .map(|item| item.get_autoselect_double())
+        self.read_item(name, |item| item.slot_double(Slot::Autoselect))
             .unwrap_or(0.0)
     }
 
     pub fn get_autoselect_bool(&self, name: &str) -> bool {
-        self.item(name)
-            .map(|item| item.get_autoselect_bool())
+        self.read_item(name, |item| item.slot_bool(Slot::Autoselect))
             .unwrap_or(false)
     }
 
@@ -1234,6 +1234,13 @@ impl Data {
             .items
             .first()
             .map(|item| Item::from_rc(Arc::clone(item)))
+    }
+
+    /// Runs `f` on the named item under the object's read lock, without
+    /// taking a handle to it (#1453).
+    fn read_item<R>(&self, name: &str, f: impl FnOnce(&ItemInner) -> R) -> Option<R> {
+        let inner = self.inner.borrow();
+        inner.find(name).map(|item| f(&item.borrow()))
     }
 
     pub fn item(&self, name: &str) -> Option<Item> {
