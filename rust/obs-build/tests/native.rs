@@ -1301,7 +1301,7 @@ fn native_test_graph_replaces_legacy_utility_definitions() {
         ("HAVE_QT6_WIDGETS".into(), false),
     ]);
     for (suite, count) in [
-        ("core", 139),
+        ("core", 141),
         ("graphics", 12),
         ("vlc", 6),
         ("webrtc", 2),
