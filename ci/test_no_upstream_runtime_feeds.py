@@ -1,7 +1,7 @@
 #!/usr/bin/env -S uv run --script
 """OBS-Studio-Rust keeps only the obsproject.com URLs it has decided to keep (#1732).
 
-The What's New fetch (upstream release notes) is off by default and the About
+What's New reads obs-rust's release feed (#1882) and the About
 box no longer downloads upstream's Patreon list. Every other obsproject.com URL
 in frontend/ sources and plugins/*/data/package.json must be on the allow-list
 below with a reason, so a new upstream runtime feed is a deliberate decision.
@@ -19,6 +19,9 @@ URL = re.compile(r"https?://(?:[a-z0-9-]+\.)*obsproject\.com[^\"' )<>\\]*")
 SOURCE_SUFFIXES = {".c", ".h", ".cpp", ".hpp", ".mm", ".cmake", ".txt", ".ui", ".in", ".json"}
 
 # url -> reason it stays. Runtime data feeds first, then static links.
+# What's New reads the obs-rust release assets, like the update feeds (#1882).
+WHATSNEW_FEED = "https://github.com/obs-rust/obs-studio/releases/latest/download/whatsnew.json"
+
 ALLOWED = {
     # Kept runtime data feeds (#1732): data only, no code, useful to users.
     "https://obsproject.com/obs2_update/rtmp-services/v5": "streaming-service list update (data only)",
@@ -49,8 +52,6 @@ ALLOWED = {
     "https://obsproject.com/update_studio/updater.exe": "updater (tracked separately)",
     "https://obsproject.com/osx_update/updates_arm64_v2.xml": "Sparkle feed (tracked separately)",
     "https://obsproject.com/logs/upload": "log/crash upload (tracked separately)",
-    # Only compiled into a What's New build, which is off by default (see below).
-    "https://obsproject.com/update_studio/whatsnew.json": "What's New feed, ENABLE_WHATSNEW defaults OFF",
 }
 
 
@@ -71,6 +72,13 @@ class NoUpstreamRuntimeFeedsTest(unittest.TestCase):
             "OFF",
             "ENABLE_WHATSNEW must default OFF: it fetches upstream's whatsnew.json",
         )
+
+    def test_whatsnew_reads_the_obs_rust_release_feed(self):
+        source = (ROOT / "frontend/utility/WhatsNewInfoThread.cpp.hpp").read_text()
+        urls = re.findall(r"#define \w+_WHATSNEW_URL \"([^\"]+)\"", source)
+        self.assertEqual(len(urls), 3, "expected Mac, Windows and Linux What's New URLs")
+        for url in urls:
+            self.assertEqual(url, WHATSNEW_FEED, "What's New must read obs-rust's release feed (#1882)")
 
     def test_about_box_does_not_fetch_patreon_list(self):
         for path in scanned_files():

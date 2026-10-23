@@ -260,7 +260,9 @@ not get a line.
   [#791](https://github.com/obs-rust/obs-studio/pull/791).
 - **No upstream release notes or donor list downloads.** The What's New
   dialog, which showed upstream OBS Studio's release notes from
-  obsproject.com, is off by default (`ENABLE_WHATSNEW=OFF`), and the About
+  obsproject.com, is off by default (`ENABLE_WHATSNEW=OFF`); a build that
+  turns it on reads `whatsnew.json` from the obs-rust release assets
+  ([#1882](https://github.com/obs-rust/obs-studio/issues/1882)). The About
   box no longer downloads upstream's Patreon list; it links to the
   obs-rust repository instead. Two obsproject.com data feeds stay on
   because they are data only and useful: the streaming-service list
