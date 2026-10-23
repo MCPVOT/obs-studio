@@ -15,7 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "build/libobs-media.pch.h"
+#include "libobs/build/libobs-ported-graphics.pch.h"
 
 #define blog(level, format, ...) blog(level, "%s: " format, __FUNCTION__, __VA_ARGS__)
 

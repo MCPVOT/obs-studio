@@ -371,6 +371,7 @@ pub fn benchmarks(criterion: &mut Criterion) {
         );
     }
     texrender(criterion);
+    image_file(criterion);
 }
 
 /// `gs_texrender_*` over the oracle's `gs_*` stand-in with recording off,
@@ -450,6 +451,92 @@ fn texrender(criterion: &mut Criterion) {
     unsafe {
         rt::gs_texrender_destroy(rust);
         ct::oracle_gs_texrender_destroy(original);
+        ct::oracle_texrender_device_quiet(false);
+    }
+}
+
+/// `gs_image_file_ex_*` on the animated fixture GIF (real libnsgif) over the
+/// oracle's `gs_*` stand-in with recording off: one tick and texture update
+/// per 30 ms frame, and a whole load, texture init and free.
+fn image_file(criterion: &mut Criterion) {
+    use core::mem::MaybeUninit;
+    use obs_c_oracle::{image_file as ci, texture_render as ct};
+    use obs_graphics::ffi::image_file::{self as ri, gs_image_file_ex_t};
+    use obs_graphics::image_file::ImageAlphaMode;
+
+    let path = std::ffi::CString::new(format!(
+        "{}/../../test/cmocka/data/image-file-anim.gif",
+        env!("CARGO_MANIFEST_DIR")
+    ))
+    .unwrap();
+    let mut rust = MaybeUninit::<gs_image_file_ex_t>::uninit();
+    let mut original = MaybeUninit::<gs_image_file_ex_t>::uninit();
+    let (rust, original) = (rust.as_mut_ptr(), original.as_mut_ptr());
+    // SAFETY: the stand-in's state belongs to this single-threaded runner;
+    // init writes each image whole, and both stay live until the end.
+    unsafe {
+        ct::oracle_texrender_device_reset();
+        ct::oracle_texrender_device_quiet(true);
+        ri::gs_image_file_ex_init(rust, path.as_ptr(), ImageAlphaMode::STRAIGHT);
+        ri::gs_image_file_ex_init_texture(rust);
+        ci::oracle_gs_image_file_ex_init(original.cast(), path.as_ptr(), 0);
+        ci::oracle_gs_image_file_ex_init_texture(original.cast());
+    }
+    pair(
+        criterion,
+        "image_file/tick_update",
+        || {
+            // SAFETY: a live, loaded image.
+            unsafe {
+                let changed = ri::gs_image_file_ex_tick(rust, black_box(30_000_000));
+                ri::gs_image_file_ex_update_texture(rust);
+                changed
+            }
+        },
+        || {
+            // SAFETY: same, on the original C.
+            unsafe {
+                let changed =
+                    ci::oracle_gs_image_file_ex_tick(original.cast(), black_box(30_000_000));
+                ci::oracle_gs_image_file_ex_update_texture(original.cast());
+                changed
+            }
+        },
+    );
+    pair(
+        criterion,
+        "image_file/load_free",
+        || {
+            let mut image = MaybeUninit::<gs_image_file_ex_t>::uninit();
+            // SAFETY: init writes the image whole; it is freed once.
+            unsafe {
+                ri::gs_image_file_ex_init(
+                    image.as_mut_ptr(),
+                    path.as_ptr(),
+                    ImageAlphaMode::STRAIGHT,
+                );
+                ri::gs_image_file_ex_init_texture(image.as_mut_ptr());
+                let loaded = (*image.as_ptr()).loaded;
+                ri::gs_image_file_ex_free(image.as_mut_ptr());
+                loaded
+            }
+        },
+        || {
+            let mut image = MaybeUninit::<gs_image_file_ex_t>::uninit();
+            // SAFETY: same, on the original C.
+            unsafe {
+                ci::oracle_gs_image_file_ex_init(image.as_mut_ptr().cast(), path.as_ptr(), 0);
+                ci::oracle_gs_image_file_ex_init_texture(image.as_mut_ptr().cast());
+                let loaded = (*image.as_ptr()).loaded;
+                ci::oracle_gs_image_file_ex_free(image.as_mut_ptr().cast());
+                loaded
+            }
+        },
+    );
+    // SAFETY: both live, freed once.
+    unsafe {
+        ri::gs_image_file_ex_free(rust);
+        ci::oracle_gs_image_file_ex_free(original.cast());
         ct::oracle_texrender_device_quiet(false);
     }
 }

@@ -437,7 +437,11 @@ fn main() {
     ] {
         std::fs::write(extract_dir.join(name), extract_c(src, start, end)).expect("write extract");
     }
-    for stem in ["effect-parser-lifecycle", "effect-parser-lifecycle-adapter"] {
+    for stem in [
+        "effect-parser-lifecycle",
+        "effect-parser-lifecycle-adapter",
+        "obs-graphics-adapter",
+    ] {
         let src = libobs.join("graphics").join(format!("{stem}.c.h"));
         std::fs::write(
             extract_dir.join(format!("{stem}.inc")),
@@ -606,6 +610,17 @@ fn main() {
         jansson.file(jansson_src.join(name));
     }
     jansson.compile("jansson_vendor");
+
+    // The vendored libnsgif that image-file.c.h calls, for the oracle and
+    // the Rust shim alike (libobs links its own copy). Its own library,
+    // warnings off: third-party code, not part of the ratchet (#516).
+    let mut nsgif = cc::Build::new();
+    nsgif
+        .include(&libobs)
+        .include(libobs.parent().expect("libobs has a parent"))
+        .warnings(false)
+        .file(libobs.join("build").join("libobs.nsgif+.h.c"));
+    nsgif.compile("obs_c_oracle_nsgif");
 
     if macos {
         let mut objc = cc::Build::new();

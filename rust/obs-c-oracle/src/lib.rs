@@ -65,6 +65,7 @@ pub mod hotkey_name_map;
 pub mod hotkey_pair;
 pub mod hotkey_press;
 pub mod hotkey_translations;
+pub mod image_file;
 pub mod lexer;
 pub mod missing_files;
 pub mod module_names;

@@ -34,4 +34,7 @@ unsafe extern "C" {
     pub fn oracle_texrender_device_clear_log();
     /// Stops (or restarts) recording, for benchmarks.
     pub fn oracle_texrender_device_quiet(on: bool);
+    /// Sends libobs log lines to the call log (`log <level> <line>`), or
+    /// back to the default handler.
+    pub fn oracle_texrender_device_capture_log(on: bool);
 }

@@ -24,14 +24,6 @@
 #pragma comment(lib, "windowscodecs.lib")
 #endif
 
-/* graphics/image-file.c */
-#include "graphics/image-file.h"
-#include "util/base.h"
-#include "util/platform.h"
-#include "util/dstr.h"
-#include "graphics/vec4.h"
-#include "graphics/libnsgif/nsgif.h"
-
 /* media-io/audio-resampler-ffmpeg.c */
 #include "util/bmem.h"
 #include "media-io/audio-resampler.h"

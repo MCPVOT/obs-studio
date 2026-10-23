@@ -12,11 +12,17 @@
 use core::ffi::{c_int, c_void};
 use core::ptr::{self, NonNull};
 
-use obs_util::ffi::bmem::{bfree, bmalloc};
-
 use crate::texture_render::{ColorFormat, ColorSpace, Device, TexRender, ZStencilFormat};
 
 unsafe extern "C" {
+    // libobs's allocator through the private C adapters
+    // (libobs/graphics/obs-graphics-adapter.c.h), not obs-util's Rust
+    // paths: see the note in ffi/image_file.rs.
+    #[link_name = "obs_graphics_bmalloc"]
+    fn bmalloc(size: usize) -> *mut c_void;
+    #[link_name = "obs_graphics_bfree"]
+    fn bfree(ptr: *mut c_void);
+
     fn gs_texture_create(
         width: u32,
         height: u32,
