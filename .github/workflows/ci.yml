@@ -441,12 +441,10 @@ jobs:
       # Queue wall time, runner time and rebuilds in the job summary (#930
       # E1), so a regression or a bypass that rebuilt the queue shows up.
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        if: github.event_name == 'merge_group'
         with:
           sparse-checkout: ci
           persist-credentials: false
       - name: Set Up uv 🐍
-        if: github.event_name == 'merge_group'
         uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
         with:
           save-cache: ${{ github.ref == 'refs/heads/master' }}
@@ -459,6 +457,12 @@ jobs:
       - name: Check Job Results ✅
         if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
         run: exit 1
+      # needs.*.result misses a job cancelled inside a reusable workflow,
+      # such as a macOS job no hosted runner acquired (#1793).
+      - name: Check Run Jobs ✅
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: uv run ci/gate_jobs.py
       - run: echo 'All required jobs passed or were skipped.'
   # Last job of the merge queue run (#1854, zackees/ci.yml#405 GEN-022). The
   # queue serializes master's cache writes, so this sweep has the cache to
