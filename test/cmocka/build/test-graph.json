@@ -2703,6 +2703,15 @@
         "OBS::libobs",
         "OBS::native-test-cmocka"
       ]
+    },
+    "test_service_settings": {
+      "sources": [
+        "test/cmocka/test_service_settings.c"
+      ],
+      "libraries": [
+        "OBS::libobs",
+        "OBS::native-test-cmocka"
+      ]
     }
   },
   "tests": {
@@ -3606,6 +3615,20 @@
     },
     "test_service_getters": {
       "target": "test_service_getters",
+      "command": [
+        "${target}"
+      ],
+      "optional_prefixes": [
+        [
+          "xvfb-run",
+          "-a",
+          "-s",
+          "-screen 0 1280x1024x24 -noreset"
+        ]
+      ]
+    },
+    "test_service_settings": {
+      "target": "test_service_settings",
       "command": [
         "${target}"
       ],
