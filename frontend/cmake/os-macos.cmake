@@ -19,6 +19,7 @@ endmacro()
 
 macro(obs_frontend_platform_whatsnew)
   include(cmake/feature-macos-update.cmake)
+  target_compile_definitions(obs-studio PRIVATE WHATSNEW_URL=MAC_WHATSNEW_URL)
 endmacro()
 
 macro(obs_frontend_platform_sources)

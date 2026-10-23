@@ -27,6 +27,19 @@ class FrontendCMakeFacadeTest(unittest.TestCase):
                 text = (FRONTEND / "cmake" / name).read_text()
                 self.assertEqual(HOST_CONDITION.findall(text), [])
 
+    def test_whatsnew_url_is_chosen_by_the_host_file(self):
+        # #883: the shared source has no host branch; macOS and Windows pick
+        # their URL macro in their obs_frontend_platform_whatsnew().
+        source = (FRONTEND / "utility/WhatsNewInfoThread.cpp.hpp").read_text()
+        self.assertIsNone(re.search(r"#\s*(?:if|ifdef|elif)\b.*\b(?:__APPLE__|_WIN32)\b", source))
+        self.assertIn("#ifndef WHATSNEW_URL\n#define WHATSNEW_URL LINUX_WHATSNEW_URL", source)
+        for host, url in (("macos", "MAC_WHATSNEW_URL"), ("windows", "WIN_WHATSNEW_URL")):
+            with self.subTest(host=host):
+                text = (FRONTEND / f"cmake/os-{host}.cmake").read_text()
+                body = text[text.index("macro(obs_frontend_platform_whatsnew)"):]
+                body = body[:body.index("endmacro()")]
+                self.assertIn(f"WHATSNEW_URL={url}", body)
+
     def test_dispatch_and_platform_operations(self):
         text = (FRONTEND / "CMakeLists.txt").read_text()
         self.assertEqual(text.count("if(OS_WINDOWS)"), 1)

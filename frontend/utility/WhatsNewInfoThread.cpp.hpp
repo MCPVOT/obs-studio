@@ -12,11 +12,9 @@
 #define LINUX_WHATSNEW_URL "https://github.com/obs-rust/obs-studio/releases/latest/download/whatsnew.json"
 #endif
 
-#ifdef __APPLE__
-#define WHATSNEW_URL MAC_WHATSNEW_URL
-#elif defined(_WIN32)
-#define WHATSNEW_URL WIN_WHATSNEW_URL
-#else
+/* macOS and Windows set WHATSNEW_URL to their macro above in
+ * obs_frontend_platform_whatsnew() (frontend/cmake/os-<os>.cmake). */
+#ifndef WHATSNEW_URL
 #define WHATSNEW_URL LINUX_WHATSNEW_URL
 #endif
 

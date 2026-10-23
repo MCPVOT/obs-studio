@@ -14,7 +14,7 @@ macro(obs_frontend_platform_plugin_manager)
 endmacro()
 
 macro(obs_frontend_platform_whatsnew)
-  # No additional platform setup for this feature.
+  target_compile_definitions(obs-studio PRIVATE WHATSNEW_URL=WIN_WHATSNEW_URL)
 endmacro()
 
 macro(obs_frontend_platform_sources)
