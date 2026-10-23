@@ -1910,6 +1910,8 @@ jobs:
       # over ci.toml's libs-qt budget.
       - name: Check Published Qt SDK 🧩
         if: needs.check-event.outputs.qt_sdk == 'true'
+        # A Qt test app that cannot start can wait on a dialog; bound it.
+        timeout-minutes: 15
         env:
           QT_TAG: qt6-6.11.1
         run: |
@@ -1929,6 +1931,14 @@ jobs:
           export "${variable}=${RUNNER_TEMP}/qt"
           soldr cargo test -p obs-studio-rust --locked --test obs-tests-app -- --exact qt_sdk::qt_sdk_resolves_published_sdks --nocapture 2>&1 | tee "${RUNNER_TEMP}/qt-sdk.log"
           grep -q ": Qt 6\." "${RUNNER_TEMP}/qt-sdk.log"
+          # The Qt native test graph (moc, uic, rcc, link, run) against the
+          # same SDK; Windows loads the Qt DLLs and the minimal platform plugin
+          # from the SDK.
+          export OBS_QT_TARGET_PREFIX="${RUNNER_TEMP}/qt" CMAKE_PREFIX_PATH="${RUNNER_TEMP}/qt" QT_PLUGIN_PATH="${RUNNER_TEMP}/qt/plugins"
+          if [[ "${RUNNER_OS}" == Windows ]]; then
+            export PATH="${RUNNER_TEMP}/qt/bin:${PATH}"
+          fi
+          soldr cargo test -p obs-studio-rust --locked --features libobs-integration --test obs-tests-app -- --exact native_build::native_test_graph_generates_qt_metaobjects --nocapture
 
   # Tier 2 Linux builds once and fans the tests out (#937, #1065): the build
   # job explicitly builds hybrid libobs and the C reference in one tree, runs the checks

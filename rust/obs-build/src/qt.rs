@@ -26,11 +26,9 @@ pub fn moc(library: &mut SharedLibrary, header: &Path, output: &Path) -> Result<
 /// Generate a UI header and put its output directory first in the include search.
 pub fn uic(library: &mut SharedLibrary, form: &Path, output: &Path) -> Result<PathBuf, String> {
     generate(command("uic")?, form, output)?;
-    let directory = output
-        .parent()
-        .ok_or("UI output has no parent directory")?
-        .canonicalize()
-        .map_err(|e| e.to_string())?;
+    let directory = output.parent().ok_or("UI output has no parent directory")?;
+    // dunce: no \\?\ verbatim prefix on Windows, which cl.exe cannot open.
+    let directory = dunce::canonicalize(directory).map_err(|e| e.to_string())?;
     library.include_dirs.retain(|path| path != &directory);
     library.include_dirs.insert(0, directory);
     Ok(output.into())
@@ -42,7 +40,7 @@ pub fn rcc(
     resources: &Path,
     output: &Path,
 ) -> Result<PathBuf, String> {
-    let resources = resources.canonicalize().map_err(|e| e.to_string())?;
+    let resources = dunce::canonicalize(resources).map_err(|e| e.to_string())?;
     let mut list = command("rcc")?;
     list.arg("--list");
     let files = run(list, &resources)?;
@@ -88,7 +86,9 @@ fn command(name: &str) -> Result<Command, String> {
 }
 
 fn run(mut command: Command, input: &Path) -> Result<Vec<u8>, String> {
-    let input = input.canonicalize().map_err(|e| e.to_string())?;
+    // dunce: moc writes this path into its #include; a \\?\ verbatim path
+    // fails in cl.exe (#1878).
+    let input = dunce::canonicalize(input).map_err(|e| e.to_string())?;
     println!("cargo:rerun-if-changed={}", input.display());
     let result = command
         .arg(&input)
@@ -143,7 +143,7 @@ pub fn combine_moc(
     }
     let mut content = String::from("/* Generated Qt metaobject group. */\n");
     for path in std::iter::once(prelude.to_owned()).chain(sources) {
-        let path = path.canonicalize().map_err(|e| e.to_string())?;
+        let path = dunce::canonicalize(path).map_err(|e| e.to_string())?;
         let name = path
             .to_str()
             .ok_or("non-UTF8 moc include")?

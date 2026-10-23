@@ -508,6 +508,26 @@ fn qt_sdk_resolves_macos_frameworks_for_each_universal_slice() {
         assert_eq!(link[iokit - 1], "-framework");
         // Repeated frameworks in Qt's export collapse to one link input.
         assert_eq!(link.iter().filter(|option| *option == "Metal").count(), 1);
+        // Framework headers include <QtCore/qobject.h>: the frameworks'
+        // directory is a framework search path, once (#1878).
+        let search = format!(
+            "-F{}",
+            universal
+                .join("lib")
+                .components()
+                .collect::<PathBuf>()
+                .display()
+        );
+        assert_eq!(
+            widgets
+                .compile_options
+                .iter()
+                .filter(|option| **option == search)
+                .count(),
+            1,
+            "{:?}",
+            widgets.compile_options
+        );
         assert!(link.contains(&format!(
                 "-Wl,-rpath,{}",
                 universal

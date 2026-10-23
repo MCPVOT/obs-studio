@@ -327,7 +327,7 @@ fn native_test_graph_generates_qt_metaobjects() {
             "qt": {"moc": ["answer.hpp"], "uic": ["answer.ui"], "rcc": ["answer.qrc"]},
             "libraries": ["Qt6::Widgets"]
         }},
-        "tests": {"answer": {"target": "answer", "environment": {"QT_QPA_PLATFORM": "offscreen"}}, "twin": {"target": "twin"}}
+        "tests": {"answer": {"target": "answer", "environment": {"QT_QPA_PLATFORM": "minimal"}}, "twin": {"target": "twin"}}
     });
     let parsed = obs_build::validation::graph::Graph::parse(&graph.to_string()).unwrap();
     let build = NativeBuild {
@@ -350,12 +350,15 @@ fn native_test_graph_generates_qt_metaobjects() {
     let artifacts = parsed
         .compile(&build, root, &Default::default(), &interfaces)
         .unwrap();
+    let mut answer = std::process::Command::new(&artifacts["answer"]);
+    // minimal, not offscreen: the published Windows SDK ships no qoffscreen.
+    answer.env("QT_QPA_PLATFORM", "minimal");
+    let output = bounded(answer);
     assert!(
-        std::process::Command::new(&artifacts["answer"])
-            .env("QT_QPA_PLATFORM", "offscreen")
-            .status()
-            .unwrap()
-            .success()
+        output.status.success(),
+        "{:?}\n{}",
+        output.status,
+        String::from_utf8_lossy(&output.stderr)
     );
     fs::write(root.join("graph.json"), graph.to_string()).unwrap();
     let consumer =
@@ -381,6 +384,8 @@ fn native_test_graph_generates_qt_metaobjects() {
                 "-C",
                 "Release",
                 "--output-on-failure",
+                "--timeout",
+                "60",
             ],
         ),
     ] {
@@ -3112,4 +3117,30 @@ fn assert_native_answer_fresh(library: &Path, symbol: &str, expected: i32, selec
         String::from_utf8_lossy(&result.stderr)
     );
     assert!(String::from_utf8_lossy(&result.stdout).contains("1 passed"));
+}
+
+/// Run a Qt test program for at most a minute: one that cannot start can
+/// block on a dialog instead of exiting (Windows, #1878). Its output is kept.
+#[cfg(feature = "libobs-integration")]
+fn bounded(mut command: std::process::Command) -> std::process::Output {
+    use std::process::Stdio;
+    let mut child = command
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
+    while child.try_wait().unwrap().is_none() {
+        if std::time::Instant::now() > deadline {
+            child.kill().unwrap();
+            let output = child.wait_with_output().unwrap();
+            panic!(
+                "{command:?} did not exit in 60 s\n{}\n{}",
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr)
+            );
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+    child.wait_with_output().unwrap()
 }

@@ -183,6 +183,20 @@ pub fn qt_runtime_directory(
     Ok(())
 }
 
+/// The framework search path an Apple framework include directory
+/// (`lib/QtCore.framework/Headers`) needs: its headers include
+/// `<QtCore/qobject.h>`, which only `-F<lib>` resolves.
+pub fn qt_framework_search(target: &str, include: &Path) -> Option<String> {
+    if !target.contains("apple") || !include.ends_with("Headers") {
+        return None;
+    }
+    let framework = include.parent()?;
+    if framework.extension().is_none_or(|ext| ext != "framework") {
+        return None;
+    }
+    Some(format!("-F{}", framework.parent()?.display()))
+}
+
 /// Where an SDK keeps its generators on a given host.
 pub fn qt_tool(host: &str, prefix: &Path, tool: &str) -> PathBuf {
     if host.contains("windows") {

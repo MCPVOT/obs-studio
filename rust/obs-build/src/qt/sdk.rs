@@ -109,6 +109,11 @@ impl Sdk {
                         directory.display()
                     ));
                 }
+                if let Some(search) = crate::platform::qt_framework_search(&self.target, &directory)
+                    && !dependency.compile_options.contains(&search)
+                {
+                    dependency.compile_options.push(search);
+                }
                 if !dependency.include_dirs.contains(&directory) {
                     dependency.include_dirs.push(directory);
                 }
