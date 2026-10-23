@@ -74,6 +74,26 @@ class FrontendCMakeFacadeTest(unittest.TestCase):
         mac = (FRONTEND / "utility/platform-osx.mm.hpp").read_text()
         self.assertIn('"com.apple.videotoolbox.videoencoder.h264.gva"', mac)
 
+    def test_macos_dialog_and_style_quirks_go_through_the_facade(self):
+        # #883: the QTBUG-42661 window raise and the native combo box popup
+        # are host operations, not __APPLE__ branches in shared files.
+        header = (FRONTEND / "utility/platform.hpp").read_text()
+        self.assertIn("void RaiseAfterFileDialog(QWidget *window);", header)
+        self.assertIn("bool UseNativeComboBoxPopup();", header)
+        for name in ("MissingFilesPathItemDelegate.cpp.hpp", "RemuxEntryPathItemDelegate.cpp.hpp"):
+            with self.subTest(file=name):
+                source = (FRONTEND / "utility" / name).read_text()
+                self.assertNotIn("__APPLE__", source)
+                self.assertIn("RaiseAfterFileDialog(container->window());", source)
+        style = (FRONTEND / "utility/OBSProxyStyle.cpp.hpp").read_text()
+        self.assertNotIn("__APPLE__", style)
+        self.assertIn("UseNativeComboBoxPopup()", style)
+        for host in ("windows.cpp.hpp", "osx.mm.hpp", "x11.cpp.hpp"):
+            with self.subTest(host=host):
+                source = (FRONTEND / f"utility/platform-{host}").read_text()
+                self.assertIn("void RaiseAfterFileDialog(QWidget *", source)
+                self.assertIn("bool UseNativeComboBoxPopup()", source)
+
     def test_dispatch_and_platform_operations(self):
         text = (FRONTEND / "CMakeLists.txt").read_text()
         self.assertEqual(text.count("if(OS_WINDOWS)"), 1)

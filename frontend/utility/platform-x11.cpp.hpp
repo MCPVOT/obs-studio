@@ -799,3 +799,13 @@ void TranslateLegacyEncoderId(const char *&)
 {
 	/* No legacy encoder ids on this host. */
 }
+
+void RaiseAfterFileDialog(QWidget *)
+{
+	/* File dialogs give focus back to their parent window here. */
+}
+
+bool UseNativeComboBoxPopup()
+{
+	return false;
+}

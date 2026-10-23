@@ -880,3 +880,14 @@ void TranslateLegacyEncoderId(const char *&encoder)
 		encoder = "com.apple.videotoolbox.videoencoder.h264";
 	}
 }
+
+void RaiseAfterFileDialog(QWidget *window)
+{
+	// TODO: Revisit when QTBUG-42661 is fixed
+	window->raise();
+}
+
+bool UseNativeComboBoxPopup()
+{
+	return true;
+}

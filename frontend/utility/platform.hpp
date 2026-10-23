@@ -64,6 +64,13 @@ void SetOutputNetworkOptions(config_t *config, obs_data_t *settings);
  * the id the encoder has now (macOS: the VideoToolbox H.264 encoders). */
 void TranslateLegacyEncoderId(const char *&encoder);
 
+/* Brings window back to the front after a file dialog closes (macOS:
+ * QTBUG-42661 leaves it behind other windows). */
+void RaiseAfterFileDialog(QWidget *window);
+
+/* Whether combo boxes open the host's native popup (macOS) instead of Qt's. */
+bool UseNativeComboBoxPopup();
+
 /* glGetString from the GL library libobs-opengl uses (the frontend does not
  * link GL), or nullptr. Call it only with the graphics context entered. */
 void *GetGlGetStringProc();

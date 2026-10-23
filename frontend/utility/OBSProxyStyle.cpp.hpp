@@ -6,11 +6,9 @@ int OBSProxyStyle::styleHint(StyleHint hint, const QStyleOption *option, const Q
 	if (hint == SH_ComboBox_AllowWheelScrolling) {
 		return 0;
 	}
-#ifdef __APPLE__
-	if (hint == SH_ComboBox_UseNativePopup) {
+	if (hint == SH_ComboBox_UseNativePopup && UseNativeComboBoxPopup()) {
 		return 1;
 	}
-#endif
 
 	return QProxyStyle::styleHint(hint, option, widget, returnData);
 }

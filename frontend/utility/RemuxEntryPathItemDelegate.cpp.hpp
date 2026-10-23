@@ -176,10 +176,7 @@ void RemuxEntryPathItemDelegate::handleBrowse(QWidget *container)
 			container->setProperty(PATH_LIST_PROP, paths);
 			isSet = true;
 		}
-#ifdef __APPLE__
-		// TODO: Revisit when QTBUG-42661 is fixed
-		container->window()->raise();
-#endif
+		RaiseAfterFileDialog(container->window());
 	}
 
 	if (isSet) {
