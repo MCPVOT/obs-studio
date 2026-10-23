@@ -75,4 +75,13 @@ The full guide, with the tools, rules and commands, is in
 read it before you push: it explains how to avoid overloading the
 shared machines and CI.
 
+# Q&A
+
+**Does OBS Rust support all of the plug-ins?**
+
+Yes. OBS Rust is fully backwards compatible with OBS Studio — the
+plug-ins you already have should work as-is. If you find one that
+doesn't, that's a bug: please [file an issue](https://github.com/obs-rust/obs-studio/issues/new/choose)
+and link it here so we can track it.
+
 Want to see the original README from OBS Project? [Click here](README.upstream.md).
