@@ -393,6 +393,9 @@ class HostNamedFilesTest(unittest.TestCase):
             "rust/obs-build/src/qt/sdk.rs",
             "rust/obs-build/src/platform/qt_sdk.rs",
             "rust/obs-build/tests/qt_sdk.rs",
+            "rust/obs-build/tests/native.rs",
+            "rust/obs-build/src/validation/graph.rs",
+            "rust/obs-build/src/platform/shared_library.rs",
         ):
             got = scope([path])
             self.assertEqual((got.qt_sdk, got.macos, got.windows), (True, True, True), path)

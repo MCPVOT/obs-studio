@@ -1938,7 +1938,18 @@ jobs:
           if [[ "${RUNNER_OS}" == Windows ]]; then
             export PATH="${RUNNER_TEMP}/qt/bin:${PATH}"
           fi
-          soldr cargo test -p obs-studio-rust --locked --features libobs-integration --test obs-tests-app -- --exact native_build::native_test_graph_generates_qt_metaobjects --nocapture
+          # The unchanged remux queue test needs cmocka: brew on macOS; on
+          # Windows vcpkg's (as Tier 2) and its pkgconf for the pkg-config crate.
+          if [[ "${RUNNER_OS}" == Windows ]]; then
+            vcpkg="$(cygpath -u "${VCPKG_INSTALLATION_ROOT}")/installed/x64-windows"
+            "${GITHUB_WORKSPACE}/.github/scripts/retry" vcpkg install cmocka:x64-windows pkgconf:x64-windows
+            export PKG_CONFIG="${vcpkg}/tools/pkgconf/pkgconf.exe" PKG_CONFIG_PATH="${vcpkg}/lib/pkgconfig"
+            export PATH="${vcpkg}/bin:${PATH}"
+          else
+            "${GITHUB_WORKSPACE}/.github/scripts/retry" brew install cmocka
+          fi
+          export QT_QPA_PLATFORM_PLUGIN_PATH="${RUNNER_TEMP}/qt/plugins/platforms"
+          soldr cargo test -p obs-studio-rust --locked --features libobs-integration --test obs-tests-app -- --exact native_build::native_test_graph_generates_qt_metaobjects native_build::canonical_remux_queue_runs_unchanged --nocapture
 
   # Tier 2 Linux builds once and fans the tests out (#937, #1065): the build
   # job explicitly builds hybrid libobs and the C reference in one tree, runs the checks

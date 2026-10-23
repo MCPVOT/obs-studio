@@ -296,7 +296,7 @@ pub use qt_sdk::{
     qt_configuration_usable, qt_framework_search, qt_imported_target, qt_link_artifact,
     qt_runtime_directory, qt_system_library, qt_tool,
 };
-pub use shared_library::package_shared_library;
+pub use shared_library::package_link_options;
 
 pub fn configure_libobs_variant(
     build: &crate::NativeBuild,

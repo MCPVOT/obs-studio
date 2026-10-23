@@ -212,13 +212,18 @@ QT_FILES = {
 TEST_SOURCE = re.compile(r"^test/cmocka/([^/]+)\.(?:cpp|hpp|c|h)$")
 
 
-# rust/obs-build's Qt SDK resolver: the Windows and macOS lanes fetch the
-# published obs-studio-libs SDKs and check it against them (#1878).
+# rust/obs-build's Qt SDK resolver and native Qt test graph: the Windows and
+# macOS lanes fetch the published obs-studio-libs SDKs and run them (#1878).
 QT_SDK_PATHS = (
     "rust/obs-build/src/qt.rs",
     "rust/obs-build/src/qt/**",
     "rust/obs-build/src/platform/qt_sdk.rs",
     "rust/obs-build/tests/qt_sdk.rs",
+    # The native test graph and package linking the Qt tests build through.
+    "rust/obs-build/tests/native.rs",
+    "rust/obs-build/src/validation.rs",
+    "rust/obs-build/src/validation/**",
+    "rust/obs-build/src/platform/shared_library.rs",
 )
 
 

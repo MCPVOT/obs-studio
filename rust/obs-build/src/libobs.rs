@@ -256,24 +256,13 @@ pub(crate) fn add_package(
     let mut definitions: Vec<_> = dependency.defines.into_iter().collect();
     definitions.sort();
     library.definitions.extend(definitions);
-    for path in &dependency.link_paths {
-        library.link_options.push(format!("-L{}", path.display()));
-        library
-            .link_options
-            .push(format!("-Wl,-rpath,{}", path.display()));
-    }
-    for name in dependency.libs {
-        // Some pkg-config files list a static archive directory before their
-        // shared directory. Resolve across every directory before allowing the
-        // linker to fall back to -l, which otherwise silently embeds the archive.
-        if let Some(path) =
-            crate::platform::package_shared_library(target, &dependency.link_paths, &name)
-        {
-            library.link_options.push(path.display().to_string());
-        } else {
-            library.link_options.push(format!("-l{name}"));
-        }
-    }
+    library
+        .link_options
+        .extend(crate::platform::package_link_options(
+            target,
+            &dependency.link_paths,
+            &dependency.libs,
+        ));
     Ok(())
 }
 
