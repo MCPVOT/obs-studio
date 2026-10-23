@@ -1,0 +1,17 @@
+# One fragment per FFI module (cmake/rust-exports.d/README.md).
+file(GLOB _obs_rust_export_fragments CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/rust-exports.d/*.txt")
+list(SORT _obs_rust_export_fragments)
+foreach(fragment IN LISTS _obs_rust_export_fragments)
+  if(NOT ENABLE_HEVC AND fragment MATCHES "obs-codec-hevc[.]txt$")
+    continue()
+  endif()
+  file(STRINGS "${fragment}" _obs_rust_exports REGEX "^[A-Za-z_]")
+  foreach(sym IN LISTS _obs_rust_exports)
+    # "name unix" shims are not compiled on Windows; the C file exports them.
+    if(sym MATCHES " unix$")
+      continue()
+    endif()
+    target_link_options(${OBS_LIBOBS_RUST_TARGET} PRIVATE "LINKER:/EXPORT:${sym}")
+  endforeach()
+  set_property(TARGET ${OBS_LIBOBS_RUST_TARGET} APPEND PROPERTY LINK_DEPENDS "${fragment}")
+endforeach()

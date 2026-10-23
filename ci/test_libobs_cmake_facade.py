@@ -3,7 +3,11 @@
 
 from pathlib import Path
 import re
+import sys
 import unittest
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from platform_paths import platforms  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 LIBOBS = ROOT / "libobs"
@@ -33,6 +37,14 @@ class LibobsCMakeFacadeTest(unittest.TestCase):
                 self.assertIn("APPEND PROPERTY OBS_PUBLIC_HEADERS", " ".join(source.split()))
                 self.assertIn(header, source)
                 self.assertNotIn(header, (LIBOBS / "CMakeLists.txt").read_text())
+
+    def test_rust_link_setup_dispatches_to_host_files(self):
+        text = (LIBOBS / "cmake/rust.cmake").read_text()
+        self.assertEqual(HOST_CONDITION.findall(text), ["OS_LINUX OR OS_FREEBSD OR OS_OPENBSD", "OS_WINDOWS", "OS_MACOS"])
+        for host, platform in (("nix", "linux"), ("windows", "windows"), ("macos", "macos")):
+            with self.subTest(host=host):
+                self.assertEqual(platforms(f"libobs/cmake/rust-os-{host}.cmake"), frozenset({platform}))
+                self.assertEqual(text.count(f'include("${{CMAKE_CURRENT_LIST_DIR}}/rust-os-{host}.cmake")'), 1)
 
 
 if __name__ == "__main__":
