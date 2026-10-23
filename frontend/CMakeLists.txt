@@ -119,6 +119,30 @@ if(OBS_BRAND_RUST)
   endif()
   message(STATUS "OBS-Studio-Rust version: ${OBS_RUST_VERSION}")
   target_compile_definitions(obs-studio PRIVATE OBS_RUST_VERSION="${OBS_RUST_VERSION}")
+  # The main window title (#1983) shows the release version, or for any other
+  # build the newest obs-studio-rust-v* tag as a dev version. git describe runs
+  # at configure time; without git or a reachable tag the title says "dev".
+  if(OBS_RUST_RELEASE_VERSION)
+    target_compile_definitions(obs-studio PRIVATE OBS_RUST_TITLE_RELEASE="${OBS_RUST_RELEASE_VERSION}")
+  else()
+    find_package(Git QUIET)
+    set(_obs_rust_describe "")
+    if(GIT_FOUND)
+      execute_process(
+        COMMAND "${GIT_EXECUTABLE}" describe --tags --long --match "obs-studio-rust-v*"
+        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+        OUTPUT_VARIABLE _obs_rust_describe
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+        RESULT_VARIABLE _obs_rust_describe_result
+      )
+      if(NOT _obs_rust_describe_result EQUAL 0)
+        set(_obs_rust_describe "")
+      endif()
+    endif()
+    message(STATUS "OBS-Studio-Rust title version from: ${_obs_rust_describe}")
+    target_compile_definitions(obs-studio PRIVATE OBS_RUST_GIT_DESCRIBE="${_obs_rust_describe}")
+  endif()
 endif()
 
 obs_frontend_platform_sources()

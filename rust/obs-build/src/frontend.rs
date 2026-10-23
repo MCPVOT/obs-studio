@@ -157,6 +157,11 @@ pub fn build_application_with_options(
             "OBS_RUST_VERSION".into(),
             Some(serde_json::to_string(version).map_err(|e| e.to_string())?),
         ),
+        // The main window title's dev version (#1983); "dev" without a tag.
+        (
+            "OBS_RUST_GIT_DESCRIBE".into(),
+            Some(serde_json::to_string(&rust_git_describe(&root)).map_err(|e| e.to_string())?),
+        ),
         ("OBS_GPU_STATUS".into(), Some("1".into())),
         (
             "QT_ENABLE_STRICT_MODE_UP_TO".into(),
@@ -341,4 +346,24 @@ pub(crate) fn write(path: &Path, content: &str) -> Result<(), String> {
         std::fs::write(path, content).map_err(|e| e.to_string())?;
     }
     Ok(())
+}
+
+/// `git describe` for the newest obs-studio-rust-v* tag, or "" when git or
+/// the tag is missing.
+fn rust_git_describe(root: &std::path::Path) -> String {
+    std::process::Command::new("git")
+        .args([
+            "describe",
+            "--tags",
+            "--long",
+            "--match",
+            "obs-studio-rust-v*",
+        ])
+        .current_dir(root)
+        .output()
+        .ok()
+        .filter(|output| output.status.success())
+        .and_then(|output| String::from_utf8(output.stdout).ok())
+        .map(|describe| describe.trim().to_owned())
+        .unwrap_or_default()
 }

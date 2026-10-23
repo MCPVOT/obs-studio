@@ -63,6 +63,7 @@
 #include <utility/WhatsNewInfoThread.hpp>
 #endif
 #include <utility/GpuStatus.hpp>
+#include <utility/product-name.h>
 #include <utility/profile-activate.h>
 #include <widgets/AudioMixer.hpp>
 #include <widgets/OBSProjector.hpp>

@@ -8,4 +8,6 @@
 /* utility/product-name.c */
 #include "frontend/utility/product-name.h"
 
+#include <stdbool.h>
 #include <stdio.h>
+#include <string.h>

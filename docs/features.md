@@ -478,6 +478,13 @@ not get a line.
   forward and covered by new automated tests. *All platforms*, 2026-10-22.
   Issue [#1818](https://github.com/obs-rust/obs-studio/issues/1818).
 
+- **Main window title names OBS Studio Rust.** The title bar reads "OBS Studio
+  Rust <version>": the release version, or for development builds the newest
+  `obs-studio-rust-v*` tag plus `-dev+<commits>-g<sha>` (or `dev` without a
+  tag). Profile, scene collection, safe mode and portable mode still follow;
+  `--version` and Help > About keep the upstream base version.
+  *All platforms*, 2026-10-23. Issue [#1983](https://github.com/obs-rust/obs-studio/issues/1983).
+
 ## Fixed upstream bugs
 
 Bugs inherited from OBS Studio (and obs-websocket) that are fixed here, by

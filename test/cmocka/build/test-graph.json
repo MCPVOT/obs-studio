@@ -2858,6 +2858,21 @@
         "OBS::libobs",
         "OBS::native-test-cmocka"
       ]
+    },
+    "test_product_title": {
+      "sources": [
+        "test/cmocka/test_product_title.c",
+        "frontend/utility/product-name.c.h"
+      ],
+      "libraries": [
+        "OBS::native-test-cmocka"
+      ],
+      "includes": [
+        "frontend/utility"
+      ],
+      "watch_inputs": [
+        "frontend/utility"
+      ]
     }
   },
   "tests": {
@@ -3880,6 +3895,12 @@
           "-s",
           "-screen 0 1280x1024x24 -noreset"
         ]
+      ]
+    },
+    "test_product_title": {
+      "target": "test_product_title",
+      "command": [
+        "${target}"
       ]
     }
   }

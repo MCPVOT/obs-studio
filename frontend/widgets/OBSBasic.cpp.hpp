@@ -1972,7 +1972,23 @@ void OBSBasic::UpdateTitleBar()
 	const char *sceneCollection = config_get_string(App()->GetUserConfig(), "Basic", "SceneCollection");
 
 #ifdef OBS_RUST_VERSION
-	name << App()->GetProductString(false);
+	/* "OBS Studio Rust <version>" (#1983): the release version, or a dev
+	 * version from the newest obs-studio-rust-v* tag. The upstream base stays
+	 * in Help > About and --version. */
+#ifdef OBS_RUST_TITLE_RELEASE
+	const char *title_release = OBS_RUST_TITLE_RELEASE;
+#else
+	const char *title_release = nullptr;
+#endif
+#ifdef OBS_RUST_GIT_DESCRIBE
+	const char *title_describe = OBS_RUST_GIT_DESCRIBE;
+#else
+	const char *title_describe = nullptr;
+#endif
+	int title_len = obs_product_title(nullptr, 0, title_release, title_describe);
+	std::string title(title_len > 0 ? (size_t)title_len : 0, '\0');
+	obs_product_title(title.data(), title.size() + 1, title_release, title_describe);
+	name << title;
 #else
 	name << "OBS ";
 	if (previewProgramMode) {
