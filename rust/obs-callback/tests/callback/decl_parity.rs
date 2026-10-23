@@ -133,8 +133,12 @@ fn excluded(text: &[u8]) -> bool {
             .rev()
             .find(|t| t.kind != CfTokenType::None);
         if let Some(last) = last {
-            let comment =
-                last.kind == CfTokenType::SpaceTab && text.get(last.unmerged_start) == Some(&b'/');
+            // The lexer merges leading spaces and tabs into the comment token.
+            let comment = last.kind == CfTokenType::SpaceTab
+                && text[last.unmerged_start..]
+                    .iter()
+                    .find(|b| !matches!(b, b' ' | b'\t'))
+                    == Some(&b'/');
             // Only an unterminated token consumes the trailing splice.
             // A closed comment or string followed by a splice stays covered.
             if (comment || last.kind == CfTokenType::String)
@@ -370,4 +374,15 @@ fn terminal_splices_exclude_only_comment_and_string_tokens() {
     assert!(!excluded(b"void f(\"open"));
     assert!(!excluded(b"void f/* closed */\\\n"));
     assert!(!excluded(b"void f(\"closed\"\\\n"));
+}
+
+#[test]
+fn issue_1549_inputs_are_excluded() {
+    for case in [
+        "foo get5out/*/*abreturn\\\n",
+        "void f/*stringfptr)b{b{b\r\n*float}voidfbool{float\\\n",
+        "void f \"s\"*#}1.5b}}// c\nfloat  foob*floatf\t\t/**'c'\\\n",
+    ] {
+        assert!(excluded(case.as_bytes()), "{case:?}");
+    }
 }
