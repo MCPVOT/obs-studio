@@ -155,6 +155,11 @@ jobs:
           PUBLISH_CONTINUOUS: ${{ inputs.publish_continuous == true }}
         run: build-aux/appimage/manylinux/run.sh uv run build-aux/appimage/build.py --base manylinux --steps appimage --publish-continuous "$PUBLISH_CONTINUOUS"
 
+      - name: Test the host-library loader 🧪
+        # hostlib/ (#959): the libva shims with the host's libva, without it,
+        # with bad candidates, and the required-library preflight (exit 127).
+        run: build-aux/appimage/manylinux/run.sh bash build-aux/appimage/hostlib/test-hostlib.sh
+
       - name: Build the test helper 🧰
         # Run by test-appimage.sh next to obs, with (through the same relative
         # DT_RPATH obs has) the AppImage's own libraries: runtime probes, a fake
