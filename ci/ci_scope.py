@@ -12,7 +12,9 @@ Lanes:
            the diff touches, ci/rust_scope.py): the Fast Gate job;
 - tier2:   libobs, the crates linked into libobs (derived from
            rust/libobs-rust/Cargo.toml), test/cmocka, deps, the validate
-           tooling -> Tier 2 Linux (cmocka against hybrid libobs and
+           tooling, and every plugin/frontend/shared source a cmocka test
+           compiles (its ${CMAKE_SOURCE_DIR}/... paths, submodule bumps
+           included) -> Tier 2 Linux (cmocka against hybrid libobs and
            libobs-c-reference);
 - linux_targets: plugins/<x>/ and shared/<x>/ touched -> the Linux CMake
            targets of those modules (one configure, ENABLE_FRONTEND=OFF, no
@@ -131,6 +133,30 @@ def _glob(pattern: str) -> re.Pattern[str]:
 
 def lane_hit(lane: str, path: str, extra: tuple[str, ...] = ()) -> bool:
     return any(_glob(g).match(path) for g in LANES.get(lane, ()) + extra)
+
+
+# Cmocka tests that build plugin, frontend or shared sources name them as
+# ${CMAKE_SOURCE_DIR}/<path>; a change under <path> runs Tier 2 too.
+_SOURCE_REF = re.compile(r"\$\{CMAKE_SOURCE_DIR\}/([^\s\"')$;]+)")
+CMOCKA_BUILD_FILES = ("test/cmocka/CMakeLists.txt", "test/cmocka/tests.d")
+
+
+def cmocka_source_paths(texts: list[str]) -> tuple[str, ...]:
+    """Source paths (files or directories) the cmocka build files compile."""
+    found = {m.rstrip("/") for text in texts for m in _SOURCE_REF.findall(text)}
+    # A top-level directory (frontend, libobs-opengl) is only an include
+    # root; matching it would send every change under it to Tier 2.
+    return tuple(sorted(p for p in found if "/" in p))
+
+
+def repo_cmocka_source_paths(root: Path = Path(__file__).resolve().parent.parent) -> tuple[str, ...]:
+    files = [root / CMOCKA_BUILD_FILES[0], *sorted((root / CMOCKA_BUILD_FILES[1]).glob("*.cmake"))]
+    return cmocka_source_paths([read_text(str(f)) for f in files])
+
+
+def cmocka_compiles(path: str, refs: tuple[str, ...]) -> bool:
+    # path under a referenced source, or a gitlink (submodule root) above one.
+    return any(path == r or path.startswith(r + "/") or r.startswith(path + "/") for r in refs)
 
 
 def linked_crates(read: Callable[[str], str], root: str = "libobs-rust") -> set[str]:
@@ -267,6 +293,7 @@ def scope(
     exists: Callable[[str], bool] = lambda path: False,
     read: Callable[[str], str] = lambda path: "",
     submodules: frozenset[str] = frozenset(),
+    cmocka_paths: tuple[str, ...] = (),
 ) -> Scope:
     """`exists(path)` says whether a file exists in the checkout, `read(path)`
     returns its text ("" when missing). `submodules` is accepted for callers
@@ -279,7 +306,9 @@ def scope(
         plat = path_platforms(path)
         # A platform-only file (libobs/**/platform-windows.c) never starts the
         # Linux Tier 2.
-        if lane_hit("tier2", path, linked) and (plat is None or LINUX in plat):
+        if (lane_hit("tier2", path, linked) or cmocka_compiles(path, cmocka_paths)) and (
+            plat is None or LINUX in plat
+        ):
             tier2 = True
         if target := linux_target(path):
             targets.add(target)
@@ -319,7 +348,9 @@ def read_text(path: str) -> str:
 
 def main() -> int:
     files = changed_files(sys.argv[1])
-    result = scope(files, lambda path: Path(path).is_file(), read_text)
+    result = scope(
+        files, lambda path: Path(path).is_file(), read_text, cmocka_paths=repo_cmocka_source_paths(Path("."))
+    )
     lines = [f"{k}={str(v).lower()}" for k, v in vars(result).items()]
     print("\n".join(lines))
     if out := os.environ.get("GITHUB_OUTPUT"):

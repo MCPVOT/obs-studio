@@ -309,6 +309,38 @@ class LaneTableTest(unittest.TestCase):
         got = self.sc("libobs/cmake/rust.cmake")
         self.assertEqual((got.windows, got.macos, got.tier2), (True, True, True))
 
+    def test_tier2_follows_sources_cmocka_tests_compile(self):
+        # A cmocka test that builds plugin or frontend sources must run when
+        # those sources change, including a submodule bump (#1996 skipped
+        # Tier 2 while bumping obs-websocket's RequestBatchHandler.cpp).
+        from ci_scope import cmocka_source_paths
+
+        refs = cmocka_source_paths(
+            [
+                'set(_ws_src "${CMAKE_SOURCE_DIR}/plugins/obs-websocket/src")\n',
+                'add_executable(t "${CMAKE_SOURCE_DIR}/frontend/utility/Foo.cpp")\n',
+                "list(APPEND s ${CMAKE_SOURCE_DIR}/plugins/linux-v4l2/${f})\n",
+                'target_include_directories(t PRIVATE "${CMAKE_SOURCE_DIR}/frontend")\n',
+            ]
+        )
+        self.assertNotIn("frontend", refs)
+        sc = lambda f: scope([f], read=lambda p: CARGO.get(p, ""), cmocka_paths=refs)  # noqa: E731
+        for f in (
+            "plugins/obs-websocket",  # gitlink
+            "plugins/obs-websocket/src/requesthandler/RequestBatchHandler.cpp",
+            "frontend/utility/Foo.cpp",
+            "plugins/linux-v4l2/v4l2-input.c",
+        ):
+            self.assertTrue(sc(f).tier2, f)
+        for f in ("frontend/utility/Bar.cpp", "plugins/obs-websocket-extra/x.cpp", "plugins/obs-filters/x.c"):
+            self.assertFalse(sc(f).tier2, f)
+
+    def test_tier2_reads_the_real_cmocka_tests(self):
+        from ci_scope import repo_cmocka_source_paths
+
+        refs = repo_cmocka_source_paths()
+        self.assertTrue(scope(["plugins/obs-websocket"], cmocka_paths=refs).tier2)
+
     def test_platform_only_libobs_file_skips_linux_tier2(self):
         self.assertFalse(self.sc("libobs/util/platform-windows.c.h").tier2)
         self.assertFalse(self.sc("libobs/util/platform-cocoa.m.h").tier2)
