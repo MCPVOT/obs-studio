@@ -48,6 +48,15 @@ class AffectedTest(unittest.TestCase):
                   "ci/local_gate.py", "ci/nextest_tool.py"):
             self.assertEqual(affected([f], CRATES)[0], "workspace", f)
 
+    def test_native_test_graph_inputs_test_obs_build(self):
+        # obs-build's graph contract counts test/cmocka targets (#1891).
+        crates = CRATES | {
+            "obs-build": ("rust/obs-build", set()),
+            "obs-studio-rust": ("rust/obs-studio-rust", {"obs-build"}),
+        }
+        for f in ("test/cmocka/build/test-graph.json", "test/cmocka/test_qsv_probe.c"):
+            self.assertEqual(affected([f], crates), ("packages", ["obs-build", "obs-studio-rust"]), f)
+
     def test_unrelated_files_skip(self):
         self.assertEqual(affected(["docs/a.md", "frontend/x.cpp", "ci/y.py"], CRATES), ("skip", []))
 

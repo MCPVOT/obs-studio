@@ -14,6 +14,9 @@ from __future__ import annotations
 
 WORKSPACE_PREFIXES = ("libobs/", "dylints/", "deps/", ".cargo/", "rust/tools/", "plugins/obs-nvenc/")
 WORKSPACE_FILES = {"Cargo.toml", "Cargo.lock", "rust-toolchain.toml", "ci/local_gate.py", "ci/nextest_tool.py", "ci/nextest.toml"}
+# Inputs outside rust/ that a crate's tests read: obs-build's graph contract
+# counts the test/cmocka targets (#1891).
+CRATE_INPUTS = {"test/cmocka/": "obs-build"}
 
 
 def affected(files: list[str], crates: dict[str, tuple[str, set[str]]]):
@@ -23,6 +26,10 @@ def affected(files: list[str], crates: dict[str, tuple[str, set[str]]]):
     for path in files:
         if path.startswith(WORKSPACE_PREFIXES) or path in WORKSPACE_FILES:
             return "workspace", []
+        owner = [name for prefix, name in CRATE_INPUTS.items() if path.startswith(prefix) and name in crates]
+        if owner:
+            hit.update(owner)
+            continue
         if not path.startswith("rust/"):
             continue
         owner = [n for n, (d, _) in crates.items() if path.startswith(d + "/")]
