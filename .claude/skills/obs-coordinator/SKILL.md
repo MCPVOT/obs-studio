@@ -84,6 +84,18 @@ authorizes.
 - **Fixups:** push small mechanical fixes that keep a ready PR from landing
   (lint, formatting, a features-ledger line, a stale reference) as a
   `fixup:` commit, and say so in a comment.
+- **Handed-off PRs** (`Handed off to the coordinator`, obs-worker §7):
+  the worker has moved on, so don't wait for them on anything mechanical.
+  Rebase, resolve list conflicts, fix counts and formatting, rerun flakes
+  and re-queue yourself, in the same tick. A real failure in the PR's own
+  logic still goes back to the worker as a comment.
+- **Before you take over a rebase or fixup,** look at the PR's latest
+  commits. If the author pushed after the failure, their push may already
+  fix it. Read it instead of racing them: a lease-protected push fails
+  safely, but the work was wasted.
+- **Fetch PR heads with a forced refspec** (`+pull/<N>/head:prN`). A
+  plain refspec leaves a stale local ref after a force-push, and conflict
+  dry runs on it give wrong answers.
 
 Push to a fork branch only when the PR allows maintainer edits, and always
 with `--force-with-lease=<branch>:<old head sha>`. These rebases are the

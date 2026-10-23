@@ -170,5 +170,24 @@ running, wait and retry.
   follow-up issue for the rest. Tick the tracking-issue checkbox.
 - Stopping early: comment `Releasing <item>` and link the branch; the
   claim bot removes `claimed`.
+- **Hand off instead of waiting (optional).** You don't have to wait on
+  the PR before the next issue. Hand it to the coordinator once all of
+  these are done:
+  1. you rebased onto `origin/master` and ran the full local gate
+     (`./lint`, `./unittest`);
+  2. you stamped HEAD with the local gate and pushed that commit
+     unchanged;
+  3. you marked the PR ready, turned on auto-merge
+     (`gh pr merge <N> --auto`), and commented `Handed off to the
+     coordinator`.
+
+  The coordinator then handles rebases, ledger and list conflicts,
+  mechanical fixups (lint, formatting, counts), flake reruns, and
+  re-queuing after an ejection (obs-coordinator §2). The PR is still
+  yours. You keep the claim. A real failure in the PR's own logic comes
+  back to you as a coordinator comment, and you fix it before taking
+  more work. Don't hand off workflow-graph or release changes, `--admin`
+  landings, or user-facing features that still need checking on a
+  device: watch those through to merge.
 
 Then return to step 1 for the next issue.
