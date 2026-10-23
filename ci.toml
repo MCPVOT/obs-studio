@@ -1204,14 +1204,6 @@ reason = "release-rust.yaml adds rustup targets for the release build."
 issue = "https://github.com/obs-rust/obs-studio/issues/962"
 expires = "2027-04-15"
 
-# TOOL-002: cargo clippy without --locked; tracked in #962.
-[[exceptions]]
-rule = "TOOL-002"
-path = ".github/workflows/build-project.yaml"
-reason = "cargo clippy without --locked; tracked in #962."
-issue = "https://github.com/obs-rust/obs-studio/issues/962"
-expires = "2027-04-15"
-
 # TOOL-003: uv run executes PEP 723 scripts; the repository has no Python project to build.
 [[exceptions]]
 rule = "TOOL-003"

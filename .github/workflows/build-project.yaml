@@ -1897,7 +1897,7 @@ jobs:
         run: soldr cargo test --workspace --locked
 
       - name: Run Clippy 📎
-        run: soldr cargo clippy --workspace --all-targets -- -D warnings
+        run: soldr cargo clippy --locked --workspace --all-targets -- -D warnings
 
       - name: Check Formatting 🎨
         run: soldr cargo fmt --all --check
