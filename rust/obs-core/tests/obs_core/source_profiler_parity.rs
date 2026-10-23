@@ -775,7 +775,11 @@ proptest! {
         let (mut gpu_c, mut gpu_sum_c): (Vec<u64>, Vec<u64>) = gpu.iter().copied().unzip();
         let mut frames_c = frames.clone();
         let mut c = OracleProfilerResult::default();
-        // SAFETY: each array sized as passed, read only; no shared state.
+        // oracle_sp_calculate sets the oracle's static gpu_enabled for the
+        // call, so it holds ORACLE like the sequences do (#1930).
+        let _guard = ORACLE.lock().unwrap_or_else(|e| e.into_inner());
+        // SAFETY: each array sized as passed, read only; the oracle's
+        // statics are under ORACLE.
         unsafe {
             oracle_sp_calculate(
                 tick_c.as_mut_ptr(),
