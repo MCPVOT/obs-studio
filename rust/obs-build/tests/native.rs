@@ -1300,21 +1300,34 @@ fn native_test_graph_replaces_legacy_utility_definitions() {
         ("HAVE_OBS_PULSEAUDIO".into(), false),
         ("HAVE_QT6_WIDGETS".into(), false),
     ]);
+    // The core suite's size is not pinned: every new cmocka test lands in it,
+    // and two open PRs that each add one would both bump the same number
+    // (#1908). The partitions must instead cover the whole graph between them.
+    let (mut covered_tests, mut covered_targets) = (0, 0);
     for (suite, count) in [
-        ("core", 143),
-        ("graphics", 12),
-        ("vlc", 6),
-        ("webrtc", 2),
-        ("qt", 1),
+        ("core", None),
+        ("graphics", Some(12)),
+        ("vlc", Some(6)),
+        ("webrtc", Some(2)),
+        ("qt", Some(1)),
     ] {
         let mut partition = obs_build::validation::graph::Graph::load(
             &root.join("test/cmocka/build/test-graph.json"),
         )
         .unwrap();
         partition.retain_suite(suite);
-        assert_eq!(partition.tests.len(), count);
+        if let Some(count) = count {
+            assert_eq!(partition.tests.len(), count, "{suite} tests");
+        }
+        assert!(!partition.tests.is_empty(), "{suite} has no tests");
         assert!(partition.tests.values().all(|test| test.suite == suite));
-        assert_eq!(partition.targets.len(), count);
+        assert_eq!(
+            partition.targets.len(),
+            partition.tests.len(),
+            "{suite} targets"
+        );
+        covered_tests += partition.tests.len();
+        covered_targets += partition.targets.len();
         if suite != "core" {
             assert!(
                 partition
@@ -1324,6 +1337,16 @@ fn native_test_graph_replaces_legacy_utility_definitions() {
             );
         }
     }
+    assert_eq!(
+        covered_tests,
+        graph.tests.len(),
+        "tests outside every suite"
+    );
+    assert_eq!(
+        covered_targets,
+        graph.targets.len(),
+        "targets outside every suite"
+    );
     let selected = graph.select(&facts).unwrap();
     for name in [
         "test_audio_controls",
