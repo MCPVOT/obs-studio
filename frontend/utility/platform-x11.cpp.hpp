@@ -794,3 +794,8 @@ void SetOutputNetworkOptions(config_t *, obs_data_t *)
 {
 	/* No host-specific streaming output options. */
 }
+
+void TranslateLegacyEncoderId(const char *&)
+{
+	/* No legacy encoder ids on this host. */
+}

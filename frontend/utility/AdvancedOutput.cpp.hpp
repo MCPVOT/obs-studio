@@ -40,17 +40,6 @@ static void ApplyEncoderDefaults(OBSData &settings, const obs_encoder_t *encoder
 
 #define ADV_ARCHIVE_NAME "adv_archive_audio"
 
-#ifdef __APPLE__
-static void translate_macvth264_encoder(const char *&encoder)
-{
-	if (strcmp(encoder, "vt_h264_hw") == 0) {
-		encoder = "com.apple.videotoolbox.videoencoder.h264.gva";
-	} else if (strcmp(encoder, "vt_h264_sw") == 0) {
-		encoder = "com.apple.videotoolbox.videoencoder.h264";
-	}
-}
-#endif
-
 AdvancedOutput::AdvancedOutput(OBSBasic *main_) : BasicOutputHandler(main_)
 {
 	const char *recType = config_get_string(main->Config(), "AdvOut", "RecType");
@@ -59,10 +48,8 @@ AdvancedOutput::AdvancedOutput(OBSBasic *main_) : BasicOutputHandler(main_)
 	const char *recordEncoder = config_get_string(main->Config(), "AdvOut", "RecEncoder");
 	const char *recAudioEncoder = config_get_string(main->Config(), "AdvOut", "RecAudioEncoder");
 	const char *recFormat = config_get_string(main->Config(), "AdvOut", "RecFormat2");
-#ifdef __APPLE__
-	translate_macvth264_encoder(streamEncoder);
-	translate_macvth264_encoder(recordEncoder);
-#endif
+	TranslateLegacyEncoderId(streamEncoder);
+	TranslateLegacyEncoderId(recordEncoder);
 
 	ffmpegOutput = astrcmpi(recType, "FFmpeg") == 0;
 	ffmpegRecording = ffmpegOutput && config_get_bool(main->Config(), "AdvOut", "FFOutputToFile");

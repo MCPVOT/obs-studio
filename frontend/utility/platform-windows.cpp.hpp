@@ -942,3 +942,8 @@ void SetOutputNetworkOptions(config_t *config, obs_data_t *settings)
 			  config_get_bool(config, "Output", "NewSocketLoopEnable"));
 	obs_data_set_bool(settings, "low_latency_mode_enabled", config_get_bool(config, "Output", "LowLatencyEnable"));
 }
+
+void TranslateLegacyEncoderId(const char *&)
+{
+	/* No legacy encoder ids on this host. */
+}

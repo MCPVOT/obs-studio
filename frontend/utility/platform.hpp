@@ -60,6 +60,10 @@ bool HighContrastEnabled();
  * low-latency mode). */
 void SetOutputNetworkOptions(config_t *config, obs_data_t *settings);
 
+/* Replaces an encoder id an older OBS on this host saved in a profile with
+ * the id the encoder has now (macOS: the VideoToolbox H.264 encoders). */
+void TranslateLegacyEncoderId(const char *&encoder);
+
 /* glGetString from the GL library libobs-opengl uses (the frontend does not
  * link GL), or nullptr. Call it only with the graphics context entered. */
 void *GetGlGetStringProc();

@@ -58,6 +58,22 @@ class FrontendCMakeFacadeTest(unittest.TestCase):
         self.assertIn('"new_socket_loop_enabled"', windows)
         self.assertIn('"low_latency_mode_enabled"', windows)
 
+    def test_legacy_encoder_ids_are_translated_by_the_host(self):
+        # #883: only macOS renames its old VideoToolbox encoder ids, in
+        # TranslateLegacyEncoderId(); AdvancedOutput has no __APPLE__ branch.
+        header = (FRONTEND / "utility/platform.hpp").read_text()
+        self.assertIn("void TranslateLegacyEncoderId(const char *&encoder);", header)
+        source = (FRONTEND / "utility/AdvancedOutput.cpp.hpp").read_text()
+        self.assertNotIn("translate_macvth264_encoder", source)
+        self.assertIn("TranslateLegacyEncoderId(streamEncoder);", source)
+        self.assertIn("TranslateLegacyEncoderId(recordEncoder);", source)
+        for host in ("windows.cpp.hpp", "osx.mm.hpp", "x11.cpp.hpp"):
+            with self.subTest(host=host):
+                self.assertIn("void TranslateLegacyEncoderId(const char *&",
+                              (FRONTEND / f"utility/platform-{host}").read_text())
+        mac = (FRONTEND / "utility/platform-osx.mm.hpp").read_text()
+        self.assertIn('"com.apple.videotoolbox.videoencoder.h264.gva"', mac)
+
     def test_dispatch_and_platform_operations(self):
         text = (FRONTEND / "CMakeLists.txt").read_text()
         self.assertEqual(text.count("if(OS_WINDOWS)"), 1)

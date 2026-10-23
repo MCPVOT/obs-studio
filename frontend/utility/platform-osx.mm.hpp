@@ -871,3 +871,12 @@ void SetOutputNetworkOptions(config_t *, obs_data_t *)
 {
 	/* No host-specific streaming output options. */
 }
+
+void TranslateLegacyEncoderId(const char *&encoder)
+{
+	if (strcmp(encoder, "vt_h264_hw") == 0) {
+		encoder = "com.apple.videotoolbox.videoencoder.h264.gva";
+	} else if (strcmp(encoder, "vt_h264_sw") == 0) {
+		encoder = "com.apple.videotoolbox.videoencoder.h264";
+	}
+}
