@@ -18,7 +18,8 @@ permissions:
 jobs:
   cache-janitor:
     name: Cache Janitor 🧹
-    if: github.event_name == 'merge_group' || (github.event_name == 'push' && github.ref == 'refs/heads/master')
+    # The merge queue sweeps at the end of ci.yml instead (#1854).
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-26.04
     timeout-minutes: 5
     # One sweep at a time, repo-wide; a running sweep is never cancelled.
@@ -38,7 +39,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: zackees/ci.yml
-          ref: 1a970f01574447d681571ff3d0b8de56cb983dcc
+          ref: a1917ce76598904ce515cd7eec83450c317ea6f2
           path: .ci-lint
           persist-credentials: false
           sparse-checkout: ci_lint

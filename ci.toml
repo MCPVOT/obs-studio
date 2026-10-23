@@ -5,7 +5,7 @@
 # cache family below. Add a family before adding a cache key.
 schema = 3
 profile = "obs-rust"
-linter = "zackees/ci.yml@1a970f01574447d681571ff3d0b8de56cb983dcc"
+linter = "zackees/ci.yml@a1917ce76598904ce515cd7eec83450c317ea6f2"
 
 # -- Platforms ----------------------------------------------------------------
 # The platforms PR CI builds and tests natively (build-project.yaml).

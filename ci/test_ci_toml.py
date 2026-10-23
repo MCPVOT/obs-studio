@@ -22,7 +22,7 @@ ROOT = Path(__file__).resolve().parent.parent
 CI_TOML = ROOT / "ci.toml"
 GITHUB = ROOT / ".github"
 WORKFLOWS = GITHUB / "workflows"
-PIN = "1a970f01574447d681571ff3d0b8de56cb983dcc"
+PIN = "a1917ce76598904ce515cd7eec83450c317ea6f2"
 
 # Prefixes of the families a `via` names (zackees/ci.yml ci_lint/cache/families.py).
 VIA_PREFIXES = {

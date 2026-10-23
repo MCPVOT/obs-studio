@@ -314,7 +314,7 @@ ideas:
 Always use the pinned version from [AGENTS.md](../AGENTS.md):
 
 ```
-uvx --from git+https://github.com/zackees/ci.yml@1a970f01574447d681571ff3d0b8de56cb983dcc ci-lint local-gate run
+uvx --from git+https://github.com/zackees/ci.yml@a1917ce76598904ce515cd7eec83450c317ea6f2 ci-lint local-gate run
 ```
 
 ### ci.toml and local-gate.toml: what runs for which change
@@ -520,12 +520,22 @@ condition on that operation's job. Do not skip the whole entry point merely
 because one maintenance operation does not apply.
 
 The cache janitor runs only for `merge_group` or a `push` to
-`refs/heads/master`. Fork PR tokens cannot delete repository caches, so PR
-pushes must skip the janitor job. Keep cache deletion out of untrusted PR
+`refs/heads/master`. `ci-pre.yml`'s janitor sweeps master pushes. The merge
+queue sweeps at the end of the run, in `ci.yml`'s final `cache-janitor` job
+(`needs` every other job, `if: always()`), never at the start (#1854). The
+queue serializes master's cache writes, so that sweep has the cache to itself
+and sees what the run saved. Pinned to zackees/ci.yml#405, it evicts the
+least recently accessed entries until the repository total fits
+`[cache].budget`, keeping each family's newest entry and anything younger
+than 10 minutes, so GitHub's own LRU eviction never chooses what to drop.
+Declared family maxima may add up to more than the budget; the end-of-queue
+sweep is what keeps live usage under it. Fork PR tokens cannot delete
+repository caches, so PR pushes must skip both janitor jobs. Keep cache deletion out of untrusted PR
 events; do not switch to `pull_request_target` to obtain a write token.
 
 Cache cleanup is best-effort maintenance. It has no dependents in the Pull
-or Push workflow and is excluded from `CI Gate ✅`. Its own failures remain
+or Push workflow and is excluded from `CI Gate ✅` (the end-of-queue sweep
+runs after the gate, which never waits on it). Its own failures remain
 visible for investigation, but cannot delay builds, queue cancellation or
 merging. Keep the repo-wide `cache-janitor` concurrency group with
 `cancel-in-progress: false`. A future pre-work job that is required for

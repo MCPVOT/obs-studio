@@ -1,7 +1,7 @@
 #!/usr/bin/env -S uv run --script
 # /// script
 # requires-python = ">=3.11"
-# dependencies = ["ci-lint @ git+https://github.com/zackees/ci.yml@1a970f01574447d681571ff3d0b8de56cb983dcc"]
+# dependencies = ["ci-lint @ git+https://github.com/zackees/ci.yml@a1917ce76598904ce515cd7eec83450c317ea6f2"]
 # ///
 """Lane proofs: skip a CI lane whose exact inputs already passed (#699).
 

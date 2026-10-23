@@ -78,8 +78,11 @@ Documentation-only updates do not need RED → GREEN tests. See
 [coordination.md](docs/rust-port/coordination.md#4-pull-requests).
 
 `ci-pre.yml` remains the general pre-work entry point on PRs. Only its cache
-janitor job skips PR events; it runs on merge-group and master-push events,
-outside the build and required-gate dependency graph. See
+janitor job skips PR events; it sweeps on master pushes. The merge queue
+sweeps last instead: `ci.yml`'s final `cache-janitor` job runs after every
+other job and evicts least recently used caches down to `[cache].budget`, so
+GitHub's own eviction never picks (#1854, zackees/ci.yml#405 `GEN-022`).
+Neither sweep is in the required-gate dependency graph. See
 [the pre-work policy](docs/ci-tooling.md#pre-work-cache-maintenance-and-cancellation).
 
 ## Local gate (recommended, not required)
@@ -92,7 +95,7 @@ errors (soldr permissions, disk, Docker, host FFmpeg): see
 - `./lint` (8 s): clang-format 22.1.3 and gersemi 0.25.0 pinned via uvx, rustfmt, clippy, and the repo Dylints (`dylints/*`). `./lint --fix` rewrites files.
 - `./unittest`: Rust Tiers 1-3, then Tier 2 (cmocka against hybrid libobs and the explicit C reference, one build in Docker; ~30-40 s warm thanks to zccache).
 - To let CI skip the Linux unit-test jobs, commit, then run
-  `uvx --from git+https://github.com/zackees/ci.yml@1a970f01574447d681571ff3d0b8de56cb983dcc ci-lint local-gate run`.
+  `uvx --from git+https://github.com/zackees/ci.yml@a1917ce76598904ce515cd7eec83450c317ea6f2 ci-lint local-gate run`.
   It runs every lane in `local-gate.toml` (unchanged lanes are cached) and stamps HEAD with attestation trailers. Push the stamped commit as-is; any later change invalidates the stamp.
 - A PR runs only the lanes its changed paths select (the `LANES` table in `ci/ci_scope.py`: Fast Gate always, Tier 2 for libobs/linked crates/`test/cmocka/`, Qt for `frontend/`, a Linux build of only the touched `plugins/<x>`/`shared/<x>` targets; macOS/Windows only for their own platform files). The full OBS app builds never run from a PR path. No label changes what runs. A master push adds every lane a PR defers (Tier 2, Qt, the workspace tests) and runs the macOS/Windows Rust tests and Tier 2 only for paths that select them; it builds no OBS app. Schedule, workflow_dispatch, tags, release branches and the release gate run everything, including the macOS, Windows, Ubuntu and Flatpak app builds (#436).
 

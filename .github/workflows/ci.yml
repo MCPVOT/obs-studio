@@ -460,3 +460,35 @@ jobs:
         if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
         run: exit 1
       - run: echo 'All required jobs passed or were skipped.'
+  # Last job of the merge queue run (#1854, zackees/ci.yml#405 GEN-022). The
+  # queue serializes master's cache writes, so this sweep has the cache to
+  # itself and sees what the run saved. It evicts least recently used entries
+  # down to ci.toml's [cache].budget so GitHub's own eviction never picks.
+  # CI Gate does not wait on it: a failed sweep never ejects the PR.
+  cache-janitor:
+    name: Cache Janitor 🧹
+    if: always() && github.event_name == 'merge_group'
+    needs: [ci-pre, ci-gate]
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    # One sweep at a time, repo-wide; a running sweep is never cancelled.
+    concurrency:
+      group: cache-janitor
+      cancel-in-progress: false
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      # The janitor reads only ci.toml from this repository.
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          sparse-checkout: ci.toml
+          sparse-checkout-cone-mode: false
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          save-cache: ${{ github.ref == 'refs/heads/master' }}
+      - name: Sweep Caches 🧹
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: uvx --from git+https://github.com/zackees/ci.yml@a1917ce76598904ce515cd7eec83450c317ea6f2 ci-lint cache janitor --repo . --default-branch master

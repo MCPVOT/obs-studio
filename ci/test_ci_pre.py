@@ -9,7 +9,11 @@ workflow-level concurrency. Its cache-janitor job holds actions: write, runs
 on the repo-wide non-cancelling `cache-janitor` group, checks out ci_lint at
 the pinned SHA without credentials and runs it with stdlib python3 (no
 installs). ci.yml calls it on PRs and queue runs; push.yaml calls it on
-master. No job depends on it, and CI Gate does not count it.
+master, the only event its sweep runs on. No job depends on it, and CI Gate
+does not count it. The merge queue sweeps last instead (#1854,
+zackees/ci.yml#405): ci.yml's final cache-janitor job runs after every other
+job, so it sees what the run saved and keeps the repo under [cache].budget
+by LRU before GitHub's own eviction picks.
 """
 
 from __future__ import annotations
@@ -24,7 +28,7 @@ WORKFLOWS = ROOT / ".github" / "workflows"
 CI_PRE = WORKFLOWS / "ci-pre.yml"
 PULL = WORKFLOWS / "ci.yml"
 PUSH = WORKFLOWS / "push.yaml"
-PIN = "1a970f01574447d681571ff3d0b8de56cb983dcc"
+PIN = "a1917ce76598904ce515cd7eec83450c317ea6f2"
 
 
 def top_level(text: str, key: str) -> str:
@@ -60,7 +64,8 @@ class CiPreTest(unittest.TestCase):
 
     def test_janitor_job(self):
         j = self.janitor
-        self.assertRegex(j, r"if:.*github\.event_name == 'merge_group'.*github\.event_name == 'push'.*refs/heads/master")
+        self.assertRegex(j, r"if:.*github\.event_name == 'push'.*refs/heads/master")
+        self.assertNotIn("merge_group", j)
         self.assertRegex(j, r"concurrency:\n\s+group: cache-janitor\n\s+cancel-in-progress: false")
         self.assertRegex(j, r"permissions:\n(\s+\w+: \w+\n)*\s+actions: write")
         self.assertIn("timeout-minutes:", j)
@@ -84,8 +89,9 @@ class CiPreTest(unittest.TestCase):
         text = PULL.read_text()
         all_jobs = jobs(text)
         self.assertNotRegex(all_jobs["ci-pre"], r"if:.*github\.event_name")
+        # The end-of-queue janitor runs after everything, ci-pre included.
         for name, block in all_jobs.items():
-            if name != "ci-pre":
+            if name not in ("ci-pre", "cache-janitor"):
                 with self.subTest(job=name):
                     self.assertNotIn("ci-pre", needs(block))
 
@@ -106,6 +112,43 @@ class CiPreTest(unittest.TestCase):
         allowed = tomllib.loads((ROOT / "ci.toml").read_text())["allow"]
         self.assertEqual(allowed["workflows"]["ci-pre.yml"], ["workflow_call"])
         self.assertIn("ci-pre", allowed["permissions"]["actions: write"])
+
+
+def upstream(name: str, all_jobs: dict[str, str]) -> set[str]:
+    seen, todo = set(), list(needs(all_jobs[name]))
+    while todo:
+        cur = todo.pop()
+        if cur not in seen:
+            seen.add(cur)
+            todo.extend(needs(all_jobs.get(cur, "")))
+    return seen
+
+
+class EndOfQueueJanitorTest(unittest.TestCase):
+    """#1854 / GEN-022: the merge queue run ends with the cache janitor."""
+
+    def setUp(self):
+        self.all_jobs = jobs(PULL.read_text())
+        self.janitor = self.all_jobs.get("cache-janitor", "")
+
+    def test_janitor_runs_after_every_other_job(self):
+        self.assertTrue(self.janitor, "ci.yml has no cache-janitor job")
+        self.assertEqual(set(self.all_jobs) - {"cache-janitor"}, upstream("cache-janitor", self.all_jobs))
+
+    def test_janitor_runs_only_last_in_the_queue(self):
+        self.assertRegex(self.janitor, r"if: always\(\) && github\.event_name == 'merge_group'")
+        self.assertRegex(self.janitor, r"concurrency:\n\s+group: cache-janitor\n\s+cancel-in-progress: false")
+        self.assertRegex(self.janitor, r"permissions:\n(\s+\w+: \w+\n)*\s+actions: write")
+        self.assertIn(f"run: uvx --from git+https://github.com/zackees/ci.yml@{PIN} ci-lint cache janitor --repo . ",
+                      self.janitor)
+        self.assertNotIn("--no-enforce-budget", self.janitor)
+
+    def test_gate_never_waits_on_the_sweep(self):
+        self.assertNotIn("cache-janitor", upstream("ci-gate", self.all_jobs))
+
+    def test_ci_toml_allows_it(self):
+        allowed = tomllib.loads((ROOT / "ci.toml").read_text())["allow"]
+        self.assertIn("cache-janitor", allowed["permissions"]["actions: write"])
 
 
 if __name__ == "__main__":
