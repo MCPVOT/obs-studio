@@ -87,12 +87,27 @@ fn compile_suite(
                     .get(&test.target)
                     .ok_or("selected native test artifact missing")?
                     .clone(),
-                runtime: Some(test.clone()),
+                runtime: Some(test.resolve_runtime(interfaces)?),
                 dependencies: graph.targets[&test.target]
                     .dependency_artifacts(facts, interfaces)?,
             })
         })
         .collect()
+}
+
+/// Build Qt tests using caller-resolved SDK compile/link and runtime interfaces.
+pub fn build_qt_tests(
+    build: &NativeBuild,
+    root: &Path,
+    interfaces: &BTreeMap<String, graph::Dependency>,
+) -> Result<Vec<Executable>, String> {
+    let root = dunce::canonicalize(root).map_err(|error| error.to_string())?;
+    let graph = load_suite(&root, "qt")?;
+    let facts = BTreeMap::from([(
+        "HAVE_QT6_WIDGETS".into(),
+        interfaces.contains_key("Qt6::Widgets"),
+    )]);
+    compile_suite(build, &root, &graph, &facts, interfaces)
 }
 
 /// Build standalone WHIP tests from the shared graph, with no core or SDK.

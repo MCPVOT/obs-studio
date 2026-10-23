@@ -99,16 +99,33 @@ impl Source {
     }
 }
 
+/// Explicit Qt generator inputs, separate from compiler inputs.
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Qt {
+    #[serde(default)]
+    pub moc: Vec<String>,
+    #[serde(default)]
+    pub uic: Vec<String>,
+    #[serde(default)]
+    pub rcc: Vec<String>,
+}
+
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Target {
     pub sources: Vec<Source>,
+    #[serde(default)]
+    pub qt: Qt,
     #[serde(default)]
     pub cpp_standard: Option<crate::CppStandard>,
     #[serde(default)]
     pub requires: Requirement,
     #[serde(default)]
     pub includes: Vec<String>,
+    /// Include directories searched before the implicit repository root.
+    #[serde(default)]
+    pub includes_before: Vec<String>,
     #[serde(default)]
     pub definitions: Vec<String>,
     /// Quoted C string definitions referring to separately built artifacts.
@@ -194,6 +211,12 @@ pub struct Test {
     pub skip_return_code: Option<i32>,
     #[serde(default)]
     pub environment: BTreeMap<String, String>,
+    /// Ordered paths prepended to an explicit value or the inherited environment.
+    #[serde(default)]
+    pub environment_path_prepend: BTreeMap<String, Vec<String>>,
+    /// Imported Qt runtime interface, resolved before preparing the command.
+    #[serde(default)]
+    pub qt_runtime: Option<String>,
     #[serde(default)]
     pub working_directory: Option<String>,
     #[serde(default)]
@@ -203,6 +226,26 @@ pub struct Test {
 }
 
 impl Test {
+    pub fn resolve_runtime(
+        &self,
+        libraries: &BTreeMap<String, Dependency>,
+    ) -> Result<Self, String> {
+        let mut resolved = self.clone();
+        if let Some(name) = resolved.qt_runtime.take() {
+            let dependency = libraries
+                .get(&name)
+                .ok_or_else(|| format!("unresolved native test Qt runtime {name}"))?;
+            for (key, paths) in &dependency.runtime_path_prepend {
+                resolved
+                    .environment_path_prepend
+                    .entry(key.clone())
+                    .or_default()
+                    .extend(paths.iter().cloned());
+            }
+        }
+        Ok(resolved)
+    }
+
     /// Prepare the declared argv/environment without a shell. The runner still
     /// owns timeout, skip and scheduling policy; preparing a command is not a
     /// test result and does not apply those execution policies.
@@ -217,6 +260,9 @@ impl Test {
         target: &Path,
         runtime: &Path,
     ) -> Result<Command, String> {
+        if let Some(name) = &self.qt_runtime {
+            return Err(format!("unresolved native test Qt runtime {name}"));
+        }
         let mut arguments = self
             .command
             .iter()
@@ -248,6 +294,24 @@ impl Test {
         command.args(arguments);
         for (key, value) in &self.environment {
             command.env(key, expand(value, root, output, target, runtime)?);
+        }
+        for (key, values) in &self.environment_path_prepend {
+            let mut paths = values
+                .iter()
+                .map(|value| expand(value, root, output, target, runtime).map(PathBuf::from))
+                .collect::<Result<Vec<_>, _>>()?;
+            let inherited = match self.environment.get(key) {
+                Some(value) => Some(expand(value, root, output, target, runtime)?.into()),
+                None => std::env::var_os(key),
+            };
+            if let Some(value) = inherited {
+                paths.extend(std::env::split_paths(&value));
+            }
+            command.env(
+                key,
+                std::env::join_paths(paths)
+                    .map_err(|error| format!("native test path {key}: {error}"))?,
+            );
         }
         let directory = match &self.working_directory {
             Some(value) => PathBuf::from(expand(value, root, output, target, runtime)?),
@@ -285,6 +349,7 @@ pub struct Selection<'a> {
 /// have no artifacts; they still carry required headers and definitions.
 #[derive(Clone, Debug, Default)]
 pub struct Dependency {
+    pub runtime_path_prepend: BTreeMap<String, Vec<String>>,
     pub artifacts: Vec<PathBuf>,
     pub include_dirs: Vec<PathBuf>,
     pub definitions: Vec<(String, Option<String>)>,
@@ -297,6 +362,7 @@ pub struct Dependency {
 impl From<SharedLibrary> for Dependency {
     fn from(library: SharedLibrary) -> Self {
         Self {
+            runtime_path_prepend: BTreeMap::new(),
             artifacts: library.dependencies,
             include_dirs: library.include_dirs,
             definitions: library.definitions,
@@ -305,6 +371,16 @@ impl From<SharedLibrary> for Dependency {
             cpp_compile_options: library.cpp_compile_options,
             link_options: library.link_options,
         }
+    }
+}
+
+impl Dependency {
+    /// Resolve a native SDK package into its compile and link interface.
+    /// Callers also supply runtime paths when the SDK is outside the system loader.
+    pub fn package(target: &str, package: &str) -> Result<Self, String> {
+        let mut library = SharedLibrary::default();
+        crate::libobs::add_package(&mut library, target, package)?;
+        Ok(library.into())
     }
 }
 
@@ -326,7 +402,17 @@ impl Graph {
         if graph.targets.is_empty() || graph.tests.is_empty() {
             return Err("native test graph has no targets or tests".into());
         }
+        let mut ui_outputs = BTreeSet::new();
         for (name, target) in &graph.targets {
+            for form in &target.qt.uic {
+                let stem = Path::new(form)
+                    .file_stem()
+                    .and_then(|stem| stem.to_str())
+                    .ok_or_else(|| format!("invalid Qt UI output for {form:?}"))?;
+                if !ui_outputs.insert(stem.to_ascii_lowercase()) {
+                    return Err(format!("duplicate Qt UI output ui_{stem}.h"));
+                }
+            }
             validate_name(name)?;
             for input in &target.watch_inputs {
                 if input.is_empty()
@@ -388,6 +474,7 @@ impl Graph {
                 .iter()
                 .chain(test.environment.values())
                 .chain(test.working_directory.iter())
+                .chain(test.environment_path_prepend.values().flatten())
             {
                 validate_template(value)?;
             }
@@ -443,7 +530,12 @@ impl Graph {
             let mut target = SharedLibrary {
                 name: name.into(),
                 cpp_standard: spec.cpp_standard,
-                include_dirs: vec![root.clone()],
+                include_dirs: spec
+                    .includes_before
+                    .iter()
+                    .map(|directory| root.join(directory))
+                    .chain(std::iter::once(root.clone()))
+                    .collect(),
                 dependencies: spec.dependency_artifacts(facts, libraries)?,
                 compile_options: spec
                     .compile_options
@@ -599,6 +691,41 @@ impl Graph {
                 &mut target,
                 spec.sanitizers.as_deref(),
             )?;
+            for (index, header) in spec.qt.moc.iter().enumerate() {
+                crate::qt::moc(
+                    &mut target,
+                    &root.join(header),
+                    &build
+                        .output
+                        .join("native-tests")
+                        .join(name)
+                        .join("generated")
+                        .join(format!("moc_{index}.cpp")),
+                )?;
+            }
+            let generated = build
+                .output
+                .join("native-tests")
+                .join(name)
+                .join("generated");
+            for form in &spec.qt.uic {
+                let stem = Path::new(form)
+                    .file_stem()
+                    .and_then(|name| name.to_str())
+                    .ok_or_else(|| format!("invalid Qt UI input {form:?}"))?;
+                crate::qt::uic(
+                    &mut target,
+                    &root.join(form),
+                    &generated.join(format!("ui_{stem}.h")),
+                )?;
+            }
+            for (index, resources) in spec.qt.rcc.iter().enumerate() {
+                crate::qt::rcc(
+                    &mut target,
+                    &root.join(resources),
+                    &generated.join(format!("qrc_{index}.cpp")),
+                )?;
+            }
             artifacts.insert(name.into(), build.executable(&target)?);
         }
         for directory in watched_inputs {

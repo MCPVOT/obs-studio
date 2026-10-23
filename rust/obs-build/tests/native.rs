@@ -3,6 +3,416 @@ use obs_build::{NativeBuild, SharedLibrary};
 use std::{fs, path::Path};
 
 #[test]
+fn native_test_graph_rejects_colliding_qt_ui_outputs() {
+    let root = tempfile::tempdir().unwrap();
+    let graph = serde_json::json!({"schema": 1, "targets": {
+        "first": {"sources": ["first.cpp"], "requires": false, "qt": {"uic": ["first/answer.ui"]}},
+        "second": {"sources": ["second.cpp"], "requires": false, "qt": {"uic": ["second/answer.ui"]}}
+    }, "tests": {"first": {"target": "first"}}});
+    assert!(
+        obs_build::validation::graph::Graph::parse(&graph.to_string())
+            .unwrap_err()
+            .contains("Qt UI output")
+    );
+    fs::write(root.path().join("graph.json"), graph.to_string()).unwrap();
+    let consumer =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../test/cmocka/native-test-graph.cmake");
+    fs::write(root.path().join("CMakeLists.txt"), format!("cmake_minimum_required(VERSION 3.28)\nproject(collision NONE)\ninclude(\"{}\")\nobs_native_test_graph(\"${{CMAKE_CURRENT_SOURCE_DIR}}/graph.json\" \"${{CMAKE_CURRENT_SOURCE_DIR}}\")\n", consumer.to_string_lossy().replace('\\', "/"))).unwrap();
+    let result = std::process::Command::new("cmake")
+        .args([
+            "-S",
+            root.path().to_str().unwrap(),
+            "-B",
+            root.path().join("output").to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    assert!(!result.status.success());
+    assert!(String::from_utf8_lossy(&result.stderr).contains("Qt UI output"));
+}
+
+#[test]
+#[cfg(feature = "libobs-integration")]
+fn canonical_remux_queue_runs_unchanged() {
+    use obs_build::validation::{self, graph::Dependency};
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let directory = tempfile::tempdir().unwrap();
+    let build = NativeBuild {
+        host: obs_build::BUILD_HOST.into(),
+        target: obs_build::BUILD_TARGET.into(),
+        output: directory.path().join("cargo-output"),
+        profile: Default::default(),
+    };
+    let interfaces = [
+        (
+            "Qt6::Widgets".into(),
+            Dependency::package(&build.target, "Qt6Widgets").unwrap(),
+        ),
+        (
+            "Qt6::Core".into(),
+            Dependency::package(&build.target, "Qt6Core").unwrap(),
+        ),
+        (
+            "OBS::native-test-cmocka".into(),
+            Dependency::package(&build.target, "cmocka").unwrap(),
+        ),
+    ]
+    .into();
+    let tests = validation::build_qt_tests(&build, &root, &interfaces).unwrap();
+    assert_eq!(tests.len(), 1);
+    for test in tests {
+        let result = test
+            .command(&root, &build.output)
+            .unwrap()
+            .output()
+            .unwrap();
+        assert!(
+            result.status.success(),
+            "{}\n{}",
+            String::from_utf8_lossy(&result.stdout),
+            String::from_utf8_lossy(&result.stderr)
+        );
+    }
+    let graph: serde_json::Value =
+        serde_json::from_slice(&fs::read(root.join("test/cmocka/build/test-graph.json")).unwrap())
+            .unwrap();
+    let selected = serde_json::json!({"schema": 1,
+        "targets": {"test_remux_queue_model": graph["targets"]["test_remux_queue_model"]},
+        "tests": {"test_remux_queue_model": graph["tests"]["test_remux_queue_model"]}});
+    fs::write(directory.path().join("graph.json"), selected.to_string()).unwrap();
+    let root = dunce::canonicalize(root)
+        .unwrap()
+        .to_string_lossy()
+        .replace('\\', "/");
+    fs::write(directory.path().join("CMakeLists.txt"), format!(
+        "cmake_minimum_required(VERSION 3.28)\nproject(remux CXX)\nenable_testing()\nfind_package(Qt6 REQUIRED COMPONENTS Widgets)\nfind_package(PkgConfig REQUIRED)\npkg_check_modules(CMOCKA REQUIRED IMPORTED_TARGET cmocka)\nadd_library(OBS::native-test-cmocka ALIAS PkgConfig::CMOCKA)\nset(HAVE_QT6_WIDGETS TRUE)\ninclude(\"{root}/test/cmocka/native-test-graph.cmake\")\nobs_native_test_graph(\"${{CMAKE_CURRENT_SOURCE_DIR}}/graph.json\" \"{root}\")\n"
+    )).unwrap();
+    let output = directory.path().join("cmake-output");
+    for (program, arguments) in [
+        (
+            "cmake",
+            vec![
+                "-S",
+                directory.path().to_str().unwrap(),
+                "-B",
+                output.to_str().unwrap(),
+            ],
+        ),
+        (
+            "cmake",
+            vec!["--build", output.to_str().unwrap(), "--config", "Release"],
+        ),
+        (
+            "ctest",
+            vec![
+                "--test-dir",
+                output.to_str().unwrap(),
+                "-C",
+                "Release",
+                "--output-on-failure",
+            ],
+        ),
+    ] {
+        let result = std::process::Command::new(program)
+            .args(arguments)
+            .output()
+            .unwrap();
+        assert!(
+            result.status.success(),
+            "{}\n{}",
+            String::from_utf8_lossy(&result.stdout),
+            String::from_utf8_lossy(&result.stderr)
+        );
+    }
+}
+
+#[test]
+fn native_test_graph_preserves_remux_queue_requirements() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let graph: serde_json::Value =
+        serde_json::from_slice(&fs::read(root.join("test/cmocka/build/test-graph.json")).unwrap())
+            .unwrap();
+    let target = &graph["targets"]["test_remux_queue_model"];
+    assert!(target.is_object(), "missing canonical remux queue target");
+    assert_eq!(
+        target["sources"],
+        serde_json::json!([
+            "test/cmocka/test_remux_queue_model.cpp",
+            "frontend/utility/RemuxQueueModel.cpp.hpp"
+        ])
+    );
+    assert_eq!(
+        target["qt"]["moc"],
+        serde_json::json!(["frontend/utility/RemuxQueueModel.hpp"])
+    );
+    assert_eq!(target["cpp_standard"], "17");
+    assert_eq!(target["requires"], "HAVE_QT6_WIDGETS");
+    assert_eq!(
+        target["includes_before"],
+        serde_json::json!(["test/cmocka/remux-queue-stubs"])
+    );
+    assert_eq!(
+        target["libraries"],
+        serde_json::json!(["Qt6::Widgets", "OBS::native-test-cmocka"])
+    );
+    assert_eq!(
+        target["watch_inputs"],
+        serde_json::json!(["test/cmocka/remux-queue-stubs"])
+    );
+    let test = &graph["tests"]["test_remux_queue_model"];
+    assert_eq!(test["target"], "test_remux_queue_model");
+    assert_eq!(test["suite"], "qt");
+    assert_eq!(test["timeout_seconds"], 120);
+    assert_eq!(test["qt_runtime"], "Qt6::Core");
+    let fragment =
+        fs::read_to_string(root.join("test/cmocka/tests.d/test_remux_queue_model.cmake")).unwrap();
+    assert!(!fragment.contains("add_executable("));
+}
+
+#[test]
+fn native_test_graph_prepends_runtime_paths_in_order() {
+    let directory = tempfile::tempdir().unwrap();
+    let root = directory.path();
+    fs::write(root.join("answer.c"), "int main(void) { return 0; }\n").unwrap();
+    let graph = serde_json::json!({
+        "schema": 1, "targets": {"answer": {"sources": ["answer.c"]}},
+        "tests": {"paths": {"target": "answer", "command": ["cmake", "-E", "environment"],
+            "environment": {"OBS_GRAPH_PATHS": "retained"},
+            "environment_path_prepend": {"OBS_GRAPH_PATHS": ["first directory", "second directory"]}}}
+    });
+    let parsed = obs_build::validation::graph::Graph::parse(&graph.to_string()).unwrap();
+    let expected =
+        std::env::join_paths(["first directory", "second directory", "retained"]).unwrap();
+    let mut command = parsed.tests["paths"]
+        .command(root, root, &root.join("answer"))
+        .unwrap();
+    let result = command.output().unwrap();
+    assert!(result.status.success());
+    let assignment = format!("OBS_GRAPH_PATHS={}", expected.to_str().unwrap());
+    assert!(
+        String::from_utf8_lossy(&result.stdout)
+            .lines()
+            .any(|line| line == assignment)
+    );
+    fs::write(root.join("graph.json"), graph.to_string()).unwrap();
+    let consumer =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../test/cmocka/native-test-graph.cmake");
+    fs::write(root.join("CMakeLists.txt"), format!(
+        "cmake_minimum_required(VERSION 3.28)\nproject(paths C)\nenable_testing()\ninclude(\"{}\")\nobs_native_test_graph(\"${{CMAKE_CURRENT_SOURCE_DIR}}/graph.json\" \"${{CMAKE_CURRENT_SOURCE_DIR}}\")\n", consumer.to_string_lossy().replace('\\', "/")
+    )).unwrap();
+    let output = root.join("cmake-output");
+    let result = std::process::Command::new("cmake")
+        .args(["-S", root.to_str().unwrap(), "-B", output.to_str().unwrap()])
+        .output()
+        .unwrap();
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    let result = std::process::Command::new("ctest")
+        .args(["--test-dir", output.to_str().unwrap(), "-V"])
+        .output()
+        .unwrap();
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stdout)
+    );
+    assert!(
+        String::from_utf8_lossy(&result.stdout)
+            .lines()
+            .any(|line| line.ends_with(&format!("1: {assignment}")))
+    );
+}
+
+#[test]
+#[cfg(feature = "libobs-integration")]
+fn native_test_graph_generates_qt_metaobjects() {
+    let directory = tempfile::tempdir().unwrap();
+    let root = directory.path();
+    fs::write(root.join("answer.hpp"), "#pragma once\n#include <QObject>\nclass Answer : public QObject {\n Q_OBJECT\n public: using QObject::QObject; Q_INVOKABLE int value() const { return 42; } };\n").unwrap();
+    fs::write(
+        root.join("twin.cpp"),
+        "#include \"answer.hpp\"\nint main() { Answer answer; return answer.value() != 42; }\n",
+    )
+    .unwrap();
+    fs::write(root.join("answer.ui"), r#"<?xml version="1.0"?><ui version="4.0"><class>AnswerForm</class><widget class="QWidget" name="AnswerForm"><property name="windowTitle"><string>Generated answer</string></property></widget><resources/><connections/></ui>"#).unwrap();
+    fs::write(
+        root.join("ui_answer.h"),
+        "#error stale source-tree generated header selected\n",
+    )
+    .unwrap();
+    fs::write(root.join("payload.txt"), "embedded answer 42").unwrap();
+    fs::write(
+        root.join("answer.qrc"),
+        "<RCC><qresource prefix=\"/proof\"><file>payload.txt</file></qresource></RCC>",
+    )
+    .unwrap();
+    fs::write(root.join("answer.cpp"), "#include \"answer.hpp\"\n#include <QMetaObject>\n#include <QApplication>\n#include <QFile>\n#include <ui_answer.h>\n#include <cstring>\nint main(int argc, char **argv) { QApplication app(argc, argv); QWidget widget; Ui::AnswerForm ui; ui.setupUi(&widget); if (widget.windowTitle() != \"Generated answer\") return 2; QFile file(\":/proof/payload.txt\"); if (!file.open(QIODevice::ReadOnly) || file.readAll() != \"embedded answer 42\") return 3; Answer answer; int value = 0; if (!QMetaObject::invokeMethod(&answer, \"value\", Qt::DirectConnection, Q_RETURN_ARG(int, value))) return 1; return value != 42 || std::strcmp(answer.metaObject()->className(), \"Answer\"); }\n").unwrap();
+    let graph = serde_json::json!({
+        "schema": 1,
+        "targets": {"twin": {
+            "sources": ["twin.cpp"], "cpp_standard": "17", "definitions": ["TWIN_METAOBJECT=1"],
+            "qt": {"moc": ["answer.hpp"]}, "libraries": ["Qt6::Core"]
+        }, "answer": {
+            "sources": ["answer.cpp"], "cpp_standard": "17",
+            "qt": {"moc": ["answer.hpp"], "uic": ["answer.ui"], "rcc": ["answer.qrc"]},
+            "libraries": ["Qt6::Widgets"]
+        }},
+        "tests": {"answer": {"target": "answer", "environment": {"QT_QPA_PLATFORM": "offscreen"}}, "twin": {"target": "twin"}}
+    });
+    let parsed = obs_build::validation::graph::Graph::parse(&graph.to_string()).unwrap();
+    let build = NativeBuild {
+        host: obs_build::BUILD_HOST.into(),
+        target: obs_build::BUILD_TARGET.into(),
+        output: root.join("cargo-output"),
+        profile: Default::default(),
+    };
+    let interfaces = [
+        (
+            "Qt6::Core".into(),
+            obs_build::validation::graph::Dependency::package(&build.target, "Qt6Core").unwrap(),
+        ),
+        (
+            "Qt6::Widgets".into(),
+            obs_build::validation::graph::Dependency::package(&build.target, "Qt6Widgets").unwrap(),
+        ),
+    ]
+    .into();
+    let artifacts = parsed
+        .compile(&build, root, &Default::default(), &interfaces)
+        .unwrap();
+    assert!(
+        std::process::Command::new(&artifacts["answer"])
+            .env("QT_QPA_PLATFORM", "offscreen")
+            .status()
+            .unwrap()
+            .success()
+    );
+    fs::write(root.join("graph.json"), graph.to_string()).unwrap();
+    let consumer =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../test/cmocka/native-test-graph.cmake");
+    fs::write(root.join("CMakeLists.txt"), format!(
+        "cmake_minimum_required(VERSION 3.28)\nproject(metaobjects CXX)\nenable_testing()\nfind_package(Qt6 REQUIRED COMPONENTS Widgets)\ninclude(\"{}\")\nobs_native_test_graph(\"${{CMAKE_CURRENT_SOURCE_DIR}}/graph.json\" \"${{CMAKE_CURRENT_SOURCE_DIR}}\")\nget_target_property(metaobjects answer AUTOMOC)\nif(NOT metaobjects)\nmessage(FATAL_ERROR \"Original per-target AUTOMOC must be preserved\")\nendif()\n", consumer.to_string_lossy().replace('\\', "/")
+    )).unwrap();
+    let output = root.join("cmake-output");
+    for (program, arguments) in [
+        (
+            "cmake",
+            vec!["-S", root.to_str().unwrap(), "-B", output.to_str().unwrap()],
+        ),
+        (
+            "cmake",
+            vec!["--build", output.to_str().unwrap(), "--config", "Release"],
+        ),
+        (
+            "ctest",
+            vec![
+                "--test-dir",
+                output.to_str().unwrap(),
+                "-C",
+                "Release",
+                "--output-on-failure",
+            ],
+        ),
+    ] {
+        let result = std::process::Command::new(program)
+            .args(arguments)
+            .output()
+            .unwrap();
+        assert!(
+            result.status.success(),
+            "{}\n{}",
+            String::from_utf8_lossy(&result.stdout),
+            String::from_utf8_lossy(&result.stderr)
+        );
+    }
+}
+
+#[test]
+fn native_test_graph_preserves_include_precedence() {
+    let directory = tempfile::tempdir().unwrap();
+    let root = directory.path();
+    fs::create_dir_all(root.join("stubs")).unwrap();
+    fs::create_dir_all(root.join("sources")).unwrap();
+    fs::write(
+        root.join("selected.h"),
+        "#error repository header won over stub\n",
+    )
+    .unwrap();
+    fs::write(root.join("stubs/selected.h"), "#define ANSWER 42\n").unwrap();
+    fs::write(
+        root.join("sources/answer.c"),
+        "#include <selected.h>\nint main(void) { return ANSWER != 42; }\n",
+    )
+    .unwrap();
+    let graph = serde_json::json!({
+        "schema": 1,
+        "targets": {"answer": {
+            "sources": ["sources/answer.c"],
+            "includes_before": ["stubs"]
+        }},
+        "tests": {"answer": {"target": "answer"}}
+    });
+    let parsed = obs_build::validation::graph::Graph::parse(&graph.to_string()).unwrap();
+    let build = NativeBuild {
+        host: obs_build::BUILD_HOST.into(),
+        target: obs_build::BUILD_TARGET.into(),
+        output: root.join("cargo-output"),
+        profile: Default::default(),
+    };
+    let artifacts = parsed
+        .compile(&build, root, &Default::default(), &Default::default())
+        .unwrap();
+    assert!(
+        std::process::Command::new(&artifacts["answer"])
+            .status()
+            .unwrap()
+            .success()
+    );
+    fs::write(root.join("graph.json"), graph.to_string()).unwrap();
+    let consumer =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../test/cmocka/native-test-graph.cmake");
+    fs::write(root.join("CMakeLists.txt"), format!(
+        "cmake_minimum_required(VERSION 3.28)\nproject(precedence C)\ninclude_directories(\"${{CMAKE_CURRENT_SOURCE_DIR}}\")\nenable_testing()\ninclude(\"{}\")\nobs_native_test_graph(\"${{CMAKE_CURRENT_SOURCE_DIR}}/graph.json\" \"${{CMAKE_CURRENT_SOURCE_DIR}}\")\n",
+        consumer.to_string_lossy().replace('\\', "/")
+    )).unwrap();
+    let output = root.join("cmake-output");
+    for (program, arguments) in [
+        (
+            "cmake",
+            vec!["-S", root.to_str().unwrap(), "-B", output.to_str().unwrap()],
+        ),
+        (
+            "cmake",
+            vec!["--build", output.to_str().unwrap(), "--config", "Release"],
+        ),
+        (
+            "ctest",
+            vec![
+                "--test-dir",
+                output.to_str().unwrap(),
+                "-C",
+                "Release",
+                "--output-on-failure",
+            ],
+        ),
+    ] {
+        let result = std::process::Command::new(program)
+            .args(arguments)
+            .output()
+            .unwrap();
+        assert!(
+            result.status.success(),
+            "{}\n{}",
+            String::from_utf8_lossy(&result.stdout),
+            String::from_utf8_lossy(&result.stderr)
+        );
+    }
+}
+
+#[test]
 fn native_test_graph_preserves_cpp_standard_without_changing_c_compilation() {
     let directory = tempfile::tempdir().unwrap();
     let root = directory.path();
@@ -820,8 +1230,15 @@ fn native_test_graph_replaces_legacy_utility_definitions() {
         ("HAVE_OBS_FILTERS".into(), false),
         ("HAVE_OBS_PIPEWIRE".into(), false),
         ("HAVE_OBS_PULSEAUDIO".into(), false),
+        ("HAVE_QT6_WIDGETS".into(), false),
     ]);
-    for (suite, count) in [("core", 138), ("graphics", 12), ("vlc", 6), ("webrtc", 2)] {
+    for (suite, count) in [
+        ("core", 138),
+        ("graphics", 12),
+        ("vlc", 6),
+        ("webrtc", 2),
+        ("qt", 1),
+    ] {
         let mut partition = obs_build::validation::graph::Graph::load(
             &root.join("test/cmocka/build/test-graph.json"),
         )
