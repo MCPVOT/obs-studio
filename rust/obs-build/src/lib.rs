@@ -41,6 +41,25 @@ pub enum LibraryKind {
     Module,
 }
 
+/// Required ISO C++ mode. Native tests and application targets share this
+/// setting, including their PCH compilation; C sources keep their own flags.
+#[derive(Clone, Copy, Debug, serde::Deserialize)]
+pub enum CppStandard {
+    #[serde(rename = "17")]
+    Cpp17,
+    #[serde(rename = "20")]
+    Cpp20,
+}
+
+impl CppStandard {
+    fn compiler_name(self) -> &'static str {
+        match self {
+            Self::Cpp17 => "c++17",
+            Self::Cpp20 => "c++20",
+        }
+    }
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct SharedLibrary {
     pub name: String,
@@ -62,6 +81,7 @@ pub struct SharedLibrary {
     pub compile_options: Vec<String>,
     pub c_compile_options: Vec<String>,
     pub cpp_compile_options: Vec<String>,
+    pub cpp_standard: Option<CppStandard>,
     /// Extra flags for Objective-C, in addition to the C-family options.
     pub objc_compile_options: Vec<String>,
     /// Extra flags for Objective-C++, in addition to the C++-family options.
@@ -519,6 +539,9 @@ impl NativeBuild {
         } else {
             &library.c_compile_options
         });
+        if cpp && let Some(standard) = library.cpp_standard {
+            compiler.std(standard.compiler_name());
+        }
         compiler
     }
 }

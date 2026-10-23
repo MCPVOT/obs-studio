@@ -3,6 +3,149 @@ use obs_build::{NativeBuild, SharedLibrary};
 use std::{fs, path::Path};
 
 #[test]
+fn native_test_graph_preserves_cpp_standard_without_changing_c_compilation() {
+    let directory = tempfile::tempdir().unwrap();
+    let root = directory.path();
+    fs::write(
+        root.join("answer.c"),
+        "#ifdef __cplusplus\n#error C source compiled as C++\n#endif\ntypedef char c_integer_width[(sizeof(int) >= 2) ? 1 : -1];\nint c_answer(void) { return 42; }\n",
+    )
+    .unwrap();
+    fs::write(
+        root.join("answer.cpp"),
+        "#include <bit>\n#if defined(__GNUC__) && !defined(__STRICT_ANSI__)\n#error ISO C++ mode required\n#endif\nextern \"C\" int c_answer(void);\nconsteval unsigned answer_bits() { return std::bit_width(42u); }\nstatic_assert(answer_bits() == 6);\nint main() { return c_answer() != 42; }\n",
+    )
+    .unwrap();
+    let graph = serde_json::json!({
+        "schema": 1,
+        "targets": {"answer": {"sources": ["answer.c", "answer.cpp"], "cpp_standard": "20"}},
+        "tests": {"answer": {"target": "answer"}}
+    });
+    let parsed = obs_build::validation::graph::Graph::parse(&graph.to_string()).unwrap();
+    let build = NativeBuild {
+        host: obs_build::BUILD_HOST.into(),
+        target: obs_build::BUILD_TARGET.into(),
+        output: root.join("cargo-output"),
+        profile: Default::default(),
+    };
+    let artifacts = parsed
+        .compile(&build, root, &Default::default(), &Default::default())
+        .unwrap();
+    assert!(
+        std::process::Command::new(&artifacts["answer"])
+            .status()
+            .unwrap()
+            .success()
+    );
+    fs::write(root.join("graph.json"), graph.to_string()).unwrap();
+    let consumer =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../test/cmocka/native-test-graph.cmake");
+    fs::write(
+        root.join("CMakeLists.txt"),
+        format!(
+            "cmake_minimum_required(VERSION 3.28)\nproject(standards C CXX)\nenable_testing()\nset(CMAKE_CXX_STANDARD 11)\ninclude(\"{}\")\nobs_native_test_graph(\"${{CMAKE_CURRENT_SOURCE_DIR}}/graph.json\" \"${{CMAKE_CURRENT_SOURCE_DIR}}\")\nget_target_property(extensions answer CXX_EXTENSIONS)\nif(extensions MATCHES \"NOTFOUND$\" OR extensions)\nmessage(FATAL_ERROR \"C++ extensions must be disabled\")\nendif()\n",
+            consumer.to_string_lossy().replace('\\', "/")
+        ),
+    )
+    .unwrap();
+    let output = root.join("cmake-output");
+    for (program, arguments) in [
+        (
+            "cmake",
+            vec!["-S", root.to_str().unwrap(), "-B", output.to_str().unwrap()],
+        ),
+        (
+            "cmake",
+            vec!["--build", output.to_str().unwrap(), "--config", "Release"],
+        ),
+        (
+            "ctest",
+            vec![
+                "--test-dir",
+                output.to_str().unwrap(),
+                "-C",
+                "Release",
+                "--output-on-failure",
+            ],
+        ),
+    ] {
+        let result = std::process::Command::new(program)
+            .args(arguments)
+            .output()
+            .unwrap();
+        assert!(
+            result.status.success(),
+            "{}\n{}",
+            String::from_utf8_lossy(&result.stdout),
+            String::from_utf8_lossy(&result.stderr)
+        );
+    }
+    for value in [
+        serde_json::json!(17),
+        serde_json::json!(""),
+        serde_json::json!("99"),
+        serde_json::json!(true),
+    ] {
+        let mut invalid = graph.clone();
+        invalid["targets"]["answer"]["cpp_standard"] = value;
+        assert!(obs_build::validation::graph::Graph::parse(&invalid.to_string()).is_err());
+        fs::write(root.join("graph.json"), invalid.to_string()).unwrap();
+        let result = std::process::Command::new("cmake")
+            .args(["-S", root.to_str().unwrap(), "-B", output.to_str().unwrap()])
+            .output()
+            .unwrap();
+        assert!(!result.status.success());
+        assert!(String::from_utf8_lossy(&result.stderr).contains("cpp_standard"));
+    }
+}
+
+#[test]
+fn native_test_graph_preserves_cpp_helper_build_requirements() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let raw: serde_json::Value =
+        serde_json::from_slice(&fs::read(root.join("test/cmocka/build/test-graph.json")).unwrap())
+            .unwrap();
+    for (name, implementation) in [
+        ("test_disk_space_monitor", Some("disk-space-monitor")),
+        (
+            "test_scene_collection_migration",
+            Some("scene-collection-migration"),
+        ),
+        ("test_crash_sentinel_dir", Some("crash-sentinel-dir")),
+        ("test_settings_migration", None),
+        ("test_output_start_log", None),
+        ("test_unclean_launch", None),
+    ] {
+        let target = &raw["targets"][name];
+        assert!(target.is_object(), "missing canonical {name}");
+        let mut sources = vec![format!("test/cmocka/{name}.cpp")];
+        if let Some(implementation) = implementation {
+            sources.push(format!("frontend/utility/{implementation}.cpp.hpp"));
+        }
+        assert_eq!(target["sources"], serde_json::json!(sources));
+        assert_eq!(target["cpp_standard"], "17");
+        assert_eq!(target["includes"], serde_json::json!(["frontend/utility"]));
+        let mut watched = vec!["frontend/utility".to_owned()];
+        if let Some(implementation) = implementation {
+            watched.push(format!(
+                "frontend/build/frontend-utility-{implementation}.pch.hpp"
+            ));
+        }
+        assert_eq!(target["watch_inputs"], serde_json::json!(watched));
+        let mut libraries = vec!["OBS::libobs"];
+        if name == "test_disk_space_monitor" {
+            libraries.push("Threads::Threads");
+        }
+        libraries.push("OBS::native-test-cmocka");
+        assert_eq!(target["libraries"], serde_json::json!(libraries));
+        assert_eq!(raw["tests"][name]["target"], name);
+        let fragment =
+            fs::read_to_string(root.join(format!("test/cmocka/tests.d/{name}.cmake"))).unwrap();
+        assert!(!fragment.contains("add_executable("));
+    }
+}
+
+#[test]
 fn native_test_graph_cmake_builds_and_runs_selected_contract() {
     let fixture = tempfile::tempdir().unwrap();
     let root = fixture.path();
@@ -678,7 +821,7 @@ fn native_test_graph_replaces_legacy_utility_definitions() {
         ("HAVE_OBS_PIPEWIRE".into(), false),
         ("HAVE_OBS_PULSEAUDIO".into(), false),
     ]);
-    for (suite, count) in [("core", 132), ("graphics", 12), ("vlc", 6), ("webrtc", 2)] {
+    for (suite, count) in [("core", 138), ("graphics", 12), ("vlc", 6), ("webrtc", 2)] {
         let mut partition = obs_build::validation::graph::Graph::load(
             &root.join("test/cmocka/build/test-graph.json"),
         )

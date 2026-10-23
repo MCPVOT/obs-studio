@@ -234,8 +234,16 @@ function(obs_native_test_graph path root)
       _obs_test_graph_fields(
         "${graph}"
         "targets;${name}"
-        "sources;requires;includes;definitions;artifact_definitions;watch_inputs;packages;header_packages;header_libraries;archives;libraries;compile_options;compile_options_if_supported;link_options;sanitizers"
+        "sources;cpp_standard;requires;includes;definitions;artifact_definitions;watch_inputs;packages;header_packages;header_libraries;archives;libraries;compile_options;compile_options_if_supported;link_options;sanitizers"
       )
+      string(JSON cpp_kind ERROR_VARIABLE cpp_error TYPE "${graph}" targets "${name}" cpp_standard)
+      set(cpp_standard "")
+      if(NOT cpp_error AND NOT cpp_kind STREQUAL "NULL")
+        string(JSON cpp_standard GET "${graph}" targets "${name}" cpp_standard)
+        if(NOT cpp_kind STREQUAL "STRING" OR NOT cpp_standard MATCHES "^(17|20)$")
+          message(FATAL_ERROR "Invalid native test cpp_standard for ${name}: expected 17 or 20 as a string")
+        endif()
+      endif()
       _obs_test_graph_requirement(selected "${graph}" targets "${name}" requires)
       if(NOT selected)
         continue()
@@ -283,6 +291,12 @@ function(obs_native_test_graph path root)
         endif()
       endforeach()
       add_executable(${name} ${inputs})
+      if(NOT cpp_standard STREQUAL "")
+        set_target_properties(
+          ${name}
+          PROPERTIES CXX_STANDARD ${cpp_standard} CXX_STANDARD_REQUIRED TRUE CXX_EXTENSIONS FALSE
+        )
+      endif()
       target_include_directories(${name} PRIVATE "${root}")
       list(APPEND selected_targets "${name}")
       if(TARGET cmocka-tests)

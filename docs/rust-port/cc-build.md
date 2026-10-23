@@ -805,6 +805,29 @@ build and both test modes on `ca331a93d`.
 
 ## Building the C tests through Cargo
 
+The current shared inventory is `test/cmocka/build/test-graph.json`, consumed by
+both `validation::build_c_tests` and `test/cmocka/native-test-graph.cmake`. The
+independent Linux manifest described in the initial results below was retired
+in #1805. The graph currently contains 158 targets: 138 core, 12 graphics,
+six VLC and two WHIP. This remains a subset of the repository's native tests;
+Cargo compilation of these tests currently runs on Linux.
+
+Targets may specify `"cpp_standard": "17"` or `"cpp_standard": "20"`.
+The typed native model passes the requested ISO mode to `cc::Build` only for
+C++/Objective-C++ compilation. The CMake consumer requires the same standard
+and disables C++ extensions, matching the OBS compiler configuration. Omitting
+the field retains the existing compiler settings; invalid values fail graph
+configuration. A mixed C/C++20 executable contract compiles and runs through
+both consumers and checks that C compilation retains its own language mode.
+
+The Qt-free disk-space monitor, scene-collection migration, crash-sentinel
+directory, settings migration, output-start logging and unclean-launch tests
+now use this model with their original C++17 sources, includes and library
+links. Their indirect frontend utility headers are tracked as build inputs.
+Existing C/C++ test sources and public headers remain unchanged.
+
+### Initial native test migration (historical)
+
 `validation::build_c_tests` builds the 51 previously selected, unchanged C test
 executables through the native engine, using an explicit source/dependency
 inventory in `rust/obs-build/manifests/c-tests-linux.json`. It invokes no CMake.

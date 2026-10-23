@@ -357,6 +357,11 @@ fn seek_tell_and_size_match() {
 /// backup files afterwards.
 #[test]
 fn safe_write_matches_the_c_file() {
+    // A concurrent Windows child can inherit a C stdio handle and block the
+    // replacement after fclose. Keep the whole parity matrix in one child.
+    if !crate::common::isolated(concat!(module_path!(), "::safe_write_matches_the_c_file")) {
+        return;
+    }
     let exts: [Option<&CStr>; 4] = [None, Some(c""), Some(c"tmp"), Some(c".tmp")];
     let backups: [Option<&CStr>; 4] = [None, Some(c""), Some(c"bak"), Some(c".bak")];
     let opt = |e: Option<&CStr>| e.map_or(ptr::null(), CStr::as_ptr);

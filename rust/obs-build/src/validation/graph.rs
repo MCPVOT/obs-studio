@@ -104,6 +104,8 @@ impl Source {
 pub struct Target {
     pub sources: Vec<Source>,
     #[serde(default)]
+    pub cpp_standard: Option<crate::CppStandard>,
+    #[serde(default)]
     pub requires: Requirement,
     #[serde(default)]
     pub includes: Vec<String>,
@@ -440,6 +442,7 @@ impl Graph {
         for (name, spec) in selected.targets {
             let mut target = SharedLibrary {
                 name: name.into(),
+                cpp_standard: spec.cpp_standard,
                 include_dirs: vec![root.clone()],
                 dependencies: spec.dependency_artifacts(facts, libraries)?,
                 compile_options: spec
