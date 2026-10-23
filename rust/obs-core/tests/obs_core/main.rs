@@ -5,6 +5,8 @@ mod audio_mix;
 mod audio_mix_parity;
 mod context_names;
 mod context_names_parity;
+mod module_locale;
+mod module_locale_parity;
 mod module_names;
 mod module_names_parity;
 mod module_paths;
