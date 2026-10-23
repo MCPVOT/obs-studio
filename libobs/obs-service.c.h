@@ -29,12 +29,6 @@ const struct obs_service_info *find_service(const char *id)
 	return NULL;
 }
 
-const char *obs_service_get_display_name(const char *id)
-{
-	const struct obs_service_info *info = find_service(id);
-	return (info != NULL) ? info->get_name(info->type_data) : NULL;
-}
-
 obs_module_t *obs_service_get_module(const char *id)
 {
 	obs_module_t *module = obs->first_module;
@@ -140,80 +134,6 @@ void obs_service_destroy(obs_service_t *service)
 	}
 }
 
-const char *obs_service_get_name(const obs_service_t *service)
-{
-	return obs_service_valid(service, "obs_service_get_name") ? service->context.name : NULL;
-}
-
-static inline obs_data_t *service_get_defaults(const struct obs_service_info *info)
-{
-	obs_data_t *settings = obs_data_create();
-	if (info->get_defaults)
-		info->get_defaults(settings);
-	return settings;
-}
-
-obs_data_t *obs_service_defaults(const char *id)
-{
-	const struct obs_service_info *info = find_service(id);
-	return (info) ? service_get_defaults(info) : NULL;
-}
-
-obs_properties_t *obs_get_service_properties(const char *id)
-{
-	const struct obs_service_info *info = find_service(id);
-	if (info && info->get_properties) {
-		obs_data_t *defaults = service_get_defaults(info);
-		obs_properties_t *properties;
-
-		properties = info->get_properties(NULL);
-		obs_properties_apply_settings(properties, defaults);
-		obs_data_release(defaults);
-		return properties;
-	}
-	return NULL;
-}
-
-obs_properties_t *obs_service_properties(const obs_service_t *service)
-{
-	if (!obs_service_valid(service, "obs_service_properties"))
-		return NULL;
-
-	if (service->info.get_properties) {
-		obs_properties_t *props;
-		props = service->info.get_properties(service->context.data);
-		obs_properties_apply_settings(props, service->context.settings);
-		return props;
-	}
-
-	return NULL;
-}
-
-const char *obs_service_get_type(const obs_service_t *service)
-{
-	return obs_service_valid(service, "obs_service_get_type") ? service->info.id : NULL;
-}
-
-void obs_service_update(obs_service_t *service, obs_data_t *settings)
-{
-	if (!obs_service_valid(service, "obs_service_update"))
-		return;
-
-	obs_data_apply(service->context.settings, settings);
-
-	if (service->info.update)
-		service->info.update(service->context.data, service->context.settings);
-}
-
-obs_data_t *obs_service_get_settings(const obs_service_t *service)
-{
-	if (!obs_service_valid(service, "obs_service_get_settings"))
-		return NULL;
-
-	obs_data_addref(service->context.settings);
-	return service->context.settings;
-}
-
 signal_handler_t *obs_service_get_signal_handler(const obs_service_t *service)
 {
 	return obs_service_valid(service, "obs_service_get_signal_handler") ? service->context.signals : NULL;
@@ -278,19 +198,6 @@ bool obs_service_initialize(struct obs_service *service, struct obs_output *outp
 	if (service->info.initialize)
 		return service->info.initialize(service->context.data, output);
 	return true;
-}
-
-void obs_service_apply_encoder_settings(obs_service_t *service, obs_data_t *video_encoder_settings,
-					obs_data_t *audio_encoder_settings)
-{
-	if (!obs_service_valid(service, "obs_service_apply_encoder_settings"))
-		return;
-	if (!service->info.apply_encoder_settings)
-		return;
-
-	if (video_encoder_settings || audio_encoder_settings)
-		service->info.apply_encoder_settings(service->context.data, video_encoder_settings,
-						     audio_encoder_settings);
 }
 
 void obs_service_release(obs_service_t *service)
@@ -359,16 +266,6 @@ bool obs_weak_service_references_service(obs_weak_service_t *weak, obs_service_t
 	return weak && service && weak->service == service;
 }
 
-void *obs_service_get_type_data(obs_service_t *service)
-{
-	return obs_service_valid(service, "obs_service_get_type_data") ? service->info.type_data : NULL;
-}
-
-const char *obs_service_get_id(const obs_service_t *service)
-{
-	return obs_service_valid(service, "obs_service_get_id") ? service->info.id : NULL;
-}
-
 /* For the getters in obs-service-getters.c, which no longer see struct
  * obs_service: the plugin's callback table this service was created with.
  * Hidden; the Rust port calls it and obs_service_get_plugin_data() too
@@ -382,6 +279,18 @@ const struct obs_service_info *obs_service_get_info_table(const obs_service_t *s
 void *obs_service_get_plugin_data(const obs_service_t *service)
 {
 	return service->context.data;
+}
+
+/* The context fields the settings and identity functions in
+ * obs-service-getters.c read, for them and their Rust port (#1913). Hidden. */
+const char *obs_service_get_context_name(const obs_service_t *service)
+{
+	return service->context.name;
+}
+
+obs_data_t *obs_service_get_context_settings(const obs_service_t *service)
+{
+	return service->context.settings;
 }
 
 /* File-local macros: keep them out of the next source of a unity build. */

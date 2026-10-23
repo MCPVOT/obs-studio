@@ -16,7 +16,7 @@
 use core::ffi::{CStr, c_char, c_int, c_void};
 use core::ptr;
 
-use crate::service::{self, Callbacks, NullLog};
+use crate::service::{self, Callbacks, Host, NullLog, Service, Type};
 
 /// `struct obs_service_resolution` (`obs-service.h`).
 #[repr(C)]
@@ -76,6 +76,14 @@ unsafe extern "C" {
     fn blog(level: c_int, format: *const c_char, ...);
     fn obs_service_get_plugin_data(service: *const c_void) -> *mut c_void;
     fn obs_service_get_info_table(service: *const c_void) -> *const ObsServiceInfo;
+    fn obs_service_get_context_name(service: *const c_void) -> *const c_char;
+    fn obs_service_get_context_settings(service: *const c_void) -> *mut c_void;
+    fn find_service(id: *const c_char) -> *const ObsServiceInfo;
+    fn obs_data_create() -> *mut c_void;
+    fn obs_data_apply(target: *mut c_void, apply_data: *mut c_void);
+    fn obs_data_addref(data: *mut c_void);
+    fn obs_data_release(data: *mut c_void);
+    fn obs_properties_apply_settings(props: *mut c_void, settings: *mut c_void);
 }
 
 /// A live service: its callback table and its plugin data.
@@ -321,4 +329,301 @@ pub unsafe extern "C" fn obs_service_get_supported_audio_codecs(
     // SAFETY: live (caller contract).
     let s = unsafe { CService::new(service) };
     service::audio_codecs(&s).unwrap_or(ptr::null_mut())
+}
+
+// ---------------------------------------------------------------------------
+// Settings, properties and identity (#1913). The context fields come through
+// the hidden obs_service_get_context_*() accessors, the type of an id
+// through find_service(), and the obs_data_t / obs_properties_t calls go to
+// libobs.
+
+/// libobs' `obs_data_*` and `obs_properties_apply_settings`.
+struct CHost;
+
+// SAFETY, every call below: libobs functions with the pointers the C
+// passes them, as the C does.
+impl Host for CHost {
+    type Data = *mut c_void;
+    type Props = *mut c_void;
+
+    fn data_create(&self) -> *mut c_void {
+        unsafe { obs_data_create() }
+    }
+    fn data_apply(&self, target: *mut c_void, apply: Option<*mut c_void>) {
+        unsafe { obs_data_apply(target, apply.unwrap_or(ptr::null_mut())) }
+    }
+    fn data_addref(&self, data: *mut c_void) {
+        unsafe { obs_data_addref(data) }
+    }
+    fn data_release(&self, data: *mut c_void) {
+        unsafe { obs_data_release(data) }
+    }
+    fn properties_apply_settings(&self, props: *mut c_void, settings: *mut c_void) {
+        unsafe { obs_properties_apply_settings(props, settings) }
+    }
+}
+
+/// A registered table, as the type of the functions of #1913 (private, so
+/// its callers stay behind the `unsafe` shims).
+#[repr(transparent)]
+struct CType(ObsServiceInfo);
+
+impl CType {
+    fn of(info: &ObsServiceInfo) -> &CType {
+        // SAFETY: repr(transparent) over ObsServiceInfo.
+        unsafe { &*ptr::from_ref(info).cast::<CType>() }
+    }
+}
+
+impl core::ops::Deref for CType {
+    type Target = ObsServiceInfo;
+    fn deref(&self) -> &ObsServiceInfo {
+        &self.0
+    }
+}
+
+// SAFETY, every call below: a plugin callback of this registered table, as
+// the C calls it.
+impl Type<CHost> for CType {
+    type Str = *const c_char;
+    type Ptr = *mut c_void;
+
+    fn id(&self) -> *const c_char {
+        self.id
+    }
+    fn type_data(&self) -> *mut c_void {
+        self.type_data
+    }
+    fn display_name(&self) -> *const c_char {
+        let f = self
+            .get_name
+            .expect("obs_register_service requires get_name");
+        unsafe { f(self.type_data) }
+    }
+    fn defaults(&self, settings: *mut c_void) -> bool {
+        self.get_defaults.map(|f| unsafe { f(settings) }).is_some()
+    }
+    fn has_properties(&self) -> bool {
+        self.get_properties.is_some()
+    }
+    fn properties(&self, data: *mut c_void) -> *mut c_void {
+        self.get_properties
+            .map_or(ptr::null_mut(), |f| unsafe { f(data) })
+    }
+    fn update(&self, data: *mut c_void, settings: *mut c_void) -> bool {
+        self.update.map(|f| unsafe { f(data, settings) }).is_some()
+    }
+    fn has_apply_encoder_settings(&self) -> bool {
+        self.apply_encoder_settings.is_some()
+    }
+    fn apply_encoder_settings(
+        &self,
+        data: *mut c_void,
+        video: Option<*mut c_void>,
+        audio: Option<*mut c_void>,
+    ) {
+        if let Some(f) = self.apply_encoder_settings {
+            unsafe {
+                f(
+                    data,
+                    video.unwrap_or(ptr::null_mut()),
+                    audio.unwrap_or(ptr::null_mut()),
+                )
+            }
+        }
+    }
+}
+
+/// A live service with its context, for the functions of #1913.
+struct CContext {
+    service: *const c_void,
+    inner: CService,
+}
+
+impl CContext {
+    /// # Safety
+    ///
+    /// `service` is NULL or a live `obs_service_t`.
+    unsafe fn wrap(service: *const c_void) -> Option<Self> {
+        // SAFETY: live when not NULL (caller contract).
+        (!service.is_null()).then(|| CContext {
+            service,
+            inner: unsafe { CService::new(service) },
+        })
+    }
+}
+
+// SAFETY, every call below: a hidden accessor of a live service.
+impl Service<CHost> for CContext {
+    type Type = CType;
+
+    fn info(&self) -> &CType {
+        CType::of(self.inner.info())
+    }
+    fn data(&self) -> *mut c_void {
+        self.inner.data
+    }
+    fn name(&self) -> *const c_char {
+        unsafe { obs_service_get_context_name(self.service) }
+    }
+    fn settings(&self) -> *mut c_void {
+        unsafe { obs_service_get_context_settings(self.service) }
+    }
+}
+
+/// `find_service(id)`.
+///
+/// # Safety
+///
+/// `id` is a C string; libobs is started.
+unsafe fn find(id: *const c_char) -> Option<&'static CType> {
+    // SAFETY: the registered table lives until obs_shutdown.
+    unsafe { find_service(id).as_ref() }.map(CType::of)
+}
+
+fn nullable(data: *mut c_void) -> Option<*mut c_void> {
+    (!data.is_null()).then_some(data)
+}
+
+/// Same contract as C `obs_service_get_display_name`.
+///
+/// # Safety
+///
+/// `id` is a C string.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn obs_service_get_display_name(id: *const c_char) -> *const c_char {
+    // SAFETY: forwarded caller contract.
+    let info = unsafe { find(id) };
+    service::display_name::<CHost, _>(info).unwrap_or(ptr::null())
+}
+
+/// Same contract as C `obs_service_defaults`.
+///
+/// # Safety
+///
+/// `id` is a C string.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn obs_service_defaults(id: *const c_char) -> *mut c_void {
+    // SAFETY: forwarded caller contract.
+    let info = unsafe { find(id) };
+    service::defaults(&CHost, info).unwrap_or(ptr::null_mut())
+}
+
+/// Same contract as C `obs_get_service_properties`.
+///
+/// # Safety
+///
+/// `id` is a C string.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn obs_get_service_properties(id: *const c_char) -> *mut c_void {
+    // SAFETY: forwarded caller contract.
+    let info = unsafe { find(id) };
+    service::type_properties(&CHost, info).unwrap_or(ptr::null_mut())
+}
+
+/// Same contract as C `obs_service_get_name`.
+///
+/// # Safety
+///
+/// `service` is NULL or a live `obs_service_t`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn obs_service_get_name(service: *const c_void) -> *const c_char {
+    // SAFETY: forwarded caller contract.
+    let s = unsafe { CContext::wrap(service) };
+    service::name::<CHost, _>(s.as_ref(), &CLog).unwrap_or(ptr::null())
+}
+
+/// Same contract as C `obs_service_get_type`.
+///
+/// # Safety
+///
+/// `service` is NULL or a live `obs_service_t`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn obs_service_get_type(service: *const c_void) -> *const c_char {
+    // SAFETY: forwarded caller contract.
+    let s = unsafe { CContext::wrap(service) };
+    service::type_id::<CHost, _>(s.as_ref(), &CLog).unwrap_or(ptr::null())
+}
+
+/// Same contract as C `obs_service_get_id`.
+///
+/// # Safety
+///
+/// `service` is NULL or a live `obs_service_t`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn obs_service_get_id(service: *const c_void) -> *const c_char {
+    // SAFETY: forwarded caller contract.
+    let s = unsafe { CContext::wrap(service) };
+    service::id::<CHost, _>(s.as_ref(), &CLog).unwrap_or(ptr::null())
+}
+
+/// Same contract as C `obs_service_get_type_data`.
+///
+/// # Safety
+///
+/// `service` is NULL or a live `obs_service_t`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn obs_service_get_type_data(service: *mut c_void) -> *mut c_void {
+    // SAFETY: forwarded caller contract.
+    let s = unsafe { CContext::wrap(service) };
+    service::type_data::<CHost, _>(s.as_ref(), &CLog).unwrap_or(ptr::null_mut())
+}
+
+/// Same contract as C `obs_service_properties`.
+///
+/// # Safety
+///
+/// `service` is NULL or a live `obs_service_t`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn obs_service_properties(service: *const c_void) -> *mut c_void {
+    // SAFETY: forwarded caller contract.
+    let s = unsafe { CContext::wrap(service) };
+    service::properties(&CHost, s.as_ref(), &CLog).unwrap_or(ptr::null_mut())
+}
+
+/// Same contract as C `obs_service_update`.
+///
+/// # Safety
+///
+/// `service` is NULL or a live `obs_service_t`; `settings` is NULL or a
+/// live `obs_data_t`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn obs_service_update(service: *mut c_void, settings: *mut c_void) {
+    // SAFETY: forwarded caller contract.
+    let s = unsafe { CContext::wrap(service) };
+    service::update(&CHost, s.as_ref(), &CLog, nullable(settings));
+}
+
+/// Same contract as C `obs_service_get_settings`.
+///
+/// # Safety
+///
+/// `service` is NULL or a live `obs_service_t`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn obs_service_get_settings(service: *const c_void) -> *mut c_void {
+    // SAFETY: forwarded caller contract.
+    let s = unsafe { CContext::wrap(service) };
+    service::settings(&CHost, s.as_ref(), &CLog).unwrap_or(ptr::null_mut())
+}
+
+/// Same contract as C `obs_service_apply_encoder_settings`.
+///
+/// # Safety
+///
+/// `service` is NULL or a live `obs_service_t`; each settings object is
+/// NULL or a live `obs_data_t`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn obs_service_apply_encoder_settings(
+    service: *mut c_void,
+    video_encoder_settings: *mut c_void,
+    audio_encoder_settings: *mut c_void,
+) {
+    // SAFETY: forwarded caller contract.
+    let s = unsafe { CContext::wrap(service) };
+    service::apply_encoder_settings::<CHost, _>(
+        s.as_ref(),
+        &CLog,
+        nullable(video_encoder_settings),
+        nullable(audio_encoder_settings),
+    );
 }

@@ -513,8 +513,10 @@ dependencies = [
  "obs-callback",
  "obs-codec",
  "obs-core",
+ "obs-data",
  "obs-graphics",
  "obs-output",
+ "obs-properties",
  "obs-util",
  "pkg-config",
 ]

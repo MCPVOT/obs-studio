@@ -1,5 +1,6 @@
 //! `oracle_*` build of `libobs/obs-service-getters.c.h`
-//! (oracle/service_getters.c): the nine service getters, renamed, plus a
+//! (oracle/service_getters.c): the service getters (#1899) and the settings,
+//! properties and identity functions (#1913), renamed, plus a
 //! constructor for the `struct obs_service` both the C and the Rust shims
 //! read, and the layout of `struct obs_service_info`.
 
@@ -10,6 +11,30 @@ unsafe extern "C" {
     /// plugin data. Free with [`oracle_service_free`].
     pub fn oracle_service_new(info: *const c_void, data: *mut c_void) -> *mut c_void;
     pub fn oracle_service_free(service: *mut c_void);
+    /// Sets the context fields #1913 reads.
+    pub fn oracle_service_set_context(
+        service: *mut c_void,
+        name: *mut c_char,
+        settings: *mut c_void,
+    );
+    /// The table `find_service()` searches, on both sides (NULL, 0: none).
+    pub fn oracle_service_set_types(types: *const c_void, num: usize);
+
+    pub fn oracle_obs_service_get_display_name(id: *const c_char) -> *const c_char;
+    pub fn oracle_obs_service_defaults(id: *const c_char) -> *mut c_void;
+    pub fn oracle_obs_get_service_properties(id: *const c_char) -> *mut c_void;
+    pub fn oracle_obs_service_get_name(service: *const c_void) -> *const c_char;
+    pub fn oracle_obs_service_get_type(service: *const c_void) -> *const c_char;
+    pub fn oracle_obs_service_get_id(service: *const c_void) -> *const c_char;
+    pub fn oracle_obs_service_get_type_data(service: *mut c_void) -> *mut c_void;
+    pub fn oracle_obs_service_properties(service: *const c_void) -> *mut c_void;
+    pub fn oracle_obs_service_update(service: *mut c_void, settings: *mut c_void);
+    pub fn oracle_obs_service_get_settings(service: *const c_void) -> *mut c_void;
+    pub fn oracle_obs_service_apply_encoder_settings(
+        service: *mut c_void,
+        video: *mut c_void,
+        audio: *mut c_void,
+    );
 
     pub fn oracle_obs_service_get_protocol(service: *const c_void) -> *const c_char;
     pub fn oracle_obs_service_get_connect_info(service: *const c_void, kind: u32) -> *const c_char;

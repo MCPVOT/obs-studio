@@ -1,6 +1,7 @@
 /* Test-only oracle: the original libobs/obs-service-getters.c.h, unmodified,
  * with its exports renamed to oracle_* so it can link next to the Rust
- * shims (#1899). obs_service_get_info_table() and
+ * shims (#1899, #1913). find_service() and the context accessors are
+ * test doubles that both sides call. obs_service_get_info_table() and
  * obs_service_get_plugin_data() are copied from obs-service.c,
  * and oracle_service_new() builds the struct obs_service both sides read,
  * so the parity tests drive the C and the Rust with the same service. */
@@ -16,11 +17,23 @@
 #define obs_service_get_preferred_output_type oracle_obs_service_get_preferred_output_type
 #define obs_service_get_connect_info oracle_obs_service_get_connect_info
 #define obs_service_can_try_to_connect oracle_obs_service_can_try_to_connect
+#define obs_service_get_display_name oracle_obs_service_get_display_name
+#define obs_service_get_name oracle_obs_service_get_name
+#define obs_service_defaults oracle_obs_service_defaults
+#define obs_get_service_properties oracle_obs_get_service_properties
+#define obs_service_properties oracle_obs_service_properties
+#define obs_service_get_type oracle_obs_service_get_type
+#define obs_service_update oracle_obs_service_update
+#define obs_service_get_settings oracle_obs_service_get_settings
+#define obs_service_apply_encoder_settings oracle_obs_service_apply_encoder_settings
+#define obs_service_get_type_data oracle_obs_service_get_type_data
+#define obs_service_get_id oracle_obs_service_get_id
 
 #include "obs-service-getters.c.h"
 
 #include <stddef.h>
 #include <stdlib.h>
+#include <string.h>
 
 /* obs-service.c */
 const struct obs_service_info *obs_service_get_info_table(const obs_service_t *service)
@@ -31,6 +44,45 @@ const struct obs_service_info *obs_service_get_info_table(const obs_service_t *s
 void *obs_service_get_plugin_data(const obs_service_t *service)
 {
 	return service->context.data;
+}
+
+const char *obs_service_get_context_name(const obs_service_t *service)
+{
+	return service->context.name;
+}
+
+obs_data_t *obs_service_get_context_settings(const obs_service_t *service)
+{
+	return service->context.settings;
+}
+
+/* obs-service.c's find_service() over obs->service_types, here over one
+ * table the test sets (NULL: no types). */
+static const struct obs_service_info *oracle_types;
+static size_t oracle_types_num;
+
+void oracle_service_set_types(const struct obs_service_info *types, size_t num);
+void oracle_service_set_types(const struct obs_service_info *types, size_t num)
+{
+	oracle_types = types;
+	oracle_types_num = num;
+}
+
+const struct obs_service_info *find_service(const char *id)
+{
+	for (size_t i = 0; i < oracle_types_num; i++)
+		if (strcmp(oracle_types[i].id, id) == 0)
+			return oracle_types + i;
+	return NULL;
+}
+
+/* The context fields #1913 reads; the plugin data and table are set by
+ * oracle_service_new(). */
+void oracle_service_set_context(struct obs_service *service, char *name, obs_data_t *settings);
+void oracle_service_set_context(struct obs_service *service, char *name, obs_data_t *settings)
+{
+	service->context.name = name;
+	service->context.settings = settings;
 }
 
 struct obs_service *oracle_service_new(const struct obs_service_info *info, void *data);

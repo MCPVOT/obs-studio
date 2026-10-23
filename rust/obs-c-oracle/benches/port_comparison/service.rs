@@ -1,5 +1,9 @@
-//! #1899: the obs-service getters, the obs-output shims against the C, on
-//! the same service with every optional callback filled.
+//! #1899, #1913: the obs-service getters and the settings and identity
+//! functions, the obs-output shims against the C, on the same service.
+
+// The oracle's obs_data_* and obs_properties_* calls link to these.
+use obs_data as _;
+use obs_properties as _;
 
 use super::pair;
 use criterion::Criterion;
@@ -26,6 +30,7 @@ unsafe extern "C" fn connect_info(_: *mut c_void, kind: u32) -> *const c_char {
         ptr::null()
     }
 }
+unsafe extern "C" fn apply_encoder(_: *mut c_void, _: *mut c_void, _: *mut c_void) {}
 unsafe extern "C" fn max_bitrate(_: *mut c_void, video: *mut c_int, _: *mut c_int) {
     // SAFETY: the getter passes a writable video bitrate here.
     unsafe { *video = 6000 };
@@ -48,7 +53,7 @@ pub fn benchmarks(criterion: &mut Criterion) {
         get_username: None,
         get_password: None,
         deprecated_1: None,
-        apply_encoder_settings: None,
+        apply_encoder_settings: Some(apply_encoder),
         type_data: ptr::null_mut(),
         free_type_data: None,
         get_output_type: None,
@@ -101,6 +106,48 @@ pub fn benchmarks(criterion: &mut Criterion) {
         },
     );
 
-    // SAFETY: from oracle_service_new, freed once.
-    unsafe { c::oracle_service_free(service) };
+    // SAFETY: a static name; the settings stay NULL (not read below).
+    unsafe {
+        c::oracle_service_set_context(service, c"bench".as_ptr().cast_mut(), ptr::null_mut())
+    };
+    // SAFETY: the table outlives the lookups; reset below.
+    unsafe { c::oracle_service_set_types((&raw const info).cast(), 1) };
+    let id = c"bench_service".as_ptr();
+    let video = ptr::without_provenance_mut(0x1d);
+
+    // SAFETY, each call: a live service and a registered id.
+    pair(
+        criterion,
+        "service/get_name",
+        || unsafe { rust::obs_service_get_name(black_box(s)) },
+        || unsafe { c::oracle_obs_service_get_name(black_box(s)) },
+    );
+    pair(
+        criterion,
+        "service/get_id",
+        || unsafe { rust::obs_service_get_id(black_box(s)) },
+        || unsafe { c::oracle_obs_service_get_id(black_box(s)) },
+    );
+    pair(
+        criterion,
+        "service/get_display_name",
+        || unsafe { rust::obs_service_get_display_name(black_box(id)) },
+        || unsafe { c::oracle_obs_service_get_display_name(black_box(id)) },
+    );
+    pair(
+        criterion,
+        "service/apply_encoder_settings",
+        || unsafe {
+            rust::obs_service_apply_encoder_settings(black_box(service), video, ptr::null_mut())
+        },
+        || unsafe {
+            c::oracle_obs_service_apply_encoder_settings(black_box(service), video, ptr::null_mut())
+        },
+    );
+
+    // SAFETY: no types; from oracle_service_new, freed once.
+    unsafe {
+        c::oracle_service_set_types(ptr::null(), 0);
+        c::oracle_service_free(service);
+    }
 }

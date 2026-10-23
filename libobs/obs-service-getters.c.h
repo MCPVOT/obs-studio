@@ -126,6 +126,112 @@ bool obs_service_can_try_to_connect(const obs_service_t *service)
 	return service_info(service)->can_try_to_connect(service_data(service));
 }
 
+/* Settings, properties and identity (#1913), moved the same way. The
+ * by-id functions look the type up with find_service() (obs-service.c). */
+
+const char *obs_service_get_display_name(const char *id)
+{
+	const struct obs_service_info *info = find_service(id);
+	return (info != NULL) ? info->get_name(info->type_data) : NULL;
+}
+
+const char *obs_service_get_name(const obs_service_t *service)
+{
+	return obs_service_valid(service, "obs_service_get_name") ? obs_service_get_context_name(service) : NULL;
+}
+
+static inline obs_data_t *service_get_defaults(const struct obs_service_info *info)
+{
+	obs_data_t *settings = obs_data_create();
+	if (info->get_defaults)
+		info->get_defaults(settings);
+	return settings;
+}
+
+obs_data_t *obs_service_defaults(const char *id)
+{
+	const struct obs_service_info *info = find_service(id);
+	return (info) ? service_get_defaults(info) : NULL;
+}
+
+obs_properties_t *obs_get_service_properties(const char *id)
+{
+	const struct obs_service_info *info = find_service(id);
+	if (info && info->get_properties) {
+		obs_data_t *defaults = service_get_defaults(info);
+		obs_properties_t *properties;
+
+		properties = info->get_properties(NULL);
+		obs_properties_apply_settings(properties, defaults);
+		obs_data_release(defaults);
+		return properties;
+	}
+	return NULL;
+}
+
+obs_properties_t *obs_service_properties(const obs_service_t *service)
+{
+	if (!obs_service_valid(service, "obs_service_properties"))
+		return NULL;
+
+	if (service_info(service)->get_properties) {
+		obs_properties_t *props;
+		props = service_info(service)->get_properties(service_data(service));
+		obs_properties_apply_settings(props, obs_service_get_context_settings(service));
+		return props;
+	}
+
+	return NULL;
+}
+
+const char *obs_service_get_type(const obs_service_t *service)
+{
+	return obs_service_valid(service, "obs_service_get_type") ? service_info(service)->id : NULL;
+}
+
+void obs_service_update(obs_service_t *service, obs_data_t *settings)
+{
+	if (!obs_service_valid(service, "obs_service_update"))
+		return;
+
+	obs_data_apply(obs_service_get_context_settings(service), settings);
+
+	if (service_info(service)->update)
+		service_info(service)->update(service_data(service), obs_service_get_context_settings(service));
+}
+
+obs_data_t *obs_service_get_settings(const obs_service_t *service)
+{
+	if (!obs_service_valid(service, "obs_service_get_settings"))
+		return NULL;
+
+	obs_data_addref(obs_service_get_context_settings(service));
+	return obs_service_get_context_settings(service);
+}
+
+void obs_service_apply_encoder_settings(obs_service_t *service, obs_data_t *video_encoder_settings,
+					obs_data_t *audio_encoder_settings)
+{
+	if (!obs_service_valid(service, "obs_service_apply_encoder_settings"))
+		return;
+	if (!service_info(service)->apply_encoder_settings)
+		return;
+
+	if (video_encoder_settings || audio_encoder_settings)
+		service_info(service)->apply_encoder_settings(service_data(service), video_encoder_settings,
+							      audio_encoder_settings);
+}
+
+void *obs_service_get_type_data(obs_service_t *service)
+{
+	return obs_service_valid(service, "obs_service_get_type_data") ? service_info(service)->type_data : NULL;
+}
+
+const char *obs_service_get_id(const obs_service_t *service)
+{
+	return obs_service_valid(service, "obs_service_get_id") ? service_info(service)->id : NULL;
+}
+
 /* File-local macros: keep them out of the next source of a unity build. */
 #undef service_info
 #undef service_data

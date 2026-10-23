@@ -1846,6 +1846,9 @@ extern void obs_service_deactivate(struct obs_service *service, bool remove);
  * and its Rust port (#1899). */
 extern const struct obs_service_info *obs_service_get_info_table(const obs_service_t *service);
 extern void *obs_service_get_plugin_data(const obs_service_t *service);
+/* obs-service.c: the context fields obs-service-getters.c reads (#1913). */
+extern const char *obs_service_get_context_name(const obs_service_t *service);
+extern obs_data_t *obs_service_get_context_settings(const obs_service_t *service);
 extern bool obs_service_initialize(struct obs_service *service, struct obs_output *output);
 
 void obs_service_destroy(obs_service_t *service);

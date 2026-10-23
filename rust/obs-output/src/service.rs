@@ -168,3 +168,191 @@ pub fn video_codecs<S: Callbacks>(service: &S) -> Option<S::List> {
 pub fn audio_codecs<S: Callbacks>(service: &S) -> Option<S::List> {
     service.audio_codecs()
 }
+
+// ---------------------------------------------------------------------------
+// Settings, properties and identity (#1913): `obs_service_get_display_name()`,
+// `obs_service_defaults()`, `obs_get_service_properties()`,
+// `obs_service_get_name()`, `_get_type()`, `_get_id()`, `_get_type_data()`,
+// `_update()`, `_get_settings()`, `_properties()`,
+// `_apply_encoder_settings()`. The signal and proc handler getters stay C:
+// no public header declares them. The
+// by-id functions get `find_service(id)` as `info`; the rest check the
+// service with the C's function names, as the getters above do.
+
+/// The `obs_data_t` / `obs_properties_t` calls these make, in libobs.
+pub trait Host {
+    /// `obs_data_t *`.
+    type Data: Copy;
+    /// `obs_properties_t *`, NULL included.
+    type Props: Copy;
+
+    fn data_create(&self) -> Self::Data;
+    /// `obs_data_apply(target, apply)`; `apply` may be NULL.
+    fn data_apply(&self, target: Self::Data, apply: Option<Self::Data>);
+    fn data_addref(&self, data: Self::Data);
+    fn data_release(&self, data: Self::Data);
+    fn properties_apply_settings(&self, props: Self::Props, settings: Self::Data);
+}
+
+/// A registered service type (`struct obs_service_info`).
+pub trait Type<H: Host> {
+    /// `const char *`, passed through.
+    type Str: Copy;
+    /// `void *` plugin or type data, passed through; `Default` is NULL.
+    type Ptr: Copy + Default;
+
+    fn id(&self) -> Self::Str;
+    fn type_data(&self) -> Self::Ptr;
+    /// `get_name(type_data)`, required at registration.
+    fn display_name(&self) -> Self::Str;
+    /// Calls `get_defaults`; false when it is NULL.
+    fn defaults(&self, settings: H::Data) -> bool;
+    fn has_properties(&self) -> bool;
+    /// `get_properties(data)`; only called when [`Type::has_properties`].
+    fn properties(&self, data: Self::Ptr) -> H::Props;
+    /// Calls `update`; false when it is NULL.
+    fn update(&self, data: Self::Ptr, settings: H::Data) -> bool;
+    fn has_apply_encoder_settings(&self) -> bool;
+    /// `apply_encoder_settings(data, video, audio)`; only called when
+    /// [`Type::has_apply_encoder_settings`].
+    fn apply_encoder_settings(
+        &self,
+        data: Self::Ptr,
+        video: Option<H::Data>,
+        audio: Option<H::Data>,
+    );
+}
+
+/// A live service: its type, plugin data and context fields.
+pub trait Service<H: Host> {
+    type Type: Type<H>;
+
+    fn info(&self) -> &Self::Type;
+    fn data(&self) -> <Self::Type as Type<H>>::Ptr;
+    fn name(&self) -> <Self::Type as Type<H>>::Str;
+    fn settings(&self) -> H::Data;
+}
+
+type StrOf<H, S> = <<S as Service<H>>::Type as Type<H>>::Str;
+type PtrOf<H, S> = <<S as Service<H>>::Type as Type<H>>::Ptr;
+
+/// `obs_service_get_display_name`.
+pub fn display_name<H: Host, T: Type<H>>(info: Option<&T>) -> Option<T::Str> {
+    info.map(Type::display_name)
+}
+
+/// `service_get_defaults`: a new object, filled by `get_defaults` if set.
+fn get_defaults<H: Host, T: Type<H>>(host: &H, info: &T) -> H::Data {
+    let settings = host.data_create();
+    info.defaults(settings);
+    settings
+}
+
+/// `obs_service_defaults`.
+pub fn defaults<H: Host, T: Type<H>>(host: &H, info: Option<&T>) -> Option<H::Data> {
+    info.map(|info| get_defaults(host, info))
+}
+
+/// `obs_get_service_properties`: defaults first, then `get_properties`
+/// with NULL data, then the defaults applied and released.
+pub fn type_properties<H: Host, T: Type<H>>(host: &H, info: Option<&T>) -> Option<H::Props> {
+    let info = info.filter(|info| info.has_properties())?;
+    let defaults = get_defaults(host, info);
+    let props = info.properties(T::Ptr::default());
+    host.properties_apply_settings(props, defaults);
+    host.data_release(defaults);
+    Some(props)
+}
+
+/// `obs_service_get_name`.
+pub fn name<H: Host, S: Service<H>>(
+    service: Option<&S>,
+    log: &impl NullLog,
+) -> Option<StrOf<H, S>> {
+    valid(service, log, c"obs_service_get_name").map(Service::name)
+}
+
+/// `obs_service_get_type`: the type's id.
+pub fn type_id<H: Host, S: Service<H>>(
+    service: Option<&S>,
+    log: &impl NullLog,
+) -> Option<StrOf<H, S>> {
+    valid(service, log, c"obs_service_get_type").map(|s| s.info().id())
+}
+
+/// `obs_service_get_id`: the same id, under its own log name.
+pub fn id<H: Host, S: Service<H>>(service: Option<&S>, log: &impl NullLog) -> Option<StrOf<H, S>> {
+    valid(service, log, c"obs_service_get_id").map(|s| s.info().id())
+}
+
+/// `obs_service_get_type_data`.
+pub fn type_data<H: Host, S: Service<H>>(
+    service: Option<&S>,
+    log: &impl NullLog,
+) -> Option<PtrOf<H, S>> {
+    valid(service, log, c"obs_service_get_type_data").map(|s| s.info().type_data())
+}
+
+/// `obs_service_properties`: `get_properties` with the plugin data, then the
+/// service's settings applied.
+pub fn properties<H: Host, S: Service<H>>(
+    host: &H,
+    service: Option<&S>,
+    log: &impl NullLog,
+) -> Option<H::Props> {
+    let service = valid(service, log, c"obs_service_properties")?;
+    let info = service.info();
+    if !info.has_properties() {
+        return None;
+    }
+    let props = info.properties(service.data());
+    host.properties_apply_settings(props, service.settings());
+    Some(props)
+}
+
+/// `obs_service_update`: merges `settings` into the service's, then calls
+/// `update` with the service's own settings.
+pub fn update<H: Host, S: Service<H>>(
+    host: &H,
+    service: Option<&S>,
+    log: &impl NullLog,
+    settings: Option<H::Data>,
+) {
+    let Some(service) = valid(service, log, c"obs_service_update") else {
+        return;
+    };
+    host.data_apply(service.settings(), settings);
+    service.info().update(service.data(), service.settings());
+}
+
+/// `obs_service_get_settings`: the service's own object with a new ref.
+pub fn settings<H: Host, S: Service<H>>(
+    host: &H,
+    service: Option<&S>,
+    log: &impl NullLog,
+) -> Option<H::Data> {
+    let service = valid(service, log, c"obs_service_get_settings")?;
+    host.data_addref(service.settings());
+    Some(service.settings())
+}
+
+/// `obs_service_apply_encoder_settings`: not called when the callback is
+/// NULL or both settings are.
+pub fn apply_encoder_settings<H: Host, S: Service<H>>(
+    service: Option<&S>,
+    log: &impl NullLog,
+    video: Option<H::Data>,
+    audio: Option<H::Data>,
+) {
+    let Some(service) = valid(service, log, c"obs_service_apply_encoder_settings") else {
+        return;
+    };
+    if !service.info().has_apply_encoder_settings() {
+        return;
+    }
+    if video.is_some() || audio.is_some() {
+        service
+            .info()
+            .apply_encoder_settings(service.data(), video, audio);
+    }
+}
