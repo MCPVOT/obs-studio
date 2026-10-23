@@ -935,3 +935,10 @@ void HandlePlatformDisplayNativeEvent(OBSQTDisplay *display, void *message)
 		display->OnDisplayChange();
 	}
 }
+
+void SetOutputNetworkOptions(config_t *config, obs_data_t *settings)
+{
+	obs_data_set_bool(settings, "new_socket_loop_enabled",
+			  config_get_bool(config, "Output", "NewSocketLoopEnable"));
+	obs_data_set_bool(settings, "low_latency_mode_enabled", config_get_bool(config, "Output", "LowLatencyEnable"));
+}

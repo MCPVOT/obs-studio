@@ -866,3 +866,8 @@ void HandlePlatformDisplayNativeEvent(OBSQTDisplay *display, void *message)
 	(void)display;
 	(void)message;
 }
+
+void SetOutputNetworkOptions(config_t *, obs_data_t *)
+{
+	/* No host-specific streaming output options. */
+}

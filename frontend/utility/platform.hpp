@@ -55,6 +55,11 @@ bool SetDisplayAffinitySupported(void);
 
 bool HighContrastEnabled();
 
+/* Copies the host's own streaming output options from the profile's Output
+ * section into the output's settings (Windows: the new socket loop and
+ * low-latency mode). */
+void SetOutputNetworkOptions(config_t *config, obs_data_t *settings);
+
 /* glGetString from the GL library libobs-opengl uses (the frontend does not
  * link GL), or nullptr. Call it only with the graphics context entered. */
 void *GetGlGetStringProc();
