@@ -49,7 +49,10 @@ not get a line.
   [#1939](https://github.com/obs-rust/obs-studio/pull/1939)).
   *All*, 2026-10-21. Issue
   [#1587](https://github.com/obs-rust/obs-studio/issues/1587), PR
-  [#1588](https://github.com/obs-rust/obs-studio/pull/1588).
+  [#1588](https://github.com/obs-rust/obs-studio/pull/1588). Plugin string
+  edits preserve converted strings even when their recorded capacity is zero.
+  Issue [#1941](https://github.com/obs-rust/obs-studio/issues/1941), PR
+  [#1945](https://github.com/obs-rust/obs-studio/pull/1945).
 
   Opening an unreadable config preserves its contents; failed reads keep the
   C API's empty-config result. Issue
