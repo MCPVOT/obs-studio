@@ -215,6 +215,16 @@ CURRENT C behavior, including odd or buggy behavior. Comment such cases as
   exercise the Rust swap until the symbol is reachable.
 - Use only portable behavior, or guard platform-specific cases with
   `#ifdef _WIN32` / `#ifndef _WIN32`.
+- Don't call `fail_msg()` in a test that Windows builds: it expands to
+  cmocka's private `cm_print_error()`, which the Windows cmocka does not
+  export, so the test fails to link (LNK2019, #1580, #1713). Print the
+  diagnostic with `fprintf(stderr, ...)` and then call `fail()`.
+  `ci/test_cmocka_windows_diagnostics.py` (Fast Gate) catches the call; it
+  is a source check for this one symbol, not proof that the test links on
+  Windows (#1739).
+- A PR's green checks prove only the lanes its paths selected. A shared
+  `.c` test selects Linux Tier 2, not Windows or macOS, so don't claim a new
+  test builds everywhere unless a native Tier 2 run built it.
 
 ### Port order for Phase 3 (pure leaf utilities)
 
