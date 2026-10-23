@@ -551,6 +551,9 @@ area.
   [#1254](https://github.com/obs-rust/obs-studio/issues/1254), PR
   [#1256](https://github.com/obs-rust/obs-studio/pull/1256), upstream
   [obsproject/obs-studio#1349](https://github.com/obsproject/obs-studio/issues/1349).
+- A RequestBatch with the Parallel execution type no longer crashes OBS
+  when its last request finishes. *All*, 2026-10-23. PR
+  [#1996](https://github.com/obs-rust/obs-studio/pull/1996).
 
 ### Video capture
 
