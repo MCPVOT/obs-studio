@@ -97,10 +97,14 @@ fn log_exists(name: &CStr) {
     unsafe { blog(LOG_WARNING, c"Property '%s' exists".as_ptr(), name.as_ptr()) };
 }
 
+fn run_destroy((param, f): PendingDestroy) {
+    // SAFETY: the callback and param the caller registered together.
+    unsafe { f(param as *mut c_void) };
+}
+
 fn run_destroys(list: Vec<PendingDestroy>) {
-    for (param, f) in list {
-        // SAFETY: the callback and param the caller registered together.
-        unsafe { f(param as *mut c_void) };
+    for d in list {
+        run_destroy(d);
     }
 }
 
@@ -166,8 +170,7 @@ pub unsafe extern "C" fn obs_properties_destroy(props: *mut c_void) {
     }
     // SAFETY: C owns one strong count of a set it created; this releases it.
     let s = unsafe { Rc::from_raw(props as *const RefCell<Props>) };
-    let pending = props::destroy_list(&s);
-    run_destroys(pending);
+    props::destroy(&s, &mut run_destroy);
     drop(s);
 }
 
@@ -240,9 +243,7 @@ pub unsafe extern "C" fn obs_properties_remove_by_name(
     let (Some(s), Some(n)) = (unsafe { set(props) }, unsafe { cstr(property) }) else {
         return;
     };
-    let pending = props::remove_by_name(&s, n);
-    drop(s);
-    run_destroys(pending);
+    props::remove_by_name(&s, n, &mut run_destroy);
 }
 
 #[unsafe(no_mangle)]

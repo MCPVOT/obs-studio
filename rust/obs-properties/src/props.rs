@@ -209,25 +209,44 @@ pub fn set_param(
     old
 }
 
-/// Everything `obs_properties_destroy` would destroy, in C's order: this
-/// set's param, then each group's content, depth first.
-pub fn destroy_list(props: &PropsRc) -> Vec<PendingDestroy> {
-    let mut out = Vec::new();
-    collect_destroys(props, &mut out);
-    out
+/// `obs_properties_destroy`, minus the free: this set's own param first,
+/// then each property taken off the set in order, a group's content
+/// destroyed while the group is still held. No borrow is held while `run`
+/// calls back, so a callback may change the tree as it can in C: what it
+/// removes is not destroyed again, and what it adds is destroyed in turn
+/// (#1943).
+pub fn destroy(props: &PropsRc, run: &mut dyn FnMut(PendingDestroy)) {
+    let own = {
+        let p = props.borrow();
+        match (p.destroy, p.param) {
+            (Some(f), param) if param != 0 => Some((param, f)),
+            _ => None,
+        }
+    };
+    if let Some(d) = own {
+        run(d);
+    }
+    loop {
+        let item = {
+            let mut p = props.borrow_mut();
+            if p.items.is_empty() {
+                break;
+            }
+            p.items.remove(0)
+        };
+        destroy_prop(&item, run);
+    }
 }
 
-fn collect_destroys(props: &PropsRc, out: &mut Vec<PendingDestroy>) {
-    let p = props.borrow();
-    if let (Some(f), param) = (p.destroy, p.param)
-        && param != 0
-    {
-        out.push((param, f));
-    }
-    for item in &p.items {
-        if let Data::Group { content, .. } = &item.borrow().data {
-            collect_destroys(content, out);
-        }
+/// `obs_property_destroy`: a group destroys its content. The caller holds
+/// `item`, so the content stays alive through its callbacks.
+fn destroy_prop(item: &PropRc, run: &mut dyn FnMut(PendingDestroy)) {
+    let content = match &item.borrow().data {
+        Data::Group { content, .. } => Some(Rc::clone(content)),
+        _ => None,
+    };
+    if let Some(content) = content {
+        destroy(&content, run);
     }
 }
 
@@ -300,8 +319,9 @@ pub fn has_prop(props: &PropsRc, name: &CStr) -> bool {
 }
 
 /// `obs_properties_remove_by_name`: removes the property from this set, or
-/// else from every group, recursively. Returns what C would destroy.
-pub fn remove_by_name(props: &PropsRc, name: &CStr) -> Vec<PendingDestroy> {
+/// else from every group, recursively, and destroys it like C: unlinked
+/// first, and alive until its callbacks return (#1943).
+pub fn remove_by_name(props: &PropsRc, name: &CStr, run: &mut dyn FnMut(PendingDestroy)) {
     let removed = {
         let mut set = props.borrow_mut();
         set.items
@@ -310,15 +330,12 @@ pub fn remove_by_name(props: &PropsRc, name: &CStr) -> Vec<PendingDestroy> {
             .map(|i| set.items.remove(i))
     };
     if let Some(p) = removed {
-        return match &p.borrow().data {
-            Data::Group { content, .. } => destroy_list(content),
-            _ => Vec::new(),
-        };
+        destroy_prop(&p, run);
+        return;
     }
-    group_contents(props)
-        .iter()
-        .flat_map(|g| remove_by_name(g, name))
-        .collect()
+    for g in group_contents(props) {
+        remove_by_name(&g, name, run);
+    }
 }
 
 /// The properties `obs_properties_apply_settings` calls back, in call

@@ -47,6 +47,9 @@ not get a line.
   Property parameter destructors observe the original parameter during replacement
   (C API compatibility; [#1938](https://github.com/obs-rust/obs-studio/issues/1938),
   [#1939](https://github.com/obs-rust/obs-studio/pull/1939)).
+  Property destructors that remove or add groups run each callback once, and a
+  removed group stays readable in its own destructor (C API compatibility;
+  [#1943](https://github.com/obs-rust/obs-studio/issues/1943)).
   *All*, 2026-10-21. Issue
   [#1587](https://github.com/obs-rust/obs-studio/issues/1587), PR
   [#1588](https://github.com/obs-rust/obs-studio/pull/1588). Plugin string
