@@ -581,6 +581,24 @@ if [ "$SCENARIO" = first-start ]; then
             >/run/opengl-driver/share/egl/egl_external_platform.d/10_nvidia_wayland.json
         DRIVER_ENV_CASE=nixos
     fi
+    # A stand-in for the NVIDIA driver's NVML in the host library directory
+    # (fake-nvml.c): OBS's GPU usage sampler must find the host's copy through
+    # AppRun's loader by its bare name (#1970).
+    NVML_HOST=""
+    FAKE_NVML="$(dirname "$TESTKIT")/obs-appimage-fake-nvml.so"
+    if [ "$(id -u)" = 0 ]; then
+        [ -f "$FAKE_NVML" ] || fail "missing $FAKE_NVML (built with the testkit)"
+        for dir in /usr/lib/x86_64-linux-gnu /usr/lib64 /usr/lib; do
+            if [ -d "$dir" ] && [ -f "$FAKE_NVML" ]; then
+                NVML_HOST="$dir/libnvidia-ml.so.1"
+                install -m755 "$FAKE_NVML" "$NVML_HOST"
+                ldconfig 2>/dev/null || true
+                break
+            fi
+        done
+    fi
+    export OBS_TEST_NVML_MARKER="$OUT/nvml-loaded"
+    rm -f "$OBS_TEST_NVML_MARKER"
     unset GBM_BACKENDS_PATH LIBVA_DRIVERS_PATH __EGL_VENDOR_LIBRARY_DIRS __EGL_VENDOR_LIBRARY_FILENAMES \
         __EGL_EXTERNAL_PLATFORM_CONFIG_DIRS __EGL_EXTERNAL_PLATFORM_CONFIG_FILENAMES VK_DRIVER_FILES VK_ICD_FILENAMES
     LD_LIBRARY_PATH="$HOSTILE_LD" dbus-run-session -- "$APPDIR/AppRun" --disable-shutdown-check --verbose >"$OUT/obs-stdout.log" 2>&1 &
@@ -627,6 +645,17 @@ if [ "$SCENARIO" = first-start ]; then
         # The driver search paths the running OBS's EGL, GBM, VA-API and Vulkan loaders see.
         "$HERE_DIR/test-apprun-driver-env.sh" --check "$OBS_PID" "$DRIVER_ENV_CASE" ||
             fail "OBS did not get the host driver search paths (see above)"
+        if [ -n "$NVML_HOST" ]; then
+            # The loader names the file by the path it found (merged /usr:
+            # /lib/x86_64-linux-gnu is /usr/lib/x86_64-linux-gnu), so compare files.
+            NVML_LOADED="$(head -1 "$OBS_TEST_NVML_MARKER" 2>/dev/null || true)"
+            if [ -n "$NVML_LOADED" ] && [ "$NVML_LOADED" -ef "$NVML_HOST" ] &&
+                grep -qF "$NVML_LOADED" "/proc/$OBS_PID/maps"; then
+                echo "NVML: loaded the host's $NVML_HOST as $NVML_LOADED"
+            else
+                fail "OBS's GPU usage sampler did not load the host's $NVML_HOST ($(cat "$OBS_TEST_NVML_MARKER" 2>/dev/null || echo 'not loaded'))"
+            fi
+        fi
         # Libraries actually mapped into the running process: the core stack must be bundled.
         echo "Libraries mapped from outside the AppImage:"
         grep -o '/[^ ]*\.so[^ ]*' "/proc/$OBS_PID/maps" | sort -u | grep -v "$APPDIR" | grep -v '/tmp/.obs-rust-appimage-' || true
