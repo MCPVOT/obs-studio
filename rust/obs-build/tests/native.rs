@@ -1306,25 +1306,16 @@ fn native_test_graph_replaces_legacy_utility_definitions() {
         ("HAVE_OBS_PULSEAUDIO".into(), false),
         ("HAVE_QT6_WIDGETS".into(), false),
     ]);
-    // The core suite's size is not pinned: every new cmocka test lands in it,
-    // and two open PRs that each add one would both bump the same number
-    // (#1908). The partitions must instead cover the whole graph between them.
+    // No suite's size is pinned: every new cmocka test lands in one, and two
+    // open PRs that each add one would both bump the same number (#1908,
+    // #1997). The partitions must instead cover the whole graph between them.
     let (mut covered_tests, mut covered_targets) = (0, 0);
-    for (suite, count) in [
-        ("core", None),
-        ("graphics", Some(14)),
-        ("vlc", Some(6)),
-        ("webrtc", Some(2)),
-        ("qt", Some(1)),
-    ] {
+    for suite in ["core", "graphics", "vlc", "webrtc", "qt"] {
         let mut partition = obs_build::validation::graph::Graph::load(
             &root.join("test/cmocka/build/test-graph.json"),
         )
         .unwrap();
         partition.retain_suite(suite);
-        if let Some(count) = count {
-            assert_eq!(partition.tests.len(), count, "{suite} tests");
-        }
         assert!(!partition.tests.is_empty(), "{suite} has no tests");
         assert!(partition.tests.values().all(|test| test.suite == suite));
         assert_eq!(
