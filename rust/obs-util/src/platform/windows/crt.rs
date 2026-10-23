@@ -101,3 +101,24 @@ impl LocalTime {
         buf[..len.min(buf.len())].to_vec()
     }
 }
+
+// `wint_t` is `unsigned short` in the Windows CRT, the same as `wchar_t`.
+unsafe extern "C" {
+    #[link_name = "towupper"]
+    fn c_towupper(wc: u16) -> u16;
+    #[link_name = "towlower"]
+    fn c_towlower(wc: u16) -> u16;
+}
+
+/// `(wchar_t)towupper((wint_t)ch)` in the current CRT locale, as
+/// `util/dstr-libc.c` writes it.
+pub fn towupper(ch: u16) -> u16 {
+    // SAFETY: towupper accepts every wint_t value.
+    unsafe { c_towupper(ch) }
+}
+
+/// `(wchar_t)towlower((wint_t)ch)` in the current CRT locale.
+pub fn towlower(ch: u16) -> u16 {
+    // SAFETY: towlower accepts every wint_t value.
+    unsafe { c_towlower(ch) }
+}

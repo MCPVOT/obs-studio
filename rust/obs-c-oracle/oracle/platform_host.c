@@ -127,6 +127,27 @@ size_t os_mbs_to_utf8_ptr(const char *str, size_t len, char **pstr)
 }
 #endif
 
+/* The same two forwarders off Windows, for obs-util's dstr-libc shim
+ * (util/dstr-libc.c), which calls the plain names; in libobs they are the C
+ * in util/platform-conversions.c. Windows has them in the block above. */
+#if !defined(_WIN32)
+/* platform-conversions.c (compiled by oracle/platform.c) */
+size_t oracle_os_utf8_to_wcs_ptr(const char *str, size_t len, wchar_t **pstr);
+size_t oracle_os_mbs_to_utf8_ptr(const char *str, size_t len, char **pstr);
+size_t os_utf8_to_wcs_ptr(const char *str, size_t len, wchar_t **pstr);
+size_t os_mbs_to_utf8_ptr(const char *str, size_t len, char **pstr);
+
+size_t os_utf8_to_wcs_ptr(const char *str, size_t len, wchar_t **pstr)
+{
+	return oracle_os_utf8_to_wcs_ptr(str, len, pstr);
+}
+
+size_t os_mbs_to_utf8_ptr(const char *str, size_t len, char **pstr)
+{
+	return oracle_os_mbs_to_utf8_ptr(str, len, pstr);
+}
+#endif
+
 /* The MinGW link-check target excludes platform-windows.c because its libobs
  * implementation uses MSVC-only constructs. Supply the five oracle_ symbols
  * that file would otherwise provide. This branch is link-only; these stubs are

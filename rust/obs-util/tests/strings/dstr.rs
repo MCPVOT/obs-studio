@@ -6,7 +6,7 @@
 //! `test_dstr_case` (`dstr_to_upper`/`dstr_to_lower`), `test_dstr_printf`
 //! (`dstr_printf`/`dstr_catf`) and `test_dstr_inline_helpers` (`dstr_cmp`,
 //! `dstr_find`, `dstr_end`, ...). The leak check of the C tests is replaced
-//! by ownership.
+//! by ownership. `test_dstr_case` is ported in `dstr_libc.rs`.
 //!
 //! Ports of `test/cmocka/test_dstr_regressions.c` (the C fixes for #46 and
 //! #47 in PR #53) are covered below as well: `dstr_insert_ch` stays within

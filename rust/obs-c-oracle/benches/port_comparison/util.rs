@@ -3,8 +3,8 @@ use std::hint::black_box;
 use std::ptr;
 
 use criterion::{BatchSize, BenchmarkId, Criterion, Throughput};
-use obs_c_oracle::{bmem as c_mem, crc32 as c_crc, dstr as c_str};
-use obs_util::ffi::{bmem as rs_mem, crc32 as rs_crc, dstr as rs_str};
+use obs_c_oracle::{bmem as c_mem, crc32 as c_crc, dstr as c_str, dstr_libc as c_str_libc};
+use obs_util::ffi::{bmem as rs_mem, crc32 as rs_crc, dstr as rs_str, dstr_libc as rs_str_libc};
 
 type Allocate = unsafe extern "C" fn(usize) -> *mut c_void;
 type Release = unsafe extern "C" fn(*mut c_void);
@@ -273,7 +273,7 @@ impl Drop for Cstring {
 fn strings(criterion: &mut Criterion) {
     for size in [128, 4096] {
         let seed = std::ffi::CString::new("obs ".repeat(size / 4)).unwrap();
-        for operation in ["cat", "safe_printf", "replace"] {
+        for operation in ["cat", "safe_printf", "replace", "to_upper"] {
             let rust = |string: &mut RustString| {
                 // SAFETY: the destination owns a valid dstr; all input strings
                 // have static NUL-terminated storage valid throughout the call.
@@ -295,6 +295,7 @@ fn strings(criterion: &mut Criterion) {
                             black_box(c"obs".as_ptr()),
                             c"Rust OBS".as_ptr(),
                         ),
+                        "to_upper" => rs_str_libc::dstr_to_upper(black_box(&mut string.0)),
                         _ => unreachable!(),
                     }
                 }
@@ -321,6 +322,7 @@ fn strings(criterion: &mut Criterion) {
                             black_box(c"obs".as_ptr()),
                             c"Rust OBS".as_ptr(),
                         ),
+                        "to_upper" => c_str_libc::oracle_dstr_to_upper(black_box(&mut string.0)),
                         _ => unreachable!(),
                     }
                 }

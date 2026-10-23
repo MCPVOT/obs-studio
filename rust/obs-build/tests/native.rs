@@ -1272,6 +1272,7 @@ fn native_test_graph_replaces_legacy_utility_definitions() {
         "test_formatted_filename",
         "test_utf8",
         "test_dstr_regressions",
+        "test_dstr_libc",
         "test_threading",
         "test_video_stats_race",
         "test_task",
@@ -1300,7 +1301,7 @@ fn native_test_graph_replaces_legacy_utility_definitions() {
         ("HAVE_QT6_WIDGETS".into(), false),
     ]);
     for (suite, count) in [
-        ("core", 138),
+        ("core", 139),
         ("graphics", 12),
         ("vlc", 6),
         ("webrtc", 2),

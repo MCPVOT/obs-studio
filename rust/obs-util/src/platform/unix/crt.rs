@@ -74,3 +74,29 @@ impl LocalTime {
         buf[..len.min(buf.len())].to_vec()
     }
 }
+
+/// `wint_t`: `unsigned int` on glibc, musl and the BSDs, `int` on macOS;
+/// either is passed and returned in the same 32-bit register.
+type WInt = u32;
+
+unsafe extern "C" {
+    #[link_name = "towupper"]
+    fn c_towupper(wc: WInt) -> WInt;
+    #[link_name = "towlower"]
+    fn c_towlower(wc: WInt) -> WInt;
+}
+
+/// `(wchar_t)towupper((wint_t)ch)` in the current C locale, as
+/// `util/dstr-libc.c` writes it.
+#[allow(clippy::unnecessary_cast)] // `wchar_t` and `wint_t` differ in sign per target
+pub fn towupper(ch: libc::wchar_t) -> libc::wchar_t {
+    // SAFETY: towupper accepts every wint_t value.
+    unsafe { c_towupper(ch as WInt) as libc::wchar_t }
+}
+
+/// `(wchar_t)towlower((wint_t)ch)` in the current C locale.
+#[allow(clippy::unnecessary_cast)] // `wchar_t` and `wint_t` differ in sign per target
+pub fn towlower(ch: libc::wchar_t) -> libc::wchar_t {
+    // SAFETY: towlower accepts every wint_t value.
+    unsafe { c_towlower(ch as WInt) as libc::wchar_t }
+}
