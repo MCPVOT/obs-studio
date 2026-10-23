@@ -128,6 +128,65 @@ pub fn set_errno(value: c_int) {
     }
 }
 
+/// `wchar_t` as the UTF-8 decoder's code units: the same 32 bits, signed on
+/// some targets.
+fn wide_as_units(wide: &[WChar]) -> &[u32] {
+    // SAFETY: `WChar` is a 32-bit integer like `u32`, with the same size and
+    // alignment; every bit pattern is valid for both.
+    unsafe { core::slice::from_raw_parts(wide.as_ptr().cast::<u32>(), wide.len()) }
+}
+
+fn wide_as_units_mut(wide: &mut [WChar]) -> &mut [u32] {
+    // SAFETY: as in `wide_as_units`; the borrow is unique.
+    unsafe { core::slice::from_raw_parts_mut(wide.as_mut_ptr().cast::<u32>(), wide.len()) }
+}
+
+/// `utf8_to_wchar(text, len, out, out.len(), 0)`: the wide length of `text`
+/// with `out == None`, else that many units written to `out`. 0 for invalid
+/// input or an `out` that is empty or too small, which may then hold part of
+/// the text.
+pub fn utf8_to_wide(text: &[u8], out: Option<&mut [WChar]>) -> usize {
+    utf8::utf8_to_wchar(text, out.map(wide_as_units_mut), 0)
+}
+
+/// `wchar_to_utf8(wide, len, out, out.len(), 0)`: as [`utf8_to_wide`], the
+/// other way.
+pub fn wide_to_utf8(wide: &[WChar], out: Option<&mut [u8]>) -> usize {
+    utf8::wchar_to_utf8(wide_as_units(wide), out, 0)
+}
+
+/// `mbstowcs(out, text, out.len())`, or `mbstowcs(NULL, text, 0)` with
+/// `out == None`, in the current `LC_CTYPE`. `usize::MAX` (`(size_t)-1`) for
+/// text the locale cannot convert.
+pub fn mbs_to_wide(text: &CStr, out: Option<&mut [WChar]>) -> usize {
+    let (dst, count) = match out {
+        Some(out) => (out.as_mut_ptr(), out.len()),
+        None => (ptr::null_mut(), 0),
+    };
+    // SAFETY: `text` is NUL-terminated; `dst` is null, or holds `count` units.
+    unsafe { mbstowcs(dst, text.as_ptr(), count) }
+}
+
+/// `wcstombs(out, wide, out.len())`, or `wcstombs(NULL, wide, 0)` with
+/// `out == None`, in the current `LC_CTYPE`. The text ends at the first NUL
+/// in `wide` (a copy with one added if it has none). `usize::MAX` for text the
+/// locale cannot convert.
+pub fn wide_to_mbs(wide: &[WChar], out: Option<&mut [u8]>) -> usize {
+    let copy;
+    let wide = if wide.contains(&0) {
+        wide
+    } else {
+        copy = [wide, &[0]].concat();
+        &copy[..]
+    };
+    let (dst, count) = match out {
+        Some(out) => (out.as_mut_ptr().cast::<c_char>(), out.len()),
+        None => (ptr::null_mut(), 0),
+    };
+    // SAFETY: `wide` holds a NUL; `dst` is null, or holds `count` bytes.
+    unsafe { wcstombs(dst, wide.as_ptr(), count) }
+}
+
 /// `os_wcs_to_utf8` over the whole of `wide` (no NUL): `wchar_to_utf8`
 /// counts, then converts into a buffer of exactly that many bytes.
 fn wcs_to_utf8(wide: &[u32]) -> Vec<u8> {
@@ -138,61 +197,6 @@ fn wcs_to_utf8(wide: &[u32]) -> Vec<u8> {
     } else {
         0
     };
-    out.truncate(len);
-    out
-}
-
-/// `os_mbs_to_utf8_ptr(text, ..)`: `mbstowcs` in the current locale up to
-/// the first NUL, then `wchar_to_utf8`. Text the locale cannot convert
-/// gives an empty string.
-// wchar_t is i32 on x86-64 Linux and macOS and u32 on aarch64 Linux, so the
-// `as u32` below is needed on the first and a no-op on the second.
-#[allow(clippy::unnecessary_cast)]
-pub fn mbs_to_utf8(text: &CStr) -> Vec<u8> {
-    // SAFETY: `text` is NUL-terminated; a null destination only counts.
-    let count = unsafe { mbstowcs(ptr::null_mut(), text.as_ptr(), 0) };
-    let count = if count == usize::MAX { 0 } else { count };
-    let mut wide: Vec<WChar> = vec![0; count + 1];
-    let mut len = 0;
-    if count != 0 {
-        // SAFETY: `wide` holds `count + 1` units and at most `count` are written.
-        len = unsafe { mbstowcs(wide.as_mut_ptr(), text.as_ptr(), count) };
-        if len == usize::MAX {
-            len = 0;
-        }
-    }
-    let wide: Vec<u32> = wide[..len].iter().map(|&c| c as u32).collect();
-    wcs_to_utf8(&wide)
-}
-
-/// `os_utf8_to_mbs_ptr(text, len)`: `utf8_to_wchar` over all of `text`,
-/// then `wcstombs` in the current locale up to the first wide NUL. Text
-/// the locale cannot convert gives an empty string.
-pub fn utf8_to_mbs(text: &[u8]) -> Vec<u8> {
-    let count = utf8::utf8_to_wchar(text, None, 0);
-    let mut wide = vec![0u32; count + 1];
-    let len = if count != 0 {
-        utf8::utf8_to_wchar(text, Some(&mut wide), 0)
-    } else {
-        0
-    };
-    wide[len] = 0;
-    let wide: Vec<WChar> = wide[..=len].iter().map(|&c| c as WChar).collect();
-
-    // SAFETY: `wide` is NUL-terminated; a null destination only counts.
-    let count = unsafe { wcstombs(ptr::null_mut(), wide.as_ptr(), 0) };
-    if count == usize::MAX {
-        return Vec::new();
-    }
-    let mut out = vec![0u8; count + 1];
-    let mut len = 0;
-    if count != 0 {
-        // SAFETY: `out` holds `count + 1` bytes and at most `count` are written.
-        len = unsafe { wcstombs(out.as_mut_ptr().cast::<c_char>(), wide.as_ptr(), count) };
-        if len == usize::MAX {
-            len = 0;
-        }
-    }
     out.truncate(len);
     out
 }
