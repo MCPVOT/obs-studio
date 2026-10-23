@@ -180,4 +180,10 @@
     source_profiler_source_render_begin;
     source_profiler_source_render_end;
     source_profiler_remove_source;
+    /* obs-service.c (#1920). obs-output.c and the context list call them
+     * inside libobs. Not EXPORT. */
+    obs_service_destroy;
+    obs_service_activate;
+    obs_service_deactivate;
+    obs_service_initialize;
 };

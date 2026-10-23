@@ -1849,6 +1849,34 @@ extern void *obs_service_get_plugin_data(const obs_service_t *service);
 /* obs-service.c: the context fields obs-service-getters.c reads (#1913). */
 extern const char *obs_service_get_context_name(const obs_service_t *service);
 extern obs_data_t *obs_service_get_context_settings(const obs_service_t *service);
+/* obs-service.c: the steps on struct obs_service, its context and its
+ * reference counts that the lifecycle in obs-service-getters.c takes (#1920). */
+extern obs_module_t *obs_service_module_first(bool disabled);
+extern obs_module_t *obs_service_module_next(obs_module_t *module);
+extern size_t obs_service_module_service_count(obs_module_t *module);
+extern const char *obs_service_module_service_id(obs_module_t *module, size_t i);
+extern enum obs_module_load_state obs_service_module_load_state(obs_module_t *module);
+extern obs_service_t *obs_service_context_new(const char *name, obs_data_t *settings, obs_data_t *hotkey_data,
+					      bool private);
+extern void obs_service_set_info(obs_service_t *service, const struct obs_service_info *info);
+extern void obs_service_set_plugin_data(obs_service_t *service, void *data);
+extern void obs_service_context_insert(obs_service_t *service);
+extern void obs_service_context_remove(obs_service_t *service);
+extern void obs_service_context_free(obs_service_t *service);
+extern void obs_service_set_destroy(obs_service_t *service);
+extern bool obs_service_is_destroying(const obs_service_t *service);
+extern bool obs_service_is_active(const obs_service_t *service);
+extern void obs_service_set_active(obs_service_t *service, bool active);
+extern bool obs_service_has_output(const obs_service_t *service);
+extern void obs_service_clear_output(obs_service_t *service);
+extern void obs_service_detach_from_output(obs_service_t *service);
+extern obs_weak_service_t *obs_service_get_control(const obs_service_t *service);
+extern bool obs_weak_service_strong_release(obs_weak_service_t *weak);
+extern void obs_weak_service_weak_addref(obs_weak_service_t *weak);
+extern bool obs_weak_service_weak_release(obs_weak_service_t *weak);
+extern bool obs_weak_service_weak_get_ref(obs_weak_service_t *weak);
+extern obs_service_t *obs_weak_service_target(const obs_weak_service_t *weak);
+extern void obs_weak_service_free(obs_weak_service_t *weak);
 extern bool obs_service_initialize(struct obs_service *service, struct obs_output *output);
 
 void obs_service_destroy(obs_service_t *service);

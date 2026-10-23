@@ -15,7 +15,6 @@
 use core::cell::RefCell;
 use core::ffi::{CStr, c_char, c_void};
 use core::ptr;
-use std::sync::Mutex;
 
 use obs_c_oracle::service_getters as c;
 use obs_output::ffi::service::{self as rust, ObsServiceInfo};
@@ -42,9 +41,6 @@ unsafe extern "C" {
     );
     fn obs_properties_destroy(props: *mut c_void);
 }
-
-/// `find_service()` is one global table on both sides.
-static TYPES: Mutex<()> = Mutex::new(());
 
 thread_local! {
     static TRACE: RefCell<Vec<String>> = const { RefCell::new(Vec::new()) };
@@ -198,7 +194,9 @@ fn props_present(props: *mut c_void) -> bool {
 
 #[test]
 fn by_id_functions_match_the_c() {
-    let _types = TYPES.lock().unwrap_or_else(|e| e.into_inner());
+    let _types = super::SERVICE_GLOBALS
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
     for mask in 0..32 {
         let types = [table(mask)];
         // SAFETY: the table outlives every call below; reset after.

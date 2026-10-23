@@ -232,6 +232,232 @@ const char *obs_service_get_id(const obs_service_t *service)
 	return obs_service_valid(service, "obs_service_get_id") ? service_info(service)->id : NULL;
 }
 
+/* Lifecycle, references, module lookup and activation, moved from
+ * obs-service.c (#1920). The steps on struct obs_service, its context and
+ * its reference counts are the hidden obs_service_*() and
+ * obs_weak_service_*() helpers there, so the Rust port can replace this
+ * code too. test_service_lifecycle pins the public half. */
+
+obs_module_t *obs_service_get_module(const char *id)
+{
+	obs_module_t *module = obs_service_module_first(false);
+	while (module) {
+		for (size_t i = 0; i < obs_service_module_service_count(module); i++) {
+			if (strcmp(obs_service_module_service_id(module, i), id) == 0) {
+				return module;
+			}
+		}
+		module = obs_service_module_next(module);
+	}
+
+	module = obs_service_module_first(true);
+	while (module) {
+		for (size_t i = 0; i < obs_service_module_service_count(module); i++) {
+			if (strcmp(obs_service_module_service_id(module, i), id) == 0) {
+				return module;
+			}
+		}
+		module = obs_service_module_next(module);
+	}
+
+	return NULL;
+}
+
+enum obs_module_load_state obs_service_load_state(const char *id)
+{
+	obs_module_t *module = obs_service_get_module(id);
+	if (!module) {
+		return OBS_MODULE_MISSING;
+	}
+	return obs_service_module_load_state(module);
+}
+
+static obs_service_t *obs_service_create_internal(const char *id, const char *name, obs_data_t *settings,
+						  obs_data_t *hotkey_data, bool private)
+{
+	const struct obs_service_info *info = find_service(id);
+	obs_service_t *service;
+
+	if (!info) {
+		blog(LOG_ERROR, "Service '%s' not found", id);
+		return NULL;
+	}
+
+	service = obs_service_context_new(name, settings, hotkey_data, private);
+	if (!service)
+		return NULL;
+
+	obs_service_set_info(service, info);
+	obs_service_set_plugin_data(service,
+				    service_info(service)->create(obs_service_get_context_settings(service), service));
+	if (!service_data(service))
+		blog(LOG_ERROR, "Failed to create service '%s'!", name);
+
+	obs_service_context_insert(service);
+
+	blog(LOG_DEBUG, "service '%s' (%s) created", name, id);
+	return service;
+}
+
+obs_service_t *obs_service_create(const char *id, const char *name, obs_data_t *settings, obs_data_t *hotkey_data)
+{
+	return obs_service_create_internal(id, name, settings, hotkey_data, false);
+}
+
+obs_service_t *obs_service_create_private(const char *id, const char *name, obs_data_t *settings)
+{
+	return obs_service_create_internal(id, name, settings, NULL, true);
+}
+
+static void actually_destroy_service(obs_service_t *service)
+{
+	if (service_data(service))
+		service_info(service)->destroy(service_data(service));
+
+	if (obs_service_has_output(service))
+		obs_service_detach_from_output(service);
+
+	blog(LOG_DEBUG, "service '%s' destroyed", obs_service_get_context_name(service));
+
+	obs_service_context_free(service);
+}
+
+void obs_service_destroy(obs_service_t *service)
+{
+	if (service) {
+		obs_service_context_remove(service);
+
+		obs_service_set_destroy(service);
+
+		/* do NOT destroy the service until the service is no
+		 * longer in use */
+		if (!obs_service_is_active(service))
+			actually_destroy_service(service);
+	}
+}
+
+void obs_service_activate(struct obs_service *service)
+{
+	if (!obs_service_valid(service, "obs_service_activate"))
+		return;
+	if (!obs_service_has_output(service)) {
+		blog(LOG_WARNING,
+		     "obs_service_deactivate: service '%s' "
+		     "is not assigned to an output",
+		     obs_service_get_name(service));
+		return;
+	}
+	if (obs_service_is_active(service))
+		return;
+
+	if (service_info(service)->activate)
+		service_info(service)->activate(service_data(service), obs_service_get_context_settings(service));
+	obs_service_set_active(service, true);
+}
+
+void obs_service_deactivate(struct obs_service *service, bool remove)
+{
+	if (!obs_service_valid(service, "obs_service_deactivate"))
+		return;
+	if (!obs_service_has_output(service)) {
+		blog(LOG_WARNING,
+		     "obs_service_deactivate: service '%s' "
+		     "is not assigned to an output",
+		     obs_service_get_name(service));
+		return;
+	}
+
+	if (!obs_service_is_active(service))
+		return;
+
+	if (service_info(service)->deactivate)
+		service_info(service)->deactivate(service_data(service));
+	obs_service_set_active(service, false);
+
+	if (obs_service_is_destroying(service))
+		actually_destroy_service(service);
+	else if (remove)
+		obs_service_clear_output(service);
+}
+
+bool obs_service_initialize(struct obs_service *service, struct obs_output *output)
+{
+	if (!obs_service_valid(service, "obs_service_initialize"))
+		return false;
+	if (!obs_output_valid(output, "obs_service_initialize"))
+		return false;
+
+	if (service_info(service)->initialize)
+		return service_info(service)->initialize(service_data(service), output);
+	return true;
+}
+
+void obs_service_release(obs_service_t *service)
+{
+	if (!service)
+		return;
+
+	obs_weak_service_t *control = obs_service_get_control(service);
+	if (obs_weak_service_strong_release(control)) {
+		// The order of operations is important here since
+		// get_context_by_name in obs.c relies on weak refs
+		// being alive while the context is listed
+		obs_service_destroy(service);
+		obs_weak_service_release(control);
+	}
+}
+
+void obs_weak_service_addref(obs_weak_service_t *weak)
+{
+	if (!weak)
+		return;
+
+	obs_weak_service_weak_addref(weak);
+}
+
+void obs_weak_service_release(obs_weak_service_t *weak)
+{
+	if (!weak)
+		return;
+
+	if (obs_weak_service_weak_release(weak))
+		obs_weak_service_free(weak);
+}
+
+obs_service_t *obs_service_get_ref(obs_service_t *service)
+{
+	if (!service)
+		return NULL;
+
+	return obs_weak_service_get_service(obs_service_get_control(service));
+}
+
+obs_weak_service_t *obs_service_get_weak_service(obs_service_t *service)
+{
+	if (!service)
+		return NULL;
+
+	obs_weak_service_t *weak = obs_service_get_control(service);
+	obs_weak_service_addref(weak);
+	return weak;
+}
+
+obs_service_t *obs_weak_service_get_service(obs_weak_service_t *weak)
+{
+	if (!weak)
+		return NULL;
+
+	if (obs_weak_service_weak_get_ref(weak))
+		return obs_weak_service_target(weak);
+
+	return NULL;
+}
+
+bool obs_weak_service_references_service(obs_weak_service_t *weak, obs_service_t *service)
+{
+	return weak && service && obs_weak_service_target(weak) == service;
+}
+
 /* File-local macros: keep them out of the next source of a unity build. */
 #undef service_info
 #undef service_data

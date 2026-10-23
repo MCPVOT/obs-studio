@@ -627,3 +627,404 @@ pub unsafe extern "C" fn obs_service_apply_encoder_settings(
         nullable(audio_encoder_settings),
     );
 }
+
+// ---------------------------------------------------------------------------
+// Lifecycle, references, module lookup and activation (#1920). Every step on
+// struct obs_service, its context and its reference counts is a hidden
+// obs_service_*() / obs_weak_service_*() helper in obs-service.c.h, which
+// keeps the struct; the plugin's create/destroy/activate/deactivate/
+// initialize come from its table.
+
+/// `LOG_ERROR` (`util/base.h`).
+const LOG_ERROR: c_int = 100;
+/// `LOG_WARNING` (`util/base.h`).
+const LOG_WARNING: c_int = 200;
+
+unsafe extern "C" {
+    fn obs_service_module_first(disabled: bool) -> *mut c_void;
+    fn obs_service_module_next(module: *mut c_void) -> *mut c_void;
+    fn obs_service_module_service_count(module: *mut c_void) -> usize;
+    fn obs_service_module_service_id(module: *mut c_void, i: usize) -> *const c_char;
+    fn obs_service_module_load_state(module: *mut c_void) -> c_int;
+    fn obs_service_context_new(
+        name: *const c_char,
+        settings: *mut c_void,
+        hotkey_data: *mut c_void,
+        private: bool,
+    ) -> *mut c_void;
+    fn obs_service_set_info(service: *mut c_void, info: *const ObsServiceInfo);
+    fn obs_service_set_plugin_data(service: *mut c_void, data: *mut c_void);
+    fn obs_service_context_insert(service: *mut c_void);
+    fn obs_service_context_remove(service: *mut c_void);
+    fn obs_service_context_free(service: *mut c_void);
+    fn obs_service_set_destroy(service: *mut c_void);
+    fn obs_service_is_destroying(service: *const c_void) -> bool;
+    fn obs_service_is_active(service: *const c_void) -> bool;
+    fn obs_service_set_active(service: *mut c_void, active: bool);
+    fn obs_service_has_output(service: *const c_void) -> bool;
+    fn obs_service_clear_output(service: *mut c_void);
+    fn obs_service_detach_from_output(service: *mut c_void);
+    fn obs_service_get_control(service: *const c_void) -> *mut c_void;
+    fn obs_weak_service_strong_release(weak: *mut c_void) -> bool;
+    fn obs_weak_service_weak_addref(weak: *mut c_void);
+    fn obs_weak_service_weak_release(weak: *mut c_void) -> bool;
+    fn obs_weak_service_weak_get_ref(weak: *mut c_void) -> bool;
+    fn obs_weak_service_target(weak: *const c_void) -> *mut c_void;
+    fn obs_weak_service_free(weak: *mut c_void);
+}
+
+/// libobs' services, contexts and weak refs.
+struct CLifecycle;
+
+fn non_null(p: *mut c_void) -> Option<*mut c_void> {
+    (!p.is_null()).then_some(p)
+}
+
+/// The table of a live service.
+///
+/// # Safety
+///
+/// `service` is a live `obs_service_t` with its info set.
+unsafe fn table<'a>(service: *mut c_void) -> &'a ObsServiceInfo {
+    // SAFETY: the copy lives in the service (caller contract).
+    unsafe { &*obs_service_get_info_table(service) }
+}
+
+// SAFETY, every call below: a hidden libobs helper or a plugin callback on
+// a live service (or weak control) that the exported shims were handed, in
+// the C's order.
+impl service::Lifecycle for CLifecycle {
+    type Svc = *mut c_void;
+    type Weak = *mut c_void;
+    type Output = *mut c_void;
+    type Info = *const ObsServiceInfo;
+    type Str = *const c_char;
+    type Data = *mut c_void;
+    type Ptr = *mut c_void;
+
+    fn find(&self, id: *const c_char) -> Option<*const ObsServiceInfo> {
+        let info = unsafe { find_service(id) };
+        (!info.is_null()).then_some(info)
+    }
+    fn context_new(
+        &self,
+        name: *const c_char,
+        settings: *mut c_void,
+        hotkey_data: *mut c_void,
+        private: bool,
+    ) -> Option<*mut c_void> {
+        non_null(unsafe { obs_service_context_new(name, settings, hotkey_data, private) })
+    }
+    fn set_info(&self, service: *mut c_void, info: *const ObsServiceInfo) {
+        unsafe { obs_service_set_info(service, info) }
+    }
+    fn call_create(&self, service: *mut c_void) -> Option<*mut c_void> {
+        let create = unsafe { table(service) }
+            .create
+            .expect("obs_register_service requires create");
+        non_null(unsafe { create(obs_service_get_context_settings(service), service) })
+    }
+    fn set_plugin_data(&self, service: *mut c_void, data: Option<*mut c_void>) {
+        unsafe { obs_service_set_plugin_data(service, data.unwrap_or(ptr::null_mut())) }
+    }
+    fn plugin_data(&self, service: *mut c_void) -> Option<*mut c_void> {
+        non_null(unsafe { obs_service_get_plugin_data(service) })
+    }
+    fn context_insert(&self, service: *mut c_void) {
+        unsafe { obs_service_context_insert(service) }
+    }
+    fn context_remove(&self, service: *mut c_void) {
+        unsafe { obs_service_context_remove(service) }
+    }
+    fn context_free(&self, service: *mut c_void) {
+        unsafe { obs_service_context_free(service) }
+    }
+    fn set_destroy(&self, service: *mut c_void) {
+        unsafe { obs_service_set_destroy(service) }
+    }
+    fn destroying(&self, service: *mut c_void) -> bool {
+        unsafe { obs_service_is_destroying(service) }
+    }
+    fn active(&self, service: *mut c_void) -> bool {
+        unsafe { obs_service_is_active(service) }
+    }
+    fn set_active(&self, service: *mut c_void, active: bool) {
+        unsafe { obs_service_set_active(service, active) }
+    }
+    fn has_output(&self, service: *mut c_void) -> bool {
+        unsafe { obs_service_has_output(service) }
+    }
+    fn clear_output(&self, service: *mut c_void) {
+        unsafe { obs_service_clear_output(service) }
+    }
+    fn detach_from_output(&self, service: *mut c_void) {
+        unsafe { obs_service_detach_from_output(service) }
+    }
+    fn call_destroy(&self, service: *mut c_void, data: *mut c_void) {
+        let destroy = unsafe { table(service) }
+            .destroy
+            .expect("obs_register_service requires destroy");
+        unsafe { destroy(data) }
+    }
+    fn call_activate(&self, service: *mut c_void) -> bool {
+        unsafe { table(service) }
+            .activate
+            .map(|f| unsafe {
+                f(
+                    obs_service_get_plugin_data(service),
+                    obs_service_get_context_settings(service),
+                )
+            })
+            .is_some()
+    }
+    fn call_deactivate(&self, service: *mut c_void) -> bool {
+        unsafe { table(service) }
+            .deactivate
+            .map(|f| unsafe { f(obs_service_get_plugin_data(service)) })
+            .is_some()
+    }
+    fn call_initialize(&self, service: *mut c_void, output: *mut c_void) -> Option<bool> {
+        unsafe { table(service) }
+            .initialize
+            .map(|f| unsafe { f(obs_service_get_plugin_data(service), output) })
+    }
+    fn control(&self, service: *mut c_void) -> *mut c_void {
+        unsafe { obs_service_get_control(service) }
+    }
+    fn ref_release(&self, weak: *mut c_void) -> bool {
+        unsafe { obs_weak_service_strong_release(weak) }
+    }
+    fn weak_addref(&self, weak: *mut c_void) {
+        unsafe { obs_weak_service_weak_addref(weak) }
+    }
+    fn weak_release(&self, weak: *mut c_void) -> bool {
+        unsafe { obs_weak_service_weak_release(weak) }
+    }
+    fn weak_get_ref(&self, weak: *mut c_void) -> bool {
+        unsafe { obs_weak_service_weak_get_ref(weak) }
+    }
+    fn weak_target(&self, weak: *mut c_void) -> *mut c_void {
+        unsafe { obs_weak_service_target(weak) }
+    }
+    fn weak_free(&self, weak: *mut c_void) {
+        unsafe { obs_weak_service_free(weak) }
+    }
+    fn log_not_found(&self, id: *const c_char) {
+        unsafe { blog(LOG_ERROR, c"Service '%s' not found".as_ptr(), id) }
+    }
+    fn log_create_failed(&self, name: *const c_char) {
+        unsafe { blog(LOG_ERROR, c"Failed to create service '%s'!".as_ptr(), name) }
+    }
+    fn log_created(&self, name: *const c_char, id: *const c_char) {
+        unsafe { blog(LOG_DEBUG, c"service '%s' (%s) created".as_ptr(), name, id) }
+    }
+    fn log_destroyed(&self, service: *mut c_void) {
+        unsafe {
+            blog(
+                LOG_DEBUG,
+                c"service '%s' destroyed".as_ptr(),
+                obs_service_get_context_name(service),
+            )
+        }
+    }
+    fn log_no_output(&self, service: *mut c_void) {
+        unsafe {
+            blog(
+                LOG_WARNING,
+                c"obs_service_deactivate: service '%s' is not assigned to an output".as_ptr(),
+                obs_service_get_context_name(service),
+            )
+        }
+    }
+}
+
+/// libobs' loaded and disabled module lists.
+struct CModules;
+
+// SAFETY, every call below: a hidden libobs helper on a listed module.
+impl service::Modules for CModules {
+    type Module = *mut c_void;
+    type Str = *const c_char;
+
+    fn first(&self, disabled: bool) -> Option<*mut c_void> {
+        non_null(unsafe { obs_service_module_first(disabled) })
+    }
+    fn next(&self, module: *mut c_void) -> Option<*mut c_void> {
+        non_null(unsafe { obs_service_module_next(module) })
+    }
+    fn service_count(&self, module: *mut c_void) -> usize {
+        unsafe { obs_service_module_service_count(module) }
+    }
+    fn service_is(&self, module: *mut c_void, i: usize, id: *const c_char) -> bool {
+        // strcmp(a, b) == 0, as the C compares; both are C strings.
+        unsafe { CStr::from_ptr(obs_service_module_service_id(module, i)) == CStr::from_ptr(id) }
+    }
+    fn load_state(&self, module: *mut c_void) -> c_int {
+        unsafe { obs_service_module_load_state(module) }
+    }
+}
+
+/// Same contract as C `obs_service_get_module`.
+///
+/// # Safety
+///
+/// `id` is a C string; libobs is started.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn obs_service_get_module(id: *const c_char) -> *mut c_void {
+    service::module(&CModules, id).unwrap_or(ptr::null_mut())
+}
+
+/// Same contract as C `obs_service_load_state`.
+///
+/// # Safety
+///
+/// `id` is a C string; libobs is started.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn obs_service_load_state(id: *const c_char) -> c_int {
+    service::load_state(&CModules, id)
+}
+
+/// Same contract as C `obs_service_create`.
+///
+/// # Safety
+///
+/// `id` and `name` are C strings; each data object is NULL or live.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn obs_service_create(
+    id: *const c_char,
+    name: *const c_char,
+    settings: *mut c_void,
+    hotkey_data: *mut c_void,
+) -> *mut c_void {
+    service::create(&CLifecycle, id, name, settings, hotkey_data, false).unwrap_or(ptr::null_mut())
+}
+
+/// Same contract as C `obs_service_create_private`.
+///
+/// # Safety
+///
+/// `id` and `name` are C strings; `settings` is NULL or live.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn obs_service_create_private(
+    id: *const c_char,
+    name: *const c_char,
+    settings: *mut c_void,
+) -> *mut c_void {
+    service::create(&CLifecycle, id, name, settings, ptr::null_mut(), true)
+        .unwrap_or(ptr::null_mut())
+}
+
+/// Same contract as C `obs_service_destroy` (hidden; the context's destroy
+/// callback).
+///
+/// # Safety
+///
+/// `service` is NULL or a live `obs_service_t`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn obs_service_destroy(service: *mut c_void) {
+    service::destroy(&CLifecycle, non_null(service));
+}
+
+/// Same contract as C `obs_service_activate` (hidden).
+///
+/// # Safety
+///
+/// `service` is NULL or a live `obs_service_t`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn obs_service_activate(service: *mut c_void) {
+    service::activate(&CLifecycle, &CLog, non_null(service));
+}
+
+/// Same contract as C `obs_service_deactivate` (hidden).
+///
+/// # Safety
+///
+/// `service` is NULL or a live `obs_service_t`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn obs_service_deactivate(service: *mut c_void, remove: bool) {
+    service::deactivate(&CLifecycle, &CLog, non_null(service), remove);
+}
+
+/// Same contract as C `obs_service_initialize` (hidden).
+///
+/// # Safety
+///
+/// `service` is NULL or a live `obs_service_t`; `output` is NULL or a live
+/// `obs_output_t`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn obs_service_initialize(service: *mut c_void, output: *mut c_void) -> bool {
+    service::initialize(&CLifecycle, &CLog, non_null(service), non_null(output))
+}
+
+/// Same contract as C `obs_service_release`.
+///
+/// # Safety
+///
+/// `service` is NULL or a live `obs_service_t` the caller holds a ref to.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn obs_service_release(service: *mut c_void) {
+    service::release(&CLifecycle, non_null(service));
+}
+
+/// Same contract as C `obs_weak_service_addref`.
+///
+/// # Safety
+///
+/// `weak` is NULL or a live `obs_weak_service_t`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn obs_weak_service_addref(weak: *mut c_void) {
+    service::weak_addref(&CLifecycle, non_null(weak));
+}
+
+/// Same contract as C `obs_weak_service_release`.
+///
+/// # Safety
+///
+/// `weak` is NULL or a live `obs_weak_service_t` the caller holds.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn obs_weak_service_release(weak: *mut c_void) {
+    service::weak_release(&CLifecycle, non_null(weak));
+}
+
+/// Same contract as C `obs_service_get_ref`.
+///
+/// # Safety
+///
+/// `service` is NULL or a live `obs_service_t`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn obs_service_get_ref(service: *mut c_void) -> *mut c_void {
+    service::get_ref(&CLifecycle, non_null(service)).unwrap_or(ptr::null_mut())
+}
+
+/// Same contract as C `obs_service_get_weak_service`.
+///
+/// # Safety
+///
+/// `service` is NULL or a live `obs_service_t`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn obs_service_get_weak_service(service: *mut c_void) -> *mut c_void {
+    service::get_weak_service(&CLifecycle, non_null(service)).unwrap_or(ptr::null_mut())
+}
+
+/// Same contract as C `obs_weak_service_get_service`.
+///
+/// # Safety
+///
+/// `weak` is NULL or a live `obs_weak_service_t`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn obs_weak_service_get_service(weak: *mut c_void) -> *mut c_void {
+    service::weak_get_service(&CLifecycle, non_null(weak)).unwrap_or(ptr::null_mut())
+}
+
+/// Same contract as C `obs_weak_service_references_service`.
+///
+/// # Safety
+///
+/// `weak` is NULL or a live `obs_weak_service_t`; `service` is any pointer.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn obs_weak_service_references_service(
+    weak: *mut c_void,
+    service: *mut c_void,
+) -> bool {
+    service::weak_references(&CLifecycle, non_null(weak), non_null(service))
+}

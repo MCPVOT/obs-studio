@@ -1,6 +1,6 @@
 /* Test-only oracle: the original libobs/obs-service-getters.c.h, unmodified,
  * with its exports renamed to oracle_* so it can link next to the Rust
- * shims (#1899, #1913). find_service() and the context accessors are
+ * shims (#1899, #1913, #1920). find_service() and the context accessors are
  * test doubles that both sides call. obs_service_get_info_table() and
  * obs_service_get_plugin_data() are copied from obs-service.c,
  * and oracle_service_new() builds the struct obs_service both sides read,
@@ -28,10 +28,26 @@
 #define obs_service_apply_encoder_settings oracle_obs_service_apply_encoder_settings
 #define obs_service_get_type_data oracle_obs_service_get_type_data
 #define obs_service_get_id oracle_obs_service_get_id
+#define obs_service_get_module oracle_obs_service_get_module
+#define obs_service_load_state oracle_obs_service_load_state
+#define obs_service_create oracle_obs_service_create
+#define obs_service_create_private oracle_obs_service_create_private
+#define obs_service_destroy oracle_obs_service_destroy
+#define obs_service_activate oracle_obs_service_activate
+#define obs_service_deactivate oracle_obs_service_deactivate
+#define obs_service_initialize oracle_obs_service_initialize
+#define obs_service_release oracle_obs_service_release
+#define obs_weak_service_addref oracle_obs_weak_service_addref
+#define obs_weak_service_release oracle_obs_weak_service_release
+#define obs_service_get_ref oracle_obs_service_get_ref
+#define obs_service_get_weak_service oracle_obs_service_get_weak_service
+#define obs_weak_service_get_service oracle_obs_weak_service_get_service
+#define obs_weak_service_references_service oracle_obs_weak_service_references_service
 
 #include "obs-service-getters.c.h"
 
 #include <stddef.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -54,6 +70,242 @@ const char *obs_service_get_context_name(const obs_service_t *service)
 obs_data_t *obs_service_get_context_settings(const obs_service_t *service)
 {
 	return service->context.settings;
+}
+
+/* The steps on struct obs_service, its context and its reference counts
+ * that the lifecycle (#1920) takes, as test doubles both sides call. Each
+ * reports to oracle_service_trace() (the test's hook) with the service's
+ * name, so a C run and a Rust run give comparable traces. The reference
+ * counts are libobs' own inline obs_ref_* / obs_weak_ref_*. */
+static void (*oracle_trace_hook)(const char *event, const char *name);
+
+void oracle_service_set_trace(void (*hook)(const char *event, const char *name));
+void oracle_service_set_trace(void (*hook)(const char *event, const char *name))
+{
+	oracle_trace_hook = hook;
+}
+
+static void trace_ev(const char *event, const obs_service_t *service)
+{
+	if (oracle_trace_hook)
+		oracle_trace_hook(event, service ? service->context.name : NULL);
+}
+
+static obs_module_t *oracle_first_module;
+static obs_module_t *oracle_first_disabled_module;
+
+void oracle_service_set_modules(obs_module_t *first, obs_module_t *first_disabled);
+void oracle_service_set_modules(obs_module_t *first, obs_module_t *first_disabled)
+{
+	oracle_first_module = first;
+	oracle_first_disabled_module = first_disabled;
+}
+
+/* A module that registered `num` service ids; `next` links the list. */
+obs_module_t *oracle_module_new(const char **ids, size_t num, int load_state, obs_module_t *next);
+obs_module_t *oracle_module_new(const char **ids, size_t num, int load_state, obs_module_t *next)
+{
+	struct obs_module *module = calloc(1, sizeof(*module));
+	module->services.array = (char **)(uintptr_t)ids;
+	module->services.num = num;
+	module->load_state = (enum obs_module_load_state)load_state;
+	module->next = next;
+	return module;
+}
+
+void oracle_module_free(obs_module_t *module);
+void oracle_module_free(obs_module_t *module)
+{
+	free(module);
+}
+
+obs_module_t *obs_service_module_first(bool disabled)
+{
+	return disabled ? oracle_first_disabled_module : oracle_first_module;
+}
+
+obs_module_t *obs_service_module_next(obs_module_t *module)
+{
+	return module->next;
+}
+
+size_t obs_service_module_service_count(obs_module_t *module)
+{
+	return module->services.num;
+}
+
+const char *obs_service_module_service_id(obs_module_t *module, size_t i)
+{
+	return module->services.array[i];
+}
+
+enum obs_module_load_state obs_service_module_load_state(obs_module_t *module)
+{
+	return module->load_state;
+}
+
+static bool oracle_context_fails;
+
+void oracle_service_set_context_fails(bool fails);
+void oracle_service_set_context_fails(bool fails)
+{
+	oracle_context_fails = fails;
+}
+
+/* No libobs context: the name is the caller's string, the settings the
+ * caller's object. */
+obs_service_t *obs_service_context_new(const char *name, obs_data_t *settings, obs_data_t *hotkey_data, bool private)
+{
+	(void)hotkey_data;
+	if (oracle_trace_hook)
+		oracle_trace_hook(private ? "context_new private" : "context_new", name);
+	if (oracle_context_fails)
+		return NULL;
+	struct obs_service *service = calloc(1, sizeof(*service));
+	service->context.name = (char *)(uintptr_t)name;
+	service->context.settings = settings;
+	return service;
+}
+
+void obs_service_set_info(obs_service_t *service, const struct obs_service_info *info)
+{
+	trace_ev("set_info", service);
+	service->info = *info;
+}
+
+void obs_service_set_plugin_data(obs_service_t *service, void *data)
+{
+	trace_ev(data ? "set_data" : "set_data NULL", service);
+	service->context.data = data;
+}
+
+/* obs_context_init_control()'s control object, then the insert. */
+void obs_service_context_insert(obs_service_t *service)
+{
+	trace_ev("insert", service);
+	struct obs_weak_service *control = calloc(1, sizeof(*control));
+	control->service = service;
+	service->context.control = (obs_weak_object_t *)control;
+}
+
+void obs_service_context_remove(obs_service_t *service)
+{
+	trace_ev("remove", service);
+}
+
+/* Traced, not freed: the test frees the service afterwards. */
+void obs_service_context_free(obs_service_t *service)
+{
+	trace_ev("free", service);
+}
+
+void obs_service_set_destroy(obs_service_t *service)
+{
+	trace_ev("set_destroy", service);
+	service->destroy = true;
+}
+
+bool obs_service_is_destroying(const obs_service_t *service)
+{
+	return service->destroy;
+}
+
+bool obs_service_is_active(const obs_service_t *service)
+{
+	return service->active;
+}
+
+void obs_service_set_active(obs_service_t *service, bool active)
+{
+	trace_ev(active ? "set_active" : "set_inactive", service);
+	service->active = active;
+}
+
+bool obs_service_has_output(const obs_service_t *service)
+{
+	return service->output != NULL;
+}
+
+void obs_service_clear_output(obs_service_t *service)
+{
+	trace_ev("clear_output", service);
+	service->output = NULL;
+}
+
+void obs_service_detach_from_output(obs_service_t *service)
+{
+	trace_ev("detach", service);
+}
+
+obs_weak_service_t *obs_service_get_control(const obs_service_t *service)
+{
+	return (obs_weak_service_t *)service->context.control;
+}
+
+bool obs_weak_service_strong_release(obs_weak_service_t *weak)
+{
+	trace_ev("ref_release", weak->service);
+	return obs_ref_release(&weak->ref);
+}
+
+void obs_weak_service_weak_addref(obs_weak_service_t *weak)
+{
+	trace_ev("weak_addref", weak->service);
+	obs_weak_ref_addref(&weak->ref);
+}
+
+bool obs_weak_service_weak_release(obs_weak_service_t *weak)
+{
+	trace_ev("weak_release", weak->service);
+	return obs_weak_ref_release(&weak->ref);
+}
+
+bool obs_weak_service_weak_get_ref(obs_weak_service_t *weak)
+{
+	return obs_weak_ref_get_ref(&weak->ref);
+}
+
+obs_service_t *obs_weak_service_target(const obs_weak_service_t *weak)
+{
+	return weak->service;
+}
+
+void obs_weak_service_free(obs_weak_service_t *weak)
+{
+	trace_ev("weak_free", weak->service);
+	free(weak);
+}
+
+/* What the tests read and set on a service. */
+void oracle_service_set_state(obs_service_t *service, bool active, void *output);
+void oracle_service_set_state(obs_service_t *service, bool active, void *output)
+{
+	service->active = active;
+	service->output = output;
+}
+
+bool oracle_service_is_destroying(const obs_service_t *service);
+bool oracle_service_is_destroying(const obs_service_t *service)
+{
+	return service->destroy;
+}
+
+bool oracle_service_is_active(const obs_service_t *service);
+bool oracle_service_is_active(const obs_service_t *service)
+{
+	return service->active;
+}
+
+void *oracle_service_output(const obs_service_t *service);
+void *oracle_service_output(const obs_service_t *service)
+{
+	return service->output;
+}
+
+void *oracle_service_control(const obs_service_t *service);
+void *oracle_service_control(const obs_service_t *service)
+{
+	return service->context.control;
 }
 
 /* obs-service.c's find_service() over obs->service_types, here over one

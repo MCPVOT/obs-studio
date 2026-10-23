@@ -168,3 +168,9 @@ _ep_free
 # Internal scene bounds placement.
 _add_alignment
 _obs_bounds_place
+
+# obs-service.c (#1920): internal service lifecycle.
+_obs_service_destroy
+_obs_service_activate
+_obs_service_deactivate
+_obs_service_initialize

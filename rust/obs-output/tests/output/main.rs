@@ -10,11 +10,19 @@ mod interleave_parity;
 mod protocols;
 mod protocols_parity;
 mod service;
+mod service_lifecycle;
+mod service_lifecycle_parity;
 mod service_parity;
 mod service_settings;
 mod service_settings_parity;
 
 use std::process::Command;
+use std::sync::Mutex;
+
+/// The oracle's process-wide service state: the `find_service()` table,
+/// the module lists and the lifecycle trace hook, shared by the service
+/// parity tests on both sides.
+pub(crate) static SERVICE_GLOBALS: Mutex<()> = Mutex::new(());
 
 const MARKER_ENV: &str = "OBS_OUTPUT_ISOLATED_TEST";
 
