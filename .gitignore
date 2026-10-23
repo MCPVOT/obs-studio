@@ -57,5 +57,4 @@ build-aux/flatpak-github-action-modified-*
 /AppDir/
 /appimagetool
 /squashfs-root/
-/avutil-compat/
 /.apt-cache/

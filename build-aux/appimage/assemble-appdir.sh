@@ -5,10 +5,11 @@
 set -euo pipefail
 
 # Do not build an image that will fail on older host VA libraries. The second
-# input is built and audited by build_vaapi_compat.py before assembly.
+# input is the glibc 2.28 image's FFmpeg libavutil (build.py's AVUTIL_LIB),
+# built against that image's old libva; the checks below audit it.
 COMPAT_LIB="${2:-}"
 if [ -z "$COMPAT_LIB" ] || [ ! -f "$COMPAT_LIB" ]; then
-    echo "::error::provide a validated VA-compatible libavutil from build_vaapi_compat.py" >&2
+    echo "::error::provide a validated VA-compatible libavutil (build.py's AVUTIL_LIB)" >&2
     exit 2
 fi
 COMPAT_DYNAMIC="$(readelf -d "$COMPAT_LIB")"
