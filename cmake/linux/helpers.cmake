@@ -177,9 +177,9 @@ function(set_target_properties_obs target)
             COMMAND "${CMAKE_COMMAND}" -E make_directory "${OBS_OUTPUT_DIR}/$<CONFIG>/${OBS_PLUGIN_DESTINATION}/core"
             COMMAND
               "${CMAKE_COMMAND}" -E copy_if_different "${imported_location}" "${cef_location}/chrome-sandbox"
-              "${cef_location}/libEGL.so" "${cef_location}/libGLESv2.so" "${cef_location}/libvk_swiftshader.so"
-              "${cef_location}/libvulkan.so.1" "${cef_location}/v8_context_snapshot.bin"
-              "${cef_location}/vk_swiftshader_icd.json" "${OBS_OUTPUT_DIR}/$<CONFIG>/${OBS_PLUGIN_DESTINATION}/core"
+              "${cef_location}/libvk_swiftshader.so" "${cef_location}/libvulkan.so.1"
+              "${cef_location}/v8_context_snapshot.bin" "${cef_location}/vk_swiftshader_icd.json"
+              "${OBS_OUTPUT_DIR}/$<CONFIG>/${OBS_PLUGIN_DESTINATION}/core"
             COMMAND
               "${CMAKE_COMMAND}" -E copy_if_different "${cef_root_location}/Resources/chrome_100_percent.pak"
               "${cef_root_location}/Resources/chrome_200_percent.pak" "${cef_root_location}/Resources/icudtl.dat"
@@ -195,8 +195,6 @@ function(set_target_properties_obs target)
             FILES
               "${imported_location}"
               "${cef_location}/chrome-sandbox"
-              "${cef_location}/libEGL.so"
-              "${cef_location}/libGLESv2.so"
               "${cef_location}/libvk_swiftshader.so"
               "${cef_location}/libvulkan.so.1"
               "${cef_location}/v8_context_snapshot.bin"

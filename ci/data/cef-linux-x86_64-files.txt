@@ -1,0 +1,14 @@
+# Files in the pinned CEF bundle's Release/ and Resources/ (top level),
+# from cef_binary_8078_linux_x86_64.tar.xz
+# sha256 fb36df11bc8280c9cb666732becc1fe267f833bb964dbb13d69cad33488171dc
+# Regenerate with: tar -tJf <bundle> | grep -E '/(Release|Resources)/[^/]+$'
+Release/chrome-sandbox
+Release/libcef.so
+Release/libvk_swiftshader.so
+Release/libvulkan.so.1
+Release/v8_context_snapshot.bin
+Release/vk_swiftshader_icd.json
+Resources/chrome_100_percent.pak
+Resources/chrome_200_percent.pak
+Resources/icudtl.dat
+Resources/resources.pak
