@@ -59,6 +59,18 @@ LATER = {
         ("ccache -s\n", "zccache status || true\n"
          "zccache stop || true # flush the cache index before the workflow saves it\n"),
     ],
+    # #1881: the update information follows the certified release, like
+    # Windows and macOS, not the daily continuous build.
+    "appimage": [
+        ('# A build published as the "continuous" pre-release (release job) carries\n'
+         "# update information: AppImageUpdate and friends can then fetch the next\n"
+         "# continuous build as a delta against this one (.zsync).\n",
+         "# A build published by the release job carries update information that\n"
+         '# follows the certified ("latest") release, as the Windows and macOS updaters\n'
+         "# do (#1881): AppImageUpdate and friends fetch the next certified build as a\n"
+         "# delta against this one (.zsync), never an uncertified daily.\n"),
+        ("|continuous|OBS-Studio-Rust-", "|latest|OBS-Studio-Rust-"),
+    ],
 }
 
 TAGLESS_COMMENT = (

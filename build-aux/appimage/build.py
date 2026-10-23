@@ -141,12 +141,13 @@ echo "${APPIMAGETOOL_SHA256}  appimagetool" | sha256sum -c -
 chmod +x appimagetool
 # Runners have no /dev/fuse: extract appimagetool instead of running it.
 ./appimagetool --appimage-extract >/dev/null
-# A build published as the "continuous" pre-release (release job) carries
-# update information: AppImageUpdate and friends can then fetch the next
-# continuous build as a delta against this one (.zsync).
+# A build published by the release job carries update information that
+# follows the certified ("latest") release, as the Windows and macOS updaters
+# do (#1881): AppImageUpdate and friends fetch the next certified build as a
+# delta against this one (.zsync), never an uncertified daily.
 update=()
 if [ "${PUBLISH_CONTINUOUS}" = true ]; then
-  update=(-u "gh-releases-zsync|${GITHUB_REPOSITORY%/*}|${GITHUB_REPOSITORY#*/}|continuous|OBS-Studio-Rust-*-linux-x86_64.AppImage.zsync")
+  update=(-u "gh-releases-zsync|${GITHUB_REPOSITORY%/*}|${GITHUB_REPOSITORY#*/}|latest|OBS-Studio-Rust-*-linux-x86_64.AppImage.zsync")
 fi
 version="$(AppDir/AppRun --version)"
 asset="$(uv run --no-project build-aux/appimage/asset_metadata.py name --version "$version")"

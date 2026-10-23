@@ -19,7 +19,7 @@ metadata = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(metadata)
 VERSION = "OBS-Studio-Rust 0.1.0-beta.20261014 (based on OBS 33.0.0)"
 NAME = "OBS-Studio-Rust-0.1.0-beta.20261014-linux-x86_64.AppImage"
-TARGET = "gh-releases-zsync|obs-rust|obs-studio|continuous|OBS-Studio-Rust-*-linux-x86_64.AppImage.zsync"
+TARGET = "gh-releases-zsync|obs-rust|obs-studio|latest|OBS-Studio-Rust-*-linux-x86_64.AppImage.zsync"
 
 
 class AppImageAssetsTest(unittest.TestCase):
@@ -188,7 +188,7 @@ gh() {
         release = (ROOT / ".github/workflows/release-rust.yaml").read_text()
         self.assertIn("asset_metadata.py name", appimage)
         self.assertIn(
-            "continuous|OBS-Studio-Rust-*-linux-x86_64.AppImage.zsync", appimage
+            "latest|OBS-Studio-Rust-*-linux-x86_64.AppImage.zsync", appimage
         )
         self.assertNotIn("OBS_Studio-", appimage)
         self.assertIn(

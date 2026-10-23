@@ -427,6 +427,12 @@ not get a line.
   against the signed manifest, installs it and restarts. *Windows, macOS*,
   2026-10-22. PR [#1742](https://github.com/obs-rust/obs-studio/pull/1742).
 
+- **AppImage updates follow certified releases.** The AppImage's embedded
+  update information (AppImageUpdate, `.zsync` deltas) points at the
+  certified Latest release, like the Windows and macOS updaters, instead of
+  the daily `continuous` build. *Linux (AppImage)*, 2026-10-23. Issue
+  [#1881](https://github.com/obs-rust/obs-studio/issues/1881).
+
 - **Opt-in nightly updates.** Settings > General > Updates > Update Channel
   offers **Nightly** next to **Stable** (the default). On Nightly, the
   Windows and macOS updaters offer each day's build as soon as it passes the

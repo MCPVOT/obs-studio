@@ -38,7 +38,7 @@ def check_metadata(
     if not update_info and not require_update:
         return
     owner, repo = repository.split("/")
-    expected = f"gh-releases-zsync|{owner}|{repo}|continuous|OBS-Studio-Rust-*-linux-x86_64.AppImage.zsync"
+    expected = f"gh-releases-zsync|{owner}|{repo}|latest|OBS-Studio-Rust-*-linux-x86_64.AppImage.zsync"
     if update_info != expected:
         raise ValueError(f"incorrect embedded update target: {update_info!r}")
     sidecar = Path(str(appimage) + ".zsync")
@@ -53,7 +53,7 @@ def check_metadata(
     if fields.get("Filename") != appimage.name:
         raise ValueError("zsync Filename does not name the AppImage")
     download = (
-        f"https://github.com/{repository}/releases/download/continuous/{appimage.name}"
+        f"https://github.com/{repository}/releases/latest/download/{appimage.name}"
     )
     if fields.get("URL") not in (appimage.name, download):
         raise ValueError("zsync URL does not name the AppImage")
