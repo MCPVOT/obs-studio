@@ -385,6 +385,20 @@ class HostNamedFilesTest(unittest.TestCase):
             got = scope([path])
             self.assertEqual((got.windows, got.macos), (False, False), path)
 
+    def test_qt_sdk_paths_fetch_published_sdks(self):
+        # rust/obs-build's Qt SDK resolver runs against the published
+        # Windows and macOS SDKs on their own runners (#1878).
+        for path in (
+            "rust/obs-build/src/qt.rs",
+            "rust/obs-build/src/qt/sdk.rs",
+            "rust/obs-build/src/platform/qt_sdk.rs",
+            "rust/obs-build/tests/qt_sdk.rs",
+        ):
+            got = scope([path])
+            self.assertEqual((got.qt_sdk, got.macos, got.windows), (True, True, True), path)
+        for path in ("rust/obs-build/src/libobs.rs", "rust/obs-util/src/dstr.rs"):
+            self.assertFalse(scope([path]).qt_sdk, path)
+
 
 if __name__ == "__main__":
     unittest.main()

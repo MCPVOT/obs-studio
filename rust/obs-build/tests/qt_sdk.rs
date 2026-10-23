@@ -609,7 +609,9 @@ fn qt_inputs_keep_cross_builds_off_ambient_pkg_config() {
 }
 
 /// The published obs-studio-libs SDKs, extracted. Supplying a prefix makes a
-/// broken SDK a failure; unset prefixes are reported and skipped.
+/// broken SDK a failure; unset prefixes are reported and skipped. The Windows
+/// and macOS Rust lanes set their own prefix when a Qt SDK path changes
+/// (`ci/ci_scope.py` `QT_SDK_PATHS`, #1878).
 #[test]
 fn qt_sdk_resolves_published_sdks() {
     for (variable, targets) in [

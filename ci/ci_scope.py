@@ -36,6 +36,8 @@ Platform and Qt lanes:
            tests and Tier 2;
 - qt:      frontend/Qt code or a Qt-linked cmocka test changed -> the Linux
            Qt frontend build and its unit tests (#992);
+- qt_sdk:  rust/obs-build's Qt SDK resolver changed -> the macOS and
+           Windows Rust lanes check it against the published Qt SDKs (#1878);
 - core:    libobs or the Rust workspace changed (informational).
 Platform is decided by path alone (#897, ci/platform_paths.py): a changed
 file of a platform (`win-capture/`, `platform-osx.mm`, `threading-posix.c`,
@@ -92,6 +94,7 @@ class Scope:
     tier2: bool = False
     full: bool = False
     linux_targets: str = ""
+    qt_sdk: bool = False
 
 
 # The path -> lane table (#992). Adding a module is adding a row. Globs use
@@ -209,6 +212,20 @@ QT_FILES = {
 TEST_SOURCE = re.compile(r"^test/cmocka/([^/]+)\.(?:cpp|hpp|c|h)$")
 
 
+# rust/obs-build's Qt SDK resolver: the Windows and macOS lanes fetch the
+# published obs-studio-libs SDKs and check it against them (#1878).
+QT_SDK_PATHS = (
+    "rust/obs-build/src/qt.rs",
+    "rust/obs-build/src/qt/**",
+    "rust/obs-build/src/platform/qt_sdk.rs",
+    "rust/obs-build/tests/qt_sdk.rs",
+)
+
+
+def is_qt_sdk(path: str) -> bool:
+    return any(_glob(g).match(path) for g in QT_SDK_PATHS)
+
+
 def is_qt(path: str, read: Callable[[str], str]) -> bool:
     """Frontend/Qt code, the job's own files, or a Qt-linked cmocka test: a
     tests.d fragment that finds Qt6, or the test source it registers."""
@@ -249,7 +266,7 @@ def scope(
     """`exists(path)` says whether a file exists in the checkout, `read(path)`
     returns its text ("" when missing). `submodules` is accepted for callers
     but no path escalates to a full run any more."""
-    core = macos = windows = qt = tier2 = False
+    core = macos = windows = qt = tier2 = qt_sdk = False
     targets: set[str] = set()
     linked = tuple(f"rust/{c}/**" for c in sorted(linked_crates(read)))
     for path in files:
@@ -263,6 +280,8 @@ def scope(
             targets.add(target)
         if path.startswith(CORE_PREFIXES) or path in CORE_FILES:
             core = True
+        if is_qt_sdk(path):
+            qt_sdk = macos = windows = True
         if is_shared(path, exists):
             macos = windows = True
             continue
@@ -275,7 +294,7 @@ def scope(
         found = os_lanes(path)
         macos |= MACOS in found
         windows |= WINDOWS in found
-    return Scope(core, macos, windows, qt, tier2, False, ",".join(sorted(targets)))
+    return Scope(core, macos, windows, qt, tier2, False, ",".join(sorted(targets)), qt_sdk)
 
 
 def changed_files(base: str) -> list[str]:

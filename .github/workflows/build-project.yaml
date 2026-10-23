@@ -89,6 +89,7 @@ jobs:
       qt: ${{ steps.native.outputs.qt }}
       tier2: ${{ steps.native.outputs.tier2 }}
       linux_targets: ${{ steps.native.outputs.linux_targets }}
+      qt_sdk: ${{ steps.native.outputs.qt_sdk }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -189,7 +190,7 @@ jobs:
             event_full=true
           fi
           if [[ "${event_full}" == true ]]; then
-            full=true core=true macos=true windows=true qt=true tier2=true linux_targets=
+            full=true core=true macos=true windows=true qt=true tier2=true qt_sdk=true linux_targets=
           else
             if [[ "${GITHUB_EVENT_NAME}" == pull_request ]]; then
               base="origin/${GITHUB_BASE_REF}"
@@ -220,7 +221,7 @@ jobs:
           fi
           # Keep the complete Flatpak job and Fast Gate; omit unrelated matrices.
           if [[ "$FLATPAK_MEASUREMENT_ONLY" == true ]]; then
-            core=false macos=false windows=false qt=false tier2=false linux_targets=
+            core=false macos=false windows=false qt=false tier2=false qt_sdk=false linux_targets=
           fi
           os=()
           [[ "${macos}" == true ]] && os+=('"macos-26"')
@@ -234,6 +235,7 @@ jobs:
             echo "qt=${qt:-false}"
             echo "tier2=${tier2:-false}"
             echo "linux_targets=${linux_targets:-}"
+            echo "qt_sdk=${qt_sdk:-false}"
             echo "platform_os=[$(IFS=,; echo "${os[*]}")]"
           } >> "${GITHUB_OUTPUT}"
           echo "full=${full} core=${core} macos=${macos} windows=${windows} qt=${qt} tier2=${tier2}"
@@ -1901,6 +1903,32 @@ jobs:
 
       - name: Check Formatting 🎨
         run: soldr cargo fmt --all --check
+
+      # rust/obs-build's Qt SDK resolver against the published obs-studio-libs
+      # SDK for this runner's OS (#1878). Only Qt SDK paths and full runs
+      # select it; no Actions cache: the Windows SDK alone is 163 MB packed,
+      # over ci.toml's libs-qt budget.
+      - name: Check Published Qt SDK 🧩
+        if: needs.check-event.outputs.qt_sdk == 'true'
+        env:
+          QT_TAG: qt6-6.11.1
+        run: |
+          : Check Published Qt SDK 🧩
+          if [[ "${RUNNER_OS}" == Windows ]]; then
+            asset=qt6-6.11.1-windows-x86_64-relwithdebinfo.tar.zst
+            sha=b05c17386d2a1b0564b00755bc1fba152a18eaac34e512d9315922990715b751
+            variable=OBS_QT_TEST_WINDOWS_PREFIX
+          else
+            asset=qt6-6.11.1-darwin-universal2-11.0-release.tar.zst
+            sha=85093eae764f83d167f8850c5b057c0ff5d2f928ad7d49fe2544ce0ca20074b0
+            variable=OBS_QT_TEST_MACOS_PREFIX
+          fi
+          start=${SECONDS}
+          uv run ci/fetch_libs_asset.py "${QT_TAG}" "${asset}" "${sha}" "${RUNNER_TEMP}/qt"
+          echo "fetched ${asset} in $((SECONDS - start)) s"
+          export "${variable}=${RUNNER_TEMP}/qt"
+          soldr cargo test -p obs-studio-rust --locked --test obs-tests-app -- --exact qt_sdk::qt_sdk_resolves_published_sdks --nocapture 2>&1 | tee "${RUNNER_TEMP}/qt-sdk.log"
+          grep -q ": Qt 6\." "${RUNNER_TEMP}/qt-sdk.log"
 
   # Tier 2 Linux builds once and fans the tests out (#937, #1065): the build
   # job explicitly builds hybrid libobs and the C reference in one tree, runs the checks
