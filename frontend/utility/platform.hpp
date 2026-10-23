@@ -71,6 +71,15 @@ void RaiseAfterFileDialog(QWidget *window);
 /* Whether combo boxes open the host's native popup (macOS) instead of Qt's. */
 bool UseNativeComboBoxPopup();
 
+/* The color space a screenshot of source is rendered in: the host keeps HDR
+ * when it can save it (Windows: scRGB for JXR), otherwise SDR sRGB. */
+enum gs_color_space ScreenshotColorSpace(obs_source_t *source);
+
+/* Saves cx x cy RGBA half-float pixels (a screenshot rendered in a non-sRGB
+ * ScreenshotColorSpace()) to path. False when the host cannot (no HDR image
+ * format) or saving failed. */
+bool SaveHdrScreenshot(const char *path, uint8_t *pixels, uint32_t cx, uint32_t cy);
+
 /* glGetString from the GL library libobs-opengl uses (the frontend does not
  * link GL), or nullptr. Call it only with the graphics context entered. */
 void *GetGlGetStringProc();

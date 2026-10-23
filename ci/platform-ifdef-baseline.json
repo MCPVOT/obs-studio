@@ -1,11 +1,9 @@
 {
   "frontend/build/frontend-app-obs-main.pch.hpp": 4,
   "frontend/build/frontend-utility-output-filename-reserve.pch.h": 2,
-  "frontend/build/frontend-utility-screenshotobj.pch.hpp": 1,
   "frontend/build/frontend-widgets.pch.hpp": 8,
   "frontend/obs-main.cpp.hpp": 26,
   "frontend/settings/OBSBasicSettings.cpp.hpp": 29,
-  "frontend/utility/ScreenshotObj.cpp.hpp": 3,
   "frontend/utility/output-filename-reserve.c.h": 1,
   "frontend/utility/platform.hpp": 5,
   "frontend/widgets/OBSBasic.cpp.hpp": 18,

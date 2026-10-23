@@ -891,3 +891,15 @@ bool UseNativeComboBoxPopup()
 {
 	return true;
 }
+
+enum gs_color_space ScreenshotColorSpace(obs_source_t *)
+{
+	/* Tonemap to SDR if HDR */
+	return GS_CS_SRGB;
+}
+
+bool SaveHdrScreenshot(const char *, uint8_t *, uint32_t, uint32_t)
+{
+	/* No HDR image format here: screenshots are rendered in sRGB. */
+	return false;
+}

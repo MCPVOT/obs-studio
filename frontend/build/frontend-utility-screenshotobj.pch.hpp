@@ -14,10 +14,3 @@
 #include <widgets/OBSBasic.hpp>
 
 #include <qt-wrappers.hpp>
-
-#ifdef _WIN32
-#include <wincodec.h>
-#include <wincodecsdk.h>
-#include <wrl/client.h>
-#pragma comment(lib, "windowscodecs.lib")
-#endif

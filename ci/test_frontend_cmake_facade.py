@@ -94,6 +94,29 @@ class FrontendCMakeFacadeTest(unittest.TestCase):
                 self.assertIn("void RaiseAfterFileDialog(QWidget *", source)
                 self.assertIn("bool UseNativeComboBoxPopup()", source)
 
+    def test_hdr_screenshots_go_through_the_facade(self):
+        # #883: the HDR color space choice and the JXR writer are host
+        # operations; ScreenshotObj and its precompiled header name no host.
+        header = (FRONTEND / "utility/platform.hpp").read_text()
+        self.assertIn("enum gs_color_space ScreenshotColorSpace(obs_source_t *source);", header)
+        self.assertIn("bool SaveHdrScreenshot(const char *path, uint8_t *pixels, uint32_t cx, uint32_t cy);", header)
+        for path in ("utility/ScreenshotObj.cpp.hpp", "build/frontend-utility-screenshotobj.pch.hpp"):
+            with self.subTest(file=path):
+                source = (FRONTEND / path).read_text()
+                self.assertNotIn("_WIN32", source)
+                self.assertNotIn("wincodec", source)
+        shot = (FRONTEND / "utility/ScreenshotObj.cpp.hpp").read_text()
+        self.assertIn("ScreenshotColorSpace(source)", shot)
+        self.assertIn("SaveHdrScreenshot(path.c_str(), half_bytes.data(), outputWidth, outputHeight)", shot)
+        for host in ("windows.cpp.hpp", "osx.mm.hpp", "x11.cpp.hpp"):
+            with self.subTest(host=host):
+                source = (FRONTEND / f"utility/platform-{host}").read_text()
+                self.assertIn("enum gs_color_space ScreenshotColorSpace(obs_source_t *", source)
+                self.assertIn("bool SaveHdrScreenshot(const char *", source)
+        windows = (FRONTEND / "utility/platform-windows.cpp.hpp").read_text()
+        self.assertIn("GUID_ContainerFormatWmp", windows)
+        self.assertIn("<wincodec.h>", (FRONTEND / "build/frontend-windows-platform.pch.hpp").read_text())
+
     def test_dispatch_and_platform_operations(self):
         text = (FRONTEND / "CMakeLists.txt").read_text()
         self.assertEqual(text.count("if(OS_WINDOWS)"), 1)

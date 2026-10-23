@@ -70,16 +70,7 @@ void ScreenshotObj::renderScreenshot()
 		return;
 	}
 
-#ifdef _WIN32
-	enum gs_color_space space = obs_source_get_color_space(source, 0, nullptr);
-	if (space == GS_CS_709_EXTENDED) {
-		/* Convert for JXR */
-		space = GS_CS_709_SCRGB;
-	}
-#else
-	/* Tonemap to SDR if HDR */
-	const enum gs_color_space space = GS_CS_SRGB;
-#endif
+	const enum gs_color_space space = ScreenshotColorSpace(source);
 	const enum gs_color_format format = gs_get_format_from_space(space);
 
 	outputWidth = options.size.isValid() ? options.size.width() : sourceWidth;
@@ -176,107 +167,6 @@ void ScreenshotObj::saveToFile()
 	});
 }
 
-#ifdef _WIN32
-static HRESULT SaveJxrImage(LPCWSTR path, uint8_t *pixels, uint32_t cx, uint32_t cy, IWICBitmapFrameEncode *frameEncode,
-			    IPropertyBag2 *options)
-{
-	wchar_t lossless[] = L"Lossless";
-	PROPBAG2 bag = {};
-	bag.pstrName = lossless;
-	VARIANT value = {};
-	value.vt = VT_BOOL;
-	value.bVal = TRUE;
-	HRESULT hr = options->Write(1, &bag, &value);
-	if (FAILED(hr)) {
-		return hr;
-	}
-
-	hr = frameEncode->Initialize(options);
-	if (FAILED(hr)) {
-		return hr;
-	}
-
-	hr = frameEncode->SetSize(cx, cy);
-	if (FAILED(hr)) {
-		return hr;
-	}
-
-	hr = frameEncode->SetResolution(72, 72);
-	if (FAILED(hr)) {
-		return hr;
-	}
-
-	WICPixelFormatGUID pixelFormat = GUID_WICPixelFormat64bppRGBAHalf;
-	hr = frameEncode->SetPixelFormat(&pixelFormat);
-	if (FAILED(hr)) {
-		return hr;
-	}
-
-	if (memcmp(&pixelFormat, &GUID_WICPixelFormat64bppRGBAHalf, sizeof(WICPixelFormatGUID)) != 0) {
-		return E_FAIL;
-	}
-
-	hr = frameEncode->WritePixels(cy, cx * 8, cx * cy * 8, pixels);
-	if (FAILED(hr)) {
-		return hr;
-	}
-
-	hr = frameEncode->Commit();
-	if (FAILED(hr)) {
-		return hr;
-	}
-
-	return S_OK;
-}
-
-static HRESULT SaveJxr(LPCWSTR path, uint8_t *pixels, uint32_t cx, uint32_t cy)
-{
-	Microsoft::WRL::ComPtr<IWICImagingFactory> factory;
-	HRESULT hr = CoCreateInstance(CLSID_WICImagingFactory, NULL, CLSCTX_INPROC_SERVER,
-				      IID_PPV_ARGS(factory.GetAddressOf()));
-	if (FAILED(hr)) {
-		return hr;
-	}
-
-	Microsoft::WRL::ComPtr<IWICStream> stream;
-	hr = factory->CreateStream(stream.GetAddressOf());
-	if (FAILED(hr)) {
-		return hr;
-	}
-
-	hr = stream->InitializeFromFilename(path, GENERIC_WRITE);
-	if (FAILED(hr)) {
-		return hr;
-	}
-
-	Microsoft::WRL::ComPtr<IWICBitmapEncoder> encoder = NULL;
-	hr = factory->CreateEncoder(GUID_ContainerFormatWmp, NULL, encoder.GetAddressOf());
-	if (FAILED(hr)) {
-		return hr;
-	}
-
-	hr = encoder->Initialize(stream.Get(), WICBitmapEncoderNoCache);
-	if (FAILED(hr)) {
-		return hr;
-	}
-
-	Microsoft::WRL::ComPtr<IWICBitmapFrameEncode> frameEncode;
-	Microsoft::WRL::ComPtr<IPropertyBag2> options;
-	hr = encoder->CreateNewFrame(frameEncode.GetAddressOf(), options.GetAddressOf());
-	if (FAILED(hr)) {
-		return hr;
-	}
-
-	hr = SaveJxrImage(path, pixels, cx, cy, frameEncode.Get(), options.Get());
-	if (FAILED(hr)) {
-		return hr;
-	}
-
-	encoder->Commit();
-	return S_OK;
-}
-#endif // #ifdef _WIN32
-
 void ScreenshotObj::muxFile()
 {
 	/* GetOutputFilename() created the file empty to reserve its name;
@@ -287,20 +177,9 @@ void ScreenshotObj::muxFile()
 		}
 		blog(LOG_INFO, "Saved screenshot to '%s'", path.c_str());
 	} else {
-#ifdef _WIN32
-		wchar_t *path_w = nullptr;
-		os_utf8_to_wcs_ptr(path.c_str(), 0, &path_w);
-		if (path_w) {
-			if (FAILED(SaveJxr(path_w, half_bytes.data(), outputWidth, outputHeight))) {
-				output_filename_release(path.c_str());
-			}
-			bfree(path_w);
-		} else {
+		if (!SaveHdrScreenshot(path.c_str(), half_bytes.data(), outputWidth, outputHeight)) {
 			output_filename_release(path.c_str());
 		}
-#else
-		output_filename_release(path.c_str());
-#endif
 	}
 }
 
