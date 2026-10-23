@@ -19,6 +19,11 @@
 #      come from the bundle too.
 #   2. first-start: a new user's OBS opens a window that renders, with one
 #      libsrt mapped, the AppImage's.
+#   2b. first-start-no-libva: the same first start on a host without libva
+#      (libva.so.2, libva-drm.so.2, libva-x11.so.2 deleted). libva is optional:
+#      OBS must start, render and map no libva; the hostlib/ shim reports it
+#      unavailable at most once (obs-rust/obs-studio#959; without the shims the
+#      loader failed before main()).
 #   3. probes: the AppImage's own PipeWire, PulseAudio, gconv and D-Bus
 #      libraries, in AppRun's environment, work against a private session.
 #   4. saved-profile: OBS starts with a returning user's scene that holds a
@@ -46,11 +51,11 @@ unset DISPLAY WAYLAND_DISPLAY DBUS_SESSION_BUS_ADDRESS PIPEWIRE_REMOTE PIPEWIRE_
 
 APPIMAGE="$(realpath "$1")"
 OUT="$(realpath -m "${2:-.}")"
-USAGE="usage: test-appimage.sh <AppImage> <output-dir> <obs-appimage-testkit> <bundle|first-start|probes|saved-profile|saved-profile-custom|saved-profile-existing|gpu>"
+USAGE="usage: test-appimage.sh <AppImage> <output-dir> <obs-appimage-testkit> <bundle|first-start|probes|saved-profile|saved-profile-custom|saved-profile-existing|gpu|first-start-no-libva>"
 TESTKIT="$(realpath "${3:?$USAGE}")"
 SCENARIO="${4:?$USAGE}"
 case "$SCENARIO" in
-bundle | first-start | probes | saved-profile | saved-profile-custom | saved-profile-existing | gpu) ;;
+bundle | first-start | first-start-no-libva | probes | saved-profile | saved-profile-custom | saved-profile-existing | gpu) ;;
 *)
     echo "::error::unknown scenario $SCENARIO; $USAGE"
     exit 1
@@ -564,7 +569,18 @@ require_one_libsrt_mapped() {
 }
 
 # ============================================================================
-if [ "$SCENARIO" = first-start ]; then
+if [ "$SCENARIO" = first-start-no-libva ]; then
+    echo "::group::2b. Remove libva from this host"
+    find / -xdev \( -name 'libva.so*' -o -name 'libva-*.so*' \) \( -type f -o -type l \) -not -path "$APPDIR/*" \
+        -not -path '/proc/*' -print -delete
+    ldconfig 2>/dev/null || true
+    if ldconfig -p | grep -q 'libva'; then
+        fail "libva is still on this host after removing it"
+    fi
+    echo "::endgroup::"
+fi
+
+if [ "$SCENARIO" = first-start ] || [ "$SCENARIO" = first-start-no-libva ]; then
     require_no_obs_running
     echo "::group::2. First start with a new profile"
     export HOME="$PWD/home-new"
@@ -641,6 +657,19 @@ if [ "$SCENARIO" = first-start ]; then
 
     xwininfo -tree -root 2>&1 | head -40 || true
     OBS_PID="$(obs_pid_of "$APP_PID")"
+    if [ "$SCENARIO" = first-start-no-libva ]; then
+        grep -q 'error while loading shared libraries' "$OUT/obs-stdout.log" &&
+            fail "OBS did not start without libva: $(grep -m1 'error while loading shared libraries' "$OUT/obs-stdout.log")"
+        # The shim (hostlib/) looks for libva on the first VA call, if any, and
+        # then logs one line, which must say it is unavailable.
+        VA_LINES="$(grep '^hostlib: va ' "$OUT/obs-stdout.log" || true)"
+        [ "$(grep -c . <<<"$VA_LINES")" -le 1 ] || fail "the libva shim logged more than once: $VA_LINES"
+        [ -z "$VA_LINES" ] || grep -q '^hostlib: va unavailable' <<<"$VA_LINES" ||
+            fail "the libva shim reported a libva on a host without one: $VA_LINES"
+        if [ -n "$OBS_PID" ] && grep -o '/[^ ]*' "/proc/$OBS_PID/maps" | grep -E '/libva(\.so|-)' | grep .; then
+            fail "OBS mapped a libva above on a host without one"
+        fi
+    fi
     if [ -n "$OBS_PID" ]; then
         # The driver search paths the running OBS's EGL, GBM, VA-API and Vulkan loaders see.
         "$HERE_DIR/test-apprun-driver-env.sh" --check "$OBS_PID" "$DRIVER_ENV_CASE" ||

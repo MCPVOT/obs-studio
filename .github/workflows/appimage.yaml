@@ -221,11 +221,12 @@ jobs:
         # PulseAudio/X11 with PipeWire 0.3.6 and no session manager, so the PipeWire
         # capture/camera scenarios have no desktop to imitate there. Its job is the
         # floor: every bundled library loads on glibc 2.28 and OBS starts.
+        # first-start-no-libva: OBS starts on a host without libva (#959).
         include:
           - image: almalinux:8
-            scenarios: bundle first-start
+            scenarios: bundle first-start first-start-no-libva
           - image: ubuntu:22.04
-            scenarios: bundle first-start probes saved-profile saved-profile-custom saved-profile-existing
+            scenarios: bundle first-start first-start-no-libva probes saved-profile saved-profile-custom saved-profile-existing
           - image: archlinux:latest
             scenarios: bundle first-start probes saved-profile saved-profile-custom saved-profile-existing
     steps:
