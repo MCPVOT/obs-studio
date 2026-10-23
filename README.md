@@ -84,4 +84,29 @@ plug-ins you already have should work as-is. If you find one that
 doesn't, that's a bug: please [file an issue](https://github.com/obs-rust/obs-studio/issues/new/choose)
 and link it here so we can track it.
 
+**How do I install plug-ins for the AppImage?**
+
+The AppImage loads plug-ins from the same per-user folders as OBS Studio on
+Linux, so a plug-in you already installed for your own account is picked up
+as-is. To add one, unpack its Linux build into either of these folders:
+
+- `~/.local/share/obs-studio/plugins/<plugin>/`, with the module at
+  `<plugin>/<plugin>.so` and its files under `<plugin>/data/` (the current
+  layout).
+- `~/.config/obs-studio/plugins/<plugin>/`, with the module at
+  `<plugin>/bin/64bit/<plugin>.so` and its files under `<plugin>/data/` (the
+  older layout that many plug-in downloads still use).
+
+Then restart OBS Rust. **Tools → Plugin Manager** lists what loaded.
+
+Plug-ins installed system-wide by a distribution package (under
+`/usr/lib/obs-plugins` or `/usr/lib/<arch>/obs-plugins`) are **not** loaded.
+They were built against that distribution's OBS and libraries, not the ones
+inside the AppImage. Use the plug-in's own Linux download instead.
+
+A plug-in with its own Qt windows must be built for a Qt 6 release no newer
+than the one in the AppImage. If a plug-in sits in one of those folders but
+doesn't load, run the AppImage from a terminal and the log will say why.
+Then file an issue as above.
+
 Want to see the original README from OBS Project? [Click here](README.upstream.md).
