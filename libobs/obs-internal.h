@@ -1817,6 +1817,10 @@ extern const struct obs_service_info *find_service(const char *id);
 
 extern void obs_service_activate(struct obs_service *service);
 extern void obs_service_deactivate(struct obs_service *service, bool remove);
+/* obs-service.c: the callback table and plugin data of a service, for obs-service-getters.c
+ * and its Rust port (#1899). */
+extern const struct obs_service_info *obs_service_get_info_table(const obs_service_t *service);
+extern void *obs_service_get_plugin_data(const obs_service_t *service);
 extern bool obs_service_initialize(struct obs_service *service, struct obs_output *output);
 
 void obs_service_destroy(obs_service_t *service);

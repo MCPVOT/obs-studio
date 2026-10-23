@@ -4,3 +4,4 @@ pub mod output_caption_text;
 pub mod output_delay;
 pub mod output_interleave;
 pub mod output_protocols;
+pub mod service;

@@ -20,6 +20,7 @@ pub mod caption_text;
 pub mod delay;
 pub mod interleave;
 pub mod protocols;
+pub mod service;
 
 #[allow(unsafe_code)]
 pub mod ffi;

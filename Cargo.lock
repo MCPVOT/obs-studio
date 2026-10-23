@@ -514,6 +514,7 @@ dependencies = [
  "obs-codec",
  "obs-core",
  "obs-graphics",
+ "obs-output",
  "obs-util",
  "pkg-config",
 ]

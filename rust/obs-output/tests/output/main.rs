@@ -9,6 +9,8 @@ mod interleave;
 mod interleave_parity;
 mod protocols;
 mod protocols_parity;
+mod service;
+mod service_parity;
 
 use std::process::Command;
 

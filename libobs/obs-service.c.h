@@ -369,100 +369,19 @@ const char *obs_service_get_id(const obs_service_t *service)
 	return obs_service_valid(service, "obs_service_get_id") ? service->info.id : NULL;
 }
 
-void obs_service_get_supported_resolutions(const obs_service_t *service, struct obs_service_resolution **resolutions,
-					   size_t *count)
+/* For the getters in obs-service-getters.c, which no longer see struct
+ * obs_service: the plugin's callback table this service was created with.
+ * Hidden; the Rust port calls it and obs_service_get_plugin_data() too
+ * (#1899). */
+const struct obs_service_info *obs_service_get_info_table(const obs_service_t *service)
 {
-	if (!obs_service_valid(service, "obs_service_supported_resolutions"))
-		return;
-	if (!obs_ptr_valid(resolutions, "obs_service_supported_resolutions"))
-		return;
-	if (!obs_ptr_valid(count, "obs_service_supported_resolutions"))
-		return;
-
-	*resolutions = NULL;
-	*count = 0;
-
-	if (service->info.get_supported_resolutions)
-		service->info.get_supported_resolutions(service->context.data, resolutions, count);
+	return &service->info;
 }
 
-void obs_service_get_max_fps(const obs_service_t *service, int *fps)
+/* The plugin data that create() returned, for the same getters. Hidden. */
+void *obs_service_get_plugin_data(const obs_service_t *service)
 {
-	if (!obs_service_valid(service, "obs_service_get_max_fps"))
-		return;
-	if (!obs_ptr_valid(fps, "obs_service_get_max_fps"))
-		return;
-
-	*fps = 0;
-
-	if (service->info.get_max_fps)
-		service->info.get_max_fps(service->context.data, fps);
-}
-
-void obs_service_get_max_bitrate(const obs_service_t *service, int *video_bitrate, int *audio_bitrate)
-{
-	if (video_bitrate)
-		*video_bitrate = 0;
-	if (audio_bitrate)
-		*audio_bitrate = 0;
-
-	if (!obs_service_valid(service, "obs_service_get_max_bitrate"))
-		return;
-
-	if (service->info.get_max_bitrate)
-		service->info.get_max_bitrate(service->context.data, video_bitrate, audio_bitrate);
-}
-
-const char **obs_service_get_supported_video_codecs(const obs_service_t *service)
-{
-	if (service->info.get_supported_video_codecs)
-		return service->info.get_supported_video_codecs(service->context.data);
-	return NULL;
-}
-
-const char **obs_service_get_supported_audio_codecs(const obs_service_t *service)
-{
-	if (service->info.get_supported_audio_codecs)
-		return service->info.get_supported_audio_codecs(service->context.data);
-	return NULL;
-}
-
-const char *obs_service_get_protocol(const obs_service_t *service)
-{
-	if (!obs_service_valid(service, "obs_service_get_protocol"))
-		return NULL;
-
-	return service->info.get_protocol(service->context.data);
-}
-
-const char *obs_service_get_preferred_output_type(const obs_service_t *service)
-{
-	if (!obs_service_valid(service, "obs_service_get_preferred_output_type"))
-		return NULL;
-
-	if (service->info.get_output_type)
-		return service->info.get_output_type(service->context.data);
-	return NULL;
-}
-
-const char *obs_service_get_connect_info(const obs_service_t *service, uint32_t type)
-{
-	if (!obs_service_valid(service, "obs_service_get_info"))
-		return NULL;
-
-	if (!service->info.get_connect_info)
-		return NULL;
-	return service->info.get_connect_info(service->context.data, type);
-}
-
-bool obs_service_can_try_to_connect(const obs_service_t *service)
-{
-	if (!obs_service_valid(service, "obs_service_can_connect"))
-		return false;
-
-	if (!service->info.can_try_to_connect)
-		return true;
-	return service->info.can_try_to_connect(service->context.data);
+	return service->context.data;
 }
 
 /* File-local macros: keep them out of the next source of a unity build. */

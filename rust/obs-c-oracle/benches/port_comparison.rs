@@ -16,6 +16,8 @@ mod conversions;
 mod core_units;
 #[path = "port_comparison/graphics.rs"]
 mod graphics;
+#[path = "port_comparison/service.rs"]
+mod service;
 #[path = "port_comparison/util.rs"]
 mod util;
 
@@ -49,6 +51,7 @@ fn comparisons(criterion: &mut Criterion) {
     conversions::benchmarks(criterion);
     core_units::benchmarks(criterion);
     audio::benchmarks(criterion);
+    service::benchmarks(criterion);
 }
 
 criterion_group!(benches, comparisons);

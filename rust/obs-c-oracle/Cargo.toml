@@ -19,6 +19,7 @@ obs-graphics = { path = "../obs-graphics" }
 obs-codec = { path = "../obs-codec" }
 obs-callback = { path = "../obs-callback" }
 obs-core = { path = "../obs-core" }
+obs-output = { path = "../obs-output" }
 
 [[bench]]
 name = "port_comparison"

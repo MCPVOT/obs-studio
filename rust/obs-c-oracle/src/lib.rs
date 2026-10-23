@@ -108,6 +108,7 @@ pub mod scene_bounds;
 pub mod scene_bounds_place;
 pub mod scene_coords;
 pub mod scene_group_transform;
+pub mod service_getters;
 pub mod shader_param_names;
 pub mod shader_sampler_convert;
 pub mod signal;
