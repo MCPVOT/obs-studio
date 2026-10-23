@@ -55,8 +55,22 @@ authorizes.
   keep both lines, force-push with `--force-with-lease`, and queue the PR
   again. If the conflict is in code, comment for the author instead.
 - **Behind master with stale failures:** rebase it so CI runs fresh.
-- **Ejected from the queue:** rebase it on the new master and queue it
-  again in the same tick. Do not wait for the author.
+- **Ejected from the queue:** read the failed merge-group log first
+  (`gh run list --event merge_group`, then
+  `gh run view <run> --job <job> --log`). Then:
+  - **Conflict, or a failure that a later merge fixed:** rebase it on the
+    new master and queue it again in the same tick. Do not wait for the
+    author.
+  - **Master is red:** fix master first. The same test fails on master
+    alone, so the PR isn't the cause. Re-queuing only ejects the PR again
+    and holds up every PR behind it.
+  - **A real failure in the PR:** comment for the author as above.
+
+  Never re-queue an ejected PR without reading why it failed. On
+  2026-10-23, #1875 was re-queued unread and ejected again 40 minutes
+  later: master was red because #1879 and #1883 had added core cmocka
+  tests without bumping the count in `rust/obs-build/tests/native.rs`.
+  #1896 fixed master.
 - **About to go in:** rebase the PRs behind the head of the queue ahead
   of time when they touch the same files (`docs/features.md` above all), so
   they are not ejected when the head lands.
