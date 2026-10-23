@@ -118,6 +118,51 @@ extern const struct profile_vaapi_host profile_vaapi_system_host;
 
 void profile_vaapi_diagnose(const struct profile_vaapi_host *host, struct profile_vaapi_diagnosis *out);
 
+/* Why obs-qsv11 found no usable Intel GPU (PROFILE_MISSING_ENCODER_NO_QSV_DEVICE),
+ * so the Missing Encoders dialog names the runtime to install only when the
+ * GPU needs it (obs-rust/obs-studio#1925). Linux only. */
+enum profile_qsv_cause {
+	/* An Intel GPU, its runtime and its VA-API driver are all present. */
+	PROFILE_QSV_AVAILABLE,
+	/* No render device is an Intel GPU. */
+	PROFILE_QSV_NO_INTEL_GPU,
+	/* The Intel GPU predates Quick Sync support on Linux (before
+	 * Broadwell, or an Atom Cherry View): software or another encoder. */
+	PROFILE_QSV_UNSUPPORTED_GPU,
+	/* The user cannot open the render device (not in the render group). */
+	PROFILE_QSV_NO_ACCESS,
+	/* The Quick Sync runtime this GPU generation needs is not installed. */
+	PROFILE_QSV_NO_RUNTIME,
+	/* The runtime is installed but the Intel VA-API driver it uses is not. */
+	PROFILE_QSV_NO_DRIVER,
+};
+
+/* The Quick Sync runtime family of an Intel GPU generation. */
+enum profile_qsv_runtime {
+	PROFILE_QSV_RUNTIME_NONE,
+	/* Intel Media SDK (libmfxhw64.so.1): Broadwell through Ice Lake. */
+	PROFILE_QSV_RUNTIME_MEDIA_SDK,
+	/* oneVPL GPU runtime (libmfx-gen.so.1.2): Tiger Lake and newer. */
+	PROFILE_QSV_RUNTIME_ONEVPL,
+};
+
+struct profile_qsv_diagnosis {
+	enum profile_qsv_cause cause;
+	/* The Intel render device diagnosed, empty for PROFILE_QSV_NO_INTEL_GPU. */
+	char device[32];
+	/* Its PCI device id, 0 when unknown. */
+	unsigned int device_id;
+	enum profile_qsv_runtime runtime;
+	/* PROFILE_QSV_NO_RUNTIME / PROFILE_QSV_NO_DRIVER: the package to
+	 * install. */
+	const char *package;
+	/* The command that installs it on this distribution, NULL when the
+	 * distribution is not recognized. */
+	const char *install_command;
+};
+
+void profile_qsv_diagnose(const struct profile_vaapi_host *host, struct profile_qsv_diagnosis *out);
+
 #ifdef __cplusplus
 }
 #endif

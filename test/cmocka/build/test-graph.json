@@ -2613,6 +2613,22 @@
         "frontend/utility"
       ]
     },
+    "test_profile_qsv": {
+      "sources": [
+        "test/cmocka/test_profile_qsv.c",
+        "frontend/utility/profile-activate.c.h"
+      ],
+      "libraries": [
+        "OBS::libobs",
+        "OBS::native-test-cmocka"
+      ],
+      "includes": [
+        "frontend/utility"
+      ],
+      "watch_inputs": [
+        "frontend/utility"
+      ]
+    },
     "test_output_protocol_list_steps": {
       "sources": [
         "test/cmocka/test_output_protocol_list_steps.c",
@@ -3703,6 +3719,12 @@
     },
     "test_profile_activate": {
       "target": "test_profile_activate",
+      "command": [
+        "${target}"
+      ]
+    },
+    "test_profile_qsv": {
+      "target": "test_profile_qsv",
       "command": [
         "${target}"
       ]
