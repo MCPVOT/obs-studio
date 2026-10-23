@@ -28,7 +28,7 @@ IFS=';' read -r deps_version deps_baseurl deps_label deps_hash deps_revision <<<
     | select(.name=="dependencies")
     | .vendor["obsproject.com/obs-studio"].dependencies["cef"]
     # versions[target] overrides version for a target obs-rust builds itself
-    # (obs-studio-libs recipes/cef), and replaces baseUrl's release segment.
+    # (obs-studio-libs recipes/cef), and replaces the release segment of baseUrl.
     | (.versions[$target] // .version) as $v
     | {"version": $v, "baseUrl": (.baseUrl | sub("/[^/]+$"; "/" + $v)), "label": .label,
        "hash": .hashes[$target], "revision": .revision[$target]}
