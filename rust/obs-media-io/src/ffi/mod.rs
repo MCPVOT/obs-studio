@@ -7,6 +7,7 @@ crate::platform::with_audio_thread_port! {
 }
 pub mod format_conversion;
 pub mod frame_rate;
+pub mod media_remux;
 pub mod video_fourcc;
 pub mod video_frame;
 pub mod video_io;

@@ -93,9 +93,15 @@ fn extract_c(src: &Path, start: &str, end: &str) -> String {
 /// supplies the unit's own headers instead of unrelated libobs dependencies
 /// (notably zlib, which the Windows Rust test runners do not install).
 fn extract_after_libobs_pch(src: &Path) -> String {
+    extract_after_pch(src, "#include \"libobs/build/libobs.pch.h\"")
+}
+
+/// [`extract_after_libobs_pch`] for an implementation whose precompiled
+/// header include line is `pch_line`.
+fn extract_after_pch(src: &Path, pch_line: &str) -> String {
     let text = std::fs::read_to_string(src).expect("read lifecycle implementation");
     let (prefix, body) = text
-        .split_once("#include \"libobs/build/libobs.pch.h\"")
+        .split_once(pch_line)
         .expect("lifecycle implementation must include its libobs PCH");
     let body = body
         .strip_prefix("\r\n")
@@ -449,6 +455,16 @@ fn main() {
         )
         .expect("write lifecycle extract");
     }
+    // The media-remux adapter the Rust port calls, built over the FFmpeg
+    // stand-in (oracle/media_remux_adapter.c).
+    std::fs::write(
+        extract_dir.join("media-remux-ffmpeg.inc"),
+        extract_after_pch(
+            &libobs.join("media-io").join("media-remux-ffmpeg.c.h"),
+            "#include \"build/libobs-media.pch.h\"",
+        ),
+    )
+    .expect("write media-remux adapter extract");
     oracle.include(&extract_dir);
 
     oracle
@@ -475,6 +491,11 @@ fn main() {
         // uncompressed (oracle/zlib-shim/zlib.h), so Tier 3 compares it with
         // the Rust port's decompressed output.
         .include(manifest.join("oracle/zlib-shim"))
+        // media-io/media-remux.c includes libavformat, which the Rust test
+        // runners do not have. The stand-in declares the parts it uses and
+        // records every call (oracle/media_remux_ffmpeg.c), for the original
+        // C and the Rust port's adapter alike.
+        .include(manifest.join("oracle/ffmpeg-shim"))
         .std("c11");
     // The real build is gnu17, whose glibc headers see _DEFAULT_SOURCE (POSIX
     // 2008: PTHREAD_MUTEX_RECURSIVE for util/threading.h). Strict c11 hides

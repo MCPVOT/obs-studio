@@ -16,6 +16,7 @@ pub mod audio_math;
 pub mod ffi;
 pub mod format_conversion;
 pub mod frame_rate;
+pub mod media_remux;
 mod platform;
 pub mod video_fourcc;
 pub mod video_frame;

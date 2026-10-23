@@ -16,6 +16,8 @@ mod conversions;
 mod core_units;
 #[path = "port_comparison/graphics.rs"]
 mod graphics;
+#[path = "port_comparison/media_remux.rs"]
+mod media_remux;
 #[path = "port_comparison/service.rs"]
 mod service;
 #[path = "port_comparison/source_profiler.rs"]
@@ -55,6 +57,7 @@ fn comparisons(criterion: &mut Criterion) {
     audio::benchmarks(criterion);
     service::benchmarks(criterion);
     source_profiler::benchmarks(criterion);
+    media_remux::benchmarks(criterion);
 }
 
 criterion_group!(benches, comparisons);

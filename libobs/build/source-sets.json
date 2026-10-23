@@ -149,7 +149,8 @@
     "build/libobs.ported-video-plan+.h.c",
     "build/libobs.ported-audio-controls+.h.c",
     "build/libobs.ported-audio-mix+.h.c",
-    "build/libobs.ported-source-profiler+.h.c"
+    "build/libobs.ported-source-profiler+.h.c",
+    "build/libobs.ported-media-remux+.h.c"
   ],
   "LIBOBS_RUST_SOURCES": [
     "build/libobs.rust-variadic+.h.c"

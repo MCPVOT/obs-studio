@@ -1,0 +1,4 @@
+# media-io/media-remux.c EXPORT symbols.
+media_remux_job_create
+media_remux_job_destroy
+media_remux_job_process

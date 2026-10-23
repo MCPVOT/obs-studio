@@ -15,7 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "build/libobs-media.pch.h"
+#include "libobs/build/libobs-ported-media-remux.pch.h"
 
 struct media_remux_job {
 	int64_t in_size;

@@ -33,7 +33,7 @@
 #include <inttypes.h>
 #include <math.h>
 
-/* media-io/media-remux.c */
+/* media-io/media-remux-ffmpeg.c (the adapter of the Rust media-remux port) */
 #include "media-io/media-remux.h"
 
 #include <libavcodec/version.h>

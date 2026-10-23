@@ -515,6 +515,7 @@ dependencies = [
  "obs-core",
  "obs-data",
  "obs-graphics",
+ "obs-media-io",
  "obs-output",
  "obs-properties",
  "obs-util",
