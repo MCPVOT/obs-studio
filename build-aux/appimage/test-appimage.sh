@@ -766,6 +766,13 @@ if [ "$SCENARIO" = probes ]; then
         [ "$rc" -eq 0 ] || fail "$probe failed ($(describe_exit "$rc"))"
     done
     echo "::endgroup::"
+    # The Mbed TLS behind RTMPS certificate checks, SRT and RIST: at least 3.6.7,
+    # which fixes public advisories on the RTMPS client path (#1121).
+    set +e
+    in_appimage probe-mbedtls 3.6.7 2>&1
+    rc=$?
+    set -e
+    [ "$rc" -eq 0 ] || fail "probe-mbedtls failed ($(describe_exit "$rc"))"
 
     # HTTPS through the bundled libcurl (update check, remote text, file
     # updater, service plugins), trusting only what the host trusts: a test CA,

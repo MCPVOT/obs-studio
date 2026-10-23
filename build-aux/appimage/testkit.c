@@ -10,6 +10,8 @@
  *                   certificate settings and verification on, as OBS's
  *                   libcurl users (update check, remote text, file updater,
  *                   service plugins) do
+ *   probe-mbedtls   load the bundled Mbed TLS (RTMPS, SRT, RIST) and require
+ *                   mbedtls_version_get_number() >= <x.y.z>
  *   write-tone      write <file.wav> holding <seconds> of a 440 Hz stereo tone
  *                   (the test microphone plays it)
  *   fake-portal     serve org.freedesktop.portal.{ScreenCast,Camera} on the
@@ -19,6 +21,7 @@
  * Each probe exits 0 and prints one line when it works; otherwise it prints
  * what failed and exits 1. Build: see .github/workflows/appimage.yaml. */
 
+#include <dlfcn.h>
 #include <errno.h>
 #include <iconv.h>
 #include <math.h>
@@ -500,6 +503,36 @@ static int probe_https(const char *url)
 	return 0;
 }
 
+/* Mbed TLS keeps its version only in code (mbedtls_version_get_number(),
+ * 0xMMNNPP00), not as a string; dlopen the soname OBS's libraries need. */
+static int probe_mbedtls(const char *min)
+{
+	unsigned int major, minor, patch;
+	if (sscanf(min, "%u.%u.%u", &major, &minor, &patch) != 3) {
+		fprintf(stderr, "probe-mbedtls: bad minimum version %s\n", min);
+		return 2;
+	}
+	void *lib = dlopen("libmbedcrypto.so.16", RTLD_NOW);
+	if (!lib) {
+		fprintf(stderr, "probe-mbedtls: %s\n", dlerror());
+		return 1;
+	}
+	unsigned int (*get_number)(void) = (unsigned int (*)(void))dlsym(lib, "mbedtls_version_get_number");
+	if (!get_number) {
+		fprintf(stderr, "probe-mbedtls: %s\n", dlerror());
+		return 1;
+	}
+	unsigned int have = get_number(), want = major << 24 | minor << 16 | patch << 8;
+	unsigned int hmaj = have >> 24, hmin = have >> 16 & 0xff, hpat = have >> 8 & 0xff;
+	if (have < want) {
+		fprintf(stderr, "probe-mbedtls: bundled Mbed TLS is %u.%u.%u; at least %s is required\n", hmaj, hmin,
+			hpat, min);
+		return 1;
+	}
+	printf("probe-mbedtls: bundled Mbed TLS %u.%u.%u (>= %s)\n", hmaj, hmin, hpat, min);
+	return 0;
+}
+
 int main(int argc, char **argv)
 {
 	const char *mode = argc > 1 ? argv[1] : "";
@@ -514,12 +547,14 @@ int main(int argc, char **argv)
 		return probe_dbus();
 	if (strcmp(mode, "probe-https") == 0 && argc > 2)
 		return probe_https(argv[2]);
+	if (strcmp(mode, "probe-mbedtls") == 0 && argc > 2)
+		return probe_mbedtls(argv[2]);
 	if (strcmp(mode, "write-tone") == 0 && argc > 3)
 		return write_tone(argv[2], atoi(argv[3]));
 	if (strcmp(mode, "fake-portal") == 0)
 		return fake_portal();
 	fprintf(stderr,
-		"usage: %s probe-pipewire|probe-pulse|probe-gconv|probe-dbus|probe-https <url>|write-tone <file> <s>|fake-portal\n",
+		"usage: %s probe-pipewire|probe-pulse|probe-gconv|probe-dbus|probe-https <url>|probe-mbedtls <x.y.z>|write-tone <file> <s>|fake-portal\n",
 		argv[0]);
 	return 2;
 }
