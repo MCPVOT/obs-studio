@@ -412,12 +412,17 @@ async def wait_until_ready(client, proc: subprocess.Popen, deadline: float) -> d
             raise RuntimeError(
                 "packaged frontend did not reach readiness within its startup deadline"
             )
-        response = await asyncio.wait_for(
-            client.request(
-                "GetInputKindList", {"unversioned": True}, timeout=min(15, remaining)
-            ),
-            timeout=remaining,
-        )
+        try:
+            response = await asyncio.wait_for(
+                client.request(
+                    "GetInputKindList", {"unversioned": True}, timeout=min(15, remaining)
+                ),
+                timeout=remaining,
+            )
+        except TimeoutError as exc:
+            raise RuntimeError(
+                "packaged frontend did not answer GetInputKindList within its startup deadline"
+            ) from exc
         result = response["d"]
         status = result["requestStatus"]
         if status["result"]:
@@ -425,6 +430,17 @@ async def wait_until_ready(client, proc: subprocess.Popen, deadline: float) -> d
             return result.get("responseData", {})
         if status["code"] != 207:
             raise RuntimeError(f"GetInputKindList failed: {status}")
+
+
+def report_frontend_log(config: Path) -> None:
+    """Print the newest frontend log before the fixture's cleanup removes it (#2161)."""
+    logs = sorted((config / "logs").glob("*.txt"), key=lambda log: log.stat().st_mtime)
+    if not logs:
+        print(f"no frontend log under {config / 'logs'}")
+        return
+    print(f"::group::frontend log {logs[-1].name}")
+    print(logs[-1].read_text(encoding="utf-8-sig", errors="replace"))
+    print("::endgroup::")
 
 
 async def inspect_running_app(
@@ -629,6 +645,7 @@ def main() -> None:
     # Ownership is established before launching: never delete an existing config.
     fixture = ConfigFixture(config, args.platform, args.config_mode, port, password)
     proc = None
+    succeeded = False
     try:
         proc = subprocess.Popen(
             [
@@ -669,6 +686,7 @@ def main() -> None:
         print(
             "packaged startup: capture plugins registered, saved profile loaded, clean shutdown"
         )
+        succeeded = True
     finally:
         if proc is not None and proc.poll() is None:
             try:
@@ -681,6 +699,8 @@ def main() -> None:
                     except subprocess.TimeoutExpired:
                         proc.kill()
                         proc.wait(timeout=10)
+        if not succeeded:
+            report_frontend_log(config)
         fixture.cleanup()
 
 

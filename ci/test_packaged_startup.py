@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import struct
 import tempfile
 import unittest
@@ -76,6 +77,38 @@ class PackagedReadinessTest(unittest.IsolatedAsyncioTestCase):
                     client, Mock(poll=Mock(return_value=None)), 1
                 )
         self.assertEqual(client.request.await_count, 1)
+
+    async def test_an_unanswered_request_names_the_frontend(self):
+        # #2161: OBS connected but never answered; asyncio's bare TimeoutError
+        # said nothing about which request or why.
+        client = Mock(request=AsyncMock(side_effect=TimeoutError))
+        with self.assertRaisesRegex(RuntimeError, "did not answer GetInputKindList"):
+            await smoke.wait_until_ready(
+                client, Mock(poll=Mock(return_value=None)), smoke.time.monotonic() + 5
+            )
+
+
+class FrontendLogReportTest(unittest.TestCase):
+    def test_a_failure_prints_the_newest_frontend_log(self):
+        # #2161: the fixture's cleanup deleted the only record of the hang.
+        with tempfile.TemporaryDirectory() as tmp:
+            logs = Path(tmp) / "logs"
+            logs.mkdir()
+            (logs / "2026-10-24 13-00-00.txt").write_text("older run\n")
+            newest = logs / "2026-10-24 13-29-30.txt"
+            newest.write_text("info: Loading module: win-dshow.dll\nhang here\n")
+            os.utime(logs / "2026-10-24 13-00-00.txt", (1, 1))
+            with patch("builtins.print") as printed:
+                smoke.report_frontend_log(Path(tmp))
+            text = "\n".join(str(c.args[0]) for c in printed.call_args_list if c.args)
+            self.assertIn("hang here", text)
+            self.assertNotIn("older run", text)
+
+    def test_no_log_is_reported_without_failing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch("builtins.print") as printed:
+                smoke.report_frontend_log(Path(tmp))
+            self.assertTrue(printed.called)
 
 
 class PackagedStartupTest(unittest.TestCase):
