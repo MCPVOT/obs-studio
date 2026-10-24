@@ -5,6 +5,7 @@ uv run python -m unittest ci.test_app_config_identity
 """
 
 from pathlib import Path
+import re
 import subprocess
 import tempfile
 import unittest
@@ -38,6 +39,13 @@ class AppConfigIdentityTest(unittest.TestCase):
                 "\t\tprogram.checkForUncleanShutdown();"
             )
         ]
+        # obs-main calls the Windows host's startup check (#865).
+        host = (ROOT / "frontend/utility/obs-main-windows.hpp").read_text()
+        functions += re.search(
+            r"^static inline void obs_main_host_verify_startup\(\)\n\{.*?^\}\n",
+            host,
+            re.S | re.M,
+        ).group(0)
         with tempfile.TemporaryDirectory(prefix="obs-windows-identity-log-") as scratch:
             directory = Path(scratch)
             source = directory / "identity.cpp"

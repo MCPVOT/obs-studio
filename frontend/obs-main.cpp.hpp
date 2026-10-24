@@ -51,6 +51,43 @@ bool restart = false;
 bool restart_safe = false;
 static QStringList arguments;
 
+#ifndef OBS_MAIN_HOST_WINDOWS
+/* Portable startup defaults; the host headers in the PCH override them (#865). */
+static inline void obs_main_host_localtime(struct tm *out, const time_t *now)
+{
+	localtime_r(now, out);
+}
+
+static inline void obs_main_host_open_log(fstream &logFile, const char *path)
+{
+	logFile.open(path, ios_base::in | ios_base::out | ios_base::trunc);
+}
+
+static inline int obs_main_host_check_running(bool &already_running)
+{
+	CheckIfAlreadyRunning(already_running);
+	return 0;
+}
+#endif
+#ifndef OBS_MAIN_HOST_PRE_APP
+static inline bool obs_main_host_pre_app()
+{
+	return true;
+}
+#endif
+#ifndef OBS_MAIN_HOST_REFUSE_LAUNCH
+static inline bool obs_main_host_refuse_launch()
+{
+	return false;
+}
+#endif
+#ifndef OBS_MAIN_HOST_VERIFY_STARTUP
+static inline void obs_main_host_verify_startup() {}
+#endif
+#ifndef OBS_MAIN_HOST_PERMISSIONS
+static inline void obs_main_host_permissions() {}
+#endif
+
 string CurrentTimeString()
 {
 	using namespace std::chrono;
@@ -60,11 +97,7 @@ string CurrentTimeString()
 
 	auto tp = system_clock::now();
 	auto now = system_clock::to_time_t(tp);
-#ifdef _WIN32
-	localtime_s(&tstruct, &now);
-#else
-	localtime_r(&now, &tstruct);
-#endif
+	obs_main_host_localtime(&tstruct, &now);
 
 	size_t written = strftime(buf, sizeof(buf), "%T", &tstruct);
 	if (ratio_less<system_clock::period, seconds::period>::value && written && (sizeof(buf) - written) > 5) {
@@ -364,13 +397,7 @@ static void create_log_file(fstream &logFile)
 
 	BPtr<char> path(GetAppConfigPathPtr(dst.str().c_str()));
 
-#ifdef _WIN32
-	BPtr<wchar_t> wpath;
-	os_utf8_to_wcs_ptr(path, 0, &wpath);
-	logFile.open(wpath, ios_base::in | ios_base::out | ios_base::trunc);
-#else
-	logFile.open(path, ios_base::in | ios_base::out | ios_base::trunc);
-#endif
+	obs_main_host_open_log(logFile, path);
 
 	if (logFile.is_open()) {
 		delete_oldest_file(false, "obs-studio/logs");
@@ -462,32 +489,11 @@ static int run_program(fstream &logFile, int argc, char *argv[])
 
 	ScopeProfiler prof{run_program_init};
 
-#ifdef _WIN32
-	QGuiApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
-#endif
-
 	QCoreApplication::addLibraryPath(".");
 
-#if __APPLE__
-	InstallNSApplicationSubclass();
-	InstallNSThreadLocks();
-
-	if (!isInBundle()) {
-		blog(LOG_ERROR,
-		     "OBS cannot be run as a standalone binary on macOS. Run the Application bundle instead.");
+	if (!obs_main_host_pre_app()) {
 		return ret;
 	}
-#endif
-
-#if !defined(_WIN32) && !defined(__APPLE__)
-	/* NOTE: Users blindly set this, but this theme is incompatible with Qt6 and
-	 * crashes loading saved geometry. Just turn off this theme and let users complain OBS
-	 * looks ugly instead of crashing. */
-	const char *platform_theme = getenv("QT_QPA_PLATFORMTHEME");
-	if (platform_theme && strcmp(platform_theme, "qt5ct") == 0) {
-		unsetenv("QT_QPA_PLATFORMTHEME");
-	}
-#endif
 
 	/* NOTE: This disables an optimisation in Qt that attempts to determine if
 	 * any "siblings" intersect with a widget when determining the approximate
@@ -517,10 +523,7 @@ static int run_program(fstream &logFile, int argc, char *argv[])
 		bool cancel_launch = false;
 		bool already_running = false;
 
-#ifdef _WIN32
-		RunOnceMutex rom =
-#endif
-			CheckIfAlreadyRunning(already_running);
+		[[maybe_unused]] auto rom = obs_main_host_check_running(already_running);
 
 		if (!already_running) {
 			goto run;
@@ -564,35 +567,15 @@ static int run_program(fstream &logFile, int argc, char *argv[])
 		/* --------------------------------------- */
 	run:
 
-#if !defined(_WIN32) && !defined(__APPLE__) && !defined(__FreeBSD__)
-		// Mounted by termina during chromeOS linux container startup
-		// https://chromium.googlesource.com/chromiumos/overlays/board-overlays/+/master/project-termina/chromeos-base/termina-lxd-scripts/files/lxd_setup.sh
-		os_dir_t *crosDir = os_opendir("/opt/google/cros-containers");
-		if (crosDir) {
-			QMessageBox::StandardButtons buttons(QMessageBox::Ok);
-			QMessageBox mb(QMessageBox::Critical, QTStr("ChromeOS.Title"), QTStr("ChromeOS.Text"), buttons,
-				       nullptr);
-
-			mb.exec();
+		if (obs_main_host_refuse_launch()) {
 			return 0;
 		}
-#endif
 
 		if (!created_log) {
 			create_log_file(logFile);
 		}
 
-#if defined(_WIN32) && defined(OBS_RUST_VERSION)
-		// Read back the process identity after the persistent logger is ready.
-		if (!VerifyAppIdentity()) {
-			throw "Windows application identity changed during startup";
-		}
-#endif
-#ifdef __APPLE__
-		if (!VerifyMacApplicationIcon()) {
-			throw "Failed to initialize the macOS application icon";
-		}
-#endif
+		obs_main_host_verify_startup();
 		program.checkForUncleanShutdown();
 
 		qInstallMessageHandler([](QtMsgType type, const QMessageLogContext &, const QString &message) {
@@ -619,35 +602,7 @@ static int run_program(fstream &logFile, int argc, char *argv[])
 			}
 		});
 
-#ifdef __APPLE__
-		MacPermissionStatus audio_permission = CheckPermission(kAudioDeviceAccess);
-		MacPermissionStatus video_permission = CheckPermission(kVideoDeviceAccess);
-		MacPermissionStatus input_monitoring_permission = CheckPermission(kInputMonitoring);
-		MacPermissionStatus screen_permission = CheckPermission(kScreenCapture);
-
-		int permissionsDialogLastShown =
-			config_get_int(App()->GetAppConfig(), "General", "MacOSPermissionsDialogLastShown");
-		if (permissionsDialogLastShown < MACOS_PERMISSIONS_DIALOG_VERSION) {
-			OBSPermissions check(nullptr, screen_permission, video_permission, audio_permission,
-					     input_monitoring_permission);
-			check.exec();
-		}
-#endif
-
-#ifdef _WIN32
-		if (IsRunningOnWine()) {
-			QMessageBox mb(QMessageBox::Question, QTStr("Wine.Title"), QTStr("Wine.Text"));
-			mb.setTextFormat(Qt::RichText);
-			mb.addButton(QTStr("AlreadyRunning.LaunchAnyway"), QMessageBox::AcceptRole);
-			QPushButton *closeButton = mb.addButton(QMessageBox::Close);
-			mb.setDefaultButton(closeButton);
-
-			mb.exec();
-			if (mb.clickedButton() == closeButton) {
-				return 0;
-			}
-		}
-#endif
+		obs_main_host_permissions();
 
 		if (argc > 1) {
 			stringstream stor;

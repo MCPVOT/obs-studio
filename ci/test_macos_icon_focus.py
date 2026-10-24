@@ -86,6 +86,17 @@ class MacIconFocus(unittest.TestCase):
                     "\t\tprogram.checkForUncleanShutdown();"
                 )
             ]
+        if logging:
+            # obs-main calls the macOS host's startup check (#865).
+            host = (ROOT / "frontend/utility/obs-main-macos.hpp").read_text()
+            verify = re.search(
+                r"^static inline void obs_main_host_verify_startup\(\)\n\{.*?^\}\n",
+                host,
+                re.S | re.M,
+            ).group(0)
+            if not apple:
+                verify = "static inline void obs_main_host_verify_startup() {}\n"
+            policy += "\n" + verify
         source = (
             MODEL
             + policy

@@ -15,10 +15,11 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-/* Windows logging hooks for obs-main (#865): log lines go to an attached
- * debugger, and OBS_DEBUGBREAK_ON_ERROR builds break into it on errors.
+/* Windows hooks for obs-main (#865): log lines go to an attached debugger,
+ * OBS_DEBUGBREAK_ON_ERROR builds break into it on errors, and startup
+ * handles wide paths, the run-once mutex, Wine and the app identity.
  * No include guard: this file defines nothing off Windows, where obs-main
- * echoes log lines to the console instead. */
+ * uses its portable defaults. */
 #ifdef _WIN32
 #define OBS_MAIN_HOST_WINDOWS 1
 
@@ -51,6 +52,58 @@ static inline void obs_main_host_log_break(int log_level)
 	}
 #else
 	(void)log_level;
+#endif
+}
+
+static inline void obs_main_host_localtime(struct tm *out, const time_t *now)
+{
+	localtime_s(out, now);
+}
+
+static inline void obs_main_host_open_log(std::fstream &logFile, const char *path)
+{
+	BPtr<wchar_t> wpath;
+	os_utf8_to_wcs_ptr(path, 0, &wpath);
+	logFile.open(wpath, std::ios_base::in | std::ios_base::out | std::ios_base::trunc);
+}
+
+#define OBS_MAIN_HOST_PRE_APP 1
+static inline bool obs_main_host_pre_app()
+{
+	QGuiApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
+	return true;
+}
+
+static inline RunOnceMutex obs_main_host_check_running(bool &already_running)
+{
+	return CheckIfAlreadyRunning(already_running);
+}
+
+#define OBS_MAIN_HOST_REFUSE_LAUNCH 1
+static inline bool obs_main_host_refuse_launch()
+{
+	if (!IsRunningOnWine()) {
+		return false;
+	}
+
+	QMessageBox mb(QMessageBox::Question, QTStr("Wine.Title"), QTStr("Wine.Text"));
+	mb.setTextFormat(Qt::RichText);
+	mb.addButton(QTStr("AlreadyRunning.LaunchAnyway"), QMessageBox::AcceptRole);
+	QPushButton *closeButton = mb.addButton(QMessageBox::Close);
+	mb.setDefaultButton(closeButton);
+
+	mb.exec();
+	return mb.clickedButton() == closeButton;
+}
+
+#define OBS_MAIN_HOST_VERIFY_STARTUP 1
+static inline void obs_main_host_verify_startup()
+{
+#ifdef OBS_RUST_VERSION
+	// Read back the process identity after the persistent logger is ready.
+	if (!VerifyAppIdentity()) {
+		throw "Windows application identity changed during startup";
+	}
 #endif
 }
 #endif

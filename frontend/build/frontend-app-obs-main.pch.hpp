@@ -42,4 +42,7 @@
 #endif
 #include <mutex>
 #include <string>
+#include <utility/obs-main-linux.hpp>
+#include <utility/obs-main-macos.hpp>
+#include <utility/obs-main-posix.hpp>
 #include <utility/obs-main-windows.hpp>
