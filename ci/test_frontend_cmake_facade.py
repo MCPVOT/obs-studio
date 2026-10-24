@@ -189,6 +189,28 @@ class FrontendCMakeFacadeTest(unittest.TestCase):
                 self.assertIn("void ShowPlatformPermissionsDialog(QWidget *", source)
                 self.assertIn("bool PlatformRecreatesWindowsOnTopToggle()", source)
 
+    def test_updater_goes_through_the_facade(self):
+        # #873: the built-in (Windows) updater thread and the What's New
+        # platform filter are host operations. Sparkle stays a feature macro.
+        header = (FRONTEND / "utility/platform.hpp").read_text()
+        self.assertIn("bool PlatformSupportsBuiltinUpdater();", header)
+        self.assertIn("QThread *CreatePlatformUpdateThread(bool manualUpdate, bool repair);", header)
+        self.assertIn("bool IsWhatsNewItemForPlatform(bool onWindows, bool onMacos, bool onLinux);", header)
+        for name in ("OBSBasic_Updater", "OBSBasic_MainControls"):
+            with self.subTest(file=name):
+                source = (FRONTEND / f"widgets/{name}.cpp.hpp").read_text()
+                for macro in ("_WIN32", "__APPLE__"):
+                    self.assertNotIn(macro, source)
+                self.assertNotIn("AutoUpdateThread", source)
+        for host in ("windows.cpp.hpp", "osx.mm.hpp", "x11.cpp.hpp"):
+            with self.subTest(host=host):
+                source = (FRONTEND / f"utility/platform-{host}").read_text()
+                self.assertIn("bool PlatformSupportsBuiltinUpdater()", source)
+                self.assertIn("QThread *CreatePlatformUpdateThread(bool", source)
+                self.assertIn("bool IsWhatsNewItemForPlatform(bool", source)
+        windows = (FRONTEND / "utility/platform-windows.cpp.hpp").read_text()
+        self.assertIn("new AutoUpdateThread(manualUpdate, repair)", windows)
+
     def test_hdr_screenshots_go_through_the_facade(self):
         # #883: the HDR color space choice and the JXR writer are host
         # operations; ScreenshotObj and its precompiled header name no host.

@@ -165,6 +165,17 @@ void ShowPlatformPermissionsDialog(QWidget *parent);
 /* True where an always-on-top toggle recreates every window. */
 bool PlatformRecreatesWindowsOnTopToggle();
 
+/* Updates (#873). */
+class QThread;
+/* True where OBS updates itself (the Windows updater), not through Sparkle
+ * or a package manager. */
+bool PlatformSupportsBuiltinUpdater();
+/* The built-in updater's check (or repair) thread; nullptr where there is
+ * none. */
+QThread *CreatePlatformUpdateThread(bool manualUpdate, bool repair);
+/* Whether a What's New item that lists its platforms applies to this host. */
+bool IsWhatsNewItemForPlatform(bool onWindows, bool onMacos, bool onLinux);
+
 /* Settings and hotkey editor platform policy (#869). */
 bool PlatformNeedsNonNativeColorDialog();
 bool PlatformSupportsSimpleQsvEncoders();

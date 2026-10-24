@@ -130,7 +130,10 @@ class NoUpstreamUpdaterTests(unittest.TestCase):
     def test_shared_frontend_still_starts_the_updaters(self) -> None:
         self.assertRegex(text("frontend/utility/platform.hpp"),
                          r"#if defined\(_WIN32\) \|\| defined\(ENABLE_SPARKLE_UPDATER\)\n#define OBS_PLATFORM_HAS_UPDATE_BRANCHES")
-        self.assertIn("new AutoUpdateThread(", text("frontend/widgets/OBSBasic_Updater.cpp.hpp"))
+        # The shared updater code asks the host for the Windows updater
+        # thread (#873); the Windows host still builds AutoUpdateThread.
+        self.assertIn("CreatePlatformUpdateThread(manualUpdate, false)", text("frontend/widgets/OBSBasic_Updater.cpp.hpp"))
+        self.assertIn("new AutoUpdateThread(", text("frontend/utility/platform-windows.cpp.hpp"))
 
     def test_upstream_appcast_jobs_are_gone(self) -> None:
         publish = text(".github/workflows/publish.yaml")

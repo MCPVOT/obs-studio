@@ -894,3 +894,18 @@ bool PlatformRecreatesWindowsOnTopToggle()
 {
 	return true;
 }
+
+bool PlatformSupportsBuiltinUpdater()
+{
+	return false;
+}
+
+QThread *CreatePlatformUpdateThread(bool, bool)
+{
+	return nullptr;
+}
+
+bool IsWhatsNewItemForPlatform(bool, bool, bool onLinux)
+{
+	return onLinux;
+}

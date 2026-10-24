@@ -1163,3 +1163,18 @@ bool PlatformRecreatesWindowsOnTopToggle()
 {
 	return false;
 }
+
+bool PlatformSupportsBuiltinUpdater()
+{
+	return true;
+}
+
+QThread *CreatePlatformUpdateThread(bool manualUpdate, bool repair)
+{
+	return new AutoUpdateThread(manualUpdate, repair);
+}
+
+bool IsWhatsNewItemForPlatform(bool windows, bool, bool)
+{
+	return windows;
+}

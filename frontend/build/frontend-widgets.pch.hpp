@@ -150,9 +150,6 @@
 #endif
 #include <dialogs/OBSLogViewer.hpp>
 #include <dialogs/OBSRemux.hpp>
-#ifdef _WIN32
-#include <utility/AutoUpdateThread.hpp>
-#endif
 #include <utility/RemoteTextThread.hpp>
 #if defined(_WIN32) || defined(WHATSNEW_ENABLED)
 #include <utility/WhatsNewInfoThread.hpp>
@@ -237,9 +234,6 @@
 
 #include <dialogs/OBSWhatsNew.hpp>
 
-#ifdef _WIN32
-#include <utility/AutoUpdateThread.hpp>
-#endif
 #ifdef ENABLE_SPARKLE_UPDATER
 #include <utility/MacUpdateThread.hpp>
 #include <utility/OBSSparkle.hpp>

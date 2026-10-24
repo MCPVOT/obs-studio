@@ -39,6 +39,7 @@
 #include "json11.hpp"
 #include <util/platform.h>
 
+#include "frontend/utility/AutoUpdateThread.hpp"
 #include "frontend/utility/OBSProxyStyle.hpp"
 
 #include "frontend/widgets/OBSQTDisplay.hpp"

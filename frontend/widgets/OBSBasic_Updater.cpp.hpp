@@ -19,9 +19,7 @@
 
 #include "frontend/build/frontend-widgets.pch.hpp"
 
-#ifdef _WIN32
-#define UPDATE_CHECK_INTERVAL (60 * 60 * 24 * 4) /* 4 days */
-#endif
+#define UPDATE_CHECK_INTERVAL (60 * 60 * 24 * 4) /* 4 days, for the built-in updater */
 
 struct QCef;
 struct QCefCookieManager;
@@ -64,19 +62,9 @@ void OBSBasic::ReceivedIntroJson(const std::string &text)
 	for (const WhatsNewItem &item : items) {
 		if (item.os) {
 			WhatsNewPlatforms platforms = *item.os;
-#ifdef _WIN32
-			if (!platforms.windows) {
+			if (!IsWhatsNewItemForPlatform(platforms.windows, platforms.macos, platforms.linux)) {
 				continue;
 			}
-#elif defined(__APPLE__)
-			if (!platforms.macos) {
-				continue;
-			}
-#else
-			if (!platforms.linux) {
-				continue;
-			}
-#endif
 		}
 
 		int major = 0;
@@ -163,7 +151,11 @@ void OBSBasic::TimedCheckForUpdates()
 
 #if defined(ENABLE_SPARKLE_UPDATER)
 	CheckForUpdates(false);
-#elif _WIN32
+#else
+	if (!PlatformSupportsBuiltinUpdater()) {
+		return;
+	}
+
 	long long lastUpdate = config_get_int(App()->GetAppConfig(), "General", "LastUpdateCheck");
 	uint32_t lastVersion = config_get_int(App()->GetAppConfig(), "General", "LastVersion");
 
@@ -183,16 +175,19 @@ void OBSBasic::TimedCheckForUpdates()
 
 void OBSBasic::CheckForUpdates(bool manualUpdate)
 {
-#if _WIN32
-	ui->actionCheckForUpdates->setEnabled(false);
-	ui->actionRepair->setEnabled(false);
+	if (PlatformSupportsBuiltinUpdater()) {
+		ui->actionCheckForUpdates->setEnabled(false);
+		ui->actionRepair->setEnabled(false);
 
-	if (updateCheckThread && updateCheckThread->isRunning()) {
+		if (updateCheckThread && updateCheckThread->isRunning()) {
+			return;
+		}
+		updateCheckThread.reset(CreatePlatformUpdateThread(manualUpdate, false));
+		updateCheckThread->start();
 		return;
 	}
-	updateCheckThread.reset(new AutoUpdateThread(manualUpdate));
-	updateCheckThread->start();
-#elif defined(ENABLE_SPARKLE_UPDATER)
+
+#if defined(ENABLE_SPARKLE_UPDATER)
 	ui->actionCheckForUpdates->setEnabled(false);
 
 	if (updateCheckThread && updateCheckThread->isRunning()) {

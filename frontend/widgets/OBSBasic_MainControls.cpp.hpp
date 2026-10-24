@@ -332,7 +332,10 @@ void OBSBasic::on_actionCheckForUpdates_triggered()
 
 void OBSBasic::on_actionRepair_triggered()
 {
-#if defined(_WIN32)
+	if (!PlatformSupportsBuiltinUpdater()) {
+		return;
+	}
+
 	ui->actionCheckForUpdates->setEnabled(false);
 	ui->actionRepair->setEnabled(false);
 
@@ -340,9 +343,8 @@ void OBSBasic::on_actionRepair_triggered()
 		return;
 	}
 
-	updateCheckThread.reset(new AutoUpdateThread(false, true));
+	updateCheckThread.reset(CreatePlatformUpdateThread(false, true));
 	updateCheckThread->start();
-#endif
 }
 
 void OBSBasic::on_actionRestartSafe_triggered()
