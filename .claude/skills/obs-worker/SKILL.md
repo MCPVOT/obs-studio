@@ -168,6 +168,10 @@ running, wait and retry.
   Do not ask again for authorization already given in the session.
 - When the issue closes, comment what fixed it, what's left, and the
   follow-up issue for the rest. Tick the tracking-issue checkbox.
+- Waiting on something you don't control (a maintainer decision, another
+  PR, non-public work): comment `Blocked: <reason>`, with a general reason,
+  so the claim lasts 7 days instead of 48 hours (coordination.md section 3).
+  Any progress comment ends it.
 - Stopping early: comment `Releasing <item>` and link the branch; the
   claim bot removes `claimed`.
 - **Hand off instead of waiting (optional).** You don't have to wait on

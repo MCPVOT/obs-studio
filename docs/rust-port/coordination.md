@@ -48,13 +48,25 @@ this document covers *who does what, and when*.
   |---|---|
   | normal | **48 hours** |
   | labeled `critical` (crash, data loss, broken release or CI-blocking; maintainers set it) | **8 hours** |
+  | labeled `claim-blocked` (the claimant set it; see below) | **7 days** after the last `Blocked:` comment |
 
   The hourly sweep then removes the label, without a comment. Anyone may take
   a stale claim by commenting `Taking over stale claim from @x`; the bot
   accepts it (🚀) only if the claim is stale. Commits on the old draft PR stay
   available: carry them over with `Co-Authored-By` (section 6).
+- When the work waits on something you don't control (a maintainer
+  decision, another PR, coordinated non-public work), comment
+  `Blocked: <reason>` (or `/blocked <reason>`). Only the claimant can; the bot
+  adds `claim-blocked` (🚀) and the claim lasts 7 days from that comment. A
+  new `Blocked:` comment renews it; a takeover in the meantime is refused.
+  Keep the reason general ("waiting on a maintainer", "waiting on #N",
+  "waiting on non-public work"). Any other progress (an issue comment, a
+  commit, comment or review on your PR) removes the label and the normal
+  timer applies again, as do a release, handoff or `/reassign`. When the
+  7 days end without a renewal the sweep removes both labels, silently.
 - Maintainers (owner, member, collaborator) can move any claim with
-  `/reassign @user`. The bot leaves issues labeled `claim-locked` alone.
+  `/reassign @user`. The bot leaves issues labeled `claim-locked` alone;
+  `claim-locked` wins over `claim-blocked`.
 - To stop, comment `Releasing <item>` and link any partial branch; the bot
   removes the label (🚀). To hand the claim to someone instead of dropping
   it, name them in the same comment — `Releasing <item> — handing it to

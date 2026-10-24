@@ -22,12 +22,21 @@ Commands, read from the first line of an issue comment:
                                      of dropping it (the label stands)
   Taking over stale claim from @x   take a stale claim
   /reassign @y                      maintainers (OWNER/MEMBER/COLLABORATOR) move any claim
+  Blocked: <reason>, /blocked <reason>
+                                     the claimant marks the claim `claim-blocked`:
+                                     it waits on something outside their control
 
 A claim goes stale after STALE_HOURS (CRITICAL_STALE_HOURS on issues labeled
 `critical`) with no comment from the claimant on the issue and no commit,
 comment or review on an open PR they opened that references the issue. The
 hourly sweep then removes the label. Issues labeled `claim-locked` are left
 alone.
+
+A `claim-blocked` claim (#1808) goes stale BLOCKED_STALE_HOURS after the
+claimant's last `Blocked:` comment instead; a new one renews it. Any other
+progress by the claimant (an issue comment, activity on their PR) or a
+release, handoff or reassignment removes `claim-blocked`, and the normal
+timer applies again.
 
 State lives in the visible history: no `claimed` label means no claim;
 otherwise the latest command the bot reacted to with REACTION decides (see
@@ -53,8 +62,10 @@ BOT_PREFIX = "**Claim bot:**"
 CLAIMED = "claimed"
 CRITICAL = "critical"
 LOCKED = "claim-locked"
+BLOCKED = "claim-blocked"
 STALE_HOURS = 48
 CRITICAL_STALE_HOURS = 8
+BLOCKED_STALE_HOURS = 7 * 24
 MAINTAINERS = {"OWNER", "MEMBER", "COLLABORATOR"}
 REACTION = "rocket"
 
@@ -62,6 +73,7 @@ CLAIM_RE = re.compile(r"^\s*claiming\b", re.I)
 RELEASE_RE = re.compile(r"^\s*releasing\b", re.I)
 TAKEOVER_RE = re.compile(r"^\s*taking over stale claim from @([A-Za-z0-9-]+)", re.I)
 REASSIGN_RE = re.compile(r"^\s*/reassign\s+@([A-Za-z0-9-]+)", re.I)
+BLOCKED_RE = re.compile(r"^\s*(?:blocked\s*:|/blocked\b)", re.I)
 # A handoff: the holder names who takes the claim, in one comment. This only
 # recognises the shape of the line so the event gate routes it here; the
 # target itself comes from handoff_target().
@@ -80,7 +92,7 @@ HANDOFF_CMD_RE = re.compile(r"^\s*/?handoff\b(?:\s+\S+){0,3}?\s*(?:to\s+)?@([A-Z
 YOURS_RE = re.compile(r"\bit'?s\s+yours[,;:! ]+@([A-Za-z0-9-]+)", re.I)
 # Everything that makes a comment a command, so the event gate and the
 # granted-reaction reader cannot drift apart.
-COMMANDS = (CLAIM_RE, RELEASE_RE, TAKEOVER_RE, REASSIGN_RE, HANDOFF_RE)
+COMMANDS = (CLAIM_RE, RELEASE_RE, TAKEOVER_RE, REASSIGN_RE, HANDOFF_RE, BLOCKED_RE)
 # The bot's own records. Older ones wrote @login; current ones `login`.
 BOT_CLAIM_RE = re.compile(re.escape(BOT_PREFIX) + r" (?:claimed by|claim moved to) [@`]([A-Za-z0-9-]+)")
 BOT_CLEAR_RE = re.compile(re.escape(BOT_PREFIX) + r" claim (?:released|expired)")
@@ -152,6 +164,8 @@ def current_claim(issue: Issue) -> Claim | None:
         line = c.first_line()
         if c.granted and not is_bot(c.author):
             seen_record = True
+            if BLOCKED_RE.match(line):
+                continue                                  # the claimant stays
             if m := REASSIGN_RE.match(line):
                 claim = Claim(m.group(1), c.created)
             elif RELEASE_RE.match(line) or HANDOFF_RE.match(line):
@@ -189,8 +203,33 @@ def last_activity(issue: Issue, claim: Claim) -> datetime:
     return max(times)
 
 
+def blocked_since(issue: Issue, claim: Claim) -> datetime | None:
+    """The claimant's last `Blocked:` comment while `claim-blocked` stands
+    and nothing they did came after it; None when the claim is not blocked."""
+    if BLOCKED not in issue.labels:
+        return None
+    mine = [c for c in issue.comments if c.author.lower() == claim.user.lower() and c.created >= claim.since]
+    blocked = [c.created for c in mine if BLOCKED_RE.match(c.first_line())]
+    if not blocked:
+        return None
+    since = max(blocked)
+    progress = [c.created for c in mine if not BLOCKED_RE.match(c.first_line())]
+    for pr in issue.prs:
+        if pr.author.lower() == claim.user.lower():
+            progress += pr.activity
+    return None if any(t > since for t in progress) else since
+
+
+def stale_window(issue: Issue, claim: Claim) -> tuple[datetime, timedelta]:
+    """When the claim's clock started, and how long it runs."""
+    if since := blocked_since(issue, claim):
+        return since, timedelta(hours=BLOCKED_STALE_HOURS)
+    return last_activity(issue, claim), timedelta(hours=stale_hours(issue))
+
+
 def is_stale(issue: Issue, claim: Claim, now: datetime) -> bool:
-    return now - last_activity(issue, claim) >= timedelta(hours=stale_hours(issue))
+    start, span = stale_window(issue, claim)
+    return now - start >= span
 
 
 def decide_comment(issue: Issue, comment: Comment, now: datetime) -> list[tuple]:
@@ -205,21 +244,33 @@ def decide_comment(issue: Issue, comment: Comment, now: datetime) -> list[tuple]
     claim = current_claim(issue)
     who = comment.author
 
+    if BLOCKED_RE.match(line):
+        if claim is None:
+            return reject(who, "nothing is claimed here, so there is no claim to mark blocked.")
+        if claim.user.lower() != who.lower():
+            return reject(who, f"only the claimant {u(claim.user)} can mark this claim blocked.")
+        return [("label_add", BLOCKED), ("react", comment.id)]
+
     if m := REASSIGN_RE.match(line):
         if comment.association not in MAINTAINERS:
             return reject(who, "only maintainers can `/reassign`.")
-        return accept(comment)
+        return unblock(issue, accept(comment))
 
     if m := TAKEOVER_RE.match(line):
         if claim is None:
-            return accept(comment)
+            return unblock(issue, accept(comment))
         if claim.user.lower() != m.group(1).lower():
             return reject(who, f"the current claim is held by {u(claim.user)}, not {u(m.group(1))}.")
         if not is_stale(issue, claim, now):
-            left = timedelta(hours=stale_hours(issue)) - (now - last_activity(issue, claim))
+            start, span = stale_window(issue, claim)
+            left = span - (now - start)
+            if blocked_since(issue, claim):
+                return reject(who, f"the claim by {u(claim.user)} is blocked on something outside "
+                              f"their control; it expires in {fmt_hours(left)} without a new "
+                              "`Blocked:` comment; ask the claimant or a maintainer.")
             return reject(who, f"the claim by {u(claim.user)} is still active; "
                           f"it goes stale in {fmt_hours(left)} without progress.")
-        return accept(comment)
+        return unblock(issue, accept(comment))
 
     if CLAIM_RE.match(line):
         if claim and claim.user.lower() == who.lower():
@@ -228,17 +279,25 @@ def decide_comment(issue: Issue, comment: Comment, now: datetime) -> list[tuple]
             return reject(who, f"this is already claimed by {u(claim.user)}. Pick something else or offer "
                           "help here; once the claim goes stale, comment "
                           f"`Taking over stale claim from @{claim.user}`.")
-        return accept(comment)
+        return unblock(issue, accept(comment))
 
     if (RELEASE_RE.match(line) or HANDOFF_RE.match(line)) and claim \
             and claim.user.lower() == who.lower():
         target = handoff_target(line)
         if target and target.lower() != claim.user.lower():
-            return accept(comment)      # the label stands; current_claim moves it
+            return unblock(issue, accept(comment))  # the label stands; current_claim moves it
         if RELEASE_RE.match(line):
-            return [("label_remove", CLAIMED), ("react", comment.id)]
+            return unblock(issue, [("label_remove", CLAIMED), ("react", comment.id)])
         return []
+    if BLOCKED in issue.labels and claim and claim.user.lower() == who.lower() \
+            and not any(r.match(line) for r in COMMANDS):
+        return [("label_remove", BLOCKED)]     # progress: back on the normal timer
     return []
+
+
+def unblock(issue: Issue, actions: list[tuple]) -> list[tuple]:
+    """A claim that changes hands or ends is no longer blocked."""
+    return actions + [("label_remove", BLOCKED)] if BLOCKED in issue.labels else actions
 
 
 def u(login: str) -> str:
@@ -262,10 +321,13 @@ def decide_sweep(issue: Issue, now: datetime) -> list[tuple]:
         return []
     claim = current_claim(issue)
     if claim is None:
-        return []
-    if now - last_activity(issue, claim) >= timedelta(hours=stale_hours(issue)):
-        return [("label_remove", CLAIMED)]
-    return []
+        return [("label_remove", BLOCKED)] if BLOCKED in issue.labels else []
+    acts = []
+    if BLOCKED in issue.labels and (not blocked_since(issue, claim) or is_stale(issue, claim, now)):
+        acts.append(("label_remove", BLOCKED))
+    if is_stale(issue, claim, now):
+        acts.append(("label_remove", CLAIMED))
+    return acts
 
 
 def fmt_hours(d: timedelta) -> str:
@@ -360,7 +422,9 @@ def main() -> int:
         c = event["comment"]
         comment = Comment(c["user"]["login"], c["author_association"], c["body"] or "", ts(c["created_at"]), c["id"])
         line = comment.first_line()
-        if is_bot(comment.author) or not any(r.match(line) for r in COMMANDS):
+        labels = {l["name"] for l in event["issue"].get("labels", [])}
+        # A blocked claim also hears its claimant's plain comments: they clear it.
+        if is_bot(comment.author) or not (any(r.match(line) for r in COMMANDS) or BLOCKED in labels):
             return 0
         number = event["issue"]["number"]
         issue = load_issue(number)
