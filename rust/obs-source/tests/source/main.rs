@@ -14,6 +14,8 @@ mod deinterlace_draw;
 mod deinterlace_draw_parity;
 mod deinterlace_pacing;
 mod deinterlace_pacing_parity;
+mod draw_plan;
+mod draw_plan_parity;
 mod ptm_gate;
 mod ptm_gate_parity;
 mod size_route;
