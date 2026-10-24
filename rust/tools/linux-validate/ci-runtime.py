@@ -77,6 +77,16 @@ def download_prepared(descriptor: dict, root: Path) -> str | None:
     return image
 
 
+def part_env(part: str) -> list[str]:
+    """The validate.sh environment for a Tier 2 part (#2071, #2072)."""
+    if part in ('suite', 'serial'):
+        return [f'OBS_CTEST_PART={part}']
+    shard = re.fullmatch(r'serial-([1-9][0-9]*)-of-([1-9][0-9]*)', part)
+    if not shard or int(shard[1]) > int(shard[2]):
+        raise ValueError(f'Invalid Tier 2 part: {part}')
+    return ['OBS_CTEST_PART=serial', f'OBS_CTEST_SERIAL_SHARD={shard[1]}/{shard[2]}']
+
+
 def mounts(source: Path, build: Path, cost: Path, uv: Path, archives: Path) -> list[str]:
     result = []
     for path, target, readonly in (
@@ -134,7 +144,7 @@ def execute(args: argparse.Namespace) -> None:
                         '--env', f'OBS_TIER2_SRC={SOURCE}', '--env', f'OBS_TIER2_BUILD={BUILD}',
                         '--env', f'OBS_TIER2_COST_DIR={COST}', '--env', 'OBS_TIER2_STAGE=test',
                         '--env', f'OBS_TIER2_MODES={args.mode}', '--env', 'OBS_CTEST_JOBS=8',
-                        '--env', f'OBS_CTEST_PART={args.part}',
+                        *(arg for env in part_env(args.part) for arg in ('--env', env)),
                         ident, 'bash', f'{SOURCE}/rust/tools/linux-validate/validate.sh'], check=True)
     finally:
         command('docker', 'stop', '--timeout', '1', ident)
@@ -145,7 +155,7 @@ def main() -> None:
     for name in ('descriptor', 'packages', 'source', 'build', 'cost', 'uv', 'archives', 'state'):
         parser.add_argument('--' + name, type=Path, required=True)
     parser.add_argument('--mode', choices=('OFF', 'ON'), required=True)
-    parser.add_argument('--part', choices=('suite', 'serial'), required=True)
+    parser.add_argument('--part', required=True, help='suite, serial or serial-<i>-of-<n>')
     args = parser.parse_args()
     if os.environ.get('GITHUB_ACTIONS') != 'true':
         parser.error('Docker execution requires a disposable CI runner; local Docker work uses bosn')

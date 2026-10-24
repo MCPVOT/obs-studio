@@ -2130,7 +2130,7 @@ jobs:
           key: zccache-tier2-linux-both-${{ github.sha }}
 
   rust-linux-tier2:
-    name: Rust Tier 2 Linux 🐧 (tests ${{ matrix.mode }}${{ matrix.part == 'serial' && ', serial' || '' }})
+    name: Rust Tier 2 Linux 🐧 (tests ${{ matrix.mode }}${{ matrix.part != 'suite' && format(', {0}', matrix.part) || '' }})
     runs-on: ubuntu-26.04
     # Load a verified prepared runtime, or install the exact closure in the
     # same pinned stock base. The helper retains original artifact paths.
@@ -2141,13 +2141,14 @@ jobs:
     # Failed/skipped builds and workflow cancellation cannot start tests.
     if: ${{ always() && !cancelled() && needs.rust-linux-tier2-build.result == 'success' }}
     # One suite per backend (#1662), less its RUN_SERIAL tests, which run
-    # on a runner of their own: inside the suite the deinterlace test held
-    # the runner alone for 146 of 238 s (#1643, #2071).
+    # on runners of their own: inside the suite the deinterlace test held
+    # the runner alone for 146 of 238 s (#1643, #2071). Its five rate entries
+    # run on two runners (#2072).
     strategy:
       fail-fast: false
       matrix:
         mode: ["OFF", "ON"]
-        part: ["suite", "serial"]
+        part: ["suite", "serial-1-of-2", "serial-2-of-2"]
     defaults:
       run:
         shell: bash

@@ -35,11 +35,12 @@ def registry(*tests: tuple[str, bool]) -> dict:
 
 
 class SerialTestsTest(unittest.TestCase):
-    def select(self, data: dict) -> str:
+    def select(self, data: dict, shard: str = "") -> str:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "registry.json"
             path.write_text(json.dumps(data))
-            return subprocess.run(["uv", "run", "--no-project", str(TOOLS / "serial-tests.py"), str(path)],
+            return subprocess.run(["uv", "run", "--no-project", str(TOOLS / "serial-tests.py"), str(path),
+                                   *([shard] if shard else [])],
                                   check=True, capture_output=True, text=True).stdout.strip()
 
     def test_regex_matches_exactly_the_run_serial_tests(self):
@@ -49,6 +50,13 @@ class SerialTestsTest(unittest.TestCase):
         self.assertRegex("test_xshm_resolution_change", regex)
         self.assertNotRegex("test_a", regex)
         self.assertNotRegex("test_deinterlace_2x", regex)
+
+    def test_shards_split_the_serial_tests_round_robin(self):
+        data = registry(*((f"test_d_{i}", True) for i in range(5)), ("test_a", False))
+        first, second = self.select(data, "1/2"), self.select(data, "2/2")
+        names = [f"test_d_{i}" for i in range(5)]
+        self.assertEqual([n for n in names if re.search(first, n)], ["test_d_0", "test_d_2", "test_d_4"])
+        self.assertEqual([n for n in names if re.search(second, n)], ["test_d_1", "test_d_3"])
 
     def test_no_serial_tests_is_an_error(self):
         # An empty selection would make the serial part pass with no tests.
@@ -63,6 +71,7 @@ class ValidateTest(unittest.TestCase):
         self.assertIn("serial-tests.py", text)
         self.assertRegex(text, r"suite\)[^;]*-E ")
         self.assertRegex(text, r"serial\)[^;]*-R ")
+        self.assertIn("OBS_CTEST_SERIAL_SHARD", text)
 
 
 class RuntimeTest(unittest.TestCase):
@@ -71,15 +80,17 @@ class RuntimeTest(unittest.TestCase):
         runtime = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(runtime)
         text = (TOOLS / "ci-runtime.py").read_text(encoding="utf-8")
-        self.assertIn("'--part', choices=('suite', 'serial')", text)
-        self.assertIn("OBS_CTEST_PART={args.part}", text)
+        self.assertIn("OBS_CTEST_PART=", text)
+        self.assertIn("OBS_CTEST_SERIAL_SHARD=", text)
+        self.assertEqual(runtime.part_env("suite"), ["OBS_CTEST_PART=suite"])
+        self.assertEqual(runtime.part_env("serial-2-of-2"), ["OBS_CTEST_PART=serial", "OBS_CTEST_SERIAL_SHARD=2/2"])
 
 
 class WorkflowTest(unittest.TestCase):
     def test_each_mode_runs_both_parts_on_separate_runners(self):
         job = test_job()
         self.assertRegex(job, r'mode: \["OFF", "ON"\]')
-        self.assertRegex(job, r'part: \["suite", "serial"\]')
+        self.assertRegex(job, r'part: \["suite", "serial-1-of-2", "serial-2-of-2"\]')
         self.assertIn("--part '${{ matrix.part }}'", job)
         # Two parts of one mode write timing artifacts; the names must differ.
         self.assertIn("name: tier2-cost-${{ matrix.mode }}-${{ matrix.part }}", job)

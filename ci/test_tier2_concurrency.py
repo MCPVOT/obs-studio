@@ -11,7 +11,11 @@ ROOT = Path(__file__).resolve().parent.parent
 TIMEOUTS = {
     "test_async_delay_audio": 180,
     "test_audio_clock_drift": 300,
-    "test_deinterlace_2x_field_order": 300,
+    "test_deinterlace_2x_field_order_50i_into_30": 120,
+    "test_deinterlace_2x_field_order_50i_into_50": 120,
+    "test_deinterlace_2x_field_order_50i_into_60": 120,
+    "test_deinterlace_2x_field_order_60i_into_50": 120,
+    "test_deinterlace_2x_field_order_60i_into_60": 120,
     "test_inhibit_sleep_dbus": 60,
     "test_media_cover_art_seek": 120,
     "test_pipewire_screencast_resume": 120,
@@ -20,6 +24,10 @@ TIMEOUTS = {
     "test_vlc_audio_pacing": 120,
     "test_xshm_resolution_change": 60,
 }
+
+# Tests registered by another test's tests.d file.
+REGISTRATION = {name: "test_deinterlace_2x_field_order" for name in TIMEOUTS
+                if name.startswith("test_deinterlace_2x_field_order_")}
 
 
 @unittest.skipUnless(all(shutil.which(tool) for tool in ("cmake", "ctest", "cc")), "requires CMake/CTest/cc")
@@ -62,7 +70,7 @@ set(OBS_OUTPUT_DIR "${CMAKE_BINARY_DIR}/output")
         cmake += f'set(OBS_TEST_XVFB_RUN "{display_wrapper}")\n'
         graph = json.loads((ROOT / "test/cmocka/build/test-graph.json").read_text())
         canonical_tests = {name: graph["tests"][name] for name in TIMEOUTS if name in graph["tests"]}
-        for name in TIMEOUTS:
+        for name in sorted({REGISTRATION.get(name, name) for name in TIMEOUTS}):
             if name not in canonical_tests:
                 cmake += f'include("{ROOT}/test/cmocka/tests.d/{name}.cmake")\n'
         if canonical_tests:
@@ -92,7 +100,7 @@ set(OBS_OUTPUT_DIR "${CMAKE_BINARY_DIR}/output")
                     name = test["name"]
                     properties = {p["name"]: p["value"] for p in test["properties"]}
                     with self.subTest(test=name):
-                        exclusive = name == "test_deinterlace_2x_field_order" or (name == "test_xshm_resolution_change" and not wrapper)
+                        exclusive = name.startswith("test_deinterlace_2x_field_order_") or (name == "test_xshm_resolution_change" and not wrapper)
                         self.assertEqual(bool(properties.get("RUN_SERIAL")), exclusive,
                                          "Retain timing isolation and unisolated display mutation")
                         self.assertEqual(properties["TIMEOUT"], TIMEOUTS[name])

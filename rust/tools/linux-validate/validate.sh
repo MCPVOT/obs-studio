@@ -69,7 +69,8 @@ fi
 select_part() {
   local registry="$1/tier2-registry-$2.json" serial
   ctest --test-dir "$1" --show-only=json-v1 >"$registry"
-  serial=$(uv run --no-project "$SRC/rust/tools/linux-validate/serial-tests.py" "$registry")
+  # OBS_CTEST_SERIAL_SHARD=<i>/<n>: the serial part's ith of n runners (#2072).
+  serial=$(uv run --no-project "$SRC/rust/tools/linux-validate/serial-tests.py" "$registry" ${OBS_CTEST_SERIAL_SHARD:-})
   case "$part" in
   suite) mode_shard_args=(-E "$serial") ;;
   serial) mode_shard_args=(-R "$serial") ;;
