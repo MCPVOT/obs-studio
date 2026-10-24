@@ -124,6 +124,7 @@
 
 /* obs-source-deinterlace.c */
 
+#include "obs-source-deinterlace-draw.h"
 #include "obs-source-deinterlace-pacing.h"
 
 /* obs-source-transition.c */

@@ -9,6 +9,9 @@
 //! colour space query routing of `obs_source_get_color_space()`;
 //! `libobs/obs-source-conversion-plan.c.h`, the async video GPU conversion
 //! plan (convert type, planes, technique and linear output);
+//! `libobs/obs-source-deinterlace-draw.c.h`, the draw decisions of
+//! deinterlacing (the effect, the early return, the linear sRGB flag, the
+//! technique and multiplier, the second field and the mode change);
 //! `libobs/obs-source-deinterlace-pacing.c.h`, the frame pacing of
 //! double-rate deinterlacing; `libobs/obs-source-ptm-gate.c.h`, the
 //! push-to-mute and push-to-talk gate of `source_muted()`; and
@@ -16,8 +19,8 @@
 //! the transitions.
 //!
 //! The safe cores are [`async_pacing`], [`audio_input`], [`audio_timing`],
-//! [`color_space`], [`conversion_plan`], [`deinterlace_pacing`], [`ptm_gate`] and
-//! [`transition_clock`]. The C ABI shims live in [`ffi`].
+//! [`color_space`], [`conversion_plan`], [`deinterlace_draw`],
+//! [`deinterlace_pacing`], [`ptm_gate`] and [`transition_clock`]. The C ABI shims live in [`ffi`].
 
 #![deny(unsafe_code)]
 
@@ -26,6 +29,7 @@ pub mod audio_input;
 pub mod audio_timing;
 pub mod color_space;
 pub mod conversion_plan;
+pub mod deinterlace_draw;
 pub mod deinterlace_pacing;
 pub mod ptm_gate;
 pub mod transition_clock;
