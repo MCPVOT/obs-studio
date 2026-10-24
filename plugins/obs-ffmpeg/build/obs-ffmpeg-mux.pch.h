@@ -16,8 +16,6 @@
 #include "plugins/obs-ffmpeg/ffmpeg-mux/ffmpeg-mux.h"
 #include "plugins/obs-ffmpeg/obs-ffmpeg-formats.h"
 
-#ifdef _WIN32
-#include "util/windows/win-version.h"
-#endif
+#include "plugins/obs-ffmpeg/obs-ffmpeg-mux-host.h"
 
 #include <libavformat/avformat.h>

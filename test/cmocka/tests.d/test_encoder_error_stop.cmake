@@ -7,6 +7,7 @@ if(OS_LINUX AND TARGET OBS::libobs-opengl)
     test_encoder_error_stop
     test_encoder_error_stop.c
     "${CMAKE_SOURCE_DIR}/plugins/obs-ffmpeg/obs-ffmpeg-mux.c.h"
+    "${CMAKE_SOURCE_DIR}/plugins/obs-ffmpeg/build/obs-ffmpeg.mux-host-posix+.h.c"
   )
   target_compile_definitions(test_encoder_error_stop PRIVATE GRAPHICS_MODULE_PATH="$<TARGET_FILE:OBS::libobs-opengl>")
   target_include_directories(

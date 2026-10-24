@@ -102,12 +102,6 @@ static void *ffmpeg_mux_create(obs_data_t *settings, obs_output_t *output)
 	return stream;
 }
 
-#ifdef _WIN32
-#define FFMPEG_MUX "obs-ffmpeg-mux.exe"
-#else
-#define FFMPEG_MUX "obs-ffmpeg-mux"
-#endif
-
 static inline bool capturing(struct ffmpeg_muxer *stream)
 {
 	return os_atomic_load_bool(&stream->capturing);
@@ -271,7 +265,7 @@ static void build_command_line(struct ffmpeg_muxer *stream, os_process_args_t **
 		num_tracks++;
 	}
 
-	char *exe = os_get_executable_path_ptr(FFMPEG_MUX);
+	char *exe = os_get_executable_path_ptr(ffmpeg_mux_host_exe_name());
 	*args = os_process_args_create(exe);
 	bfree(exe);
 
@@ -307,15 +301,10 @@ static void set_file_not_readable_error(struct ffmpeg_muxer *stream, const char 
 {
 	struct dstr error_message;
 	dstr_init_copy(&error_message, obs_module_text("UnableToWritePath"));
-#ifdef _WIN32
-	/* special warning for Windows 10 users about Defender */
-	struct win_version_info ver;
-	get_win_ver(&ver);
-	if (ver.major >= 10) {
+	if (ffmpeg_mux_host_warn_defender()) {
 		dstr_cat(&error_message, "\n\n");
 		dstr_cat(&error_message, obs_module_text("WarnWindowsDefender"));
 	}
-#endif
 	dstr_replace(&error_message, "%1", path);
 	obs_output_set_last_error(stream->output, error_message.array);
 	dstr_free(&error_message);
@@ -1293,4 +1282,3 @@ struct obs_output_info replay_buffer = {
 /* File-local macros (BUILD.md): out of the next file in the unity group. */
 #undef warn
 #undef info
-#undef FFMPEG_MUX

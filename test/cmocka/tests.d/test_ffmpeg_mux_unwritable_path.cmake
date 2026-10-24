@@ -9,6 +9,7 @@ if(OS_LINUX AND TARGET OBS::libobs-opengl)
     test_ffmpeg_mux_unwritable_path
     test_ffmpeg_mux_unwritable_path.c
     "${CMAKE_SOURCE_DIR}/plugins/obs-ffmpeg/obs-ffmpeg-mux.c.h"
+    "${CMAKE_SOURCE_DIR}/plugins/obs-ffmpeg/build/obs-ffmpeg.mux-host-posix+.h.c"
   )
   target_include_directories(
     test_ffmpeg_mux_unwritable_path

@@ -275,6 +275,7 @@ if(_host STREQUAL WINDOWS)
     INCLUDES shared/opts-parser
   )
   _obs_cross_plugin(coreaudio-encoder-cross DIR plugins/coreaudio-encoder SOURCES build/coreaudio-encoder.windows+.hpp.cpp INCLUDES plugins/coreaudio-encoder/hosts/windows)
+  _obs_cross_plugin(obs-ffmpeg-mux-host-cross DIR plugins/obs-ffmpeg SOURCES build/obs-ffmpeg.mux-host-windows+.h.c)
   _obs_cross_plugin(obs-scripting-lua-host-cross DIR shared/obs-scripting SOURCES build/obs-scripting.lua-host-windows+.h.c)
   _obs_cross_plugin(obs-scripting-python-import-host-cross DIR shared/obs-scripting SOURCES build/obs-scripting.python-import-host-windows+.h.c)
   _obs_cross_plugin(
@@ -437,6 +438,7 @@ elseif(_host STREQUAL MACOS)
     DEFINES GL_SILENCE_DEPRECATION
   )
   _obs_cross_plugin(coreaudio-encoder-cross DIR plugins/coreaudio-encoder SOURCES build/coreaudio-encoder.macos+.hpp.cpp INCLUDES plugins/coreaudio-encoder/hosts/macos)
+  _obs_cross_plugin(obs-ffmpeg-mux-host-cross DIR plugins/obs-ffmpeg SOURCES build/obs-ffmpeg.mux-host-macos+.h.c)
   _obs_cross_plugin(obs-scripting-lua-host-cross DIR shared/obs-scripting SOURCES build/obs-scripting.lua-host-macos+.h.c)
   _obs_cross_plugin(obs-scripting-python-import-host-cross DIR shared/obs-scripting SOURCES build/obs-scripting.python-import-host-macos+.h.c)
   _obs_cross_plugin(

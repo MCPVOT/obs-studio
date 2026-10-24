@@ -31,6 +31,10 @@ target_sources(
     $<$<PLATFORM_ID:Linux,FreeBSD,OpenBSD>:vaapi-utils.h>
     build/obs-ffmpeg.core+.h.c
     build/obs-ffmpeg.mux+.h.c
+    $<$<PLATFORM_ID:Darwin>:build/obs-ffmpeg.mux-host-macos+.h.c>
+    $<$<PLATFORM_ID:Linux,FreeBSD,OpenBSD>:build/obs-ffmpeg.mux-host-posix+.h.c>
+    $<$<PLATFORM_ID:Windows>:build/obs-ffmpeg.mux-host-windows+.h.c>
+    obs-ffmpeg-mux-host.h
     build/obs-ffmpeg.output+.h.c
     build/obs-ffmpeg.source+.h.c
     build/obs-ffmpeg.video-encoders+.h.c
