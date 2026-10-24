@@ -198,6 +198,10 @@ OBSBasic::OBSBasic(QWidget *parent) : OBSMainWindow(parent), undo_s(ui), ui(new 
 
 	startingDockLayout = saveState();
 
+	/* Docks keep their relative sizes when the window narrows and widens
+	 * again (obs-rust/obs-studio#2225). */
+	new DockProportions(this);
+
 	statsDock = new OBSDock();
 	statsDock->setObjectName(QStringLiteral("statsDock"));
 	statsDock->setFeatures(QDockWidget::DockWidgetClosable | QDockWidget::DockWidgetMovable |

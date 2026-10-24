@@ -1673,6 +1673,11 @@ area.
   [#2064](https://github.com/obs-rust/obs-studio/issues/2064), PR
   [#2080](https://github.com/obs-rust/obs-studio/pull/2080).
 
+- Narrowing the main window and widening it again keeps the docks' relative
+  sizes: docks side by side no longer come back all the same width after the
+  window squeezed them to their minimum. *All*, 2026-10-24. Issue
+  [#2225](https://github.com/obs-rust/obs-studio/issues/2225).
+
 ### Scripting
 
 - A busy Lua source no longer makes the graphics thread poll its locks. OBS

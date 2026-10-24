@@ -25,6 +25,7 @@
 #include <oauth/Auth.hpp>
 #include <utility/BasicOutputHandler.hpp>
 #include <utility/close-top-level.hpp>
+#include <utility/dock-proportions.hpp>
 #include <utility/missing-source-types.h>
 #include <utility/OBSCanvas.hpp>
 #include <utility/PreviewProgramSizeObserver.hpp>
