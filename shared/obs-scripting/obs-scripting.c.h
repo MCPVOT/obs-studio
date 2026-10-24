@@ -152,9 +152,8 @@ bool obs_scripting_load(void)
 
 #if defined(Python_FOUND)
 	obs_python_load();
-#if !defined(_WIN32) && !defined(__APPLE__) /* Win32 and macOS need user-provided Python library paths */
-	obs_scripting_load_python(NULL);
-#endif
+	if (obs_python_host_load_at_start())
+		obs_scripting_load_python(NULL);
 #endif
 
 	scripting_loaded = true;

@@ -32,6 +32,10 @@ if(ENABLE_SCRIPTING_PYTHON)
       $<$<PLATFORM_ID:Darwin>:build/obs-scripting.python-import-host-macos+.h.c>
       $<$<PLATFORM_ID:Windows>:build/obs-scripting.python-import-host-windows+.h.c>
       obs-scripting-python-import-host.h
+      $<$<PLATFORM_ID:Darwin>:build/obs-scripting.python-host-macos+.h.c>
+      $<$<PLATFORM_ID:Linux,FreeBSD,OpenBSD>:build/obs-scripting.python-host-posix+.h.c>
+      $<$<PLATFORM_ID:Windows>:build/obs-scripting.python-host-windows+.h.c>
+      obs-scripting-python-host.h
       $<$<PLATFORM_ID:Darwin>:hosts/macos/obs-scripting-python-include.h>
       $<$<PLATFORM_ID:Linux,FreeBSD,OpenBSD>:hosts/posix/obs-scripting-python-include.h>
       $<$<PLATFORM_ID:Windows>:hosts/windows/obs-scripting-python-include.h>
@@ -84,6 +88,13 @@ if(ENABLE_SCRIPTING_PYTHON)
       build/obs-scripting.python-import+.h.c
     APPEND
     PROPERTY COMPILE_OPTIONS "$<$<C_COMPILER_ID:MSVC>:/wd4115>"
+  )
+  # The SWIG runtime obs-scripting-python.h includes: unused parameters,
+  # non-constant aggregate initializers (MSVC C4100, C4204).
+  set_property(
+    SOURCE build/obs-scripting.python+.h.c build/obs-scripting.python-frontend+.h.c
+    APPEND
+    PROPERTY COMPILE_OPTIONS "$<$<C_COMPILER_ID:MSVC>:/wd4100;/wd4204>"
   )
 
   target_link_libraries(obs-scripting PRIVATE $<$<PLATFORM_ID:Linux,FreeBSD,OpenBSD>:Python::Python>)

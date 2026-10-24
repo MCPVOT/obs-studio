@@ -16,3 +16,4 @@
 #include <util/deque.h>
 
 #include "shared/obs-scripting/obs-scripting-callback.h"
+#include "shared/obs-scripting/obs-scripting-python-host.h"

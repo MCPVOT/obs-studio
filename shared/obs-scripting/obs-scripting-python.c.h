@@ -1607,17 +1607,11 @@ bool obs_scripting_load_python(const char *python_path)
 		return false;
 
 	if (python_path && *python_path) {
-#ifdef __APPLE__
-		char temp[PATH_MAX];
-		snprintf(temp, sizeof(temp), "%s/Python.framework/Versions/%i.%i", python_path, python_version.major,
-			 python_version.minor);
-		os_utf8_to_wcs(temp, 0, home_path, PATH_MAX);
+		struct dstr home = {0};
+		obs_python_host_home(&home, python_path, python_version.major, python_version.minor);
+		os_utf8_to_wcs(home.array, 0, home_path, sizeof(home_path) / sizeof(home_path[0]));
+		dstr_free(&home);
 		Py_SetPythonHome(home_path);
-#else
-
-		os_utf8_to_wcs(python_path, 0, home_path, 1024);
-		Py_SetPythonHome(home_path);
-#endif
 	}
 #else
 	UNUSED_PARAMETER(python_path);
@@ -1650,10 +1644,10 @@ bool obs_scripting_load_python(const char *python_path)
 	PySys_SetArgv(argc, argv);
 	PRAGMA_WARN_POP
 
-#ifdef __APPLE__
-	PyRun_SimpleString("import sys");
-	PyRun_SimpleString("sys.dont_write_bytecode = True");
-#endif
+	if (obs_python_host_no_bytecode()) {
+		PyRun_SimpleString("import sys");
+		PyRun_SimpleString("sys.dont_write_bytecode = True");
+	}
 
 #ifdef DEBUG_PYTHON_STARTUP
 	/* ---------------------------------------------- */
@@ -1670,40 +1664,7 @@ bool obs_scripting_load_python(const char *python_path)
 	/* ---------------------------------------------- */
 	/* Load main interface module                     */
 
-#ifdef __APPLE__
-	struct dstr plugin_path;
-	struct dstr resource_path;
-
-	dstr_init_move_array(&plugin_path, os_get_executable_path_ptr(""));
-	dstr_init_copy(&resource_path, plugin_path.array);
-	dstr_cat(&plugin_path, "../PlugIns");
-	dstr_cat(&resource_path, "../Resources");
-
-	char *absolute_plugin_path = os_get_abs_path_ptr(plugin_path.array);
-	char *absolute_resource_path = os_get_abs_path_ptr(resource_path.array);
-
-	if (absolute_plugin_path != NULL) {
-		add_to_python_path(absolute_plugin_path);
-		bfree(absolute_plugin_path);
-	}
-	dstr_free(&plugin_path);
-
-	if (absolute_resource_path != NULL) {
-		add_to_python_path(absolute_resource_path);
-		bfree(absolute_resource_path);
-	}
-	dstr_free(&resource_path);
-#else
-	char *relative_script_path = os_get_executable_path_ptr("../" SCRIPT_DIR);
-	if (relative_script_path) {
-		add_to_python_path(relative_script_path);
-	}
-	bfree(relative_script_path);
-
-	char *absolute_script_path = os_get_abs_path_ptr(SCRIPT_DIR);
-	add_to_python_path(absolute_script_path);
-	bfree(absolute_script_path);
-#endif
+	obs_python_host_module_dirs(add_to_python_path);
 
 	py_obspython = PyImport_ImportModule("obspython");
 	bool success = !py_error();

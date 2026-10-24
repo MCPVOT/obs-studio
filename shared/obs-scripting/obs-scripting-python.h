@@ -21,32 +21,17 @@
 /* ---------------------------- */
 
 #define SWIG_TYPE_TABLE obspython
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable : 4100)
-#pragma warning(disable : 4115)
-#pragma warning(disable : 4204)
-#endif
-
+/* MSVC warnings in Python.h and the SWIG runtime are off for the Python
+ * groups (cmake/python.cmake). */
 #include "obs-scripting-python-import.h"
 
 #include <structmember.h>
 #include "swig/swigpyrun.h"
 
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
-
 /* ---------------------------- */
 
 #include "obs-scripting-internal.h"
 #include "obs-scripting-callback.h"
-
-#ifdef _WIN32
-#define __func__ __FUNCTION__
-#else
-#include <dlfcn.h>
-#endif
 
 #include <callback/calldata.h>
 #include <util/threading.h>

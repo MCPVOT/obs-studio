@@ -8,6 +8,7 @@
 /* obs-scripting-python.c */
 #include "shared/obs-scripting/obs-scripting-python.h"
 #include "shared/obs-scripting/obs-scripting-python-startup.h"
+#include "shared/obs-scripting/obs-scripting-python-host.h"
 #include <util/base.h>
 #include <util/platform.h>
 #include <util/darray.h>
