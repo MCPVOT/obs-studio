@@ -38,7 +38,4 @@
 
 /* obs-outputs.c */
 
-#ifdef _WIN32
-#include <winsock2.h>
-#include <mbedtls/threading.h>
-#endif
+#include "plugins/obs-outputs/obs-outputs-host.h"

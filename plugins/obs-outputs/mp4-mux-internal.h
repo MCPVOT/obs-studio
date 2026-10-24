@@ -198,12 +198,10 @@ enum sample_flags {
 	SAMPLE_FLAG_DEPENDS_NO = 0x02000000,
 };
 
-#ifndef _WIN32
-static inline size_t min(size_t a, size_t b)
+static inline size_t min_size(size_t a, size_t b)
 {
 	return a < b ? a : b;
 }
-#endif
 
 static inline void get_speaker_positions(enum speaker_layout layout, uint8_t *arr, uint8_t *size, uint8_t *iso_layout)
 {

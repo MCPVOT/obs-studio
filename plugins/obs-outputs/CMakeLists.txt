@@ -50,6 +50,9 @@ target_sources(
     $<$<PLATFORM_ID:Windows>:build/obs-outputs.net-if-host-windows+.h.c>
     $<$<NOT:$<PLATFORM_ID:Windows>>:build/obs-outputs.net-if-host-posix+.h.c>
     $<$<NOT:$<PLATFORM_ID:Windows>>:build/obs-outputs.rtmp-host-posix+.h.c>
+    $<$<PLATFORM_ID:Windows>:build/obs-outputs.host-windows+.h.c>
+    $<$<NOT:$<PLATFORM_ID:Windows>>:build/obs-outputs.host-posix+.h.c>
+    obs-outputs-host.h
     rtmp-stream-host.h
     net-if-host.h
     net-if.h

@@ -2463,7 +2463,7 @@ static void mp4_create_chapter_pkt(struct encoder_packet *pkt, int64_t dts_usec,
 	struct array_output_data ao;
 	array_output_serializer_init(&s, &ao);
 
-	size_t len = min(strlen(name), UINT16_MAX);
+	size_t len = min_size(strlen(name), UINT16_MAX);
 	long refs = 1;
 
 	/* encoder_packet refs */
