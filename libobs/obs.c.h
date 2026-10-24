@@ -1508,6 +1508,10 @@ int obs_reset_video(struct obs_video_info *ovi)
 	    !obs_video_size_valid(ovi->base_width, ovi->base_height))
 		return OBS_VIDEO_INVALID_PARAM;
 
+	/* the frame interval is fps_den / fps_num */
+	if (!ovi->fps_num || !ovi->fps_den)
+		return OBS_VIDEO_INVALID_PARAM;
+
 	struct freed_video *freed;
 	size_t num_freed;
 	collect_mix_videos(&freed, &num_freed);
