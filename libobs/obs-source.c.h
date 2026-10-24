@@ -957,10 +957,10 @@ void obs_source_remove(obs_source_t *source)
 	if (!obs_source_valid(source, "obs_source_remove"))
 		return;
 
-	if (!source->removed) {
+	if (!os_atomic_load_bool(&source->removed)) {
 		obs_source_t *s = obs_source_get_ref(source);
 		if (s) {
-			s->removed = true;
+			os_atomic_set_bool(&s->removed, true);
 			obs_source_dosignal(s, "source_remove", "remove");
 			/* Remove from canvas if there is one. */
 			if (source->canvas && !source->context.private)
@@ -973,7 +973,7 @@ void obs_source_remove(obs_source_t *source)
 
 bool obs_source_removed(const obs_source_t *source)
 {
-	return obs_source_valid(source, "obs_source_removed") ? source->removed : true;
+	return obs_source_valid(source, "obs_source_removed") ? os_atomic_load_bool(&source->removed) : true;
 }
 
 static inline obs_data_t *source_get_defaults(const struct obs_source_info *info)

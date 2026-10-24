@@ -1119,8 +1119,8 @@ struct obs_source {
 
 	/* used to indicate that the source has been removed and all
 	 * references to it should be released (not exactly how I would prefer
-	 * to handle things but it's the best option) */
-	bool removed;
+	 * to handle things but it's the best option). Atomic: the render threads read it (#2105). */
+	volatile bool removed;
 
 	/*  used to indicate if the source should show up when queried for user ui */
 	bool temp_removed;

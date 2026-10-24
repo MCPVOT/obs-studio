@@ -2072,7 +2072,7 @@ static obs_sceneitem_t *obs_scene_add_internal(obs_scene_t *scene, obs_source_t 
 		return NULL;
 	}
 
-	if (source->removed) {
+	if (os_atomic_load_bool(&source->removed)) {
 		blog(LOG_WARNING, "Tried to add a removed source to a scene");
 		goto release_source_and_fail;
 	}

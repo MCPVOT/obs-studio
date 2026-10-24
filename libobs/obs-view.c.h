@@ -77,7 +77,7 @@ void obs_view_clear_channels(struct obs_view *view)
 
 bool obs_view_source_removed(const obs_source_t *source)
 {
-	return source->removed;
+	return os_atomic_load_bool(&source->removed);
 }
 
 struct obs_video_info *obs_view_main_mix_info(void)
