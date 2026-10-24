@@ -42,8 +42,11 @@ this document covers *who does what, and when*.
   heading marker before it is fine) makes the claim bot add the
   `decision-needed` label (🚀, silent), from anyone. From the claimant it
   also counts as `Blocked:` (section 3). Only a maintainer clears it, with a
-  `Decided:` comment (first line) or by removing the label; nobody else's
-  progress and no sweep removes it. The coordinator (obs-coordinator skill
+  `Decided:` or `Decision:` comment (first line) or by removing the label;
+  nobody else's progress and no sweep removes it. That answer also clears
+  `human-review-needed`, and on a blocked claim it removes `claim-blocked`
+  and mentions the claimant with the decision quoted, so the work resumes
+  (#2212). The coordinator (obs-coordinator skill
   §3b) researches each open decision every tick: it answers with `Decided:`
   when the rules, docs or earlier decisions settle it, and otherwise moves
   the issue to `human-review-needed`, the list that waits on the human

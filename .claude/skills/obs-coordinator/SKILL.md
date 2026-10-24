@@ -154,7 +154,12 @@ gh issue list --repo obs-rust/obs-studio --label decision-needed \
    trade-off, an outside party (another org, a vendor), something hard to
    undo (deleting data, a public release or announcement), or the maintainer's
    personal preference. Remove `decision-needed`, add `human-review-needed`,
-   and comment with what you found, the options and your recommendation:
+   and comment with what you found, the options and your recommendation.
+   End the comment with how to answer: a comment whose first line starts
+   `Decided:` (or `Decision:`) from the maintainer clears
+   `human-review-needed` and resumes a blocked claim (#2212). Removing the
+   label by hand also works. Stop listing the issue in §5 once the label is
+   gone.
 
    ```sh
    gh issue edit <N> --repo obs-rust/obs-studio \

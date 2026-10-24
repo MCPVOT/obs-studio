@@ -452,6 +452,49 @@ class DecisionTest(unittest.TestCase):
         self.assertTrue(rejected(acts, "bob"), acts)
         self.assertIn("maintainer", acts[0][1])
 
+    def test_maintainer_decided_clears_the_escalation_label(self):
+        # #2212: the coordinator's escalation swaps decision-needed for
+        # human-review-needed, so a later Decided: must clear that one too.
+        i = issue(labels=(cb.HUMAN_REVIEW,))
+        c = human("zed", "Decided: B.", h(2), assoc="OWNER")
+        acts = cb.decide_comment(i, c, h(2))
+        self.assertIn(("label_remove", cb.HUMAN_REVIEW), acts)
+        self.assertIn(("react", c.id), acts)
+
+    def test_decision_is_an_alias_for_decided(self):
+        i = issue(labels=(cb.HUMAN_REVIEW,))
+        c = human("zed", "Decision: warn with a countdown.", h(2), assoc="OWNER")
+        self.assertTrue(cb.handles(c.body, set()))
+        acts = cb.decide_comment(i, c, h(2))
+        self.assertIn(("label_remove", cb.HUMAN_REVIEW), acts)
+        self.assertIn(("react", c.id), acts)
+
+    def test_non_maintainer_decision_is_refused(self):
+        acts = cb.decide_comment(issue(labels=(cb.HUMAN_REVIEW,)),
+                                 human("bob", "Decision: B.", h(2)), h(2))
+        self.assertTrue(rejected(acts, "bob"), acts)
+
+    def test_decided_resumes_a_blocked_claim(self):
+        i = claimed_by_alice()
+        _, i = self.decide(i, human("alice", "Decision needed: A or B?", h(1)))
+        c = human("zed", "Decided: B.", h(3), assoc="OWNER")
+        acts = cb.decide_comment(i, c, h(3))
+        self.assertIn(("label_remove", cb.BLOCKED), acts)
+        notes = [a[1] for a in acts if a[0] == "comment"]
+        self.assertEqual(len(notes), 1, acts)
+        self.assertIn("@alice", notes[0])
+        self.assertIn("Decided: B.", notes[0])
+
+    def test_escalated_decision_leaves_no_flow_label(self):
+        # The #1092 shape: decision-needed, escalation, then the answer.
+        i = claimed_by_alice()
+        _, i = self.decide(i, human("alice", "Decision needed: sandbox?", h(1)))
+        i.labels.discard(cb.DECISION)
+        i.labels.add(cb.HUMAN_REVIEW)
+        _, i = self.decide(i, human("zed", "Decision: warn the user.", h(10), assoc="OWNER"))
+        self.assertEqual(i.labels & {cb.DECISION, cb.HUMAN_REVIEW, cb.BLOCKED}, set())
+        self.assertIn(cb.CLAIMED, i.labels)
+
     def test_claimant_decision_also_blocks_the_claim(self):
         i = claimed_by_alice()
         c = human("alice", "Port plan.\nDecision needed: drop the Windows path?", h(1))

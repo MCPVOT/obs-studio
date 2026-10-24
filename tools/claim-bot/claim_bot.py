@@ -75,6 +75,8 @@ CRITICAL = "critical"
 LOCKED = "claim-locked"
 BLOCKED = "claim-blocked"
 DECISION = "decision-needed"
+# The coordinator's escalation swaps DECISION for this one (#2212).
+HUMAN_REVIEW = "human-review-needed"
 STALE_HOURS = 48
 CRITICAL_STALE_HOURS = 8
 BLOCKED_STALE_HOURS = 7 * 24
@@ -90,7 +92,9 @@ BLOCKED_RE = re.compile(r"^\s*(?:blocked\s*:|/blocked\b)", re.I)
 # emphasis markers (`**Decision needed:**`, `### Decision needed:`), never in
 # running text.
 DECISION_RE = re.compile(r"^\s*(?:#{1,6}\s+)?[*_]{0,3}\s*decision\s+needed\s*[*_]{0,3}\s*:", re.I | re.M)
-DECIDED_RE = re.compile(r"^\s*[*_]{0,3}\s*decided\s*[*_]{0,3}\s*:", re.I)
+# `Decided:`, or `Decision:` as its alias (#2212); `Decision needed:` has no
+# colon after the word, so it never matches.
+DECIDED_RE = re.compile(r"^\s*[*_]{0,3}\s*(?:decided|decision)\s*[*_]{0,3}\s*:", re.I)
 # A handoff: the holder names who takes the claim, in one comment. This only
 # recognises the shape of the line so the event gate routes it here; the
 # target itself comes from handoff_target().
@@ -279,7 +283,7 @@ def decide_comment(issue: Issue, comment: Comment, now: datetime) -> list[tuple]
     if DECIDED_RE.match(line):
         if comment.association not in MAINTAINERS:
             return reject(who, "only maintainers can mark a question `Decided:`.")
-        return [("label_remove", DECISION), ("react", comment.id)]
+        return decided(issue, comment)
     acts = decide_command(issue, comment, now)
     if not asks_decision(comment.body) or any(a[0] == "comment" for a in acts):
         return acts
@@ -289,6 +293,20 @@ def decide_comment(issue: Issue, comment: Comment, now: datetime) -> list[tuple]
     extra = [("label_add", DECISION)] + ([("label_add", BLOCKED)] if mine else [])
     acts = [a for a in acts if not (mine and a == ("label_remove", BLOCKED)) and a[0] != "react"]
     return extra + [a for a in acts if a not in extra] + [("react", comment.id)]
+
+
+def decided(issue: Issue, comment: Comment) -> list[tuple]:
+    """A maintainer's answer: clear the question and its escalation, and
+    resume a claim that waited on it, mentioning the claimant (#2212)."""
+    acts = [("label_remove", DECISION)]
+    acts += [("label_remove", HUMAN_REVIEW)] if HUMAN_REVIEW in issue.labels else []
+    claim = current_claim(issue)
+    if claim and BLOCKED in issue.labels:
+        quote = "\n".join(f"> {line}" for line in comment.body.strip().splitlines())
+        acts += [("label_remove", BLOCKED),
+                 ("comment", f"{BOT_PREFIX} @{claim.user}, the decision is in; "
+                  f"your claim is no longer blocked.\n\n{quote}")]
+    return acts + [("react", comment.id)]
 
 
 def decide_command(issue: Issue, comment: Comment, now: datetime) -> list[tuple]:
