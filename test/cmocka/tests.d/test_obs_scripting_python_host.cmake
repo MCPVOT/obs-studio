@@ -17,5 +17,8 @@ if(NOT OS_WINDOWS)
     target_link_libraries(${_test} PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
     add_dependencies(cmocka-tests ${_test})
     add_test(${_test} ${CMAKE_CURRENT_BINARY_DIR}/${_test})
+    # The macOS hosts create and remove ../PlugIns next to the test binaries,
+    # so the Lua and Python host tests must not run at the same time.
+    set_tests_properties(${_test} PROPERTIES RESOURCE_LOCK obs-scripting-host-plugins-dir)
   endforeach()
 endif()
