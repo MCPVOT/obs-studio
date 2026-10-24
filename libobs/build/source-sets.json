@@ -56,6 +56,7 @@
     "obs-source-transition-clock.h",
     "obs-source.h",
     "obs-video-copy-plan.h",
+    "obs-video-output-step.h",
     "obs.h",
     "obs.hpp",
     "util/array-serializer.h",
@@ -192,6 +193,7 @@
     "build/libobs.ported-util+.h.c",
     "build/libobs.ported-util-io+.h.c",
     "build/libobs.ported-video-copy-plan+.h.c",
+    "build/libobs.ported-video-output-step+.h.c",
     "build/libobs.ported-video-plan+.h.c",
     "build/libobs.ported-view+.h.c"
   ],
