@@ -1,8 +1,10 @@
 #!/usr/bin/env -S uv run --script
 """Execute complete Tier 2 suites in a verified runtime on disposable CI hosts.
 
-The prepared image is an optimization of package installation only. A changed
-closure or unavailable release falls back to the pinned stock base. Corrupt
+The prepared image is an optimization of package installation only. A closure
+that differs in up to MAX_DELTA packages (an Ubuntu update since the image was
+made) installs those exact versions on top of it; a larger difference or an
+unavailable release falls back to the pinned stock base. Corrupt
 bytes, image identities and inventory mismatches fail instead of falling back.
 """
 from __future__ import annotations
@@ -23,6 +25,8 @@ BASE = 'ubuntu:26.04@sha256:f144425ff09be612d6d9ad965196e9cdc23dae1f42110a8a11a3
 SOURCE = '/__w/obs-studio/obs-studio'
 BUILD = '/__w/_temp/tier2'
 COST = '/__w/_temp/tier2-cost'
+# One zlib update made every job install the whole closure for 75 s (#1592).
+MAX_DELTA = 16
 spec = importlib.util.spec_from_file_location('runtime_selection', Path(__file__).with_name('runtime-selection.py'))
 selection = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(selection)
@@ -42,9 +46,14 @@ def verify_archive(path: Path, descriptor: dict) -> None:
 def prepared_image(descriptor: dict, requirements: str, root: Path) -> str | None:
     if descriptor['base'] != BASE or descriptor['platform'] != 'linux/amd64':
         raise ValueError('Prepared runtime base or platform mismatch')
-    if not selection.satisfies(requirements, descriptor['inventory']):
-        print('Runtime selection: stock (current package closure differs)', flush=True)
+    changed = selection.delta(requirements, descriptor['inventory'])
+    if len(changed) > MAX_DELTA:
+        print(f'Runtime selection: stock ({len(changed)} packages differ, more than {MAX_DELTA})', flush=True)
         return None
+    return download_prepared(descriptor, root)
+
+
+def download_prepared(descriptor: dict, root: Path) -> str | None:
     image = descriptor['image_id']
     if not re.fullmatch(r'sha256:[0-9a-f]{64}', image):
         raise ValueError('Invalid prepared image identity')
@@ -87,6 +96,7 @@ def execute(args: argparse.Namespace) -> None:
     args.cost.mkdir(parents=True, exist_ok=True)
     image = prepared_image(descriptor, requirements, args.state)
     variant = 'prepared' if image else 'stock'
+    changed = selection.delta(requirements, descriptor['inventory']) if image else []
     if image is None:
         command('docker', 'pull', BASE)
     ident = command('docker', 'create', '--platform', 'linux/amd64', '--cpus', '4',
@@ -97,21 +107,27 @@ def execute(args: argparse.Namespace) -> None:
         raise ValueError('Invalid runtime container identity')
     try:
         command('docker', 'start', ident)
+        # Stock installs the whole closure; prepared only what changed since.
+        packages = changed
         if variant == 'stock':
+            packages = [*requirements.splitlines(), 'git', 'ca-certificates', 'curl', 'sudo', 'zstd']
+        elif changed:
+            print('Runtime selection: prepared plus ' + ' '.join(changed), flush=True)
+        if packages:
             command('docker', 'exec', ident, 'sh', '-c',
                     'if test -f /etc/apt/apt.conf.d/docker-clean; then '
                     'mv /etc/apt/apt.conf.d/docker-clean /tmp/docker-clean.disabled; fi')
             command('docker', 'exec', ident, 'apt-get', 'update', '-qq')
-            command('docker', 'exec', ident, 'apt-get', 'install', '-y', '--no-install-recommends',
-                    *requirements.splitlines(),
-                    'git', 'ca-certificates', 'curl', 'sudo', 'zstd')
+            command('docker', 'exec', ident, 'apt-get', 'install', '-y', '--no-install-recommends', *packages)
         inventory = command('docker', 'exec', ident, 'dpkg-query', '-W', '-f=${binary:Package}\t${Version}\n')
         if not selection.satisfies(requirements, inventory):
             raise ValueError('Runtime does not satisfy the current artifact package closure')
-        if variant == 'prepared' and selection.records(inventory, '\t') != selection.records(descriptor['inventory'], '\t'):
+        if variant == 'prepared' and not changed and \
+                selection.records(inventory, '\t') != selection.records(descriptor['inventory'], '\t'):
             raise ValueError('Prepared runtime inventory differs from the producer')
         report = {'variant': variant, 'setup_seconds': time.monotonic() - started,
-                  'image': image or BASE, 'mode': args.mode, 'part': args.part, 'inventory_verified': True}
+                  'image': image or BASE, 'mode': args.mode, 'part': args.part, 'delta': changed,
+                  'inventory_verified': True}
         (args.state / 'runtime-measurement.json').write_text(json.dumps(report, indent=2) + '\n')
         print(json.dumps(report), flush=True)
         subprocess.run(['docker', 'exec', '--workdir', SOURCE,

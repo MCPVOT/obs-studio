@@ -31,3 +31,10 @@ def satisfies(requirements: str, inventory: str) -> bool:
     required = records(requirements, '=')
     installed = records(inventory, '\t')
     return all(installed.get(name) == version for name, version in required.items())
+
+
+def delta(requirements: str, inventory: str) -> list[str]:
+    """The name=version records to install on top of the inventory."""
+    required = records(requirements, '=')
+    installed = records(inventory, '\t')
+    return [f'{name}={version}' for name, version in sorted(required.items()) if installed.get(name) != version]

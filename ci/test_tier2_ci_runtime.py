@@ -25,7 +25,9 @@ class RuntimeTest(unittest.TestCase):
 
     def test_changed_closure_falls_back_without_download_or_docker(self):
         with patch.object(runtime.urllib.request, 'urlopen') as download, patch.object(runtime, 'command') as command:
-            self.assertIsNone(runtime.prepared_image(self.descriptor(), 'a=2\n', Path('/unused')))
+            # A few changed packages install on top (ci/test_tier2_runtime_delta.py).
+            changed = ''.join(f'p{i}=1\n' for i in range(runtime.MAX_DELTA + 1))
+            self.assertIsNone(runtime.prepared_image(self.descriptor(), changed, Path('/unused')))
             download.assert_not_called()
             command.assert_not_called()
 
