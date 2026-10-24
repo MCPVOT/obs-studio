@@ -389,27 +389,18 @@ static inline void update_nested_scene_crop(struct obs_scene_item *item, uint32_
 	item->crop.bottom = obs_scene_scale_crop(item->crop.bottom, scale_y);
 }
 
-static void update_item_transform(struct obs_scene_item *item, bool update_tex)
+/* Needs the parent's video lock: the graphics thread reads the results. */
+static void compute_item_transform(struct obs_scene_item *item, uint32_t width, uint32_t height, bool update_tex)
 {
-	uint32_t width;
-	uint32_t height;
 	uint32_t cx;
 	uint32_t cy;
 	struct vec2 base_origin;
 	struct vec2 origin;
 	struct vec2 scale;
 	struct vec2 position;
-	struct calldata params;
-	uint8_t stack[128];
-
-	if (os_atomic_load_long(&item->defer_update) > 0)
-		return;
 
 	/* Reset bounds crop */
 	memset(&item->bounds_crop, 0, sizeof(item->bounds_crop));
-
-	width = obs_source_get_width(item->source);
-	height = obs_source_get_height(item->source);
 
 	/* Adjust crop on nested scenes (if any) */
 	if (update_tex && item->is_scene)
@@ -483,8 +474,31 @@ static void update_item_transform(struct obs_scene_item *item, bool update_tex)
 #ifdef DEBUG_TRANSFORM
 	log_matrix(&item->draw_transform, "box_transform");
 #endif
+}
 
-	/* ----------------------- */
+/* Setters call this on their own thread while the graphics thread renders,
+ * so the transform is computed under the parent's video lock (recursive: the
+ * render path already holds it). The source size is read before locking, as
+ * get_width can reach plugin code, and item_transform is sent after
+ * unlocking, as its handlers can enter graphics, which the render thread
+ * holds while it takes the video lock (#2115). */
+static void update_item_transform(struct obs_scene_item *item, bool update_tex)
+{
+	struct calldata params;
+	uint8_t stack[128];
+
+	if (os_atomic_load_long(&item->defer_update) > 0)
+		return;
+
+	uint32_t width = obs_source_get_width(item->source);
+	uint32_t height = obs_source_get_height(item->source);
+
+	obs_scene_t *scene = item->parent;
+	if (scene)
+		video_lock(scene);
+	compute_item_transform(item, width, height, update_tex);
+	if (scene)
+		video_unlock(scene);
 
 	calldata_init_fixed(&params, stack, sizeof(stack));
 	calldata_set_ptr(&params, "item", item);
