@@ -21,6 +21,8 @@ SOURCE_SUFFIXES = {".c", ".h", ".cpp", ".hpp", ".mm", ".cmake", ".txt", ".ui", "
 # url -> reason it stays. Runtime data feeds first, then static links.
 # What's New reads the obs-rust release assets, like the update feeds (#1882).
 WHATSNEW_FEED = "https://github.com/obs-rust/obs-studio/releases/latest/download/whatsnew.json"
+# Help -> Discord opens the OBS Rust server, as the README does (#2097).
+DISCORD_INVITE = "https://discord.gg/6MWWX4x9pf"
 
 ALLOWED = {
     # Kept runtime data feeds (#1732): data only, no code, useful to users.
@@ -38,7 +40,6 @@ ALLOWED = {
     "https://obsproject.com/help": "Help menu link",
     "https://obsproject.com": "website link",
     "https://obsproject.com/": "website link",
-    "https://obsproject.com/discord": "Help menu link",
     "https://obsproject.com/kb/encoder-missing#%1": "encoder help link",
     "https://obsproject.com/assets/images/OBSDemoApp301Flathub.png": "metainfo screenshot",
     "https://auth.obsproject.com/": "OAuth base URL default",
@@ -79,6 +80,12 @@ class NoUpstreamRuntimeFeedsTest(unittest.TestCase):
         self.assertEqual(len(urls), 3, "expected Mac, Windows and Linux What's New URLs")
         for url in urls:
             self.assertEqual(url, WHATSNEW_FEED, "What's New must read obs-rust's release feed (#1882)")
+
+    def test_help_discord_opens_the_obs_rust_server(self):
+        source = (ROOT / "frontend/widgets/OBSBasic_MainControls.cpp.hpp").read_text()
+        match = re.search(r"on_actionDiscord_triggered\(\)\s*\{[^}]*QUrl\(\"([^\"]+)\"", source)
+        self.assertIsNotNone(match, "on_actionDiscord_triggered URL not found")
+        self.assertEqual(match.group(1), DISCORD_INVITE, "Help -> Discord must open the OBS Rust server (#2097)")
 
     def test_about_box_does_not_fetch_patreon_list(self):
         for path in scanned_files():

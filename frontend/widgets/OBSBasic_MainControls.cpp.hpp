@@ -387,7 +387,7 @@ void OBSBasic::on_actionWebsite_triggered()
 
 void OBSBasic::on_actionDiscord_triggered()
 {
-	QUrl url = QUrl("https://obsproject.com/discord", QUrl::TolerantMode);
+	QUrl url = QUrl("https://discord.gg/6MWWX4x9pf", QUrl::TolerantMode);
 	QDesktopServices::openUrl(url);
 }
 

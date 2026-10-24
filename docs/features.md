@@ -281,6 +281,10 @@ not get a line.
   [#409](https://github.com/obs-rust/obs-studio/pull/409),
   [#475](https://github.com/obs-rust/obs-studio/pull/475),
   [#791](https://github.com/obs-rust/obs-studio/pull/791).
+- **Help → Discord opens the OBS Rust server.** The Help menu's Discord
+  item opens the OBS Rust Discord, where this build's bugs and questions
+  belong, instead of upstream OBS Studio's server. *All*, 2026-10-24.
+  Issue [#2097](https://github.com/obs-rust/obs-studio/issues/2097).
 - **No upstream release notes or donor list downloads.** The What's New
   dialog, which showed upstream OBS Studio's release notes from
   obsproject.com, is off by default (`ENABLE_WHATSNEW=OFF`); a build that
