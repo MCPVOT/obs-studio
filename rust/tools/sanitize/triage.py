@@ -229,8 +229,14 @@ def main():
         test_logs += [f for f in sorted((out / "tests").glob("*.log")) if not f.name.endswith(".vg.log")]
         for f in test_logs:
             for rep in sanitizer_reports(f):
-                kind, loc = asan_finding(rep) if tool == "asan" else tsan_finding(rep)[:2]
-                (test_ext if unloaded_init_leak(rep) else test_reports).append((f"{f.name.split('.')[0]}: {kind}", str(loc)))
+                if tool == "asan":
+                    kind, loc = asan_finding(rep)
+                    external = unloaded_init_leak(rep)
+                else:
+                    # No OBS frame on any side: uninstrumented glib, Mesa.
+                    kind, loc, _ = tsan_finding(rep)
+                    external = not any(loc)
+                (test_ext if external else test_reports).append((f"{f.name.split('.')[0]}: {kind}", str(loc)))
         for f in sorted((out / "tests").glob("*.vg.log")):
             if (tool, f.name.split(".")[0]) in KNOWN:
                 continue
@@ -239,7 +245,8 @@ def main():
         findings += len(test_reports)
         md += section("Sanitizer reports in unit tests", group(test_reports))
         if test_ext:
-            md += section("External: leaks in unloaded library init (not counted)", group(test_ext), limit=8)
+            title = "leaks in unloaded library init" if tool == "asan" else "no OBS frame in the report"
+            md += section(f"External: {title} (not counted)", group(test_ext), limit=8)
     else:
         md += ["**Unit tests:** not run", ""]
 

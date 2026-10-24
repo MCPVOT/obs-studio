@@ -39,12 +39,41 @@ Direct leak of 64 byte(s) in 1 object(s) allocated from:
 HEADER = "=================================================================\n==1==ERROR: LeakSanitizer: detected memory leaks\n\n"
 
 
-def triage(*leaks):
+GLIB_RACE = """\
+==================
+WARNING: ThreadSanitizer: data race (pid=1)
+  Write of size 8 at 0x72080000b280 by thread T4:
+    #0 free ../../../../src/libsanitizer/tsan/tsan_interceptors_posix.cpp:735 (libtsan.so.2+0x8ccc3)
+    #1 <null> <null> (libglib-2.0.so.0+0x5e9c2)
+
+  Previous write of size 8 at 0x72080000b280 by thread T1:
+    #0 malloc ../../../../src/libsanitizer/tsan/tsan_interceptors_posix.cpp:670 (libtsan.so.2+0x8d41c)
+    #1 g_malloc <null> (libglib-2.0.so.0+0x679a9)
+
+SUMMARY: ThreadSanitizer: data race (/usr/lib/x86_64-linux-gnu/libglib-2.0.so.0+0x5e9c2)
+==================
+"""
+OBS_RACE = """\
+==================
+WARNING: ThreadSanitizer: data race (pid=1)
+  Read of size 8 at 0x7208000a0000 by thread T2:
+    #0 obs_source_video_tick /home/runner/work/obs-studio/obs-studio/libobs/obs-source.c.h:1409 (libobs.so.30+0x1)
+
+  Previous write of size 8 at 0x7208000a0000 by thread T1:
+    #0 free ../../../../src/libsanitizer/tsan/tsan_interceptors_posix.cpp:735 (libtsan.so.2+0x8ccc3)
+    #1 <null> <null> (libglib-2.0.so.0+0x5e9c2)
+
+SUMMARY: ThreadSanitizer: data race libobs/obs-source.c.h:1409 in obs_source_video_tick
+==================
+"""
+
+
+def triage(*leaks, tool="asan", text=None):
     with tempfile.TemporaryDirectory() as tmp:
-        out = Path(tmp) / "asan"
+        out = Path(tmp) / tool
         (out / "tests").mkdir(parents=True)
         (out / "tests" / "summary.txt").write_text("test_x exit=0\n")
-        (out / "tests" / "test_x.asan.1").write_text(HEADER + "".join(leaks))
+        (out / "tests" / f"test_x.{tool}.1").write_text(text if text is not None else HEADER + "".join(leaks))
         run = subprocess.run(
             ["uv", "run", "--no-project", str(TRIAGE), str(out), "--fail-on-findings"],
             capture_output=True, text=True,
@@ -63,6 +92,21 @@ class LeakTriageTest(unittest.TestCase):
         code, md = triage(DRIVER_LEAK, OBS_LEAK)
         self.assertEqual(code, 1, md)
         self.assertIn("libobs/obs-canvas.c.h:330", md)
+
+
+class RaceTriageTest(unittest.TestCase):
+    """A race with no OBS frame on either side (uninstrumented glib, Mesa) is
+    listed as external; one OBS side is enough to count it."""
+
+    def test_race_entirely_outside_obs_is_external(self):
+        code, md = triage(tool="tsan", text=GLIB_RACE)
+        self.assertEqual(code, 0, md)
+        self.assertIn("External", md)
+
+    def test_race_with_one_obs_side_counts(self):
+        code, md = triage(tool="tsan", text=GLIB_RACE + OBS_RACE)
+        self.assertEqual(code, 1, md)
+        self.assertIn("libobs/obs-source.c.h:1409", md)
 
 
 if __name__ == "__main__":
