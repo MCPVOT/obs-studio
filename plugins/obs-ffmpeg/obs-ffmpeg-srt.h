@@ -20,9 +20,6 @@
 #include "obs-ffmpeg-url.h"
 #include <srt/srt.h>
 #include <libavformat/avformat.h>
-#ifdef _WIN32
-#include <sys/timeb.h>
-#endif
 
 #define POLLING_TIME 100 /// Time in milliseconds between interrupt check
 
@@ -485,12 +482,7 @@ static int libsrt_setup(URLContext *h, const char *uri)
 	ret = getaddrinfo(hostname[0] ? hostname : NULL, portstr, &hints, &ai);
 	if (ret) {
 		blog(LOG_ERROR, "[obs-ffmpeg mpegts muxer / libsrt]: Failed to resolve hostname %s: %s", hostname,
-#ifdef _WIN32
-		     gai_strerrorA(ret)
-#else
-		     gai_strerror(ret)
-#endif
-		);
+		     obs_ffmpeg_host_gai_strerror(ret));
 		s->last_error.obs_output_error_number = OBS_OUTPUT_BAD_PATH;
 		return AVERROR(EIO);
 	}
@@ -817,15 +809,7 @@ static int libsrt_open(URLContext *h, const char *uri)
 		goto err;
 	}
 
-#ifdef _WIN32
-	struct timeb timebuffer;
-	ftime(&timebuffer);
-	s->time = (double)timebuffer.time + 0.001 * (double)timebuffer.millitm;
-#else
-	struct timespec timesp;
-	clock_gettime(CLOCK_REALTIME, &timesp);
-	s->time = (double)timesp.tv_sec + 0.000000001 * (double)timesp.tv_nsec;
-#endif
+	s->time = obs_ffmpeg_host_wall_time();
 
 	/* In caller mode, srt_connect won't fail even if there is no established connection in non-blocking mode, so
 	 * we explicitly check for the socket status before okaying OBS_OUTPUT_SUCCESS.
@@ -868,15 +852,7 @@ static int libsrt_write(URLContext *h, const uint8_t *buf, int size)
 		 * rtt: round-trip time
 		 * link bandwidth: bandwidth from ingest to egress
 		*/
-#ifdef _WIN32
-		struct timeb timebuffer;
-		ftime(&timebuffer);
-		double time = (double)timebuffer.time + 0.001 * (double)timebuffer.millitm;
-#else
-		struct timespec timesp;
-		clock_gettime(CLOCK_REALTIME, &timesp);
-		double time = (double)timesp.tv_sec + 0.000000001 * (double)timesp.tv_nsec;
-#endif
+		double time = obs_ffmpeg_host_wall_time();
 		if (time > (s->time + 60.0)) {
 			srt_bistats(s->fd, &perf, 0, 1);
 			blog(LOG_DEBUG, "[obs-ffmpeg mpegts muxer / libsrt]: RTT [%.2f ms], Link Bandwidth [%.1f Mbps]",

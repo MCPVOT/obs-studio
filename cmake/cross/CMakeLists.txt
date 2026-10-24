@@ -454,6 +454,12 @@ elseif(_host STREQUAL MACOS)
 endif()
 
 # obs-ffmpeg's unity groups (BUILD.md) but VA-API, with every optional one.
+# obs-ffmpeg-url.h finds its host's obs-ffmpeg-net-host.h in hosts/<os> (#853).
+if(_host STREQUAL WINDOWS)
+  set(_obs_ffmpeg_net_host windows)
+else()
+  set(_obs_ffmpeg_net_host posix)
+endif()
 _obs_cross_plugin(
   obs-ffmpeg-cross
   DIR plugins/obs-ffmpeg
@@ -466,7 +472,7 @@ _obs_cross_plugin(
     build/obs-ffmpeg.output+.h.c
     build/obs-ffmpeg.source+.h.c
     build/obs-ffmpeg.video-encoders+.h.c
-  INCLUDES shared/media-playback shared/opts-parser
+  INCLUDES shared/media-playback shared/opts-parser plugins/obs-ffmpeg/hosts/${_obs_ffmpeg_net_host}
   DEFINES ENABLE_FFMPEG_LOGGING ENABLE_FFMPEG_NVENC NEW_MPEGTS_OUTPUT
 )
 

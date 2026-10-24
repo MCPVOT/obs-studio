@@ -48,6 +48,12 @@ target_sources(
     obs-ffmpeg-output.h
 )
 
+# Each host's obs-ffmpeg-net-host.h, included by obs-ffmpeg-url.h (#853).
+target_include_directories(
+  obs-ffmpeg
+  PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/hosts/$<IF:$<PLATFORM_ID:Windows>,windows,posix>"
+)
+
 target_compile_options(obs-ffmpeg PRIVATE $<$<COMPILE_LANG_AND_ID:C,AppleClang,Clang>:-Wno-shorten-64-to-32>)
 target_compile_definitions(
   obs-ffmpeg
