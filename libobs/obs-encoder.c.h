@@ -83,6 +83,7 @@ static bool init_encoder(struct obs_encoder *encoder, const char *name, obs_data
 	pthread_mutex_init_value(&encoder->outputs_mutex);
 	pthread_mutex_init_value(&encoder->pause.mutex);
 	pthread_mutex_init_value(&encoder->roi_mutex);
+	pthread_mutex_init_value(&encoder->last_error_mutex);
 
 	if (!obs_context_data_init(&encoder->context, OBS_OBJ_TYPE_ENCODER, settings, name, NULL, hotkey_data, false))
 		return false;
@@ -95,6 +96,8 @@ static bool init_encoder(struct obs_encoder *encoder, const char *name, obs_data
 	if (pthread_mutex_init(&encoder->pause.mutex, NULL) != 0)
 		return false;
 	if (pthread_mutex_init(&encoder->roi_mutex, NULL) != 0)
+		return false;
+	if (pthread_mutex_init(&encoder->last_error_mutex, NULL) != 0)
 		return false;
 
 	if (encoder->orig_info.get_defaults) {
@@ -486,6 +489,7 @@ void obs_encoder_destroy(obs_encoder_t *encoder)
 		pthread_mutex_destroy(&encoder->outputs_mutex);
 		pthread_mutex_destroy(&encoder->pause.mutex);
 		pthread_mutex_destroy(&encoder->roi_mutex);
+		pthread_mutex_destroy(&encoder->last_error_mutex);
 		obs_context_data_free(&encoder->context);
 		if (encoder->owns_info_id)
 			bfree((void *)(uintptr_t)encoder->info.id);
@@ -2224,6 +2228,7 @@ void obs_encoder_set_last_error(obs_encoder_t *encoder, const char *message)
 	if (!obs_encoder_valid(encoder, "obs_encoder_set_last_error"))
 		return;
 
+	pthread_mutex_lock(&encoder->last_error_mutex);
 	if (encoder->last_error_message)
 		bfree(encoder->last_error_message);
 
@@ -2231,6 +2236,15 @@ void obs_encoder_set_last_error(obs_encoder_t *encoder, const char *message)
 		encoder->last_error_message = bstrdup(message);
 	else
 		encoder->last_error_message = NULL;
+	pthread_mutex_unlock(&encoder->last_error_mutex);
+}
+
+char *obs_encoder_dup_last_error(obs_encoder_t *encoder)
+{
+	pthread_mutex_lock(&encoder->last_error_mutex);
+	char *message = bstrdup(encoder->last_error_message);
+	pthread_mutex_unlock(&encoder->last_error_mutex);
+	return message;
 }
 
 uint64_t obs_encoder_get_pause_offset(const obs_encoder_t *encoder)

@@ -1861,6 +1861,9 @@ struct obs_encoder {
 	struct pause_data pause;
 
 	const char *profile_encoder_encode_name;
+	/* Leaf lock: the output's stop signal copies the message while another
+	 * thread's shutdown can replace it (#2110). */
+	pthread_mutex_t last_error_mutex;
 	char *last_error_message;
 
 	/* reconfigure encoder at next possible opportunity */
@@ -1868,6 +1871,7 @@ struct obs_encoder {
 };
 
 extern struct obs_encoder_info *find_encoder(const char *id);
+extern char *obs_encoder_dup_last_error(obs_encoder_t *encoder);
 
 extern bool obs_encoder_initialize(obs_encoder_t *encoder);
 extern void obs_encoder_shutdown(obs_encoder_t *encoder);

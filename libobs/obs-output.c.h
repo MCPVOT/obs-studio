@@ -1961,12 +1961,38 @@ static inline void signal_reconnect_success(struct obs_output *output)
 	do_output_signal(output, "reconnect_success");
 }
 
+/* obs_output_get_last_error, copied under each encoder's lock: an
+ * end-capture thread can be shutting the encoders down (#2110). */
+static char *dup_last_error(struct obs_output *output)
+{
+	if (output->last_error_message)
+		return bstrdup(output->last_error_message);
+
+	for (size_t i = 0; i < MAX_OUTPUT_VIDEO_ENCODERS; i++) {
+		obs_encoder_t *vencoder = output->video_encoders[i];
+		char *message = vencoder ? obs_encoder_dup_last_error(vencoder) : NULL;
+		if (message)
+			return message;
+	}
+
+	for (size_t i = 0; i < MAX_OUTPUT_AUDIO_ENCODERS; i++) {
+		obs_encoder_t *aencoder = output->audio_encoders[i];
+		char *message = aencoder ? obs_encoder_dup_last_error(aencoder) : NULL;
+		if (message)
+			return message;
+	}
+
+	return NULL;
+}
+
 /* Copies the last error: the stop signal can be sent after a thread that
  * frees it has started (#2086). */
 static inline void stop_params_init(struct obs_output *output, struct calldata *params)
 {
+	char *last_error = dup_last_error(output);
 	calldata_init(params);
-	calldata_set_string(params, "last_error", obs_output_get_last_error(output));
+	calldata_set_string(params, "last_error", last_error);
+	bfree(last_error);
 	calldata_set_int(params, "code", output->stop_code);
 	calldata_set_ptr(params, "output", output);
 }
