@@ -142,4 +142,15 @@ away anyway. Six of them were closed as stale on a single afternoon.
 | 4 | [Dock Sizes are Reset the next time you open OBS.](https://github.com/obsproject/obs-studio/issues/2949) | 34 | closed not planned |
 | 5 | [Pause and Resume Recording Doubles or Triples CPU usage](https://github.com/obsproject/obs-studio/issues/3148) | 34 | closed not planned |
 
-**[See all 12, and why each one made the cut →](docs/hall-of-fame.md)**
+**In their own words:**
+
+> **“No amount of "I don't like your answer" will change it.”**
+> — [#9285](https://github.com/obsproject/obs-studio/issues/9285#issuecomment-1677822114), to a user who said a downgrade fixed their dropped frames
+
+> **“However, if you refuse to follow the process, there is nothing we can do, and this report is not actionable.”**
+> — [#13685](https://github.com/obsproject/obs-studio/issues/13685#issuecomment-5052743359), in the same comment that admitted 32.2 had raised the driver minimum
+
+> **“[…] that decision has already been made.”**
+> — [#12650](https://github.com/obsproject/obs-studio/issues/12650#issuecomment-3368592277), on removing a flag users' setups depended on
+
+**[See all 12, every quote, and why each one made the cut →](docs/hall-of-fame.md)**

@@ -24,6 +24,7 @@ from pathlib import Path
 
 REPO = "obsproject/obs-studio"
 OUT = Path(__file__).resolve().parent.parent / "docs" / "hall-of-fame.md"
+QUOTES = Path(__file__).resolve().parent / "upstream_hall_of_fame_quotes.json"
 
 # Each query is sorted server side, so a few pages cover the high-engagement tail.
 QUERIES = [
@@ -151,7 +152,13 @@ def card(rank: int, i: dict) -> list[str]:
             " ".join(badges), "", f"> {i['note']}", ""]
 
 
+def quote_block(q: dict) -> list[str]:
+    return [f"> **“{q['q']}”**", ">",
+            f"> — an OBS maintainer, {q['context']} · [#{q['n']}, {q['date']}]({q['url']})", ""]
+
+
 def render_hall(rows: list[dict]) -> str:
+    quotes = json.loads(QUOTES.read_text()) if QUOTES.exists() else []
     by_size = lambda rs: sorted(rs, key=lambda i: i["comments"], reverse=True)
     yes = by_size([i for i in rows if i["tier"] == "yes"])
     maybe = by_size([i for i in rows if i["tier"] == "borderline"])
@@ -176,7 +183,11 @@ def render_hall(rows: list[dict]) -> str:
         out.append(f"| {medal} | [{title}]({i['html_url']}) | {i['comments']} | {verdict(i)} |")
     out += ["", f"> [!WARNING]", f"> **October 14, 2024:** {sweep} of these were closed as stale",
             "> on the same afternoon, including bugs the maintainers had reproduced themselves.", "",
-            "## The inductees", ""]
+            "## In their own words", "",
+            "Verbatim, from maintainers' comments on the threads. Each one links to the comment.", ""]
+    for q in quotes:
+        out += quote_block(q)
+    out += ["## The inductees", ""]
     for rank, i in enumerate(yes, 1):
         out += card(rank, i)
     out += ["## Honorable mentions", "",
