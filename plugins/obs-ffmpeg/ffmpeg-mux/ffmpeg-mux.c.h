@@ -636,10 +636,6 @@ static inline bool ffmpeg_mux_get_extra_data(struct ffmpeg_mux *ffm)
 	return true;
 }
 
-#ifdef _MSC_VER
-#pragma warning(disable : 4996)
-#endif
-
 #define CHUNK_SIZE 1048576
 
 static void *ffmpeg_mux_io_thread(void *data)
@@ -1118,11 +1114,7 @@ static inline bool read_change_file(struct ffmpeg_mux *ffm, uint32_t size, struc
 
 /* ------------------------------------------------------------------------- */
 
-#ifdef _WIN32
-int wmain(int argc, wchar_t *argv_w[])
-#else
-int main(int argc, char *argv[])
-#endif
+int ffmpeg_mux_main(int argc, char *argv[])
 {
 	struct ffm_packet_info info = {0};
 	struct ffmpeg_mux ffm = {0};
@@ -1131,27 +1123,6 @@ int main(int argc, char *argv[])
 	bool fail = false;
 	int ret;
 
-#ifdef _WIN32
-	char **argv;
-
-	SetErrorMode(SEM_FAILCRITICALERRORS);
-	SetSearchPathMode(BASE_SEARCH_PATH_ENABLE_SAFE_SEARCHMODE | BASE_SEARCH_PATH_PERMANENT);
-	SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
-	SetDllDirectoryW(L"");
-
-	argv = malloc(argc * sizeof(char *));
-	for (int i = 0; i < argc; i++) {
-		size_t len = wcslen(argv_w[i]);
-		int size;
-
-		size = WideCharToMultiByte(CP_UTF8, 0, argv_w[i], (int)len, NULL, 0, NULL, NULL);
-		argv[i] = malloc(size + 1);
-		WideCharToMultiByte(CP_UTF8, 0, argv_w[i], (int)len, argv[i], size + 1, NULL, NULL);
-		argv[i][size] = 0;
-	}
-
-	_setmode(_fileno(stdin), O_BINARY);
-#endif
 	setvbuf(stderr, NULL, _IONBF, 0);
 
 	ret = ffmpeg_mux_init(&ffm, argc, argv);
@@ -1179,11 +1150,6 @@ int main(int argc, char *argv[])
 	resize_buf_free(&rb);
 	resize_buf_free(&rb_filename);
 
-#ifdef _WIN32
-	for (int i = 0; i < argc; i++)
-		free(argv[i]);
-	free(argv);
-#endif
 	return fail ? FFM_ERROR : FFM_SUCCESS;
 }
 

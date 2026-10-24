@@ -6,17 +6,10 @@
 #pragma once
 
 /* ffmpeg-mux.c */
-#ifdef _WIN32
-#include <io.h>
-#include <fcntl.h>
-#include <windows.h>
-#define inline __inline
-
-#endif
-
 #include <stdio.h>
 #include <stdlib.h>
 #include "plugins/obs-ffmpeg/ffmpeg-mux/ffmpeg-mux.h"
+#include "plugins/obs-ffmpeg/ffmpeg-mux/ffmpeg-mux-host.h"
 
 #include <util/threading.h>
 #include <util/platform.h>
