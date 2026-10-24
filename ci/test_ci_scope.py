@@ -11,10 +11,12 @@ defines (ci/platform_ifdef_ratchet.py).
 from __future__ import annotations
 
 import unittest
+from pathlib import Path
 
 from ci_scope import scope
 from platform_paths import LINUX, MACOS, WINDOWS, platforms
 
+ROOT = Path(__file__).resolve().parent.parent
 CPP_TESTS = {"test/cmocka/test_source_select_list.cpp"}
 
 
@@ -368,8 +370,51 @@ class LaneTableTest(unittest.TestCase):
         self.assertFalse(self.sc("rust/obs-util/src/a.rs").qt)
 
     def test_docs_start_nothing(self):
-        got = self.sc("docs/rust-port/naming.md")
-        self.assertEqual(vars(got), vars(scope([])))
+        got = vars(self.sc("docs/rust-port/naming.md"))
+        # Only docs_only differs from an empty diff (#2079).
+        self.assertTrue(got.pop("docs_only"))
+        empty = vars(scope([]))
+        empty.pop("docs_only")
+        self.assertEqual(got, empty)
+
+
+class DocsOnlyTest(unittest.TestCase):
+    """A diff of only documentation skips Fast Gate's Rust lint (#2079).
+
+    Markdown is still read by ci/test_*.py, which the Format job runs on
+    every PR, so only the Rust lint (rustfmt, clippy, Dylints) is skipped.
+    """
+
+    def docs_only(self, *files):
+        return scope(list(files)).docs_only
+
+    def test_markdown_anywhere_is_docs_only(self):
+        self.assertTrue(self.docs_only("docs/rust-port/coordination.md"))
+        self.assertTrue(self.docs_only("AGENTS.md", ".claude/skills/obs-worker/SKILL.md", "rust/README.md"))
+        self.assertTrue(self.docs_only("build-aux/appimage/README.md"))
+
+    def test_ci_evidence_license_and_gitignore_are_docs_only(self):
+        self.assertTrue(self.docs_only("docs/ci-evidence/2026-10-22-runtime-package-experiment.json"))
+        self.assertTrue(self.docs_only("LICENSE", "COPYING", ".gitignore", "docs/features.md"))
+
+    def test_any_other_file_keeps_the_lint(self):
+        self.assertFalse(self.docs_only("docs/rust-port/coordination.md", "ci/test_claim_bot.py"))
+        self.assertFalse(self.docs_only("AGENTS.md", "rust/obs-util/src/lib.rs"))
+        self.assertFalse(self.docs_only(".github/ISSUE_TEMPLATE/bug.yml"))
+        self.assertFalse(self.docs_only("docs/rust-port/diagram.svg"))
+        self.assertFalse(self.docs_only("rust/obs-util/src/notes.md.rs"))
+
+    def test_empty_diff_is_not_docs_only(self):
+        self.assertFalse(self.docs_only())
+
+    def test_fast_gate_skips_only_deferred_docs_only_runs(self):
+        text = (ROOT / ".github/workflows/build-project.yaml").read_text()
+        self.assertIn("docs_only: ${{ steps.native.outputs.docs_only }}", text)
+        # A master push, the release gate and full runs never skip it.
+        self.assertIn('if [[ "${deferred}" != true ]]; then\n            qt=true tier2=true docs_only=false', text)
+        self.assertIn('echo "docs_only=${docs_only:-false}"', text)
+        job = text.split("  rust-tests-linux:\n", 1)[1].split("    steps:", 1)[0]
+        self.assertIn("needs.check-event.outputs.docs_only != 'true'", job)
 
 
 PR_1292_FILES = ["ci/platform-ifdef-baseline.json","cmake/cross/CMakeLists.txt","plugins/frontend-tools/CMakeLists.txt","plugins/frontend-tools/auto-scene-switcher-nix.cpp.hpp","plugins/frontend-tools/auto-scene-switcher-osx.mm.hpp","plugins/frontend-tools/auto-scene-switcher-win.cpp.hpp","plugins/frontend-tools/auto-scene-switcher.cpp.hpp","plugins/frontend-tools/build/frontend-tools-c.pch.h","plugins/frontend-tools/build/frontend-tools-captions-windows.pch.hpp","plugins/frontend-tools/build/frontend-tools-host-macos.pch.h","plugins/frontend-tools/build/frontend-tools-host-posix.pch.h","plugins/frontend-tools/build/frontend-tools-host-windows.pch.h","plugins/frontend-tools/build/frontend-tools-linux.pch.hpp","plugins/frontend-tools/build/frontend-tools-macos.pch.hpp","plugins/frontend-tools/build/frontend-tools-scripts.pch.hpp","plugins/frontend-tools/build/frontend-tools-windows.pch.hpp","plugins/frontend-tools/build/frontend-tools.captions-windows+.hpp.cpp","plugins/frontend-tools/build/frontend-tools.host-macos+.h.c","plugins/frontend-tools/build/frontend-tools.host-posix+.h.c","plugins/frontend-tools/build/frontend-tools.host-windows+.h.c","plugins/frontend-tools/build/frontend-tools.pch.hpp","plugins/frontend-tools/captions-host-windows.hpp","plugins/frontend-tools/captions-mssapi-stream.hpp","plugins/frontend-tools/captions-mssapi.hpp","plugins/frontend-tools/captions.cpp.hpp","plugins/frontend-tools/frontend-tools-host-macos.c.h","plugins/frontend-tools/frontend-tools-host-posix.c.h","plugins/frontend-tools/frontend-tools-host-windows.c.h","plugins/frontend-tools/frontend-tools-host.h","plugins/frontend-tools/frontend-tools.c.h","plugins/frontend-tools/scripts.cpp.hpp","test/cmocka/test_frontend_tools_host.c","test/cmocka/test_frontend_tools_host_macos.c","test/cmocka/tests.d/test_frontend_tools_host.cmake"]

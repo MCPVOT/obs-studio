@@ -90,6 +90,7 @@ jobs:
       tier2: ${{ steps.native.outputs.tier2 }}
       linux_targets: ${{ steps.native.outputs.linux_targets }}
       qt_sdk: ${{ steps.native.outputs.qt_sdk }}
+      docs_only: ${{ steps.native.outputs.docs_only }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -215,9 +216,10 @@ jobs:
             && [[ "${GITHUB_EVENT_NAME}" == pull_request || "${GITHUB_EVENT_NAME}" == merge_group ]]; then
             deferred=true
           fi
-          # master pushes run every lane the scope would skip on a PR.
+          # master pushes run every lane the scope would skip on a PR,
+          # Fast Gate included even for a docs-only change (#2079).
           if [[ "${deferred}" != true ]]; then
-            qt=true tier2=true
+            qt=true tier2=true docs_only=false
           fi
           # Keep the complete Flatpak job and Fast Gate; omit unrelated matrices.
           if [[ "$FLATPAK_MEASUREMENT_ONLY" == true ]]; then
@@ -236,6 +238,7 @@ jobs:
             echo "tier2=${tier2:-false}"
             echo "linux_targets=${linux_targets:-}"
             echo "qt_sdk=${qt_sdk:-false}"
+            echo "docs_only=${docs_only:-false}"
             echo "platform_os=[$(IFS=,; echo "${os[*]}")]"
           } >> "${GITHUB_OUTPUT}"
           echo "full=${full} core=${core} macos=${macos} windows=${windows} qt=${qt} tier2=${tier2}"
@@ -1588,7 +1591,9 @@ jobs:
     name: Fast Gate ⚡
     runs-on: ubuntu-26.04
     needs: [check-event, ci-mode]
-    if: needs.ci-mode.outputs.skip_rust-tests-linux != 'true'
+    # A docs-only PR or queue run changes no Rust, C or CMake: skipped, and
+    # passing CI Gate; the Format job still runs the ci/ self-tests (#2079).
+    if: needs.ci-mode.outputs.skip_rust-tests-linux != 'true' && needs.check-event.outputs.docs_only != 'true'
     defaults:
       run:
         shell: bash

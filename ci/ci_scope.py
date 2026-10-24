@@ -31,6 +31,10 @@ Lanes:
            or Tier 2 job (Windows/macOS Qt lanes are a follow-up), except a
            host-named one (below).
 - docs/, ci/, .github/ and unported plugins start nothing but lint.
+- docs_only: every changed file is documentation (DOCS_ONLY): a PR or
+           merge-queue run skips Fast Gate too, since no Rust, C or CMake
+           changed. The Format job's ci/ self-tests, which read AGENTS.md,
+           SECURITY.md, the skills and other docs, still run (#2079).
 Platform and Qt lanes:
 - macos:   macOS code (or shared build/CI config) changed -> macOS Rust
            tests and Tier 2;
@@ -87,6 +91,15 @@ SHARED_TEST = re.compile(r"^test/cmocka/(CMakeLists\.txt|[^/]+\.(cpp|hpp))$")
 TESTS_D = re.compile(r"^test/cmocka/tests\.d/([^/]+)\.cmake$")
 
 
+# Files no build or Rust lint reads (#2079). ci/test_*.py read some of them,
+# and the Format job runs those tests on every PR.
+DOCS_ONLY = re.compile(r"^(?:.*\.md|docs/ci-evidence/.*|LICENSE|COPYING|\.gitignore)\Z")
+
+
+def is_docs(path: str) -> bool:
+    return bool(DOCS_ONLY.match(path))
+
+
 @dataclass(frozen=True)
 class Scope:
     core: bool
@@ -97,6 +110,7 @@ class Scope:
     full: bool = False
     linux_targets: str = ""
     qt_sdk: bool = False
+    docs_only: bool = False
 
 
 # The path -> lane table (#992). Adding a module is adding a row. Globs use
@@ -328,7 +342,8 @@ def scope(
         found = os_lanes(path)
         macos |= MACOS in found
         windows |= WINDOWS in found
-    return Scope(core, macos, windows, qt, tier2, False, ",".join(sorted(targets)), qt_sdk)
+    docs_only = bool(files) and all(is_docs(path) for path in files)
+    return Scope(core, macos, windows, qt, tier2, False, ",".join(sorted(targets)), qt_sdk, docs_only)
 
 
 def changed_files(base: str) -> list[str]:
