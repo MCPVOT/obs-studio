@@ -629,7 +629,7 @@ if [ "$SCENARIO" = first-start ] || [ "$SCENARIO" = first-start-no-libva ]; then
         # A real window owned by OBS (not just the window manager's own chrome).
         # (capture first: `grep -q` closing the pipe early fails the pipeline under pipefail)
         WINDOWS="$(xwininfo -tree -root 2>/dev/null || true)"
-        if grep -qE '"OBS-Studio-Rust|\"OBS [0-9]|"obs"' <<<"$WINDOWS"; then
+        if grep -qE '"OBS Studio Rust|"OBS-Studio-Rust|\"OBS [0-9]|"obs"' <<<"$WINDOWS"; then
             # Qt derives WM_CLASS from the real GUI executable name. Verify
             # the owned native window rather than accepting a matching title.
             CLASS_FOUND=0
