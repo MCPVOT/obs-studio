@@ -1534,6 +1534,8 @@ struct obs_output {
 	bool received_audio;
 	volatile bool data_active;
 	volatile bool end_data_capture_thread_active;
+	/* Created and not joined yet: it can have finished already (#2063). */
+	volatile bool end_data_capture_thread_joinable;
 	int64_t video_offsets[MAX_OUTPUT_VIDEO_ENCODERS];
 	int64_t audio_offsets[MAX_OUTPUT_AUDIO_ENCODERS];
 	int64_t highest_audio_ts;

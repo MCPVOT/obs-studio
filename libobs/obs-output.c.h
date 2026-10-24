@@ -52,6 +52,14 @@ static inline bool data_capture_ending(const struct obs_output *output)
 	return os_atomic_load_bool(&output->end_data_capture_thread_active);
 }
 
+/* Joins the last end-capture thread, running or finished: it clears
+ * end_data_capture_thread_active itself when it returns (#2063). */
+static inline void join_end_data_capture_thread(struct obs_output *output)
+{
+	if (os_atomic_exchange_bool(&output->end_data_capture_thread_joinable, false))
+		pthread_join(output->end_data_capture_thread, NULL);
+}
+
 static inline bool flag_encoded(const struct obs_output *output)
 {
 	return (output->info.flags & OBS_OUTPUT_ENCODED) != 0;
@@ -297,8 +305,7 @@ void obs_output_destroy(obs_output_t *output)
 			obs_output_actual_stop(output, true, 0);
 
 		os_event_wait(output->stopping_event);
-		if (data_capture_ending(output))
-			pthread_join(output->end_data_capture_thread, NULL);
+		join_end_data_capture_thread(output);
 
 		if (output->service)
 			output->service->output = NULL;
@@ -1980,8 +1987,9 @@ bool obs_output_can_begin_data_capture(const obs_output_t *output, uint32_t flag
 	if (active(output))
 		return false;
 
-	if (data_capture_ending(output))
-		pthread_join(output->end_data_capture_thread, NULL);
+	/* The public signature is const; joining was always a write
+	 * (through uintptr_t: -Wcast-qual). */
+	join_end_data_capture_thread((struct obs_output *)(uintptr_t)output);
 
 	return can_begin_data_capture(output);
 }
@@ -2352,10 +2360,14 @@ static void obs_output_end_data_capture_internal(obs_output_t *output, bool sign
 			 * never waits: if an end-capture thread is still running,
 			 * leave the encoders to it or to the next stop. */
 			if (!active(output) && flag_encoded(output) && !data_capture_ending(output)) {
+				/* A finished one is still unjoined: never waits. */
+				join_end_data_capture_thread(output);
 				os_atomic_set_bool(&output->end_data_capture_thread_active, true);
 				if (pthread_create(&output->end_data_capture_thread, NULL,
 						   shutdown_unstarted_encoders_thread, output) != 0)
 					os_atomic_set_bool(&output->end_data_capture_thread_active, false);
+				else
+					os_atomic_set_bool(&output->end_data_capture_thread_joinable, true);
 			}
 			signal_stop(output);
 			output->stop_code = OBS_OUTPUT_SUCCESS;
@@ -2380,8 +2392,7 @@ static void obs_output_end_data_capture_internal(obs_output_t *output, bool sign
 	if (flag_video(output))
 		log_frame_info(output);
 
-	if (data_capture_ending(output))
-		pthread_join(output->end_data_capture_thread, NULL);
+	join_end_data_capture_thread(output);
 
 	os_atomic_set_bool(&output->end_data_capture_thread_active, true);
 	ret = pthread_create(&output->end_data_capture_thread, NULL, end_data_capture_thread, output);
@@ -2391,6 +2402,8 @@ static void obs_output_end_data_capture_internal(obs_output_t *output, bool sign
 		     "for output '%s'!",
 		     output->context.name);
 		end_data_capture_thread(output);
+	} else {
+		os_atomic_set_bool(&output->end_data_capture_thread_joinable, true);
 	}
 
 	if (signal) {
