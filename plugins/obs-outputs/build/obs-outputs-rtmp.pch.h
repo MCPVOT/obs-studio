@@ -7,6 +7,7 @@
 
 /* rtmp-stream.c */
 #include "plugins/obs-outputs/rtmp-stream.h"
+#include "plugins/obs-outputs/rtmp-stream-host.h"
 #include "plugins/obs-outputs/rtmp-av1.h"
 #include "plugins/obs-outputs/rtmp-hevc.h"
 
@@ -14,7 +15,3 @@
 #include <obs-hevc.h>
 
 #include <jansson.h>
-
-#ifdef _WIN32
-#include <util/windows/win-version.h>
-#endif

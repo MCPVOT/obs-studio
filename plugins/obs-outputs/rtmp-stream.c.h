@@ -242,11 +242,7 @@ static bool process_recv_data(struct rtmp_stream *stream, size_t size)
 	RTMPPacket packet = {0};
 
 	if (!RTMP_ReadPacket(rtmp, &packet)) {
-#ifdef _WIN32
-		int error = WSAGetLastError();
-#else
-		int error = errno;
-#endif
+		int error = rtmp_host_last_socket_error();
 		do_log(LOG_ERROR, "RTMP_ReadPacket error: %d", error);
 		return false;
 	}
@@ -264,7 +260,7 @@ static void droptest_cap_data_rate(struct rtmp_stream *stream, size_t size)
 	uint64_t ts = os_gettime_ns();
 	struct droptest_info info;
 
-#if defined(_WIN32) && defined(TEST_FRAMEDROPS_WITH_BITRATE_SHORTCUTS)
+#ifdef TEST_FRAMEDROPS_WITH_BITRATE_SHORTCUTS /* Windows only: GetAsyncKeyState */
 	uint64_t check_elapsed = ts - stream->droptest_last_key_check;
 
 	if (check_elapsed > (200ULL * MSEC_TO_NSEC)) {
@@ -333,52 +329,12 @@ static void droptest_cap_data_rate(struct rtmp_stream *stream, size_t size)
 }
 #endif
 
-#ifdef _WIN32
-static int socket_queue_data(RTMPSockBuf *sb, const char *data, int len, void *arg)
-{
-	UNUSED_PARAMETER(sb);
-
-	struct rtmp_stream *stream = arg;
-
-retry_send:
-
-	if (!RTMP_IsConnected(&stream->rtmp))
-		return 0;
-
-	pthread_mutex_lock(&stream->write_buf_mutex);
-
-	if (stream->write_buf_len + len > stream->write_buf_size) {
-
-		pthread_mutex_unlock(&stream->write_buf_mutex);
-
-		if (os_event_wait(stream->buffer_space_available_event)) {
-			return 0;
-		}
-
-		goto retry_send;
-	}
-
-	memcpy(stream->write_buf + stream->write_buf_len, data, len);
-	stream->write_buf_len += len;
-
-	pthread_mutex_unlock(&stream->write_buf_mutex);
-
-	os_event_signal(stream->buffer_has_data_event);
-
-	return len;
-}
-#endif // _WIN32
-
 static int handle_socket_read(struct rtmp_stream *stream)
 {
 	int ret = 0;
 	int recv_size = 0;
 	if (!stream->new_socket_loop) {
-#ifdef _WIN32
-		ret = ioctlsocket(stream->rtmp.m_sb.sb_socket, FIONREAD, (u_long *)&recv_size);
-#else
-		ret = ioctl(stream->rtmp.m_sb.sb_socket, FIONREAD, &recv_size);
-#endif
+		ret = rtmp_host_bytes_available((uintptr_t)stream->rtmp.m_sb.sb_socket, &recv_size);
 
 		if (ret >= 0 && recv_size > 0) {
 			if (!process_recv_data(stream, (size_t)recv_size))
@@ -498,68 +454,7 @@ static inline bool can_shutdown_stream(struct rtmp_stream *stream, struct encode
 
 static void set_output_error(struct rtmp_stream *stream)
 {
-	const char *msg = NULL;
-#ifdef _WIN32
-	switch (stream->rtmp.last_error_code) {
-	case WSAETIMEDOUT:
-		msg = obs_module_text("ConnectionTimedOut");
-		break;
-	case WSAEACCES:
-		msg = obs_module_text("PermissionDenied");
-		break;
-	case WSAECONNABORTED:
-		msg = obs_module_text("ConnectionAborted");
-		break;
-	case WSAECONNRESET:
-		msg = obs_module_text("ConnectionReset");
-		break;
-	case WSAHOST_NOT_FOUND:
-		msg = obs_module_text("HostNotFound");
-		break;
-	case WSANO_DATA:
-		msg = obs_module_text("NoData");
-		break;
-	case WSAEADDRNOTAVAIL:
-		msg = obs_module_text("AddressNotAvailable");
-		break;
-	case WSAEINVAL:
-		msg = obs_module_text("InvalidParameter");
-		break;
-	case WSAEHOSTUNREACH:
-		msg = obs_module_text("NoRoute");
-		break;
-	}
-#else
-	switch (stream->rtmp.last_error_code) {
-	case ETIMEDOUT:
-		msg = obs_module_text("ConnectionTimedOut");
-		break;
-	case EACCES:
-		msg = obs_module_text("PermissionDenied");
-		break;
-	case ECONNABORTED:
-		msg = obs_module_text("ConnectionAborted");
-		break;
-	case ECONNRESET:
-		msg = obs_module_text("ConnectionReset");
-		break;
-	case HOST_NOT_FOUND:
-		msg = obs_module_text("HostNotFound");
-		break;
-	case NO_DATA:
-		msg = obs_module_text("NoData");
-		break;
-	case EADDRNOTAVAIL:
-		msg = obs_module_text("AddressNotAvailable");
-		break;
-	case EINVAL:
-		msg = obs_module_text("InvalidParameter");
-		break;
-	case EHOSTUNREACH:
-		msg = obs_module_text("NoRoute");
-		break;
-	}
-#endif
+	const char *msg = rtmp_host_socket_error_text(stream->rtmp.last_error_code);
 
 	// non platform-specific errors
 	if (!msg) {
@@ -568,11 +463,7 @@ static void set_output_error(struct rtmp_stream *stream)
 			msg = obs_module_text("SSLCertVerifyFailed");
 			break;
 		case -0x7680:
-			msg = "Failed to load root certificates for a secure TLS connection."
-#if defined(__linux__)
-			      " Check you have an up to date root certificate bundle in /etc/ssl/certs."
-#endif
-				;
+			msg = rtmp_host_root_cert_error();
 			break;
 		}
 	}
@@ -612,29 +503,13 @@ static void dbr_add_frame(struct rtmp_stream *stream, struct dbr_frame *back)
 static void dbr_set_bitrate(struct rtmp_stream *stream);
 static void dbr_check_user_bitrate(struct rtmp_stream *stream);
 
-#ifdef _WIN32
-#define socklen_t int
-
-static void log_sndbuf_size(struct rtmp_stream *stream)
-{
-	int cur_sendbuf_size;
-	socklen_t int_size = sizeof(int);
-
-	if (!getsockopt(stream->rtmp.m_sb.sb_socket, SOL_SOCKET, SO_SNDBUF, (char *)&cur_sendbuf_size, &int_size)) {
-		info("Socket send buffer is %d bytes", cur_sendbuf_size);
-	}
-}
-#endif
-
 static void *send_thread(void *data)
 {
 	struct rtmp_stream *stream = data;
 
 	os_set_thread_name("rtmp-stream: send_thread");
 
-#ifdef _WIN32
-	log_sndbuf_size(stream);
-#endif
+	rtmp_host_log_sndbuf_size(stream);
 
 	while (os_sem_wait(stream->send_sem) == 0) {
 		struct encoder_packet packet;
@@ -704,9 +579,7 @@ static void *send_thread(void *data)
 		send_footers(stream); // Y2023 spec
 	}
 
-#ifdef _WIN32
-	log_sndbuf_size(stream);
-#endif
+	rtmp_host_log_sndbuf_size(stream);
 
 	if (stream->new_socket_loop) {
 		os_event_signal(stream->send_thread_signaled_exit);
@@ -989,14 +862,9 @@ static int init_send(struct rtmp_stream *stream)
 	}
 
 	if (stream->new_socket_loop) {
-		int one = 1;
-#ifdef _WIN32
-		if (ioctlsocket(stream->rtmp.m_sb.sb_socket, FIONBIO, &one)) {
-			stream->rtmp.last_error_code = WSAGetLastError();
-#else
-		if (ioctl(stream->rtmp.m_sb.sb_socket, FIONBIO, &one)) {
-			stream->rtmp.last_error_code = errno;
-#endif
+		int error = rtmp_host_set_nonblocking((uintptr_t)stream->rtmp.m_sb.sb_socket);
+		if (error) {
+			stream->rtmp.last_error_code = error;
 			warn("Failed to set non-blocking socket");
 			return OBS_OUTPUT_ERROR;
 		}
@@ -1057,23 +925,8 @@ static int init_send(struct rtmp_stream *stream)
 		stream->write_buf_size = ideal_buffer_size;
 		stream->write_buf = bmalloc(ideal_buffer_size);
 
-#ifndef _WIN32
-		warn("New socket loop not supported on this platform");
-		return OBS_OUTPUT_ERROR;
-#else
-		ret = pthread_create(&stream->socket_thread, NULL, socket_thread_windows, stream);
-
-		if (ret != 0) {
-			RTMP_Close(&stream->rtmp);
-			warn("Failed to create socket thread");
+		if (!rtmp_host_start_socket_loop(stream))
 			return OBS_OUTPUT_ERROR;
-		}
-
-		stream->socket_thread_active = true;
-		stream->rtmp.m_bCustomSend = true;
-		stream->rtmp.m_customSendFunc = socket_queue_data;
-		stream->rtmp.m_customSendParam = stream;
-#endif
 	}
 
 	os_atomic_set_bool(&stream->active, true);
@@ -1088,78 +941,6 @@ static int init_send(struct rtmp_stream *stream)
 
 	return OBS_OUTPUT_SUCCESS;
 }
-
-#ifdef _WIN32
-static void win32_log_interface_type(struct rtmp_stream *stream)
-{
-	RTMP *rtmp = &stream->rtmp;
-	MIB_IPFORWARDROW route;
-	uint32_t dest_addr, source_addr;
-	char hostname[256];
-	HOSTENT *h;
-
-	if (rtmp->Link.hostname.av_len >= sizeof(hostname) - 1)
-		return;
-
-	strncpy(hostname, rtmp->Link.hostname.av_val, sizeof(hostname));
-	hostname[rtmp->Link.hostname.av_len] = 0;
-
-	h = gethostbyname(hostname);
-	if (!h)
-		return;
-
-	dest_addr = *(uint32_t *)h->h_addr_list[0];
-
-	if (rtmp->m_bindIP.addrLen == 0)
-		source_addr = 0;
-	else if (rtmp->m_bindIP.addr.ss_family == AF_INET)
-		source_addr = (*(struct sockaddr_in *)&rtmp->m_bindIP.addr).sin_addr.S_un.S_addr;
-	else
-		return;
-
-	if (!GetBestRoute(dest_addr, source_addr, &route)) {
-		MIB_IF_ROW2 row;
-		memset(&row, 0, sizeof(row));
-		row.InterfaceIndex = route.dwForwardIfIndex;
-
-		if (!GetIfEntry2(&row)) {
-			uint32_t rxSpeed = row.ReceiveLinkSpeed / 1000000;
-			uint32_t txSpeed = row.TransmitLinkSpeed / 1000000;
-			char *type;
-			struct dstr other = {0};
-
-			switch (row.PhysicalMediumType) {
-			case NdisPhysicalMedium802_3:
-				type = "ethernet";
-				break;
-			case NdisPhysicalMediumWirelessLan:
-			case NdisPhysicalMediumNative802_11:
-				type = "802.11";
-				break;
-			default:
-				dstr_printf(&other, "type %d", (int)row.PhysicalMediumType);
-				type = other.array;
-				break;
-			}
-
-			char *desc;
-			os_wcs_to_utf8_ptr(row.Description, 0, &desc);
-
-			info("Interface: %s (%s, %lu↓/%lu↑ mbps)", desc, type, rxSpeed, txSpeed);
-
-			bfree(desc);
-
-			if (row.InErrors || row.OutErrors) {
-				warn("Interface has non-zero error counters (%" PRIu64 "/%" PRIu64 " errors, %" PRIu64
-				     "/%" PRIu64 " discards)",
-				     row.InErrors, row.OutErrors, row.InDiscards, row.OutDiscards);
-			}
-
-			dstr_free(&other);
-		}
-	}
-}
-#endif
 
 static int try_connect(struct rtmp_stream *stream)
 {
@@ -1209,9 +990,7 @@ static int try_connect(struct rtmp_stream *stream)
 	stream->rtmp.m_bSendChunkSizeInfo = true;
 	stream->rtmp.m_bUseNagle = true;
 
-#ifdef _WIN32
-	win32_log_interface_type(stream);
-#endif
+	rtmp_host_log_interface_type(stream);
 
 	if (!RTMP_Connect(&stream->rtmp, NULL)) {
 		set_output_error(stream);
@@ -1480,19 +1259,19 @@ static bool init_connect(struct rtmp_stream *stream)
 		stream->addrlen_hint = len;
 	}
 
-#ifdef _WIN32
-	stream->new_socket_loop = obs_data_get_bool(settings, OPT_NEWSOCKETLOOP_ENABLED);
-	stream->low_latency_mode = obs_data_get_bool(settings, OPT_LOWLATENCY_ENABLED);
+	if (rtmp_host_has_socket_loop()) {
+		stream->new_socket_loop = obs_data_get_bool(settings, OPT_NEWSOCKETLOOP_ENABLED);
+		stream->low_latency_mode = obs_data_get_bool(settings, OPT_LOWLATENCY_ENABLED);
 
-	// ugly hack for now, can be removed once new loop is reworked
-	if (stream->new_socket_loop && !strncmp(stream->path.array, "rtmps://", 8)) {
-		warn("Disabling network optimizations, not compatible with RTMPS");
+		// ugly hack for now, can be removed once new loop is reworked
+		if (stream->new_socket_loop && !strncmp(stream->path.array, "rtmps://", 8)) {
+			warn("Disabling network optimizations, not compatible with RTMPS");
+			stream->new_socket_loop = false;
+		}
+	} else {
 		stream->new_socket_loop = false;
+		stream->low_latency_mode = false;
 	}
-#else
-	stream->new_socket_loop = false;
-	stream->low_latency_mode = false;
-#endif
 
 	obs_data_release(settings);
 	return true;
@@ -1950,10 +1729,10 @@ static void rtmp_stream_defaults(obs_data_t *defaults)
 	obs_data_set_default_int(defaults, OPT_PFRAME_DROP_THRESHOLD, 900);
 	obs_data_set_default_int(defaults, OPT_MAX_SHUTDOWN_TIME_SEC, 30);
 	obs_data_set_default_string(defaults, OPT_BIND_IP, "default");
-#ifdef _WIN32
-	obs_data_set_default_bool(defaults, OPT_NEWSOCKETLOOP_ENABLED, false);
-	obs_data_set_default_bool(defaults, OPT_LOWLATENCY_ENABLED, false);
-#endif
+	if (rtmp_host_has_socket_loop()) {
+		obs_data_set_default_bool(defaults, OPT_NEWSOCKETLOOP_ENABLED, false);
+		obs_data_set_default_bool(defaults, OPT_LOWLATENCY_ENABLED, false);
+	}
 }
 
 static obs_properties_t *rtmp_stream_properties(void *unused)
@@ -1987,10 +1766,10 @@ static obs_properties_t *rtmp_stream_properties(void *unused)
 	}
 	netif_saddr_data_free(&addrs);
 
-#ifdef _WIN32
-	obs_properties_add_bool(props, OPT_NEWSOCKETLOOP_ENABLED, obs_module_text("RTMPStream.NewSocketLoop"));
-	obs_properties_add_bool(props, OPT_LOWLATENCY_ENABLED, obs_module_text("RTMPStream.LowLatencyMode"));
-#endif
+	if (rtmp_host_has_socket_loop()) {
+		obs_properties_add_bool(props, OPT_NEWSOCKETLOOP_ENABLED, obs_module_text("RTMPStream.NewSocketLoop"));
+		obs_properties_add_bool(props, OPT_LOWLATENCY_ENABLED, obs_module_text("RTMPStream.LowLatencyMode"));
+	}
 
 	return props;
 }

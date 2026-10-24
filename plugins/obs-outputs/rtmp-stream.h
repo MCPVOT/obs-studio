@@ -11,12 +11,6 @@
 #include "flv-mux.h"
 #include "net-if.h"
 
-#ifdef _WIN32
-#include <Iphlpapi.h>
-#else
-#include <sys/ioctl.h>
-#endif
-
 #define do_log(level, format, ...) \
 	blog(level, "[rtmp stream: '%s'] " format, obs_output_get_name(stream->output), ##__VA_ARGS__)
 
@@ -144,9 +138,5 @@ struct rtmp_stream {
 	os_event_t *socket_available_event;
 	os_event_t *send_thread_signaled_exit;
 };
-
-#ifdef _WIN32
-void *socket_thread_windows(void *data);
-#endif
 
 #include "color-enums.h"

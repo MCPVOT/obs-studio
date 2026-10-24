@@ -284,6 +284,13 @@ if(_host STREQUAL WINDOWS)
     SOURCES build/obs-outputs.net-if-host-windows+.h.c
     INCLUDES plugins/obs-outputs/hosts/windows
   )
+  _obs_cross_plugin(
+    obs-outputs-rtmp-host-cross
+    DIR plugins/obs-outputs
+    SOURCES build/obs-outputs.windows+.h.c
+    INCLUDES plugins/obs-outputs/hosts/windows
+    DEFINES USE_MBEDTLS CRYPTO
+  )
   _obs_cross_plugin(obs-scripting-lua-host-cross DIR shared/obs-scripting SOURCES build/obs-scripting.lua-host-windows+.h.c)
   _obs_cross_plugin(obs-scripting-python-import-host-cross DIR shared/obs-scripting SOURCES build/obs-scripting.python-import-host-windows+.h.c)
   _obs_cross_plugin(
@@ -453,6 +460,12 @@ elseif(_host STREQUAL MACOS)
     obs-outputs-net-if-host-cross
     DIR plugins/obs-outputs
     SOURCES build/obs-outputs.net-if-host-posix+.h.c
+    INCLUDES plugins/obs-outputs/hosts/posix
+  )
+  _obs_cross_plugin(
+    obs-outputs-rtmp-host-cross
+    DIR plugins/obs-outputs
+    SOURCES build/obs-outputs.rtmp-host-posix+.h.c
     INCLUDES plugins/obs-outputs/hosts/posix
   )
   _obs_cross_plugin(obs-scripting-lua-host-cross DIR shared/obs-scripting SOURCES build/obs-scripting.lua-host-macos+.h.c)

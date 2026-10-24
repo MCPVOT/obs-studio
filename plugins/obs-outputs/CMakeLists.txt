@@ -49,6 +49,8 @@ target_sources(
     build/obs-outputs.net-if+.h.c
     $<$<PLATFORM_ID:Windows>:build/obs-outputs.net-if-host-windows+.h.c>
     $<$<NOT:$<PLATFORM_ID:Windows>>:build/obs-outputs.net-if-host-posix+.h.c>
+    $<$<NOT:$<PLATFORM_ID:Windows>>:build/obs-outputs.rtmp-host-posix+.h.c>
+    rtmp-stream-host.h
     net-if-host.h
     net-if.h
     obs-output-ver.h
