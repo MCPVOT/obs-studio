@@ -21,6 +21,11 @@
 #ifdef __APPLE__
 #define OBS_MAIN_HOST_MACOS 1
 
+#include <dialogs/OBSPermissions.hpp>
+
+/* Portable-mode marker files sit one level up. */
+#define BASE_PATH ".."
+
 #define OBS_MAIN_HOST_PRE_APP 1
 static inline bool obs_main_host_pre_app()
 {

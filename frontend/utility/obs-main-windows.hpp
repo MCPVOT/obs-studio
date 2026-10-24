@@ -23,6 +23,20 @@
 #ifdef _WIN32
 #define OBS_MAIN_HOST_WINDOWS 1
 
+#include <shellapi.h>
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+
+/* Portable mode exists on Windows; its marker files sit two levels up. */
+#define ALLOW_PORTABLE_MODE 1
+
+/* frontend/utility/obs-main-host-windows.cpp.hpp */
+#define OBS_MAIN_HOST_EARLY_INIT 1
+bool obs_main_host_early_init();
+void obs_main_host_show_help(const std::string &help);
+void obs_main_host_shutdown();
+void delete_oldest_file(bool has_prefix, const char *location);
+
 static inline void obs_main_host_log_debugger(const char *str)
 {
 	if (!IsDebuggerPresent()) {

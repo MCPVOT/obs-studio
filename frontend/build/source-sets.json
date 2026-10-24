@@ -130,6 +130,7 @@
   "WINDOWS": [
     "cmake/windows/obs.manifest",
     "build/frontend.windows+.hpp.cpp",
+    "build/frontend.windows-obs-main+.hpp.cpp",
     "dialogs/OBSUpdate.hpp",
     "forms/OBSUpdate.ui",
     "obs.rc",

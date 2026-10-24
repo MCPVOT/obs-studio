@@ -24,6 +24,9 @@ static void test_nothing_off_windows(void **state)
 #ifdef OBS_MAIN_HOST_MACOS
 	defined |= 2;
 #endif
+#if defined(OBS_MAIN_HOST_EARLY_INIT) || defined(ALLOW_PORTABLE_MODE)
+	defined |= 4;
+#endif
 	assert_int_equal(defined, 0);
 }
 

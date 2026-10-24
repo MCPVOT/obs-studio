@@ -18,6 +18,9 @@
 /* Linux startup hooks for obs-main (#865): refuse to run inside a ChromeOS
  * Linux container. No include guard: this file defines nothing elsewhere. */
 #ifdef __linux__
+/* Portable-mode marker files sit one level up. */
+#define BASE_PATH ".."
+
 #define OBS_MAIN_HOST_REFUSE_LAUNCH 1
 static inline bool obs_main_host_refuse_launch()
 {

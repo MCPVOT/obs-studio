@@ -9,9 +9,6 @@
 #include <OBSApp.hpp>
 
 #include <components/VolumeAccessibleInterface.hpp>
-#ifdef __APPLE__
-#include <dialogs/OBSPermissions.hpp>
-#endif
 #include <utility/BaseLexer.hpp>
 #include <utility/GpuStatus.hpp>
 #include <utility/OBSTranslator.hpp>
@@ -21,9 +18,6 @@
 #include <util/platform.h>
 #include <util/profiler.h>
 #include <util/util.hpp>
-#ifdef _WIN32
-#include <util/windows/win-version.h>
-#endif
 
 #include <QFontDatabase>
 #include <QProcess>
@@ -33,13 +27,7 @@
 #include <fstream>
 #include <iostream>
 #include <sstream>
-#ifdef _WIN32
-#include <shellapi.h>
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#else
-#include <signal.h>
-#endif
+#include <csignal>
 #include <mutex>
 #include <string>
 #include <utility/obs-main-linux.hpp>

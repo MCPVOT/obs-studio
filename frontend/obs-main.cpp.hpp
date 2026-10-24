@@ -69,6 +69,19 @@ static inline int obs_main_host_check_running(bool &already_running)
 	return 0;
 }
 #endif
+#ifndef OBS_MAIN_HOST_EARLY_INIT
+static inline bool obs_main_host_early_init()
+{
+	return true;
+}
+
+static inline void obs_main_host_show_help(const string &help)
+{
+	std::cout << help << "--version, -V: Get current version.\n";
+}
+
+static inline void obs_main_host_shutdown() {}
+#endif
 #ifndef OBS_MAIN_HOST_PRE_APP
 static inline bool obs_main_host_pre_app()
 {
@@ -320,7 +333,7 @@ static uint64_t convert_log_name(bool has_prefix, const char *name)
 	return std::stoull(timestring.str());
 }
 
-static void delete_oldest_file(bool has_prefix, const char *location)
+void delete_oldest_file(bool has_prefix, const char *location)
 {
 	BPtr<char> logDir(GetAppConfigPathPtr(location));
 	string oldestLog;
@@ -642,215 +655,32 @@ static int run_program(fstream &logFile, int argc, char *argv[])
 	return ret;
 }
 
-#define MAX_CRASH_REPORT_SIZE (200 * 1024)
-
-#ifdef _WIN32
-
-#define CRASH_MESSAGE                                                      \
-	"Woops, OBS has crashed!\n\nWould you like to copy the crash log " \
-	"to the clipboard? The crash log will still be saved to:\n\n%s"
-
-static void main_crash_handler(const char *format, va_list args, void * /* param */)
-{
-	char *text = new char[MAX_CRASH_REPORT_SIZE];
-
-	vsnprintf(text, MAX_CRASH_REPORT_SIZE, format, args);
-	text[MAX_CRASH_REPORT_SIZE - 1] = 0;
-
-	string crashFilePath = "obs-studio/crashes";
-
-	delete_oldest_file(true, crashFilePath.c_str());
-
-	string name = crashFilePath + "/";
-	name += "Crash " + GenerateTimeDateFilename("txt");
-
-	BPtr<char> path(GetAppConfigPathPtr(name.c_str()));
-
-	fstream file;
-
-#ifdef _WIN32
-	BPtr<wchar_t> wpath;
-	os_utf8_to_wcs_ptr(path, 0, &wpath);
-	file.open(wpath, ios_base::in | ios_base::out | ios_base::trunc | ios_base::binary);
-#else
-	file.open(path, ios_base::in | ios_base::out | ios_base::trunc | ios_base::binary);
-#endif
-	file << text;
-	file.close();
-
-	string pathString(path.Get());
-
-#ifdef _WIN32
-	std::replace(pathString.begin(), pathString.end(), '/', '\\');
-#endif
-
-	string absolutePath = canonical(filesystem::path(pathString)).u8string();
-
-	size_t size = snprintf(nullptr, 0, CRASH_MESSAGE, absolutePath.c_str());
-
-	unique_ptr<char[]> message_buffer(new char[size + 1]);
-
-	snprintf(message_buffer.get(), size + 1, CRASH_MESSAGE, absolutePath.c_str());
-
-	string finalMessage = string(message_buffer.get(), message_buffer.get() + size);
-
-	int ret = MessageBoxA(NULL, finalMessage.c_str(), "OBS has crashed!", MB_YESNO | MB_ICONERROR | MB_TASKMODAL);
-
-	if (ret == IDYES) {
-		size_t len = strlen(text);
-
-		HGLOBAL mem = GlobalAlloc(GMEM_MOVEABLE, len);
-		memcpy(GlobalLock(mem), text, len);
-		GlobalUnlock(mem);
-
-		OpenClipboard(0);
-		EmptyClipboard();
-		SetClipboardData(CF_TEXT, mem);
-		CloseClipboard();
-	}
-
-	exit(-1);
-}
-
-static void load_debug_privilege(void)
-{
-	const DWORD flags = TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY;
-	TOKEN_PRIVILEGES tp;
-	HANDLE token;
-	LUID val;
-
-	if (!OpenProcessToken(GetCurrentProcess(), flags, &token)) {
-		return;
-	}
-
-	if (!!LookupPrivilegeValue(NULL, SE_DEBUG_NAME, &val)) {
-		tp.PrivilegeCount = 1;
-		tp.Privileges[0].Luid = val;
-		tp.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
-
-		AdjustTokenPrivileges(token, false, &tp, sizeof(tp), NULL, NULL);
-	}
-
-	if (!!LookupPrivilegeValue(NULL, SE_INC_BASE_PRIORITY_NAME, &val)) {
-		tp.PrivilegeCount = 1;
-		tp.Privileges[0].Luid = val;
-		tp.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
-
-		if (!AdjustTokenPrivileges(token, false, &tp, sizeof(tp), NULL, NULL)) {
-			blog(LOG_INFO, "Could not set privilege to "
-				       "increase GPU priority");
-		}
-	}
-
-	CloseHandle(token);
-}
-#endif
-
 static inline bool arg_is(const char *arg, const char *long_form, const char *short_form)
 {
 	return (long_form && strcmp(arg, long_form) == 0) || (short_form && strcmp(arg, short_form) == 0);
 }
 
-#ifdef _WIN32
-static constexpr char vcRunErrorTitle[] = "Outdated Visual C++ Runtime";
-static constexpr char vcRunErrorMsg[] = "OBS Studio requires a newer version of the Microsoft Visual C++ "
-					"Redistributables.\n\nYou will now be directed to the download page.";
-static constexpr char vcRunInstallerUrl[] = "https://obsproject.com/visual-studio-2022-runtimes";
-
-static bool vc_runtime_outdated()
-{
-	win_version_info ver;
-	if (!get_dll_ver(L"msvcp140.dll", &ver)) {
-		return true;
-	}
-	/* Major is always 14 (hence 140.dll), so we only care about minor. */
-	if (ver.minor >= 40) {
-		return false;
-	}
-
-	int choice = MessageBoxA(NULL, vcRunErrorMsg, vcRunErrorTitle, MB_OKCANCEL | MB_ICONERROR | MB_TASKMODAL);
-	if (choice == IDOK) {
-		/* Open the URL in the default browser. */
-		ShellExecuteA(NULL, "open", vcRunInstallerUrl, NULL, NULL, SW_SHOWNORMAL);
-	}
-
-	return true;
-}
-
-static void set_process_mitigation_policies()
-{
-	PROCESS_MITIGATION_DEP_POLICY dep = {0};
-	dep.DisableAtlThunkEmulation = 1;
-	dep.Enable = 1;
-	dep.Permanent = TRUE;
-	SetProcessMitigationPolicy(ProcessDEPPolicy, &dep, sizeof(dep));
-
-	PROCESS_MITIGATION_ASLR_POLICY aslr = {0};
-	aslr.EnableBottomUpRandomization = 1;
-	aslr.EnableHighEntropy = 1;
-	aslr.EnableForceRelocateImages = 1;
-	aslr.DisallowStrippedImages = 1;
-	SetProcessMitigationPolicy(ProcessASLRPolicy, &aslr, sizeof(aslr));
-
-#ifdef _DEBUG
-	PROCESS_MITIGATION_STRICT_HANDLE_CHECK_POLICY hcheck = {0};
-	hcheck.RaiseExceptionOnInvalidHandleReference = 1;
-	hcheck.HandleExceptionsPermanentlyEnabled = 1;
-	SetProcessMitigationPolicy(ProcessStrictHandleCheckPolicy, &hcheck, sizeof(hcheck));
-#endif
-}
-#endif
-
-#if defined(__APPLE__) || defined(__linux__)
-#define BASE_PATH ".."
-#else
+/* Where portable-mode marker files sit, and whether portable mode exists:
+ * the host headers in the PCH may set both (#865). */
+#ifndef BASE_PATH
 #define BASE_PATH "../.."
 #endif
 
-#if defined(ENABLE_PORTABLE_CONFIG) || defined(_WIN32)
+#ifndef ALLOW_PORTABLE_MODE
+#ifdef ENABLE_PORTABLE_CONFIG
 #define ALLOW_PORTABLE_MODE 1
 #else
 #define ALLOW_PORTABLE_MODE 0
+#endif
 #endif
 
 int main(int argc, char *argv[])
 {
 	InstallPlatformAppSignalHandlers();
 
-#ifdef _WIN32
-	// Abort as early as possible if MSVC runtime is outdated
-	if (vc_runtime_outdated()) {
+	if (!obs_main_host_early_init()) {
 		return 1;
 	}
-
-	// Try to keep this as early as possible
-	InstallPlatformDllBlocklist();
-
-	set_process_mitigation_policies();
-
-	obs_init_win32_crash_handler();
-	SetErrorMode(SEM_FAILCRITICALERRORS);
-	SetSearchPathMode(BASE_SEARCH_PATH_ENABLE_SAFE_SEARCHMODE | BASE_SEARCH_PATH_PERMANENT);
-	SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
-	SetDllDirectoryW(L"");
-	load_debug_privilege();
-	base_set_crash_handler(main_crash_handler, nullptr);
-
-	/* Shutdown priority value is a range from 0 - 4FF with higher values getting first priority.
-	 * 000 - 0FF and 400 - 4FF are reserved system ranges.
-	 * Processes start at shutdown level 0x280 by default.
-	 * We set the main OBS application to a higher priority to ensure it tries to close before
-	 * any subprocesses such as CEF.
-	 */
-	SetProcessShutdownParameters(0x300, SHUTDOWN_NORETRY);
-
-	const HMODULE hRtwq = LoadLibrary(L"RTWorkQ.dll");
-	if (hRtwq) {
-		typedef HRESULT(STDAPICALLTYPE * PFN_RtwqStartup)();
-		PFN_RtwqStartup func = (PFN_RtwqStartup)GetProcAddress(hRtwq, "RtwqStartup");
-		func();
-	}
-#endif
 
 	base_get_log_handler(&def_log_handler, nullptr);
 
@@ -954,11 +784,7 @@ int main(int argc, char *argv[])
 				"--disable-missing-files-check: Disable the missing files dialog which can appear on startup.\n\n"
 				"--disable-shutdown-check: Do not show the crash dialog after an unclean shutdown; log it and launch normally.\n\n";
 
-#ifdef _WIN32
-			MessageBoxA(NULL, help.c_str(), "Help", MB_OK | MB_ICONASTERISK);
-#else
-			std::cout << help << "--version, -V: Get current version.\n";
-#endif
+			obs_main_host_show_help(help);
 			exit(0);
 
 		} else if (arg_is(argv[i], "--version", "-V")) {
@@ -995,16 +821,7 @@ int main(int argc, char *argv[])
 	curl_global_init(CURL_GLOBAL_ALL);
 	int ret = run_program(logFile, argc, argv);
 
-#ifdef _WIN32
-	if (hRtwq) {
-		typedef HRESULT(STDAPICALLTYPE * PFN_RtwqShutdown)();
-		PFN_RtwqShutdown func = (PFN_RtwqShutdown)GetProcAddress(hRtwq, "RtwqShutdown");
-		func();
-		FreeLibrary(hRtwq);
-	}
-
-	LogPlatformBlockedDlls();
-#endif
+	obs_main_host_shutdown();
 
 	blog(LOG_INFO, "Number of memory leaks: %ld", bnum_allocs());
 	base_set_log_handler(nullptr, nullptr);
@@ -1020,8 +837,6 @@ int main(int argc, char *argv[])
 /* File-local macros (BUILD.md): out of the next file in the unity group. */
 #undef MAX_REPEATED_LINES
 #undef MAX_CHAR_VARIATION
-#undef MAX_CRASH_REPORT_SIZE
-#undef CRASH_MESSAGE
 #undef BASE_PATH
 #undef ALLOW_PORTABLE_MODE
 #undef OBS_MAIN_LOG_ECHO
