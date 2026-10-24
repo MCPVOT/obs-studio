@@ -158,6 +158,13 @@ void SetPlatformDockIconVisible(bool visible);
  * has no NVENC (#873). */
 const char *GetPlatformNvencTestProgram();
 
+/* Main window controls (#873). */
+/* The screen, camera, microphone and input permission dialog, where the
+ * host asks for them. */
+void ShowPlatformPermissionsDialog(QWidget *parent);
+/* True where an always-on-top toggle recreates every window. */
+bool PlatformRecreatesWindowsOnTopToggle();
+
 /* Settings and hotkey editor platform policy (#869). */
 bool PlatformNeedsNonNativeColorDialog();
 bool PlatformSupportsSimpleQsvEncoders();

@@ -1156,3 +1156,10 @@ const char *GetPlatformNvencTestProgram()
 {
 	return "obs-nvenc-test.exe";
 }
+
+void ShowPlatformPermissionsDialog(QWidget *) {}
+
+bool PlatformRecreatesWindowsOnTopToggle()
+{
+	return false;
+}

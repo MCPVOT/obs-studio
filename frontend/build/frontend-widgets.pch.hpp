@@ -149,9 +149,6 @@
 #include <dialogs/OBSIdianPlayground.hpp>
 #endif
 #include <dialogs/OBSLogViewer.hpp>
-#ifdef __APPLE__
-#include <dialogs/OBSPermissions.hpp>
-#endif
 #include <dialogs/OBSRemux.hpp>
 #ifdef _WIN32
 #include <utility/AutoUpdateThread.hpp>

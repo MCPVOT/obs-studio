@@ -37,6 +37,7 @@
 
 #include "json11.hpp"
 
+#include "frontend/dialogs/OBSPermissions.hpp"
 #include "frontend/utility/OBSProxyStyle.hpp"
 
 #include <QWindow>

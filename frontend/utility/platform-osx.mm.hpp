@@ -977,3 +977,15 @@ const char *GetPlatformNvencTestProgram()
 {
 	return nullptr;
 }
+
+void ShowPlatformPermissionsDialog(QWidget *parent)
+{
+	OBSPermissions check(parent, CheckPermission(kScreenCapture), CheckPermission(kVideoDeviceAccess),
+			     CheckPermission(kAudioDeviceAccess), CheckPermission(kInputMonitoring));
+	check.exec();
+}
+
+bool PlatformRecreatesWindowsOnTopToggle()
+{
+	return true;
+}

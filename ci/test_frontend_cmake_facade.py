@@ -169,6 +169,26 @@ class FrontendCMakeFacadeTest(unittest.TestCase):
                 body = source.split("const char *GetPlatformNvencTestProgram()", 1)[1].split("}", 1)[0]
                 self.assertIn(program, body)
 
+    def test_main_controls_go_through_the_facade(self):
+        # #873: the macOS permissions dialog, the dock icon and the dialog
+        # close before an always-on-top toggle are host operations. Only the
+        # Windows updater branch stays, for the updater slice.
+        header = (FRONTEND / "utility/platform.hpp").read_text()
+        self.assertIn("void ShowPlatformPermissionsDialog(QWidget *parent);", header)
+        self.assertIn("bool PlatformRecreatesWindowsOnTopToggle();", header)
+        source = (FRONTEND / "widgets/OBSBasic_MainControls.cpp.hpp").read_text()
+        self.assertNotIn("__APPLE__", source)
+        self.assertNotIn("#ifndef _WIN32", source)
+        self.assertNotIn("EnableOSXDockIcon", source)
+        self.assertIn("ShowPlatformPermissionsDialog(this);", source)
+        pch = (FRONTEND / "build/frontend-widgets.pch.hpp").read_text()
+        self.assertNotIn("OBSPermissions", pch)
+        for host in ("windows.cpp.hpp", "osx.mm.hpp", "x11.cpp.hpp"):
+            with self.subTest(host=host):
+                source = (FRONTEND / f"utility/platform-{host}").read_text()
+                self.assertIn("void ShowPlatformPermissionsDialog(QWidget *", source)
+                self.assertIn("bool PlatformRecreatesWindowsOnTopToggle()", source)
+
     def test_hdr_screenshots_go_through_the_facade(self):
         # #883: the HDR color space choice and the JXR writer are host
         # operations; ScreenshotObj and its precompiled header name no host.
