@@ -135,9 +135,6 @@
 
 #include <QFileInfo>
 #include <QMimeData>
-#ifdef _WIN32
-#include <QSettings>
-#endif
 #include <QUrlQuery>
 
 /* widgets/OBSBasic_Hotkeys.cpp */

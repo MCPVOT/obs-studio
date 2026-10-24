@@ -127,6 +127,15 @@ bool PlatformUseModernWizardStyle();
 bool PlatformSupportsAppleHardwareEncoder(const char *id);
 bool PlatformNeedsQsvStreamingFallback();
 
+/* Files dropped on the main window (#873). */
+class QFileInfo;
+bool IsPlatformImageExtension(const char *suffix);
+const char *GetPlatformTextSourceId();
+void SetPlatformTextFileSettings(obs_data_t *settings, const char *file, QString &name);
+/* False when the drop is handled here or skipped; a non-empty urlTarget is
+ * a URL to offer instead. May replace a shortcut with its target. */
+bool ResolvePlatformDroppedFile(QString &file, QFileInfo &info, QString &urlTarget);
+
 /* Settings and hotkey editor platform policy (#869). */
 bool PlatformNeedsNonNativeColorDialog();
 bool PlatformSupportsSimpleQsvEncoders();

@@ -94,6 +94,25 @@ class FrontendCMakeFacadeTest(unittest.TestCase):
                 self.assertIn("void RaiseAfterFileDialog(QWidget *", source)
                 self.assertIn("bool UseNativeComboBoxPopup()", source)
 
+    def test_dropped_files_go_through_the_facade(self):
+        # #873: the JXR image type, the text source and Windows .url and
+        # shortcut handling are host operations, not _WIN32 branches.
+        header = (FRONTEND / "utility/platform.hpp").read_text()
+        self.assertIn("bool IsPlatformImageExtension(const char *suffix);", header)
+        self.assertIn("const char *GetPlatformTextSourceId();", header)
+        self.assertIn("void SetPlatformTextFileSettings(obs_data_t *settings, const char *file, QString &name);", header)
+        self.assertIn("bool ResolvePlatformDroppedFile(QString &file, QFileInfo &info, QString &urlTarget);", header)
+        source = (FRONTEND / "widgets/OBSBasic_Dropfiles.cpp.hpp").read_text()
+        self.assertNotIn("_WIN32", source)
+        self.assertNotIn("text_gdiplus", source)
+        for host in ("windows.cpp.hpp", "osx.mm.hpp", "x11.cpp.hpp"):
+            with self.subTest(host=host):
+                source = (FRONTEND / f"utility/platform-{host}").read_text()
+                self.assertIn("bool IsPlatformImageExtension(const char *", source)
+                self.assertIn("const char *GetPlatformTextSourceId()", source)
+                self.assertIn("void SetPlatformTextFileSettings(obs_data_t *", source)
+                self.assertIn("bool ResolvePlatformDroppedFile(QString &", source)
+
     def test_hdr_screenshots_go_through_the_facade(self):
         # #883: the HDR color space choice and the JXR writer are host
         # operations; ScreenshotObj and its precompiled header name no host.

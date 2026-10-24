@@ -1078,3 +1078,41 @@ bool SaveHdrScreenshot(const char *path, uint8_t *pixels, uint32_t cx, uint32_t 
 	bfree(path_w);
 	return saved;
 }
+
+bool IsPlatformImageExtension(const char *suffix)
+{
+	return astrcmpi(suffix, "jxr") == 0;
+}
+
+const char *GetPlatformTextSourceId()
+{
+	return "text_gdiplus";
+}
+
+void SetPlatformTextFileSettings(obs_data_t *settings, const char *file, QString &name)
+{
+	obs_data_set_bool(settings, "read_from_file", true);
+	obs_data_set_string(settings, "file", file);
+	name = QUrl::fromLocalFile(QString(file)).fileName();
+}
+
+static QString ReadWindowsURLFile(const QString &file)
+{
+	QSettings iniFile(file, QSettings::IniFormat);
+	QVariant url = iniFile.value("InternetShortcut/URL");
+	return url.toString();
+}
+
+bool ResolvePlatformDroppedFile(QString &file, QFileInfo &info, QString &urlTarget)
+{
+	if (info.suffix().compare("url", Qt::CaseInsensitive) == 0) {
+		urlTarget = ReadWindowsURLFile(file);
+		return false;
+	}
+	if (info.isShortcut()) {
+		file = info.symLinkTarget();
+		info = QFileInfo(file);
+		return info.exists();
+	}
+	return true;
+}

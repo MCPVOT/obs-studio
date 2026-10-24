@@ -23,11 +23,7 @@ using namespace std;
 
 static const char *textExtensions[] = {"txt", "log", nullptr};
 
-static const char *imageExtensions[] = {"bmp", "gif", "jpeg", "jpg",
-#ifdef _WIN32
-					"jxr",
-#endif
-					"png", "tga", "webp", nullptr};
+static const char *imageExtensions[] = {"bmp", "gif", "jpeg", "jpg", "png", "tga", "webp", nullptr};
 
 static const char *htmlExtensions[] = {"htm", "html", nullptr};
 
@@ -63,15 +59,6 @@ static string GenerateSourceName(const char *base)
 		}
 	}
 }
-
-#ifdef _WIN32
-static QString ReadWindowsURLFile(const QString &file)
-{
-	QSettings iniFile(file, QSettings::IniFormat);
-	QVariant url = iniFile.value("InternetShortcut/URL");
-	return url.toString();
-}
-#endif
 
 void OBSBasic::AddDropURL(QUrl url, QString &name, obs_data_t *settings, const obs_video_info &ovi)
 {
@@ -126,23 +113,11 @@ void OBSBasic::AddDropSource(const char *data, DropType image)
 	switch (image) {
 	case DropType_RawText:
 		obs_data_set_string(settings, "text", data);
-#ifdef _WIN32
-		type = "text_gdiplus";
-#else
-		type = "text_ft2_source";
-#endif
+		type = GetPlatformTextSourceId();
 		break;
 	case DropType_Text:
-#ifdef _WIN32
-		obs_data_set_bool(settings, "read_from_file", true);
-		obs_data_set_string(settings, "file", data);
-		name = QUrl::fromLocalFile(QString(data)).fileName();
-		type = "text_gdiplus";
-#else
-		obs_data_set_bool(settings, "from_file", true);
-		obs_data_set_string(settings, "text_file", data);
-		type = "text_ft2_source";
-#endif
+		SetPlatformTextFileSettings(settings, data, name);
+		type = GetPlatformTextSourceId();
 		break;
 	case DropType_Image:
 		obs_data_set_string(settings, "file", data);
@@ -277,21 +252,13 @@ void OBSBasic::dropEvent(QDropEvent *event)
 				continue;
 			}
 
-#ifdef _WIN32
-			if (fileInfo.suffix().compare("url", Qt::CaseInsensitive) == 0) {
-				QString urlTarget = ReadWindowsURLFile(file);
+			QString urlTarget;
+			if (!ResolvePlatformDroppedFile(file, fileInfo, urlTarget)) {
 				if (!urlTarget.isEmpty()) {
 					ConfirmDropUrl(urlTarget);
 				}
 				continue;
-			} else if (fileInfo.isShortcut()) {
-				file = fileInfo.symLinkTarget();
-				fileInfo = QFileInfo(file);
-				if (!fileInfo.exists()) {
-					continue;
-				}
 			}
-#endif
 
 			QString suffixQStr = fileInfo.suffix();
 			QByteArray suffixArray = suffixQStr.toUtf8();
@@ -318,6 +285,10 @@ void OBSBasic::dropEvent(QDropEvent *event)
 			CHECK_SUFFIX(textExtensions, DropType_Text);
 			CHECK_SUFFIX(htmlExtensions, DropType_Html);
 			CHECK_SUFFIX(imageExtensions, DropType_Image);
+			if (IsPlatformImageExtension(suffix)) {
+				AddDropSource(QT_TO_UTF8(file), DropType_Image);
+				continue;
+			}
 			CHECK_SUFFIX(mediaExtensions, DropType_Media);
 
 #undef CHECK_SUFFIX

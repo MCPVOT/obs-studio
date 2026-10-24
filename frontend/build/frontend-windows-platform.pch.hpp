@@ -11,7 +11,10 @@
 #include <OBSApp.hpp>
 
 #include <QApplication>
+#include <QFileInfo>
 #include <QIcon>
+#include <QSettings>
+#include <QUrl>
 
 #include <util/dstr.h>
 #include <util/windows/ComPtr.hpp>

@@ -903,3 +903,24 @@ bool SaveHdrScreenshot(const char *, uint8_t *, uint32_t, uint32_t)
 	/* No HDR image format here: screenshots are rendered in sRGB. */
 	return false;
 }
+
+bool IsPlatformImageExtension(const char *)
+{
+	return false;
+}
+
+const char *GetPlatformTextSourceId()
+{
+	return "text_ft2_source";
+}
+
+void SetPlatformTextFileSettings(obs_data_t *settings, const char *file, QString &)
+{
+	obs_data_set_bool(settings, "from_file", true);
+	obs_data_set_string(settings, "text_file", file);
+}
+
+bool ResolvePlatformDroppedFile(QString &, QFileInfo &, QString &)
+{
+	return true;
+}
