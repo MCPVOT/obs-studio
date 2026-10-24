@@ -34,6 +34,10 @@ target_sources(
     $<$<PLATFORM_ID:Darwin>:build/obs-ffmpeg.mux-host-macos+.h.c>
     $<$<PLATFORM_ID:Linux,FreeBSD,OpenBSD>:build/obs-ffmpeg.mux-host-posix+.h.c>
     $<$<PLATFORM_ID:Windows>:build/obs-ffmpeg.mux-host-windows+.h.c>
+    $<$<PLATFORM_ID:Windows>:build/obs-ffmpeg.host-windows+.h.c>
+    $<$<PLATFORM_ID:Linux>:build/obs-ffmpeg.host-linux+.h.c>
+    $<$<PLATFORM_ID:Darwin,FreeBSD,OpenBSD>:build/obs-ffmpeg.host-posix+.h.c>
+    obs-ffmpeg-host.h
     obs-ffmpeg-mux-host.h
     build/obs-ffmpeg.output+.h.c
     build/obs-ffmpeg.source+.h.c
@@ -51,6 +55,7 @@ target_compile_definitions(
     $<$<BOOL:${ENABLE_FFMPEG_LOGGING}>:ENABLE_FFMPEG_LOGGING>
     $<$<BOOL:${ENABLE_FFMPEG_NVENC}>:ENABLE_FFMPEG_NVENC>
     $<$<BOOL:${ENABLE_NEW_MPEGTS_OUTPUT}>:NEW_MPEGTS_OUTPUT>
+    $<$<PLATFORM_ID:Linux,FreeBSD,OpenBSD>:LIBAVUTIL_VAAPI_AVAILABLE>
 )
 
 target_link_libraries(
@@ -80,6 +85,7 @@ if(OS_WINDOWS)
   if(CMAKE_VS_PLATFORM_NAME STREQUAL x64)
     target_sources(obs-ffmpeg PRIVATE build/obs-ffmpeg.amf-windows+.hpp.cpp texture-amf-opts.hpp)
     target_link_libraries(obs-ffmpeg PRIVATE AMF::AMF)
+    target_compile_definitions(obs-ffmpeg PRIVATE OBS_FFMPEG_AMF)
   endif()
 
   configure_file(cmake/windows/obs-module.rc.in obs-ffmpeg.rc)

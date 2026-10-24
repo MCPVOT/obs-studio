@@ -108,115 +108,6 @@ static bool is_blacklisted(const int device_id)
 	return false;
 }
 
-#ifdef _WIN32
-typedef HRESULT(WINAPI *create_dxgi_proc)(const IID *, IDXGIFactory1 **);
-
-static bool nvenc_device_available(void)
-{
-	static HMODULE dxgi = NULL;
-	static create_dxgi_proc create = NULL;
-	IDXGIFactory1 *factory;
-	IDXGIAdapter1 *adapter;
-	bool available = false;
-	HRESULT hr;
-	UINT i = 0;
-
-	if (!dxgi) {
-		dxgi = GetModuleHandleW(L"dxgi");
-		if (!dxgi) {
-			dxgi = LoadLibraryW(L"dxgi");
-			if (!dxgi) {
-				return true;
-			}
-		}
-	}
-
-	if (!create) {
-		create = (create_dxgi_proc)GetProcAddress(dxgi, "CreateDXGIFactory1");
-		if (!create) {
-			return true;
-		}
-	}
-
-	hr = create(&IID_IDXGIFactory1, &factory);
-	if (FAILED(hr)) {
-		return true;
-	}
-
-	while (factory->lpVtbl->EnumAdapters1(factory, i++, &adapter) == S_OK) {
-		DXGI_ADAPTER_DESC desc;
-
-		hr = adapter->lpVtbl->GetDesc(adapter, &desc);
-		adapter->lpVtbl->Release(adapter);
-
-		if (FAILED(hr)) {
-			continue;
-		}
-
-		// 0x10de = NVIDIA Corporation
-		if (desc.VendorId == 0x10de && !is_blacklisted(desc.DeviceId)) {
-			available = true;
-			goto finish;
-		}
-	}
-
-finish:
-	factory->lpVtbl->Release(factory);
-	return available;
-}
-#endif
-
-#if defined(__linux__)
-static int get_id_from_sys(char *d_name, char *type)
-{
-	char file_name[1024];
-	char *c;
-	int id;
-
-	snprintf(file_name, sizeof(file_name), "/sys/bus/pci/devices/%s/%s", d_name, type);
-	if ((c = os_quick_read_utf8_file(file_name)) == NULL) {
-		return -1;
-	}
-	id = strtol(c, NULL, 16);
-	bfree(c);
-
-	return id;
-}
-
-static bool nvenc_device_available(void)
-{
-	os_dir_t *dir;
-	struct os_dirent *dirent;
-	bool available = false;
-
-	if ((dir = os_opendir("/sys/bus/pci/devices")) == NULL) {
-		return true;
-	}
-
-	while ((dirent = os_readdir(dir)) != NULL) {
-		int id;
-
-		if (get_id_from_sys(dirent->d_name, "class") != 0x030000 &&
-		    get_id_from_sys(dirent->d_name, "class") != 0x030200) { // 0x030000 = VGA compatible controller
-									    // 0x030200 = 3D controller
-			continue;
-		}
-
-		if (get_id_from_sys(dirent->d_name, "vendor") != 0x10de) { // 0x10de = NVIDIA Corporation
-			continue;
-		}
-
-		if ((id = get_id_from_sys(dirent->d_name, "device")) > 0 && !is_blacklisted(id)) {
-			available = true;
-			break;
-		}
-	}
-
-	os_closedir(dir);
-	return available;
-}
-#endif
-
 static bool nvenc_codec_exists(const char *name, const char *fallback)
 {
 	const AVCodec *nvenc = avcodec_find_encoder_by_name(name);
@@ -239,22 +130,7 @@ static bool nvenc_supported(bool *out_h264, bool *out_hevc)
 
 	bool success = h264 || hevc;
 	if (success) {
-#ifdef _WIN32
-		success = nvenc_device_available();
-#elif defined(__linux__)
-		success = nvenc_device_available();
-		if (success) {
-			void *const lib = os_dlopen("libnvidia-encode.so.1");
-			success = lib != NULL;
-			if (success)
-				os_dlclose(lib);
-		}
-#else
-		void *const lib = os_dlopen("libnvidia-encode.so.1");
-		success = lib != NULL;
-		if (success)
-			os_dlclose(lib);
-#endif
+		success = obs_ffmpeg_host_nvenc_available(is_blacklisted);
 
 		if (success) {
 			*out_h264 = h264;
@@ -308,11 +184,6 @@ static bool hevc_vaapi_supported(void)
 #endif
 #endif
 
-#if defined(_WIN32) && !defined(_M_ARM64)
-extern void amf_load(void);
-extern void amf_unload(void);
-#endif
-
 #ifdef ENABLE_FFMPEG_LOGGING
 extern void obs_ffmpeg_load_logging(void);
 extern void obs_ffmpeg_unload_logging(void);
@@ -359,9 +230,7 @@ bool obs_module_load(void)
 	}
 #endif
 
-#if defined(_WIN32) && !defined(_M_ARM64)
-	amf_load();
-#endif
+	obs_ffmpeg_host_load();
 
 #ifdef LIBAVUTIL_VAAPI_AVAILABLE
 	const char *libva_env = getenv("LIBVA_DRIVER_NAME");
@@ -408,9 +277,7 @@ void obs_module_unload(void)
 	obs_ffmpeg_unload_logging();
 #endif
 
-#if defined(_WIN32) && !defined(_M_ARM64)
-	amf_unload();
-#endif
+	obs_ffmpeg_host_unload();
 
 #ifdef LIBAVUTIL_VAAPI_AVAILABLE
 	vaapi_free_device_caps();

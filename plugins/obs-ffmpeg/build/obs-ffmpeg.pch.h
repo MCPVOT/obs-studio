@@ -23,15 +23,10 @@
 #include <libavutil/avutil.h>
 #include <libavcodec/avcodec.h>
 
-#ifdef _WIN32
-#define INITGUID
-#include <dxgi.h>
-#endif
+#include "plugins/obs-ffmpeg/obs-ffmpeg-host.h"
 
-#if !defined(_WIN32) && !defined(__APPLE__)
+#ifdef LIBAVUTIL_VAAPI_AVAILABLE
 #include "plugins/obs-ffmpeg/vaapi-utils.h"
-
-#define LIBAVUTIL_VAAPI_AVAILABLE
 #endif
 
 /* obs-ffmpeg-logging.c */
