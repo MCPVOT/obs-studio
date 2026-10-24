@@ -364,7 +364,7 @@ int config_save(config_t *config)
 		}
 	}
 
-#ifdef _WIN32
+#ifdef CONFIG_FILE_BOM
 	if (fwrite("\xEF\xBB\xBF", 3, 1, f) != 1)
 		goto cleanup;
 #endif

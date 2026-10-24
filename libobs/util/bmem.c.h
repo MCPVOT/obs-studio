@@ -33,9 +33,7 @@
  * change, it would also ruin our memory alignment for some reallocated memory
  * on those platforms.
  */
-#if defined(_WIN32)
-#define ALIGNED_MALLOC 1
-#else
+#ifndef ALIGNED_MALLOC
 #define ALIGNMENT_HACK 1
 #endif
 

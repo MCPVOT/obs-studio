@@ -107,3 +107,5 @@
 #include "util/c99defs.h"
 #include "util/dstr.h"
 #include "util/bmem.h"
+#include "util/bmem-windows.h"
+#include "util/config-file-windows.h"

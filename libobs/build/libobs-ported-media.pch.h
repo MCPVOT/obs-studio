@@ -21,7 +21,6 @@
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
-#include <avrt.h>
 #endif
 
 /* media-io/format-conversion.c */
@@ -82,3 +81,4 @@
 #include "obs-data.h"
 
 #include <jansson.h>
+#include "media-io/audio-io-windows.h"

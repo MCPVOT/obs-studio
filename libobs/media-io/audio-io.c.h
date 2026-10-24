@@ -187,9 +187,8 @@ static void input_and_output(struct audio_output *audio, uint64_t audio_time, ui
 
 static void *audio_thread(void *param)
 {
-#ifdef _WIN32
-	DWORD unused = 0;
-	const HANDLE handle = AvSetMmThreadCharacteristics(L"Audio", &unused);
+#ifdef AUDIO_IO_HOST_THREAD
+	audio_io_host_thread_begin();
 #endif
 
 	struct audio_output *audio = param;
@@ -219,9 +218,8 @@ static void *audio_thread(void *param)
 		profile_reenable_thread();
 	}
 
-#ifdef _WIN32
-	if (handle)
-		AvRevertMmThreadCharacteristics(handle);
+#ifdef AUDIO_IO_HOST_THREAD
+	audio_io_host_thread_end();
 #endif
 
 	return NULL;
