@@ -128,6 +128,7 @@ void xcb_xcursor_offset_win(xcb_connection_t *xcb, xcb_xcursor_t *data, xcb_wind
 	xcb_get_geometry_cookie_t geom_cookie = xcb_get_geometry(xcb, win);
 	xcb_get_geometry_reply_t *geom = xcb_get_geometry_reply(xcb, geom_cookie, &err);
 	if (err) {
+		free(err);
 		free(geom);
 		return;
 	}
@@ -136,6 +137,7 @@ void xcb_xcursor_offset_win(xcb_connection_t *xcb, xcb_xcursor_t *data, xcb_wind
 	xcb_translate_coordinates_reply_t *coords = xcb_translate_coordinates_reply(xcb, coords_cookie, &err);
 	if (!err)
 		xcb_xcursor_offset(data, coords->dst_x, coords->dst_y);
+	free(err);
 
 	free(coords);
 	free(geom);

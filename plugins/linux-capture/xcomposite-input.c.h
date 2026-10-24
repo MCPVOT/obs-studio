@@ -78,6 +78,7 @@ bool xcomp_window_exists(xcb_connection_t *xconn, xcb_window_t win)
 	xcb_get_window_attributes_reply_t *attr = xcb_get_window_attributes_reply(xconn, attr_cookie, &err);
 
 	bool exists = err == NULL && attr->map_state == XCB_MAP_STATE_VIEWABLE;
+	free(err);
 	free(attr);
 	return exists;
 }
@@ -92,6 +93,7 @@ xcb_get_property_reply_t *xcomp_property_sync(xcb_connection_t *xconn, xcb_windo
 	xcb_get_property_cookie_t prop_cookie = xcb_get_property(xconn, 0, win, atom, 0, 0, 4096);
 	xcb_get_property_reply_t *prop = xcb_get_property_reply(xconn, prop_cookie, &err);
 	if (err != NULL || xcb_get_property_value_length(prop) == 0) {
+		free(err);
 		free(prop);
 		return NULL;
 	}
@@ -228,6 +230,7 @@ struct darray xcomp_top_level_windows(xcb_connection_t *xconn)
 			da_push_back(res, &(((xcb_window_t *)xcb_get_property_value(cl_list))[i]));
 
 	done:
+		free(err);
 		free(cl_list);
 	}
 
@@ -338,6 +341,8 @@ void xcomp_create_pixmap(xcb_connection_t *xconn, struct xcompcap *s, int log_le
 	xcb_get_geometry_cookie_t geom_cookie = xcb_get_geometry(xconn, s->win);
 	xcb_get_geometry_reply_t *geom = xcb_get_geometry_reply(xconn, geom_cookie, &err);
 	if (err != NULL) {
+		free(err);
+		free(geom);
 		return;
 	}
 
