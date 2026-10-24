@@ -26,9 +26,15 @@ class ReleaseStoreTest(unittest.TestCase):
         return dict({'id': 17, 'tag_name': 'ci-native-cache-v1-windows-x64',
                      'prerelease': True, 'draft': False, 'body': 'native-cache-protocol-v1'}, **changes)
 
+    def http_error(self, code):
+        # Closed after the test: an unclosed HTTPError warns (#2235).
+        error = urllib.error.HTTPError('url', code, '', {}, None)
+        self.addCleanup(error.close)
+        return error
+
     def test_read_only_inventory_never_creates_release(self):
         store = STORE.ReleaseStore(IDENTITY)
-        with mock.patch.object(STORE.urllib.request, 'urlopen', side_effect=urllib.error.HTTPError('url', 404, '', {}, None)) as request:
+        with mock.patch.object(STORE.urllib.request, 'urlopen', side_effect=self.http_error(404)) as request:
             self.assertEqual(store.assets(), [])
             self.assertEqual(request.call_args.args[0].get_method(), 'GET')
         for operation in (lambda: store.ensure('a' * 40), lambda: store.delete('x')):
@@ -37,14 +43,14 @@ class ReleaseStoreTest(unittest.TestCase):
 
     def test_forbidden_lookup_never_creates_release(self):
         store = STORE.ReleaseStore(IDENTITY, token='job-secret', writable=True)
-        with mock.patch.object(STORE.urllib.request, 'urlopen', side_effect=urllib.error.HTTPError('url', 403, '', {}, None)) as request:
+        with mock.patch.object(STORE.urllib.request, 'urlopen', side_effect=self.http_error(403)) as request:
             with self.assertRaises(OSError):
                 store.ensure('a' * 40)
             self.assertEqual(request.call_count, 1)
 
     def test_create_is_cache_prerelease_and_never_latest(self):
         store = STORE.ReleaseStore(IDENTITY, token='job-secret', writable=True)
-        missing = urllib.error.HTTPError('url', 404, '', {}, None)
+        missing = self.http_error(404)
         with mock.patch.object(STORE.urllib.request, 'urlopen', side_effect=[missing, Response(self.release())]) as request:
             store.ensure('a' * 40)
             sent = request.call_args.args[0]

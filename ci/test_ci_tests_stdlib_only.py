@@ -5,8 +5,8 @@ modules only.
     uv run python -m unittest ci/test_ci_tests_stdlib_only.py
 
 The local gate runs each file with `sys.executable -m unittest`
-(ci/local_gate.py) and CI's "ci/ Self-Tests" step with
-`uv run python -m unittest discover` (check-format.yaml). Neither installs
+(ci/local_gate.py), and CI's "ci/ Self-Tests" step runs that gate
+(`local_gate.py --only self-test`, check-format.yaml). Neither installs
 packages, and neither reads the dependencies in inline script metadata
 (`# /// script`), which apply only to `uv run --script <file>`. A
 third-party import fails on any host whose Python lacks the package

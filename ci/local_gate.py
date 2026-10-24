@@ -178,7 +178,7 @@ def self_test() -> None:
         start = time.monotonic()
         try:
             result = subprocess.run(
-                [sys.executable, "-m", "unittest", "discover", "-s", "ci", "-p", path.name],
+                [sys.executable, "-W", "default::ResourceWarning", "-m", "unittest", "discover", "-s", "ci", "-p", path.name],
                 cwd=ROOT,
                 capture_output=True,
                 text=True,
@@ -192,7 +192,13 @@ def self_test() -> None:
             return path.name, 1, f"{output}\ntimed out after {SELF_TEST_TIMEOUT} s", time.monotonic() - start
         # 5: the file has no tests (as the old single discover allowed).
         code = 0 if result.returncode == 5 else result.returncode
-        return path.name, code, result.stdout + result.stderr, time.monotonic() - start
+        output = result.stdout + result.stderr
+        # A leaked file or response warns from a destructor, which no -W error
+        # can turn into a failure; 781 such lines buried the Checks log (#2235).
+        if code == 0 and "ResourceWarning" in output:
+            code = 1
+            output += "\nResourceWarning: close every file and response the test opens (#2235)"
+        return path.name, code, output, time.monotonic() - start
 
     workers = self_test_workers()
     print(f"+ unittest: {len(files)} ci/test_*.py files, {workers} at a time", flush=True)
@@ -687,7 +693,7 @@ LANES = {"lint": lane_lint, "rust-test": lane_rust_test, "cross": lane_cross, "c
 
 # The lint lane's formatter checks on their own, for CI's format jobs: the
 # same pinned tools and files as `./lint`, so the two cannot disagree (#427).
-CHECKS = {"clang-format": clang_format, "gersemi": gersemi}
+CHECKS = {"clang-format": clang_format, "gersemi": gersemi, "self-test": lambda _files, _fix: self_test()}
 
 
 def main() -> int:
@@ -695,7 +701,7 @@ def main() -> int:
     parser.add_argument("--lane", choices=sorted(LANES), action="append", help="run only this lane (repeatable)")
     parser.add_argument("--fix", action="store_true", help="lint: rewrite files instead of checking")
     parser.add_argument("--test-diff", metavar="BASE", help="run unit tests only for crates changed since BASE (fast gate)")
-    parser.add_argument("--only", choices=sorted(CHECKS), help="run only this formatter check (CI format jobs)")
+    parser.add_argument("--only", choices=sorted(CHECKS), help="run only this check (CI format jobs)")
     args = parser.parse_args()
     if args.test_diff:
         try:

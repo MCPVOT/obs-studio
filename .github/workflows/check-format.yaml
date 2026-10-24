@@ -13,8 +13,10 @@ jobs:
       swift: ${{ steps.diff.outputs.swift }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          fetch-depth: 0
+      # The same full history fetch-depth: 0 gave, without its one log line per
+      # branch and tag (1018 of the job's 2769 lines, #2235).
+      - name: Fetch History 📜
+        run: git fetch --quiet --unshallow --tags origin '+refs/heads/*:refs/remotes/origin/*'
       # The local gate's pinned uvx tool and file set (#427): brew update,
       # brew install zsh and the formatter took about 75 s to format in 0.3 s.
       - name: Set Up uv 🐍
@@ -55,7 +57,7 @@ jobs:
           failCondition: error
       # The 373 plain-Python ci/ tests need nothing from the 26.04 runner (#427).
       - name: ci/ Self-Tests 🧪
-        run: uv run python -m unittest discover -s ci -p "test_*.py"
+        run: uv run ci/local_gate.py --only self-test
 
   swift-format:
     timeout-minutes: 20

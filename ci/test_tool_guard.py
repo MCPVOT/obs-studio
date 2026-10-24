@@ -178,7 +178,8 @@ def is_shell(path):
     if path.suffix == ".sh":
         return True
     try:
-        first = path.open("rb").readline()
+        with path.open("rb") as f:
+            first = f.readline()
     except OSError:
         return False
     return first.startswith(b"#!") and any(s in first for s in (b"/sh", b"bash", b"zsh"))

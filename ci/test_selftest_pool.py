@@ -36,7 +36,7 @@ class WorkflowTest(unittest.TestCase):
         fmt = (ROOT / ".github" / "workflows" / "check-format.yaml").read_text(encoding="utf-8")
         j = fmt[fmt.index("  checks:"):fmt.index("  swift-format:")]
         self.assertIn("runs-on: ubuntu-latest", j)
-        self.assertIn('unittest discover -s ci -p "test_*.py"', j)
+        self.assertIn("local_gate.py --only self-test", j)
 
     def test_lint_step_skips_them_in_ci(self):
         j = job("rust-tests-linux")
