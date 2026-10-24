@@ -52,6 +52,29 @@ if [ -n "${OBS_CTEST_SHARD:-}" ]; then
   fi
   shard_args=(-I "$shard_index,,$shard_count")
 fi
+# OBS_CTEST_PART: run every test (default), only the RUN_SERIAL ones
+# ("serial") or all but those ("suite"). CI runs the two parts of a mode on
+# separate runners, so the serial tests keep a runner to themselves without
+# idling the other cores (#2071).
+part="${OBS_CTEST_PART:-}"
+case "$part" in
+"" | suite | serial) ;;
+*) echo "FAIL: OBS_CTEST_PART must be suite or serial, got '$part'"; exit 2 ;;
+esac
+if [ -n "$part" ] && [ -n "${OBS_CTEST_SHARD:-}" ]; then
+  echo "FAIL: OBS_CTEST_PART and OBS_CTEST_SHARD cannot be combined" >&2
+  exit 2
+fi
+# Sets mode_shard_args to the part's tests of build tree $1, mode $2.
+select_part() {
+  local registry="$1/tier2-registry-$2.json" serial
+  ctest --test-dir "$1" --show-only=json-v1 >"$registry"
+  serial=$(uv run --no-project "$SRC/rust/tools/linux-validate/serial-tests.py" "$registry")
+  case "$part" in
+  suite) mode_shard_args=(-E "$serial") ;;
+  serial) mode_shard_args=(-R "$serial") ;;
+  esac
+}
 
 # Roots: the container paths run.sh sets up (/ro: the checkout, mounted
 # read-only and built out of source; /build: every build output), unless
@@ -361,7 +384,8 @@ if [ "$stage" != build ]; then
       mode_shard_args=(-R "$(cat "$plan")")
     fi
 
-    echo "== [$mode] ctest${OBS_CTEST_SHARD:+ shard $OBS_CTEST_SHARD}"
+    [ -z "$part" ] || select_part "$build" "$mode"
+    echo "== [$mode] ctest${OBS_CTEST_SHARD:+ shard $OBS_CTEST_SHARD}${part:+ ($part)}"
     # xvfb-run gives display tests an X server; the PipeWire tests start their
     # own private PipeWire daemon and D-Bus bus (#776).
     # Tests share this display. Do not reset it when its last client exits:

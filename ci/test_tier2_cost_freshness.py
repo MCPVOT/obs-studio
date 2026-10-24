@@ -104,7 +104,7 @@ class WorkflowTest(unittest.TestCase):
     def test_test_job_uploads_its_costs(self):
         j = job("rust-linux-tier2")
         self.assertIn('--cost "$GITHUB_WORKSPACE/.tier2-cost"', j)
-        self.assertIn("name: tier2-cost-${{ matrix.mode }}\n", j)
+        self.assertIn("name: tier2-cost-${{ matrix.mode }}-${{ matrix.part }}\n", j)
         self.assertIn("path: .tier2-cost/ctest-cost-${{ matrix.mode }}.txt", j)
 
     def test_shards_start_from_the_merged_costs(self):

@@ -95,7 +95,7 @@ class WorkflowTest(unittest.TestCase):
         self.assertIn("name: tier2-tree\n", t)
         self.assertIn("--mode '${{ matrix.mode }}'", t)
         self.assertIn("f'OBS_TIER2_MODES={args.mode}'", helper)
-        self.assertIn("name: tier2-cost-${{ matrix.mode }}\n", t)
+        self.assertIn("name: tier2-cost-${{ matrix.mode }}-${{ matrix.part }}\n", t)
         self.assertIn("path: .tier2-cost/ctest-cost-${{ matrix.mode }}.txt", t)
         self.assertNotIn("OBS_TIER2_SHARDS", job("rust-linux-tier2-build"))
 

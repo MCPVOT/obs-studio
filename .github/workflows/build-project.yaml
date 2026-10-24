@@ -2118,7 +2118,7 @@ jobs:
           key: zccache-tier2-linux-both-${{ github.sha }}
 
   rust-linux-tier2:
-    name: Rust Tier 2 Linux 🐧 (tests ${{ matrix.mode }})
+    name: Rust Tier 2 Linux 🐧 (tests ${{ matrix.mode }}${{ matrix.part == 'serial' && ', serial' || '' }})
     runs-on: ubuntu-26.04
     # Load a verified prepared runtime, or install the exact closure in the
     # same pinned stock base. The helper retains original artifact paths.
@@ -2128,13 +2128,14 @@ jobs:
     # remaining lint/Rust work; the caller's required gate still needs both.
     # Failed/skipped builds and workflow cancellation cannot start tests.
     if: ${{ always() && !cancelled() && needs.rust-linux-tier2-build.result == 'success' }}
-    # One complete suite per backend (#1662): nine serial barriers were
-    # removed in #1643. Retain deinterlace isolation within each suite and
-    # avoid repeating runner setup for a second shard.
+    # One suite per backend (#1662), less its RUN_SERIAL tests, which run
+    # on a runner of their own: inside the suite the deinterlace test held
+    # the runner alone for 146 of 238 s (#1643, #2071).
     strategy:
       fail-fast: false
       matrix:
         mode: ["OFF", "ON"]
+        part: ["suite", "serial"]
     defaults:
       run:
         shell: bash
@@ -2190,12 +2191,12 @@ jobs:
             --source "$GITHUB_WORKSPACE" --build "$RUNNER_TEMP/tier2" \
             --cost "$GITHUB_WORKSPACE/.tier2-cost" --uv "$(command -v uv)" \
             --archives /var/cache/apt/archives \
-            --state "$RUNNER_TEMP/tier2-runtime" --mode '${{ matrix.mode }}'
+            --state "$RUNNER_TEMP/tier2-runtime" --mode '${{ matrix.mode }}' --part '${{ matrix.part }}'
       - name: Upload Runtime Setup Measurement
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
-          name: tier2-runtime-${{ matrix.mode }}
+          name: tier2-runtime-${{ matrix.mode }}-${{ matrix.part }}
           path: ${{ runner.temp }}/tier2-runtime/runtime-measurement.json
           retention-days: 1
           if-no-files-found: warn
@@ -2203,7 +2204,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always() && github.event_name == 'push' && github.ref == 'refs/heads/master'
         with:
-          name: tier2-cost-${{ matrix.mode }}
+          name: tier2-cost-${{ matrix.mode }}-${{ matrix.part }}
           path: .tier2-cost/ctest-cost-${{ matrix.mode }}.txt
           include-hidden-files: true
           retention-days: 1

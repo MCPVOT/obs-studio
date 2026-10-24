@@ -111,13 +111,14 @@ def execute(args: argparse.Namespace) -> None:
         if variant == 'prepared' and selection.records(inventory, '\t') != selection.records(descriptor['inventory'], '\t'):
             raise ValueError('Prepared runtime inventory differs from the producer')
         report = {'variant': variant, 'setup_seconds': time.monotonic() - started,
-                  'image': image or BASE, 'mode': args.mode, 'inventory_verified': True}
+                  'image': image or BASE, 'mode': args.mode, 'part': args.part, 'inventory_verified': True}
         (args.state / 'runtime-measurement.json').write_text(json.dumps(report, indent=2) + '\n')
         print(json.dumps(report), flush=True)
         subprocess.run(['docker', 'exec', '--workdir', SOURCE,
                         '--env', f'OBS_TIER2_SRC={SOURCE}', '--env', f'OBS_TIER2_BUILD={BUILD}',
                         '--env', f'OBS_TIER2_COST_DIR={COST}', '--env', 'OBS_TIER2_STAGE=test',
                         '--env', f'OBS_TIER2_MODES={args.mode}', '--env', 'OBS_CTEST_JOBS=8',
+                        '--env', f'OBS_CTEST_PART={args.part}',
                         ident, 'bash', f'{SOURCE}/rust/tools/linux-validate/validate.sh'], check=True)
     finally:
         command('docker', 'stop', '--timeout', '1', ident)
@@ -128,6 +129,7 @@ def main() -> None:
     for name in ('descriptor', 'packages', 'source', 'build', 'cost', 'uv', 'archives', 'state'):
         parser.add_argument('--' + name, type=Path, required=True)
     parser.add_argument('--mode', choices=('OFF', 'ON'), required=True)
+    parser.add_argument('--part', choices=('suite', 'serial'), required=True)
     args = parser.parse_args()
     if os.environ.get('GITHUB_ACTIONS') != 'true':
         parser.error('Docker execution requires a disposable CI runner; local Docker work uses bosn')

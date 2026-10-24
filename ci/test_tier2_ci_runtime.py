@@ -58,7 +58,7 @@ class RuntimeTest(unittest.TestCase):
             (root / 'packages.txt').write_text('a=1\n')
             args = argparse.Namespace(packages=root / 'packages.txt', descriptor=root / 'descriptor.json',
                                       state=root / 'state', cost=root / 'cost', source=root,
-                                      build=root, uv=root / 'uv', archives=root, mode='ON')
+                                      build=root, uv=root / 'uv', archives=root, mode='ON', part='suite')
             ident = 'b' * 64
 
             def command(*argv):
@@ -77,6 +77,7 @@ class RuntimeTest(unittest.TestCase):
                 self.assertIn('OBS_TIER2_MODES=ON', invocation)
                 self.assertIn('OBS_TIER2_STAGE=test', invocation)
                 self.assertIn('OBS_CTEST_JOBS=8', invocation)
+                self.assertIn('OBS_CTEST_PART=suite', invocation)
                 self.assertIn('OBS_TIER2_COST_DIR=' + runtime.COST, invocation)
                 self.assertEqual(commands.call_args.args, ('docker', 'stop', '--timeout', '1', ident))
                 report = json.loads((root / 'state/runtime-measurement.json').read_text())
