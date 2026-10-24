@@ -43,7 +43,11 @@ this document covers *who does what, and when*.
   `decision-needed` label (🚀, silent), from anyone. From the claimant it
   also counts as `Blocked:` (section 3). Only a maintainer clears it, with a
   `Decided:` comment (first line) or by removing the label; nobody else's
-  progress and no sweep removes it. The list of open decisions is
+  progress and no sweep removes it. The coordinator (obs-coordinator skill
+  §3b) researches each open decision every tick: it answers with `Decided:`
+  when the rules, docs or earlier decisions settle it, and otherwise moves
+  the issue to `human-review-needed`, the list that waits on the human
+  maintainer. The list of open decisions is
   [issues labeled `decision-needed`](https://github.com/obs-rust/obs-studio/issues?q=is%3Aopen+label%3Adecision-needed+sort%3Acreated-asc),
   oldest first. Non-public work never posts `Decision needed:` on a public
   issue; use a general `Blocked:` reason.

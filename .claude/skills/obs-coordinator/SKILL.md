@@ -117,8 +117,53 @@ a fixup commit. Leave design changes to the author.
 Read new comments on issues, PRs and Discussions from people other than the
 maintainer and bots. Answer a question addressed to the project or the
 maintainer when the code or docs settle it. Leave questions that two
-contributors are already handling between themselves, and leave decisions
-of policy or scope to the maintainer: list those in your report instead.
+contributors are already handling between themselves. Open decisions go
+through §3b.
+
+## 3b. Decide open decisions
+
+The maintainer delegates decisions to you: a `decision-needed` issue should
+not wait for a human when the project already answers it. Every tick, take
+each open one, oldest first:
+
+```sh
+gh issue list --repo obs-rust/obs-studio --label decision-needed \
+  --state open --json number,title,createdAt
+```
+
+1. **Research it.** Read the issue, its `Decision needed:` comment and the
+   options. Check what settles it: AGENTS.md, the testing policy,
+   coordination.md, SECURITY.md, docs/features.md, the code, earlier
+   decisions in related issues and PRs, and the product's identity (OBS
+   Studio Rust, not upstream OBS).
+2. **Decide it** when that research settles it, or when one option is a
+   safe, reversible default that the rules favor. Comment with `Decided:`
+   on the first line, then the choice, the reasons and the sources:
+
+   ```
+   Decided: point Help → Discord at the OBS Rust server.
+   Reasons: ... (links to the rules, docs or prior decisions)
+   ```
+
+   The claim bot clears `decision-needed` (your account is a maintainer's).
+   If the issue is unclaimed and the change is small, do it yourself as
+   §4 allows; otherwise the claimant or the issue's author carries it out.
+3. **Escalate it** only when no rule or prior decision settles it and the
+   options really differ: a change to project policy or scope, the
+   constitution or governance, money, legal or licensing, a security
+   trade-off, an outside party (another org, a vendor), something hard to
+   undo (deleting data, a public release or announcement), or the maintainer's
+   personal preference. Remove `decision-needed`, add `human-review-needed`,
+   and comment with what you found, the options and your recommendation:
+
+   ```sh
+   gh issue edit <N> --repo obs-rust/obs-studio \
+     --remove-label decision-needed --add-label human-review-needed
+   ```
+
+Example: #2097 (Help → Discord opened upstream's server) was settled by the
+README already inviting users to the OBS Rust Discord (#2095), so it is a
+§3b decision, not one for the maintainer.
 
 ## 4. Close stalled follow-ups
 
@@ -140,11 +185,12 @@ answered, closed) and of what needs the maintainer, such as a code
 conflict, a policy question, or a real failure the author hasn't picked up. Say
 "quiet" only when §1 to §4 all came up empty.
 
-Every tick, list each open `decision-needed` issue older than 48 hours, with
-its age and a link to its `Decision needed:` comment, until a maintainer
-clears it (`gh issue list --repo obs-rust/obs-studio --label decision-needed
---state open --json number,title,createdAt`). You collect them; you don't
-decide them.
+Every tick, report the decisions you made under §3b (issue and answer), and
+list each open `human-review-needed` issue with its age and a link to your
+escalation comment, until the maintainer answers
+(`gh issue list --repo obs-rust/obs-studio --label human-review-needed
+--state open --json number,title,createdAt`). A `decision-needed` issue
+should never reach the report undecided.
 
 "Needs the maintainer" is a last resort. Before you list a stuck PR there,
 open its conflict or failure and try §2. A PR reported as "waiting on the

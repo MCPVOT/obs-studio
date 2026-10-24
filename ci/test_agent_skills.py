@@ -42,6 +42,17 @@ class AgentSkillsTest(unittest.TestCase):
                 self.assertNotIn("branch or worktree", text)
                 self.assertNotIn("One clone per concurrent branch", text)
 
+    def test_coordinator_decides_or_escalates_open_decisions(self):
+        # The coordinator researches each `decision-needed` issue: it answers
+        # with `Decided:` when the rules, docs or code settle it, and moves
+        # the rest to `human-review-needed` for the maintainer.
+        text = (SKILLS / "obs-coordinator/SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("decision-needed", text)
+        self.assertIn("human-review-needed", text)
+        self.assertIn("Decided:", text)
+        self.assertNotIn("you don't\ndecide them", text)
+        self.assertNotIn("You collect them; you don't", text)
+
     def test_worker_loop_links_security_md(self):
         text = (SKILLS / "obs-worker-loop/SKILL.md").read_text(encoding="utf-8")
         self.assertRegex(text, r"\]\([./]*SECURITY\.md[#)]")
