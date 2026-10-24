@@ -17,6 +17,8 @@ mod service_lifecycle_parity;
 mod service_parity;
 mod service_settings;
 mod service_settings_parity;
+mod video_checks;
+mod video_checks_parity;
 
 use std::process::Command;
 use std::sync::Mutex;
