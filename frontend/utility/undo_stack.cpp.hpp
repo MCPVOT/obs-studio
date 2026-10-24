@@ -114,7 +114,9 @@ void undo_stack::enable_internal()
 {
 	last_is_repeatable = false;
 
-	ui->actionMainUndo->setDisabled(false);
+	if (undo_items.size() > 0) {
+		ui->actionMainUndo->setDisabled(false);
+	}
 	if (redo_items.size() > 0) {
 		ui->actionMainRedo->setDisabled(false);
 	}

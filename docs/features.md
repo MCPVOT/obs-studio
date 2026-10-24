@@ -1421,6 +1421,10 @@ area.
 
 ### Scenes and UI
 
+- Edit > Undo is no longer clickable when there is nothing to undo; it was
+  enabled again after loading a scene collection or closing the Filters
+  dialog, even with an empty history. *All*, 2026-10-24. Issue
+  [#2222](https://github.com/obs-rust/obs-studio/issues/2222).
 - Theme metadata, theme string variables and effect annotation strings that
   contain escape characters no longer end with a stray closing quote. *All*,
   2026-10-09. Issue [#48](https://github.com/obs-rust/obs-studio/issues/48),
