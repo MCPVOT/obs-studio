@@ -163,11 +163,15 @@ class Tier2VolumeTest(unittest.TestCase):
         self.assertEqual(a["/root/.cargo/registry"], b["/root/.cargo/registry"])
         self.assertEqual(a["/root/.cargo/git"], "obs-rust-linux-validate-cargo-git")
 
-    def test_zccache_is_shared(self):
+    def test_zccache_is_per_checkout(self):
+        # zccache's daemon socket lives in the cache dir and one daemon serves
+        # a cache root: a shared volume sent one checkout's compiles to another
+        # checkout's container and its /ro (#2028).
         a = self.docker_run_mounts(self.checkout("a"))
         b = self.docker_run_mounts(self.checkout("b"))
         self.assertIn("/zccache", a)
-        self.assertEqual(a["/zccache"], b["/zccache"])
+        self.assertRegex(a["/zccache"], r"^obs-rust-linux-validate-zccache-[0-9a-f]+$")
+        self.assertNotEqual(a["/zccache"], b["/zccache"])
 
     def test_zccache_dir_override(self):
         mounts = self.docker_run_mounts(self.checkout("a"), {"OBS_ZCCACHE_DIR": str(self.tmp / "zc")})

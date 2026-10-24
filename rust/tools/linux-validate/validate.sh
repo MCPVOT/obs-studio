@@ -115,7 +115,7 @@ cd "$SRC"
 # fresh clone or another worktree, whose mtimes differ, or a CI runner) from
 # recompiling OBS. ZCCACHE_CACHE_DIR defaults to the build volume; run.sh
 # points it at a host dir (OBS_ZCCACHE_DIR, which CI restores and saves with
-# actions/cache) or the shared zccache volume. The daemon starts on the first
+# actions/cache) or the checkout's zccache volume. The daemon starts on the first
 # compile; stop it on exit so its index is flushed to the cache dir.
 export ZCCACHE_CACHE_DIR="${ZCCACHE_CACHE_DIR:-$BUILD/zccache}"
 trap 'zccache stop >/dev/null 2>&1 || true' EXIT

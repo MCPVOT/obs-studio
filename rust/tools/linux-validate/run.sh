@@ -1,8 +1,8 @@
 #!/bin/bash
 # Usage: rust/tools/linux-validate/run.sh [--clean|--clean-all] [--wait]
 #                                         [--repeat N] [--tests REGEX]
-#   --clean        start this checkout's build volume over
-#   --clean-all    also drop the shared zccache and crate caches
+#   --clean        start this checkout's build and zccache volumes over
+#   --clean-all    also drop the shared crate caches
 #   --wait         if this checkout's Tier 2 is already running, wait for it
 #                  (otherwise a second run refuses: exit 75)
 #   --repeat N     after the normal ctest run, rerun the tests (or those
@@ -18,7 +18,8 @@
 # source; volumes the next run reattaches:
 #   obs-rust-linux-validate-build-<id>  build trees: CMake, objects, cargo's
 #                                       target dir (override: OBS_TIER2_VOLUME)
-#   obs-rust-linux-validate-zccache     shared compiler cache (zccache)
+#   obs-rust-linux-validate-zccache-<id>
+#                                       compiler cache (zccache)
 #   obs-rust-linux-validate-cargo-registry, -cargo-git
 #                                       shared crate downloads
 # The image is tagged by content hash; only the newest three are kept. Each
@@ -50,13 +51,15 @@ fi
 # OBS_TIER2_VOLUME overrides its name.
 task=(--stack-volume "build:/build${OBS_TIER2_VOLUME:+:$OBS_TIER2_VOLUME}")
 # OBS_ZCCACHE_DIR: host directory for the zccache compiler cache (CI restores/saves it
-# with actions/cache). Unset, every checkout shares one zccache volume, so a
-# new checkout does not start cold.
+# with actions/cache). Unset, each checkout has its own zccache volume: zccache
+# keeps its daemon socket in the cache dir and allows one daemon per cache, so
+# with a shared volume one checkout's compiles ran in another checkout's
+# container, against that container's /ro (#2028).
 if [ -n "${OBS_ZCCACHE_DIR:-}" ]; then
   mkdir -p "$OBS_ZCCACHE_DIR"
   task+=(--mount "$OBS_ZCCACHE_DIR:/zccache")
 else
-  task+=(--machine-volume zccache:/zccache)
+  task+=(--stack-volume zccache:/zccache)
 fi
 task+=(--env ZCCACHE_CACHE_DIR=/zccache)
 # OBS_CTEST_JOBS: ctest parallelism (default 1). CI sets it: the 247 tests run
