@@ -12,7 +12,6 @@
   "libobs/build/libobs-ported-media.pch.h": 2,
   "libobs/build/libobs-util.pch.h": 2,
   "libobs/graphics/device-exports.h": 2,
-  "libobs/graphics/graphics.c.h": 3,
   "libobs/media-io/audio-io.c.h": 2,
   "libobs/media-io/audio-math.h": 2,
   "libobs/media-io/media-remux.c.h": 1,
