@@ -1,0 +1,22 @@
+{
+  "12650": ["yes", "Removed a launch flag that background setups relied on in 32.0, said \"that decision has already been made\", called OBS \"not supported to be\" headless, then locked the thread as \"resolved\"."],
+  "3555": ["yes", "Staff traced it to Sunplus OEM cameras and said the next step was buying an affected machine. Two years later it was closed as stale, blamed on hardware, and locked."],
+  "4191": ["yes", "Left open with 184 comments, but comments were deleted, reporters were called \"combative\", the problem was blamed on users' systems, and the thread was locked as off-topic."],
+  "2724": ["yes", "Staff traced the scene-collection corruption to an OBS commit (c0e2e7f) and called it \"a priority\", then closed it by blaming a third-party plugin."],
+  "3148": ["yes", "Staff member Gol-D-Ace reproduced it in 2020, and users still saw it in 30.0.2, but it was closed in the 2024-10-14 sweep as a \"catch-all\"."],
+  "2949": ["yes", "Users found a full-screen repro and a workaround. The issue was closed on 2024-10-14 as \"permissions, not a bug\" with no log showing that."],
+  "2933": ["yes", "Staff confirmed it on 26 RC1 and again on 28 (\"still an issue\"), and a user posted local repro steps. Closed as stale on 2024-10-14."],
+  "3387": ["yes", "Staff wrote \"The issue is valid\" and users confirmed it on RC builds. Closed as stale on 2024-10-14."],
+  "3060": ["yes", "Staff said \"the pain point is felt on our end as well\" and were looking at fixes in 2022. Closed on 2024-10-14 as \"not a bug and working as intended\"."],
+  "13685": ["yes", "Release 32.2 quietly raised the NVENC driver minimum to 570. Staff first denied dropping anything, told reporters they \"refuse to follow the process\", and closed it as \"nothing actionable\"."],
+  "9285": ["yes", "A regression from 29.0.2 was put down to \"just how compositing works\", with \"No amount of 'I don't like your answer' will change it\", and the thread was locked as too heated."],
+  "11478": ["yes", "Flatpak shipped on an end-of-life runtime. Staff called it \"an overly dramatic warning\", closed it as not planned even though it was planned, and locked it when users raised security fixes."],
+  "7451": ["borderline", "AMF full range on streams: locked as too heated two days after it opened. Staff did cite their Twitch contacts."],
+  "4011": ["borderline", "macOS display capture: closed as stale on 2024-10-14. Staff, who now use Apple Silicon, could not reproduce it on Intel."],
+  "4354": ["borderline", "Screen tearing: closed as stale on 2024-10-14 after users said they could only work around it by downgrading."],
+  "8928": ["borderline", "Screen capture stops after sleep: closed as \"intended behavior\". Users have written three scripts to work around it."],
+  "3664": ["borderline", "Monitor latency: staff agree the design \"serves neither purpose\" but closed it because it works \"as implemented\"."],
+  "7260": ["borderline", "V28 theme: \"'I don't like it' isn't a valid bug report\", though staff did point users to the old theme."],
+  "11029": ["borderline", "Plugins load twice when lib is a symlink: put down to how the distro packages OBS, after a user showed Arch lays out its directories the same way."],
+  "12338": ["borderline", "Installer fails while GPU software holds DLLs: \"not a bug with OBS\", although staff later called the fix valid."]
+}

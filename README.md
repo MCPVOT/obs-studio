@@ -127,3 +127,11 @@ doesn't load, run the AppImage from a terminal and the log will say why.
 Then file an issue as above.
 
 Want to see the original README from OBS Project? [Click here](README.upstream.md).
+
+# 🏆 The Upstream OBS Hall of Fame
+
+Bugs they confirmed, then closed. Features you relied on, then removed.
+Twelve upstream threads where users showed up in numbers and were turned
+away anyway. Six of them were closed as stale on a single afternoon.
+
+**[See who made the cut →](docs/hall-of-fame.md)**
