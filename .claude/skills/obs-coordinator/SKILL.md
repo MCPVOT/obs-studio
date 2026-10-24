@@ -17,6 +17,13 @@ the coordinator role (AGENTS.md says so).
 A tick is never "quiet" while any item in §1 to §4 has work left. Check all
 four every tick before reporting.
 
+The rest of the org (obs-deps, obs-browser, obs-websocket,
+obs-studio-libs, ...) is in the same tick: after §1 to §4 here, run the
+org sweep in the `obs-org-coordinator` skill, which lives in
+[obs-rust/.github](https://github.com/obs-rust/.github/blob/master/.claude/skills/obs-org-coordinator/SKILL.md)
+(`gh api repos/obs-rust/.github/contents/.claude/skills/obs-org-coordinator/SKILL.md -H 'Accept: application/vnd.github.raw'`),
+and report each repo in §5.
+
 ## 1. Queue every ready PR
 
 Ready means open, not a draft, every check green, and `mergeStateStatus`

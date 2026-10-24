@@ -79,6 +79,11 @@ Rank what is left:
 
 Close a tracker whose children are all closed while you are there.
 
+When obs-studio has nothing ranked 1 or 2, look at the other org repos too.
+The `obs-org-worker` skill in
+[obs-rust/.github](https://github.com/obs-rust/.github/blob/master/.claude/skills/obs-org-worker/SKILL.md)
+ranks issues across the org and covers repos with no worker skill of their own.
+
 ## 3. Stale claims
 
 A claim past its window (48 h, 8 h on `critical`, 7 days with
