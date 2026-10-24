@@ -2407,6 +2407,12 @@ static void obs_output_end_data_capture_internal(obs_output_t *output, bool sign
 
 	join_end_data_capture_thread(output);
 
+	/* Before the thread below starts: stopping the encoders clears the last
+	 * errors that the stop signal reports (#2098). */
+	struct calldata params = {0};
+	if (signal)
+		stop_params_init(output, &params);
+
 	os_atomic_set_bool(&output->end_data_capture_thread_active, true);
 	ret = pthread_create(&output->end_data_capture_thread, NULL, end_data_capture_thread, output);
 	if (ret != 0) {
@@ -2420,7 +2426,7 @@ static void obs_output_end_data_capture_internal(obs_output_t *output, bool sign
 	}
 
 	if (signal) {
-		signal_stop(output);
+		signal_stop_params(output, &params);
 		output->stop_code = OBS_OUTPUT_SUCCESS;
 	}
 }
