@@ -219,70 +219,10 @@ struct gs_exports {
 
 	uint32_t (*gs_get_adapter_count)(void);
 
-#ifdef __APPLE__
-	/* OSX/Cocoa specific functions */
-	gs_texture_t *(*device_texture_create_from_iosurface)(gs_device_t *dev, void *iosurf);
-	gs_texture_t *(*device_texture_open_shared)(gs_device_t *dev, uint32_t handle);
-	bool (*gs_texture_rebind_iosurface)(gs_texture_t *texture, void *iosurf);
-	bool (*device_shared_texture_available)(void);
-
-#elif defined(_WIN32)
-	bool (*device_gdi_texture_available)(void);
-	bool (*device_shared_texture_available)(void);
-
-	bool (*device_get_duplicator_monitor_info)(gs_device_t *device, int monitor_idx,
-						   struct gs_monitor_info *monitor_info);
-	int (*device_duplicator_get_monitor_index)(gs_device_t *device, void *monitor);
-
-	gs_duplicator_t *(*device_duplicator_create)(gs_device_t *device, int monitor_idx);
-	void (*gs_duplicator_destroy)(gs_duplicator_t *duplicator);
-
-	bool (*gs_duplicator_update_frame)(gs_duplicator_t *duplicator);
-	gs_texture_t *(*gs_duplicator_get_texture)(gs_duplicator_t *duplicator);
-	enum gs_color_space (*gs_duplicator_get_color_space)(gs_duplicator_t *duplicator);
-	float (*gs_duplicator_get_sdr_white_level)(gs_duplicator_t *duplicator);
-
-	bool (*device_can_adapter_fast_clear)(gs_device_t *device);
-
-	gs_texture_t *(*device_texture_create_gdi)(gs_device_t *device, uint32_t width, uint32_t height);
-
-	void *(*gs_texture_get_dc)(gs_texture_t *gdi_tex);
-	void (*gs_texture_release_dc)(gs_texture_t *gdi_tex);
-
-	gs_texture_t *(*device_texture_open_shared)(gs_device_t *device, uint32_t handle);
-	gs_texture_t *(*device_texture_open_nt_shared)(gs_device_t *device, uint32_t handle);
-	uint32_t (*device_texture_get_shared_handle)(gs_texture_t *tex);
-	gs_texture_t *(*device_texture_wrap_obj)(gs_device_t *device, void *obj);
-	int (*device_texture_acquire_sync)(gs_texture_t *tex, uint64_t key, uint32_t ms);
-	int (*device_texture_release_sync)(gs_texture_t *tex, uint64_t key);
-
-	gs_stagesurf_t *(*device_stagesurface_create_nv12)(gs_device_t *device, uint32_t width, uint32_t height);
-	gs_stagesurf_t *(*device_stagesurface_create_p010)(gs_device_t *device, uint32_t width, uint32_t height);
-	void (*device_register_loss_callbacks)(gs_device_t *device, const struct gs_device_loss *callbacks);
-	void (*device_unregister_loss_callbacks)(gs_device_t *device, void *data);
-#elif defined(__linux__) || defined(__FreeBSD__) || defined(__DragonFly__)
-	struct gs_texture *(*device_texture_create_from_dmabuf)(gs_device_t *device, unsigned int width,
-								unsigned int height, uint32_t drm_format,
-								enum gs_color_format color_format, uint32_t n_planes,
-								const int *fds, const uint32_t *strides,
-								const uint32_t *offsets, const uint64_t *modifiers);
-	bool (*device_query_dmabuf_capabilities)(gs_device_t *device, enum gs_dmabuf_flags *dmabuf_flags,
-						 uint32_t **drm_formats, size_t *n_formats);
-	bool (*device_query_dmabuf_modifiers_for_format)(gs_device_t *device, uint32_t drm_format, uint64_t **modifiers,
-							 size_t *n_modifiers);
-	struct gs_texture *(*device_texture_create_from_pixmap)(gs_device_t *device, uint32_t width, uint32_t height,
-								enum gs_color_format color_format, uint32_t target,
-								void *pixmap);
-	bool (*device_query_sync_capabilities)(gs_device_t *device);
-	gs_sync_t *(*device_sync_create)(gs_device_t *device);
-	gs_sync_t *(*device_sync_create_from_syncobj_timeline_point)(gs_device_t *device, int syncobj_fd,
-								     uint64_t timeline_point);
-	void (*device_sync_destroy)(gs_device_t *device, gs_sync_t *sync);
-	bool (*device_sync_export_syncobj_timeline_point)(gs_device_t *device, gs_sync_t *sync, int syncobj_fd,
-							  uint64_t timeline_point);
-	bool (*device_sync_signal_syncobj_timeline_point)(gs_device_t *device, int syncobj_fd, uint64_t timeline_point);
-	bool (*device_sync_wait)(gs_device_t *device, gs_sync_t *sync);
-#endif
+	/* The host's own entry points (#872): each list guards itself. */
+#include "graphics-exports-macos.h"
+#include "graphics-exports-windows.h"
+#include "graphics-exports-linux.h"
 };
 
 /* ========================================================================= *

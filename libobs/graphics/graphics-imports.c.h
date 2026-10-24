@@ -206,52 +206,10 @@ bool load_graphics_imports(struct gs_exports *exports, void *module, const char 
 
 	GRAPHICS_IMPORT_OPTIONAL(gs_get_adapter_count);
 
-	/* OSX/Cocoa specific functions */
-#ifdef __APPLE__
-	GRAPHICS_IMPORT(device_shared_texture_available);
-	GRAPHICS_IMPORT(device_texture_open_shared);
-	GRAPHICS_IMPORT(device_texture_create_from_iosurface);
-	GRAPHICS_IMPORT(gs_texture_rebind_iosurface);
-
-	/* win32 specific functions */
-#elif defined(_WIN32)
-	GRAPHICS_IMPORT(device_gdi_texture_available);
-	GRAPHICS_IMPORT(device_shared_texture_available);
-	GRAPHICS_IMPORT_OPTIONAL(device_get_duplicator_monitor_info);
-	GRAPHICS_IMPORT_OPTIONAL(device_duplicator_get_monitor_index);
-	GRAPHICS_IMPORT_OPTIONAL(device_duplicator_create);
-	GRAPHICS_IMPORT_OPTIONAL(gs_duplicator_destroy);
-	GRAPHICS_IMPORT_OPTIONAL(gs_duplicator_update_frame);
-	GRAPHICS_IMPORT_OPTIONAL(gs_duplicator_get_texture);
-	GRAPHICS_IMPORT_OPTIONAL(gs_duplicator_get_color_space);
-	GRAPHICS_IMPORT_OPTIONAL(gs_duplicator_get_sdr_white_level);
-	GRAPHICS_IMPORT_OPTIONAL(device_can_adapter_fast_clear);
-	GRAPHICS_IMPORT_OPTIONAL(device_texture_create_gdi);
-	GRAPHICS_IMPORT_OPTIONAL(gs_texture_get_dc);
-	GRAPHICS_IMPORT_OPTIONAL(gs_texture_release_dc);
-	GRAPHICS_IMPORT_OPTIONAL(device_texture_open_shared);
-	GRAPHICS_IMPORT_OPTIONAL(device_texture_open_nt_shared);
-	GRAPHICS_IMPORT_OPTIONAL(device_texture_get_shared_handle);
-	GRAPHICS_IMPORT_OPTIONAL(device_texture_wrap_obj);
-	GRAPHICS_IMPORT_OPTIONAL(device_texture_acquire_sync);
-	GRAPHICS_IMPORT_OPTIONAL(device_texture_release_sync);
-	GRAPHICS_IMPORT_OPTIONAL(device_stagesurface_create_nv12);
-	GRAPHICS_IMPORT_OPTIONAL(device_stagesurface_create_p010);
-	GRAPHICS_IMPORT_OPTIONAL(device_register_loss_callbacks);
-	GRAPHICS_IMPORT_OPTIONAL(device_unregister_loss_callbacks);
-#elif defined(__linux__) || defined(__FreeBSD__) || defined(__DragonFly__)
-	GRAPHICS_IMPORT(device_texture_create_from_dmabuf);
-	GRAPHICS_IMPORT(device_query_dmabuf_capabilities);
-	GRAPHICS_IMPORT(device_query_dmabuf_modifiers_for_format);
-	GRAPHICS_IMPORT(device_texture_create_from_pixmap);
-	GRAPHICS_IMPORT(device_query_sync_capabilities);
-	GRAPHICS_IMPORT(device_sync_create);
-	GRAPHICS_IMPORT(device_sync_create_from_syncobj_timeline_point);
-	GRAPHICS_IMPORT(device_sync_destroy);
-	GRAPHICS_IMPORT(device_sync_export_syncobj_timeline_point);
-	GRAPHICS_IMPORT(device_sync_signal_syncobj_timeline_point);
-	GRAPHICS_IMPORT(device_sync_wait);
-#endif
+	/* The host's own entry points (#872): each list guards itself. */
+#include "libobs/graphics/graphics-imports-macos.h"
+#include "libobs/graphics/graphics-imports-windows.h"
+#include "libobs/graphics/graphics-imports-linux.h"
 
 	return success;
 }
