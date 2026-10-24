@@ -68,16 +68,12 @@ void obs_hotkeys_set_translations_s(struct obs_hotkeys_translations *translation
 	ADD_TRANSLATION(OBS_KEY_MENU, menu);
 	ADD_TRANSLATION(OBS_KEY_SPACE, space);
 	ADD_TRANSLATION(OBS_KEY_ESCAPE, escape);
-#ifdef __APPLE__
-	const char *numpad_str = t.apple_keypad_num;
-	ADD_TRANSLATION(OBS_KEY_NUMSLASH, apple_keypad_divide);
-	ADD_TRANSLATION(OBS_KEY_NUMASTERISK, apple_keypad_multiply);
-	ADD_TRANSLATION(OBS_KEY_NUMMINUS, apple_keypad_minus);
-	ADD_TRANSLATION(OBS_KEY_NUMPLUS, apple_keypad_plus);
-	ADD_TRANSLATION(OBS_KEY_NUMPERIOD, apple_keypad_decimal);
-	ADD_TRANSLATION(OBS_KEY_NUMEQUAL, apple_keypad_equal);
-#else
-	const char *numpad_str = t.numpad_num;
+	/* macOS names its keypad keys (#870): the list defines OBS_HOTKEY_NUMPAD_HOST
+	 * there, and the shared numpad names apply everywhere else. */
+	const char *numpad_str;
+#include "libobs/obs-hotkey-translations-macos.h"
+#ifndef OBS_HOTKEY_NUMPAD_HOST
+	numpad_str = t.numpad_num;
 	ADD_TRANSLATION(OBS_KEY_NUMSLASH, numpad_divide);
 	ADD_TRANSLATION(OBS_KEY_NUMASTERISK, numpad_multiply);
 	ADD_TRANSLATION(OBS_KEY_NUMMINUS, numpad_minus);
@@ -169,3 +165,4 @@ void obs_hotkeys_set_translations_s(struct obs_hotkeys_translations *translation
 #undef ADD_TRANSLATION
 #undef ADD_NUMPAD_NUM
 #undef ADD_MOUSE_NUM
+#undef OBS_HOTKEY_NUMPAD_HOST

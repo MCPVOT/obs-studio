@@ -17,13 +17,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "libobs/build/libobs-ported-audio-controls.pch.h"
 
-/* These are pointless warnings generated not by our code, but by a standard
- * library macro, INFINITY */
-#ifdef _MSC_VER
-#pragma warning(disable : 4056)
-#pragma warning(disable : 4756)
-#endif
-
 #define CLAMP(x, min, max) ((x) < min ? min : ((x) > max ? max : (x)))
 
 struct fader_cb {

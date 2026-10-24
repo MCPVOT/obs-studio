@@ -32,6 +32,13 @@ include(cmake/sources.cmake)
 set_target_properties(libobs-objects PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
 target_sources(libobs-objects PRIVATE ${LIBOBS_SOURCES})
 obs_libobs_add_c_sources(${LIBOBS_PORTED_SOURCES})
+# MSVC warns about INFINITY (a standard library macro) in obs-audio-controls.c
+# (#870; was a pragma in the file).
+set_property(
+  SOURCE build/libobs.ported-audio-controls+.h.c
+  APPEND
+  PROPERTY COMPILE_OPTIONS "$<$<C_COMPILER_ID:MSVC>:/wd4056;/wd4756>"
+)
 # libobs-version and libobs-core-modules are object libraries too, and CMake
 # adds an object library's objects only to targets that link it directly, so
 # each shared library links them itself (libobs-objects gets their headers).
