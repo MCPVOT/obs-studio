@@ -1,4 +1,6 @@
-//! Rust ports of `libobs/graphics`.
+//! Rust ports of `libobs/graphics`, and of the units extracted from
+//! `libobs/graphics/graphics.c.h`: so far `graphics-sprite.c.h`, the sprite
+//! and texture upload geometry ([`sprite`]).
 //!
 //! Safe cores live at the crate root; the C ABI shims that replace the
 //! original `EXPORT` symbols live in [`ffi`]. See
@@ -25,6 +27,7 @@ pub mod quat;
 mod round;
 pub mod shader_param_names;
 pub mod shader_sampler_convert;
+pub mod sprite;
 pub mod texture_render;
 pub mod vec2;
 pub mod vec3;

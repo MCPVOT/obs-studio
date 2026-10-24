@@ -2509,6 +2509,29 @@
         "OBS::native-test-cmocka"
       ]
     },
+    "test_sprite_geometry_steps": {
+      "sources": [
+        "test/cmocka/test_sprite_geometry_steps.c",
+        "libobs/graphics/graphics-sprite.c.h"
+      ],
+      "includes": [
+        "libobs",
+        "deps/libcaption"
+      ],
+      "libraries": [
+        "OBS::libobs",
+        "OBS::caption",
+        "Uthash::Uthash",
+        "OBS::native-test-cmocka",
+        {
+          "name": "m",
+          "requires": {
+            "not": "MSVC"
+          }
+        }
+      ],
+      "sanitizers": "address,undefined"
+    },
     "test_studio_mode_exit": {
       "sources": [
         "test/cmocka/test_studio_mode_exit.c",
@@ -4027,6 +4050,12 @@
           "-s",
           "-screen 0 1280x1024x24 -noreset"
         ]
+      ]
+    },
+    "test_sprite_geometry_steps": {
+      "target": "test_sprite_geometry_steps",
+      "command": [
+        "${target}"
       ]
     },
     "test_studio_mode_exit": {
