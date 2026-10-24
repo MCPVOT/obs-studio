@@ -66,7 +66,9 @@ don't delete local branches you didn't create.
    PR does not depend on an unresolved answer (for example, a pure Rust core
    with Tier 1 tests first; UI, protocol fields and logging in follow-ups).
    A question you cannot pick a safe default for goes on the issue as
-   **Decision needed:** and that part waits. An idea with no agreed design
+   **Decision needed:** and that part waits: the claim bot labels it
+   `decision-needed` and blocks your claim for 7 days (renewed by each new
+   one) until a maintainer answers `Decided:`. An idea with no agreed design
    belongs in Discussions, not an issue (coordination.md section 5).
    Protocol additions (obs-websocket) are additive fields only.
 5. **Security bug?** Apply the two tiers in

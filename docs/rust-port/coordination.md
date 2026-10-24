@@ -36,7 +36,17 @@ this document covers *who does what, and when*.
   claim comment under **Decisions:** (the default you will build and why),
   and order the PRs so the first one does not depend on an unresolved
   answer. A question with no safe default is posted as **Decision needed:**
-  on the issue, and the work that depends on it waits for an answer.
+  on the issue, and the work that depends on it waits for an answer. Use it
+  only for that; a question with a safe default goes under **Decisions:**.
+- **Open decisions:** a line that starts with `Decision needed:` (bold or a
+  heading marker before it is fine) makes the claim bot add the
+  `decision-needed` label (🚀, silent), from anyone. From the claimant it
+  also counts as `Blocked:` (section 3). Only a maintainer clears it, with a
+  `Decided:` comment (first line) or by removing the label; nobody else's
+  progress and no sweep removes it. The list of open decisions is
+  [issues labeled `decision-needed`](https://github.com/obs-rust/obs-studio/issues?q=is%3Aopen+label%3Adecision-needed+sort%3Acreated-asc),
+  oldest first. Non-public work never posts `Decision needed:` on a public
+  issue; use a general `Blocked:` reason.
 
 ## 3. Keeping or releasing a claim
 
@@ -59,6 +69,8 @@ this document covers *who does what, and when*.
   `Blocked: <reason>` (or `/blocked <reason>`). Only the claimant can; the bot
   adds `claim-blocked` (🚀) and the claim lasts 7 days from that comment. A
   new `Blocked:` comment renews it; a takeover in the meantime is refused.
+  A claimant's `Decision needed:` comment (section 2) blocks and renews the
+  same way.
   Keep the reason general ("waiting on a maintainer", "waiting on #N",
   "waiting on non-public work"). Any other progress (an issue comment, a
   commit, comment or review on your PR) removes the label and the normal

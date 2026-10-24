@@ -25,6 +25,13 @@ Commands, read from the first line of an issue comment:
   Blocked: <reason>, /blocked <reason>
                                      the claimant marks the claim `claim-blocked`:
                                      it waits on something outside their control
+  Decided: <answer>                 maintainers clear `decision-needed`
+
+Read from any line of a comment (#2057):
+  Decision needed: <question>       anyone adds `decision-needed` (markdown
+                                     emphasis or a heading marker may come
+                                     first). From the claimant it also counts
+                                     as `Blocked:`.
 
 A claim goes stale after STALE_HOURS (CRITICAL_STALE_HOURS on issues labeled
 `critical`) with no comment from the claimant on the issue and no commit,
@@ -37,6 +44,10 @@ claimant's last `Blocked:` comment instead; a new one renews it. Any other
 progress by the claimant (an issue comment, activity on their PR) or a
 release, handoff or reassignment removes `claim-blocked`, and the normal
 timer applies again.
+
+`decision-needed` (#2057) lists questions that wait on the maintainer. Only a
+maintainer's `Decided:` (or removing the label) clears it; the claimant's
+progress and the sweep leave it alone.
 
 State lives in the visible history: no `claimed` label means no claim;
 otherwise the latest command the bot reacted to with REACTION decides (see
@@ -63,6 +74,7 @@ CLAIMED = "claimed"
 CRITICAL = "critical"
 LOCKED = "claim-locked"
 BLOCKED = "claim-blocked"
+DECISION = "decision-needed"
 STALE_HOURS = 48
 CRITICAL_STALE_HOURS = 8
 BLOCKED_STALE_HOURS = 7 * 24
@@ -74,6 +86,11 @@ RELEASE_RE = re.compile(r"^\s*releasing\b", re.I)
 TAKEOVER_RE = re.compile(r"^\s*taking over stale claim from @([A-Za-z0-9-]+)", re.I)
 REASSIGN_RE = re.compile(r"^\s*/reassign\s+@([A-Za-z0-9-]+)", re.I)
 BLOCKED_RE = re.compile(r"^\s*(?:blocked\s*:|/blocked\b)", re.I)
+# `Decision needed:` at the start of any line, after optional heading or
+# emphasis markers (`**Decision needed:**`, `### Decision needed:`), never in
+# running text.
+DECISION_RE = re.compile(r"^\s*(?:#{1,6}\s+)?[*_]{0,3}\s*decision\s+needed\s*[*_]{0,3}\s*:", re.I | re.M)
+DECIDED_RE = re.compile(r"^\s*[*_]{0,3}\s*decided\s*[*_]{0,3}\s*:", re.I)
 # A handoff: the holder names who takes the claim, in one comment. This only
 # recognises the shape of the line so the event gate routes it here; the
 # target itself comes from handoff_target().
@@ -209,15 +226,32 @@ def blocked_since(issue: Issue, claim: Claim) -> datetime | None:
     if BLOCKED not in issue.labels:
         return None
     mine = [c for c in issue.comments if c.author.lower() == claim.user.lower() and c.created >= claim.since]
-    blocked = [c.created for c in mine if BLOCKED_RE.match(c.first_line())]
+    blocked = [c.created for c in mine if blocks(c)]
     if not blocked:
         return None
     since = max(blocked)
-    progress = [c.created for c in mine if not BLOCKED_RE.match(c.first_line())]
+    progress = [c.created for c in mine if not blocks(c)]
     for pr in issue.prs:
         if pr.author.lower() == claim.user.lower():
             progress += pr.activity
     return None if any(t > since for t in progress) else since
+
+
+def asks_decision(body: str) -> bool:
+    return bool(DECISION_RE.search(body))
+
+
+def blocks(c: Comment) -> bool:
+    """A claimant comment that marks (or renews) the claim as blocked: a
+    `Blocked:` command, or a `Decision needed:` question (#2057)."""
+    return bool(BLOCKED_RE.match(c.first_line())) or asks_decision(c.body)
+
+
+def handles(body: str, labels: set[str]) -> bool:
+    """Whether a new comment can lead to an action (the event gate)."""
+    line = body.strip().splitlines()[0] if body.strip() else ""
+    return any(r.match(line) for r in COMMANDS) or bool(DECIDED_RE.match(line)) \
+        or asks_decision(body) or BLOCKED in labels
 
 
 def stale_window(issue: Issue, claim: Claim) -> tuple[datetime, timedelta]:
@@ -240,6 +274,25 @@ def decide_comment(issue: Issue, comment: Comment, now: datetime) -> list[tuple]
     handles hoarding."""
     if is_bot(comment.author) or LOCKED in issue.labels:
         return []
+    line = comment.first_line()
+    who = comment.author
+    if DECIDED_RE.match(line):
+        if comment.association not in MAINTAINERS:
+            return reject(who, "only maintainers can mark a question `Decided:`.")
+        return [("label_remove", DECISION), ("react", comment.id)]
+    acts = decide_command(issue, comment, now)
+    if not asks_decision(comment.body) or any(a[0] == "comment" for a in acts):
+        return acts
+    # A question for the maintainer: label it; the claimant's also blocks the claim.
+    claim = current_claim(issue)
+    mine = claim is not None and claim.user.lower() == who.lower()
+    extra = [("label_add", DECISION)] + ([("label_add", BLOCKED)] if mine else [])
+    acts = [a for a in acts if not (mine and a == ("label_remove", BLOCKED)) and a[0] != "react"]
+    return extra + [a for a in acts if a not in extra] + [("react", comment.id)]
+
+
+def decide_command(issue: Issue, comment: Comment, now: datetime) -> list[tuple]:
+    """Actions for a first-line command (or claimant progress)."""
     line = comment.first_line()
     claim = current_claim(issue)
     who = comment.author
@@ -421,10 +474,9 @@ def main() -> int:
             return 0
         c = event["comment"]
         comment = Comment(c["user"]["login"], c["author_association"], c["body"] or "", ts(c["created_at"]), c["id"])
-        line = comment.first_line()
         labels = {l["name"] for l in event["issue"].get("labels", [])}
         # A blocked claim also hears its claimant's plain comments: they clear it.
-        if is_bot(comment.author) or not (any(r.match(line) for r in COMMANDS) or BLOCKED in labels):
+        if is_bot(comment.author) or not handles(comment.body, labels):
             return 0
         number = event["issue"]["number"]
         issue = load_issue(number)

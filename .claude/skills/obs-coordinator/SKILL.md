@@ -140,6 +140,12 @@ answered, closed) and of what needs the maintainer, such as a code
 conflict, a policy question, or a real failure the author hasn't picked up. Say
 "quiet" only when §1 to §4 all came up empty.
 
+Every tick, list each open `decision-needed` issue older than 48 hours, with
+its age and a link to its `Decision needed:` comment, until a maintainer
+clears it (`gh issue list --repo obs-rust/obs-studio --label decision-needed
+--state open --json number,title,createdAt`). You collect them; you don't
+decide them.
+
 "Needs the maintainer" is a last resort. Before you list a stuck PR there,
 open its conflict or failure and try §2. A PR reported as "waiting on the
 maintainer" tick after tick without anyone looking at it is a coordinator

@@ -413,6 +413,79 @@ class BlockedTest(unittest.TestCase):
         self.assertEqual(cb.decide_sweep(i, h(1)), [("label_remove", cb.BLOCKED)])
 
 
+class DecisionTest(unittest.TestCase):
+    """A `decision-needed` label for questions that wait on the maintainer (#2057)."""
+
+    def decide(self, i, c, at=None):
+        acts = cb.decide_comment(i, c, at or c.created)
+        return acts, applied(i, c, acts)
+
+    def test_decision_line_sets_the_label_silently(self):
+        for body in ("Decision needed: A or B?",
+                     "Plan below.\n\n**Decision needed:** A or B?",
+                     "Notes\n### Decision needed: A or B?",
+                     "**Decision needed**: A or B?"):
+            with self.subTest(body=body):
+                c = human("bob", body, h(1))
+                acts = cb.decide_comment(issue(), c, h(1))
+                self.assertEqual(acts, [("label_add", cb.DECISION), ("react", c.id)])
+
+    def test_anyone_can_set_it_on_a_claimed_issue(self):
+        c = human("bob", "Review note.\nDecision needed: keep the C fallback?", h(1))
+        acts = cb.decide_comment(claimed_by_alice(), c, h(1))
+        self.assertEqual(acts, [("label_add", cb.DECISION), ("react", c.id)])
+
+    def test_running_text_does_not_set_it(self):
+        for body in ("There is no decision needed: the default is safe.",
+                     "We said decision needed: later, maybe."):
+            with self.subTest(body=body):
+                self.assertEqual(cb.decide_comment(issue(), human("bob", body, h(1)), h(1)), [])
+
+    def test_maintainer_decided_clears_it(self):
+        i = issue(labels=(cb.DECISION,))
+        c = human("zed", "Decided: B.", h(2), assoc="OWNER")
+        self.assertEqual(cb.decide_comment(i, c, h(2)), [("label_remove", cb.DECISION), ("react", c.id)])
+
+    def test_non_maintainer_decided_is_refused(self):
+        i = issue(labels=(cb.DECISION,))
+        acts = cb.decide_comment(i, human("bob", "Decided: B.", h(2)), h(2))
+        self.assertTrue(rejected(acts, "bob"), acts)
+        self.assertIn("maintainer", acts[0][1])
+
+    def test_claimant_decision_also_blocks_the_claim(self):
+        i = claimed_by_alice()
+        c = human("alice", "Port plan.\nDecision needed: drop the Windows path?", h(1))
+        acts, i = self.decide(i, c)
+        self.assertCountEqual(acts, [("label_add", cb.DECISION), ("label_add", cb.BLOCKED), ("react", c.id)])
+        self.assertEqual(cb.decide_sweep(i, h(100)), [])
+        self.assertCountEqual(cb.decide_sweep(i, h(1 + cb.BLOCKED_STALE_HOURS)),
+                              [("label_remove", cb.BLOCKED), ("label_remove", cb.CLAIMED)])
+
+    def test_a_new_decision_comment_renews_the_blocked_timer(self):
+        i = claimed_by_alice()
+        _, i = self.decide(i, human("alice", "Decision needed: A or B?", h(1)))
+        _, i = self.decide(i, human("alice", "Still open.\nDecision needed: A or B?", h(150)))
+        self.assertEqual(cb.decide_sweep(i, h(1 + cb.BLOCKED_STALE_HOURS + 10)), [])
+
+    def test_claimant_progress_clears_blocked_but_keeps_the_decision(self):
+        i = claimed_by_alice()
+        _, i = self.decide(i, human("alice", "Decision needed: A or B?", h(1)))
+        acts = cb.decide_comment(i, human("alice", "Went ahead with the parts that don't depend on it", h(5)), h(5))
+        self.assertEqual(acts, [("label_remove", cb.BLOCKED)])
+
+    def test_the_sweep_never_removes_it(self):
+        i = claimed_by_alice(labels=(cb.CLAIMED, cb.DECISION))
+        acts = cb.decide_sweep(i, h(cb.STALE_HOURS + 1))
+        self.assertNotIn(("label_remove", cb.DECISION), acts)
+        self.assertEqual(cb.decide_sweep(issue(labels=(cb.DECISION,)), h(1000)), [])
+
+    def test_the_event_gate_routes_decision_comments(self):
+        self.assertTrue(cb.handles("Long note\n**Decision needed:** A?", set()))
+        self.assertTrue(cb.handles("Decided: A", {cb.DECISION}))
+        self.assertFalse(cb.handles("just a comment", set()))
+        self.assertTrue(cb.handles("progress", {cb.BLOCKED}))
+
+
 class QuietTest(unittest.TestCase):
     """Only rejections comment; nothing assigns."""
 
