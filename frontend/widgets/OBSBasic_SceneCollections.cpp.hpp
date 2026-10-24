@@ -1699,7 +1699,17 @@ void OBSBasic::ShowMissingSourceTypes(const missing_source_types &types)
 	if (safe_mode) {
 		return;
 	}
-	OBSMessageBox::warning(this, QTStr("MissingSourceTypes.Title"), QTStr("MissingSourceTypes.Text").arg(items));
+	/* Not exec(): LoadData() runs before OBS finishes loading, and a modal
+	 * loop here kept the frontend from ever becoming ready (#2161). Open it
+	 * after the current event, as the Missing Files dialog does. */
+	const QString text = QTStr("MissingSourceTypes.Text").arg(items);
+	QTimer::singleShot(0, this, [this, text] {
+		QMessageBox *box = new QMessageBox(QMessageBox::Warning, QTStr("MissingSourceTypes.Title"), text,
+						   QMessageBox::NoButton, this);
+		box->addButton(QTStr("OK"), QMessageBox::AcceptRole);
+		box->setAttribute(Qt::WA_DeleteOnClose, true);
+		box->show();
+	});
 }
 
 void OBSBasic::on_actionShowMissingFiles_triggered()
