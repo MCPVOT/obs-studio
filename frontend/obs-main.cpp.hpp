@@ -164,59 +164,50 @@ static inline bool too_many_repeated_entries(fstream &logFile, const char *msg, 
 	return false;
 }
 
+#ifndef OBS_MAIN_HOST_WINDOWS
+/* Elsewhere log lines are echoed to the console (#865). */
+#define OBS_MAIN_LOG_ECHO 1
+static inline void obs_main_host_log_debugger(const char *) {}
+static inline void obs_main_host_log_break(int) {}
+#else
+#define OBS_MAIN_LOG_ECHO 0
+#endif
+
+#ifdef _DEBUG
+#define OBS_MAIN_LOG_ECHO_ALL OBS_MAIN_LOG_ECHO
+#else
+#define OBS_MAIN_LOG_ECHO_ALL 0
+#endif
+
 static void do_log(int log_level, const char *msg, va_list args, void *param)
 {
 	fstream &logFile = *static_cast<fstream *>(param);
 	char str[8192];
 
-#ifndef _WIN32
 	va_list args2;
 	va_copy(args2, args);
-#endif
 
 	vsnprintf(str, sizeof(str), msg, args);
 
-#ifdef _WIN32
-	if (IsDebuggerPresent()) {
-		int wNum = MultiByteToWideChar(CP_UTF8, 0, str, -1, NULL, 0);
-		if (wNum > 1) {
-			static wstring wide_buf;
-			static mutex wide_mutex;
+	obs_main_host_log_debugger(str);
 
-			lock_guard<mutex> lock(wide_mutex);
-			wide_buf.reserve(wNum + 1);
-			wide_buf.resize(wNum - 1);
-			MultiByteToWideChar(CP_UTF8, 0, str, -1, &wide_buf[0], wNum);
-			wide_buf.push_back('\n');
-
-			OutputDebugStringW(wide_buf.c_str());
-		}
+	if (OBS_MAIN_LOG_ECHO_ALL) {
+		def_log_handler(log_level, msg, args2, nullptr);
 	}
-#endif
-
-#if !defined(_WIN32) && defined(_DEBUG)
-	def_log_handler(log_level, msg, args2, nullptr);
-#endif
 
 	if (log_level <= LOG_INFO || log_verbose) {
 		GpuStatus::OnLogLine(str);
-#if !defined(_WIN32) && !defined(_DEBUG)
-		def_log_handler(log_level, msg, args2, nullptr);
-#endif
+		if (OBS_MAIN_LOG_ECHO && !OBS_MAIN_LOG_ECHO_ALL) {
+			def_log_handler(log_level, msg, args2, nullptr);
+		}
 		if (!too_many_repeated_entries(logFile, msg, str)) {
 			LogStringChunk(logFile, str, log_level);
 		}
 	}
 
-#if defined(_WIN32) && defined(OBS_DEBUGBREAK_ON_ERROR)
-	if (log_level <= LOG_ERROR && IsDebuggerPresent()) {
-		__debugbreak();
-	}
-#endif
+	obs_main_host_log_break(log_level);
 
-#ifndef _WIN32
 	va_end(args2);
-#endif
 }
 
 static bool get_token(lexer *lex, string &str, base_token_type type)
@@ -1078,3 +1069,5 @@ int main(int argc, char *argv[])
 #undef CRASH_MESSAGE
 #undef BASE_PATH
 #undef ALLOW_PORTABLE_MODE
+#undef OBS_MAIN_LOG_ECHO
+#undef OBS_MAIN_LOG_ECHO_ALL

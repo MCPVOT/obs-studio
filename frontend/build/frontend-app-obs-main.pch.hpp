@@ -40,3 +40,6 @@
 #else
 #include <signal.h>
 #endif
+#include <mutex>
+#include <string>
+#include <utility/obs-main-windows.hpp>
