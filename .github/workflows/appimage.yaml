@@ -130,6 +130,13 @@ jobs:
       - name: Build 🧱
         run: build-aux/appimage/manylinux/run.sh uv run build-aux/appimage/build.py --base manylinux --steps build
 
+      # The build container runs as root and zccache keeps its directory
+      # private, so the save below (the runner user) could not read it and
+      # saved nothing (#1832).
+      - name: Return zccache to the runner user
+        if: always() && github.ref == 'refs/heads/master'
+        run: if [ -d .zccache ]; then sudo chown -R "$(id -u):$(id -g)" .zccache; fi
+
       - name: Save zccache
         if: always() && github.ref == 'refs/heads/master'
         uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
