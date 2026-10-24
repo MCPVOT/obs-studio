@@ -6,14 +6,22 @@ from pathlib import Path
 import re
 
 MEMBER = re.compile(r'^\s*#include\s+"libobs/([^"\n]+\.(?:c|m)\.h)"\s*$', re.MULTILINE)
+HOSTS = ("linux", "windows", "macos")
 
 
-def ported_objects(root: Path, host: str, hevc: bool = True, pulse: bool = True,
-                   wayland: bool = True, gio: bool = True) -> list[str]:
-    if host not in {"linux", "windows", "macos"}:
+def source_sets(root: Path) -> dict[str, list[str]]:
+    return json.loads((root / "libobs/build/source-sets.json").read_text())
+
+
+def group_members(root: Path, group: str) -> list[str]:
+    """Implementation files (relative to libobs/) that one unity group includes."""
+    return MEMBER.findall((root / "libobs" / group).read_text())
+
+
+def ported_set_names(host: str, hevc: bool = True, pulse: bool = True,
+                     wayland: bool = True, gio: bool = True) -> list[str]:
+    if host not in HOSTS:
         raise ValueError(f"unknown native host: {host}")
-    libobs = root / "libobs"
-    sets = json.loads((libobs / "build/source-sets.json").read_text())
     names = ["LIBOBS_PORTED_SOURCES", f"LIBOBS_{host.upper()}_PORTED_SOURCES"]
     if hevc:
         names.append("LIBOBS_HEVC_PORTED_SOURCES")
@@ -28,10 +36,17 @@ def ported_objects(root: Path, host: str, hevc: bool = True, pulse: bool = True,
         # The GlobalShortcuts portal needs GIO too.
         if gio:
             names.append("LIBOBS_WAYLAND_GIO_PORTED_SOURCES")
+    return names
+
+
+def ported_objects(root: Path, host: str, hevc: bool = True, pulse: bool = True,
+                   wayland: bool = True, gio: bool = True) -> list[str]:
+    names = ported_set_names(host, hevc, pulse, wayland, gio)
+    sets = source_sets(root)
     objects = set()
     for name in names:
         for group in sets[name]:
-            members = MEMBER.findall((libobs / group).read_text())
+            members = group_members(root, group)
             if not members:
                 raise ValueError(f"ported group contains no implementation members: {group}")
             objects.update(member + ".o" for member in members)
@@ -41,7 +56,7 @@ def ported_objects(root: Path, host: str, hevc: bool = True, pulse: bool = True,
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[2])
-    parser.add_argument("--host", required=True, choices=["linux", "windows", "macos"])
+    parser.add_argument("--host", required=True, choices=list(HOSTS))
     parser.add_argument("--without-hevc", action="store_true")
     parser.add_argument("--without-pulse", action="store_true")
     parser.add_argument("--without-wayland", action="store_true")

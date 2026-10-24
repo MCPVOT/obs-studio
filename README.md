@@ -51,6 +51,15 @@ rig (#1168, #1170, #1171, #1172).
 
 <p align="center"><img src="docs/images/launch-speed.png" alt="OBS-Rust launch speed: 4.09 s to 0.95 s, 307 to 250 MiB" width="600"></p>
 
+# Conversion progress
+
+How much of OBS the Rust port has taken over: the share of libobs, and of
+the whole app, that the hybrid build no longer compiles from C
+([tools/conversion/measure.py](tools/conversion/measure.py)). Updated with
+the leaderboard.
+
+[![Share of OBS converted to Rust](https://raw.githubusercontent.com/obs-rust/obs-studio/leaderboard/conversion.svg)](https://raw.githubusercontent.com/obs-rust/obs-studio/leaderboard/conversion.json)
+
 # Contributors leaderboard
 
 Ranked by merged PRs only, credited to the original author even when a

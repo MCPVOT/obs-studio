@@ -1,6 +1,7 @@
 name: Contributor leaderboard
 
-# Regenerates leaderboard.json + leaderboard.jpg and commits them to the
+# Regenerates leaderboard.json + leaderboard.jpg, and conversion.json +
+# conversion.svg (tools/conversion, #2242), and commits them to the
 # `leaderboard` branch only (served by GitHub Pages). Nothing here touches
 # master, so the OBS build workflows are not triggered.
 #
@@ -26,7 +27,9 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          sparse-checkout: tools/leaderboard
+          # tools/conversion measures the whole tree (#2242), so no sparse
+          # checkout, and the submodules (obs-websocket, obs-browser) count.
+          submodules: true
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: leaderboard
@@ -45,6 +48,8 @@ jobs:
         run: |
           uv run --python 3.12 --with playwright==1.49.1 playwright install --with-deps chromium
           uv run --python 3.12 --with playwright==1.49.1 tools/leaderboard/render.py data
+      - name: Measure Rust conversion
+        run: uv run --python 3.12 tools/conversion/measure.py --json data/conversion.json --svg data/conversion.svg
       - name: Commit to leaderboard branch
         working-directory: data
         run: |
