@@ -1961,18 +1961,27 @@ static inline void signal_reconnect_success(struct obs_output *output)
 	do_output_signal(output, "reconnect_success");
 }
 
+/* Copies the last error: the stop signal can be sent after a thread that
+ * frees it has started (#2086). */
+static inline void stop_params_init(struct obs_output *output, struct calldata *params)
+{
+	calldata_init(params);
+	calldata_set_string(params, "last_error", obs_output_get_last_error(output));
+	calldata_set_int(params, "code", output->stop_code);
+	calldata_set_ptr(params, "output", output);
+}
+
+static inline void signal_stop_params(struct obs_output *output, struct calldata *params)
+{
+	signal_handler_signal(output->context.signals, "stop", params);
+	calldata_free(params);
+}
+
 static inline void signal_stop(struct obs_output *output)
 {
 	struct calldata params;
-
-	calldata_init(&params);
-	calldata_set_string(&params, "last_error", obs_output_get_last_error(output));
-	calldata_set_int(&params, "code", output->stop_code);
-	calldata_set_ptr(&params, "output", output);
-
-	signal_handler_signal(output->context.signals, "stop", &params);
-
-	calldata_free(&params);
+	stop_params_init(output, &params);
+	signal_stop_params(output, &params);
 }
 
 bool obs_output_can_begin_data_capture(const obs_output_t *output, uint32_t flags)
@@ -2359,6 +2368,10 @@ static void obs_output_end_data_capture_internal(obs_output_t *output, bool sign
 			 * The next start, and destroy, join the thread first. This
 			 * never waits: if an end-capture thread is still running,
 			 * leave the encoders to it or to the next stop. */
+			/* Before the thread below starts: it clears the encoders'
+			 * last errors that the stop signal reports (#2086). */
+			struct calldata params;
+			stop_params_init(output, &params);
 			if (!active(output) && flag_encoded(output) && !data_capture_ending(output)) {
 				/* A finished one is still unjoined: never waits. */
 				join_end_data_capture_thread(output);
@@ -2369,7 +2382,7 @@ static void obs_output_end_data_capture_internal(obs_output_t *output, bool sign
 				else
 					os_atomic_set_bool(&output->end_data_capture_thread_joinable, true);
 			}
-			signal_stop(output);
+			signal_stop_params(output, &params);
 			output->stop_code = OBS_OUTPUT_SUCCESS;
 			os_event_signal(output->stopping_event);
 		}
