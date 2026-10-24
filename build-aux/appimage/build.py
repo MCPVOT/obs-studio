@@ -78,7 +78,14 @@ cmake --preset ubuntu-ci \
 """
 
 BUILD = r"""
+# Journal each compilation's hit or miss and the miss reason; the workflow
+# summarizes it (#2182). A failed session start only loses the journal.
+if ZCCACHE_SESSION_ID="$(zccache session-start --cwd "$PWD" --stats --journal "${RUNNER_TEMP:-/tmp}/appimage-zccache.jsonl" |
+  sed -n 's/.*"session_id": *"\([^"]*\)".*/\1/p')" && [ -n "$ZCCACHE_SESSION_ID" ]; then
+  export ZCCACHE_SESSION_ID
+fi
 cmake --build build_ubuntu
+if [ -n "${ZCCACHE_SESSION_ID:-}" ]; then zccache session-end "$ZCCACHE_SESSION_ID" || true; fi
 zccache status || true
 zccache stop || true # flush the cache index before the workflow saves it
 """

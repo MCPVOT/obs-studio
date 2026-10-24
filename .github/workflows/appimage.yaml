@@ -130,6 +130,20 @@ jobs:
       - name: Build 🧱
         run: build-aux/appimage/manylinux/run.sh uv run build-aux/appimage/build.py --base manylinux --steps build
 
+      # Each compilation's hit or miss, its miss reason and which inputs
+      # differed, per source (#2182). Diagnostics only.
+      - name: Summarize the compiler cache journal
+        if: always()
+        continue-on-error: true
+        run: |
+          uv run ci/native_cache_journal.py summarize \
+            --workspace "${GITHUB_WORKSPACE}" \
+            --journal "${RUNNER_TEMP}/appimage-zccache.jsonl" \
+            --output "${RUNNER_TEMP}/appimage-zccache.json"
+          jq -r '.records[] | select(.outcome != "hit")
+            | "\(.outcome) \(.miss_reason // "-") [\(.miss_diff_fields | join(","))] \(.source_candidates | join(" "))"' \
+            "${RUNNER_TEMP}/appimage-zccache.json" | sort | uniq -c | sort -rn | head -200
+
       # The build container runs as root and zccache keeps its directory
       # private, so the save below (the runner user) could not read it and
       # saved nothing (#1832).

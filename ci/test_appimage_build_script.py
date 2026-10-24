@@ -37,6 +37,16 @@ OLD_STEPS = {
     "appimage": "Create AppImage",
 }
 # Deliberate changes to the scripts since the move, as (old, new) edits.
+JOURNAL_START = (
+    "# Journal each compilation's hit or miss and the miss reason; the workflow\n"
+    "# summarizes it (#2182). A failed session start only loses the journal.\n"
+    'if ZCCACHE_SESSION_ID="$(zccache session-start --cwd "$PWD" --stats --journal "${RUNNER_TEMP:-/tmp}/appimage-zccache.jsonl" |\n'
+    "  sed -n 's/.*\"session_id\": *\"\\([^\"]*\\)\".*/\\1/p')\" && [ -n \"$ZCCACHE_SESSION_ID\" ]; then\n"
+    "  export ZCCACHE_SESSION_ID\n"
+    "fi\n"
+)
+JOURNAL_END = 'if [ -n "${ZCCACHE_SESSION_ID:-}" ]; then zccache session-end "$ZCCACHE_SESSION_ID" || true; fi\n'
+
 LATER = {
     # #1744: the AppImage ships obs-webrtc.
     "configure": [
@@ -45,6 +55,8 @@ LATER = {
     "build": [
         ("ccache -s\n", "zccache status || true\n"
          "zccache stop || true # flush the cache index before the workflow saves it\n"),
+        # #2182: the build runs in a journaled zccache session.
+        ("cmake --build build_ubuntu\n", JOURNAL_START + "cmake --build build_ubuntu\n" + JOURNAL_END),
     ],
     # #1881: the update information follows the certified release, like
     # Windows and macOS, not the daily continuous build.
