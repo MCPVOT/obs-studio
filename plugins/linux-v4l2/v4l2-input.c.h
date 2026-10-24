@@ -1382,10 +1382,12 @@ static void v4l2_update(void *vptr, obs_data_t *settings)
 	if (needs_restart)
 		v4l2_terminate(data);
 
-	if (data->device_id)
+	/* The capture thread logs it: replace it only while stopped. Without a
+	 * restart, v4l2_settings_changed found it unchanged (#2103). */
+	if (needs_restart || !data->device_id) {
 		bfree(data->device_id);
-
-	data->device_id = bstrdup(obs_data_get_string(settings, "device_id"));
+		data->device_id = bstrdup(obs_data_get_string(settings, "device_id"));
+	}
 	data->input = obs_data_get_int(settings, "input");
 	data->pixfmt = obs_data_get_int(settings, "pixelformat");
 	data->standard = obs_data_get_int(settings, "standard");
