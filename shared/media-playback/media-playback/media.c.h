@@ -815,8 +815,13 @@ static bool init_avformat(mp_media_t *m)
 	int ret = avformat_open_input(&m->fmt, m->path, format, opts ? &opts : NULL);
 	av_dict_free(&opts);
 
+	/* mp_media_play sets it under the mutex (#2101). */
+	pthread_mutex_lock(&m->mutex);
+	bool reconnecting = m->reconnecting;
+	pthread_mutex_unlock(&m->mutex);
+
 	if (ret < 0) {
-		if (!m->reconnecting)
+		if (!reconnecting)
 			blog(LOG_WARNING, "MP: Failed to open media: '%s'", m->path);
 		return false;
 	}
@@ -828,7 +833,9 @@ static bool init_avformat(mp_media_t *m)
 
 	m->start_time = m->fmt->start_time != AV_NOPTS_VALUE ? m->fmt->start_time : 0;
 
+	pthread_mutex_lock(&m->mutex);
 	m->reconnecting = false;
+	pthread_mutex_unlock(&m->mutex);
 	m->has_video = mp_decode_init(m, AVMEDIA_TYPE_VIDEO, m->hw);
 	m->has_audio = mp_decode_init(m, AVMEDIA_TYPE_AUDIO, m->hw);
 
