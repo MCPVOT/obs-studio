@@ -160,7 +160,7 @@ def render_hall(rows: list[dict]) -> str:
     voices = sum(i["comments"] for i in yes)
     out = [
         '<div align="center">', "",
-        "# 🏆 The Upstream OBS Hall of Fame", "",
+        "# 🏆 OBS Project User Abuse Hall of Fame", "",
         "**Bugs they confirmed, then closed. Features you relied on, then removed.",
         "Threads where users showed up in numbers, then got locked out.**", "",
         badge("inducted", len(yes), "crimson") + " " + badge("locked", locked, "red")

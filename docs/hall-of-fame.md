@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🏆 The Upstream OBS Hall of Fame
+# 🏆 OBS Project User Abuse Hall of Fame
 
 **Bugs they confirmed, then closed. Features you relied on, then removed.
 Threads where users showed up in numbers, then got locked out.**

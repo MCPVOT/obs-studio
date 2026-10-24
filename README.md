@@ -128,10 +128,18 @@ Then file an issue as above.
 
 Want to see the original README from OBS Project? [Click here](README.upstream.md).
 
-# 🏆 The Upstream OBS Hall of Fame
+# 🏆 OBS Project User Abuse Hall of Fame
 
 Bugs they confirmed, then closed. Features you relied on, then removed.
 Twelve upstream threads where users showed up in numbers and were turned
 away anyway. Six of them were closed as stale on a single afternoon.
 
-**[See who made the cut →](docs/hall-of-fame.md)**
+| | Issue | 💬 | Fate |
+|:-:|---|--:|---|
+| 🥇 | [Preview Stutter that appears in Streams/Recordings](https://github.com/obsproject/obs-studio/issues/4191) | 184 | locked (off-topic) |
+| 🥈 | [OBS Virtual Camera may affect built-in webcams](https://github.com/obsproject/obs-studio/issues/3555) | 87 | closed not planned, locked |
+| 🥉 | [Removal of --disable-shutdown-check breaks automated background workflows](https://github.com/obsproject/obs-studio/issues/12650) | 64 | closed not planned, locked |
+| 4 | [Dock Sizes are Reset the next time you open OBS.](https://github.com/obsproject/obs-studio/issues/2949) | 34 | closed not planned |
+| 5 | [Pause and Resume Recording Doubles or Triples CPU usage](https://github.com/obsproject/obs-studio/issues/3148) | 34 | closed not planned |
+
+**[See all 12, and why each one made the cut →](docs/hall-of-fame.md)**
