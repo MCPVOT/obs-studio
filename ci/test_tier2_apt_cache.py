@@ -39,6 +39,13 @@ class AptCacheTest(unittest.TestCase):
             self.assertIn("path: /var/cache/apt/archives", j, name)
             self.assertIn("hashFiles('rust/tools/linux-validate/apt-packages.txt')", j, name)
 
+    def test_build_job_dpkg_skips_fsync_and_docs(self):
+        # #2072: dpkg spent 29 s unpacking with the .debs already restored.
+        j = job("rust-linux-tier2-build")
+        self.assertIn("force-unsafe-io", j)
+        self.assertIn("path-exclude=/usr/share/doc/*", j)
+        self.assertLess(j.index("force-unsafe-io"), j.index("name: Install Tier 2 Packages"))
+
     def test_cache_is_restored_before_the_install(self):
         for name in ("rust-linux-tier2-build", "rust-linux-tier2"):
             j = job(name)

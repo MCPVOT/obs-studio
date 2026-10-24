@@ -2005,8 +2005,15 @@ jobs:
       # them (the stock image's docker-clean config deletes them after each
       # install) and restore the archive dir, keyed on the list and the image.
       # zstd is installed above: the cache entry is versioned by compressor.
+      # dpkg in this throwaway container needs neither fsync nor docs: with the
+      # .debs restored, unpacking 594 packages took 29 s; force-unsafe-io and
+      # skipping doc/man/info cut a local run of the same install by 25% (#2072).
       - name: Keep apt Downloads 📦
-        run: rm -f /etc/apt/apt.conf.d/docker-clean
+        run: |
+          rm -f /etc/apt/apt.conf.d/docker-clean
+          printf '%s\n' force-unsafe-io 'path-exclude=/usr/share/doc/*' \
+            'path-exclude=/usr/share/man/*' 'path-exclude=/usr/share/info/*' \
+            > /etc/dpkg/dpkg.cfg.d/ci-tier2-fast
       - uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         id: apt-cache
         with:
