@@ -84,6 +84,12 @@ if ZCCACHE_SESSION_ID="$(zccache session-start --cwd "$PWD" --stats --journal "$
   sed -n 's/.*"session_id": *"\([^"]*\)".*/\1/p')" && [ -n "$ZCCACHE_SESSION_ID" ]; then
   export ZCCACHE_SESSION_ID
 fi
+# rcc writes each resource file's mtime into qrc_*.cpp, and a checkout gives
+# every file a new one, so the qrc objects missed the cache on every build of
+# the same commit (#2182). Not SOURCE_DATE_EPOCH: zccache keys on it.
+epoch="$(git log -1 --format=%ct)"
+{ git ls-files -z; git submodule foreach --quiet --recursive 'git ls-files -z | sed -z "s|^|$sm_path/|"'; } |
+  xargs -0 touch -h -c -d "@$epoch"
 cmake --build build_ubuntu
 if [ -n "${ZCCACHE_SESSION_ID:-}" ]; then zccache session-end "$ZCCACHE_SESSION_ID" || true; fi
 zccache status || true

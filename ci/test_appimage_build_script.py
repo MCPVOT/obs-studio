@@ -45,6 +45,14 @@ JOURNAL_START = (
     "  export ZCCACHE_SESSION_ID\n"
     "fi\n"
 )
+STABLE_MTIMES = (
+    "# rcc writes each resource file's mtime into qrc_*.cpp, and a checkout gives\n"
+    "# every file a new one, so the qrc objects missed the cache on every build of\n"
+    "# the same commit (#2182). Not SOURCE_DATE_EPOCH: zccache keys on it.\n"
+    'epoch="$(git log -1 --format=%ct)"\n'
+    "{ git ls-files -z; git submodule foreach --quiet --recursive 'git ls-files -z | sed -z \"s|^|$sm_path/|\"'; } |\n"
+    '  xargs -0 touch -h -c -d "@$epoch"\n'
+)
 JOURNAL_END = 'if [ -n "${ZCCACHE_SESSION_ID:-}" ]; then zccache session-end "$ZCCACHE_SESSION_ID" || true; fi\n'
 
 LATER = {
@@ -57,6 +65,8 @@ LATER = {
          "zccache stop || true # flush the cache index before the workflow saves it\n"),
         # #2182: the build runs in a journaled zccache session.
         ("cmake --build build_ubuntu\n", JOURNAL_START + "cmake --build build_ubuntu\n" + JOURNAL_END),
+        # #2182: tracked files get the commit time, so rcc's output is stable.
+        ("cmake --build build_ubuntu\n", STABLE_MTIMES + "cmake --build build_ubuntu\n"),
     ],
     # #1881: the update information follows the certified release, like
     # Windows and macOS, not the daily continuous build.
