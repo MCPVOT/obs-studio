@@ -1,0 +1,57 @@
+#!/usr/bin/env -S uv run --script
+"""The conversion progress card matches the leaderboard and sits near the top
+of the README.
+
+    uv run python -m unittest ci/test_conversion_card.py
+"""
+
+import re
+import unittest
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+README = ROOT / "README.md"
+WORKFLOW = ROOT / ".github" / "workflows" / "leaderboard.yml"
+SITE = ROOT / "tools" / "leaderboard" / "site"
+RENDER = ROOT / "tools" / "leaderboard" / "render.py"
+
+
+def headings(text: str) -> list[str]:
+    return re.findall(r"^# (.+)$", text, re.M)
+
+
+class ConversionCard(unittest.TestCase):
+    def test_page_uses_the_leaderboard_style(self):
+        page = (SITE / "conversion.html").read_text()
+        board = (SITE / "index.html").read_text()
+        # Same palette, fonts and plate frame as the leaderboard.
+        for token in ("--rust:#e8631a", "Big+Shoulders+Stencil+Display", "JetBrains+Mono", 'class="haz"', "logo.png"):
+            self.assertIn(token, board)
+            self.assertIn(token, page)
+        self.assertIn("conversion.json", page)
+        self.assertIn("dataset.ready", page)
+
+    def test_render_takes_a_page_and_an_output(self):
+        render = RENDER.read_text()
+        self.assertIn("conversion.html", WORKFLOW.read_text())
+        self.assertIn("conversion.jpg", WORKFLOW.read_text())
+        self.assertRegex(render, r"sys\.argv\[2\]")
+
+    def test_measure_runs_before_the_render(self):
+        wf = WORKFLOW.read_text()
+        self.assertLess(wf.index("tools/conversion/measure.py"), wf.index("render.py data conversion.html"))
+
+    def test_readme_shows_the_card_near_the_top(self):
+        text = README.read_text()
+        heads = headings(text)
+        self.assertIn("Conversion progress", heads)
+        self.assertLess(heads.index("Conversion progress"), heads.index("Features"))
+        self.assertIn("leaderboard/conversion.jpg", text)
+        # Right after the "Got an idea?" line, before the Discord tip.
+        idea = text.index("Got an idea? [Start a conversation]")
+        self.assertLess(idea, text.index("# Conversion progress"))
+        self.assertLess(text.index("# Conversion progress"), text.index("> [!TIP]"))
+
+
+if __name__ == "__main__":
+    unittest.main()

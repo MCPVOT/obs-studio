@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>obs-rust Conversion</title>
+<link rel="icon" href="logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Stencil+Display:wght@800;900&family=Barlow+Condensed:wght@500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{--steel:#1b1d1f;--steel2:#232628;--plate:#2c3033;--edge:#4a4f53;--hi:#6b7176;--fg:#e9e6df;--rust:#e8631a;--rust2:#b9480f;--cu:#3fa58a;--haz:#f2b705}
+*{box-sizing:border-box;margin:0}
+body{color:var(--fg);font:600 17px/1.35 "Barlow Condensed",sans-serif;letter-spacing:.02em;padding:28px 16px 36px;
+background:
+repeating-linear-gradient(90deg,rgba(255,255,255,.025) 0 1px,transparent 1px 3px),
+repeating-linear-gradient(0deg,rgba(0,0,0,.18) 0 1px,transparent 1px 4px),
+linear-gradient(180deg,#25282a,#17191a)}
+main{max-width:940px;margin:auto;border:3px solid var(--edge);background:var(--steel);box-shadow:0 0 0 2px #0c0d0e,inset 0 0 0 2px #0c0d0e;position:relative;padding:0 0 22px}
+.rv{position:absolute;width:12px;height:12px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#8a9095,#33373a 70%);box-shadow:0 1px 0 #000}
+.rv.a{top:10px;left:10px}.rv.b{top:10px;right:10px}.rv.c{bottom:10px;left:10px}.rv.d{bottom:10px;right:10px}
+.haz{height:16px;background:repeating-linear-gradient(-45deg,var(--haz) 0 14px,#111 14px 28px);border-bottom:3px solid #0c0d0e}
+.haz.bot{border:0;border-top:3px solid #0c0d0e;margin-top:22px;margin-bottom:-22px}
+header{display:flex;align-items:center;gap:26px;padding:24px 40px 20px;border-bottom:3px solid var(--edge)}
+header img{width:112px;height:112px;flex:none;filter:drop-shadow(0 3px 0 #000)}
+h1{font:900 clamp(34px,7vw,68px)/.9 "Big Shoulders Stencil Display",sans-serif;text-transform:uppercase;letter-spacing:.03em}
+h1 em{font-style:normal;color:var(--rust)}
+.sub{margin-top:10px;color:#a9aeb2;text-transform:uppercase;letter-spacing:.14em;font-size:15px}
+.sub b{color:var(--cu)}
+.tag{display:inline-block;margin-top:12px;padding:3px 10px;border:2px solid var(--rust);color:var(--rust);font:700 13px "JetBrains Mono",monospace;letter-spacing:.08em;text-transform:uppercase}
+.board{padding:22px 40px 0;display:grid;gap:10px}
+.colh{display:grid;grid-template-columns:200px 1fr 150px;gap:14px;font:700 12px "JetBrains Mono",monospace;color:var(--cu);text-transform:uppercase;letter-spacing:.14em;padding:0 14px 6px;border-bottom:2px dashed var(--edge)}
+.colh span:last-child{text-align:right}
+.row{display:grid;grid-template-columns:200px 1fr 150px;gap:14px;align-items:center;padding:10px 14px;background:linear-gradient(180deg,var(--plate),var(--steel2));border:2px solid var(--edge);border-left:8px solid var(--hi);box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 2px 0 #0c0d0e}
+.row.big{border-left-color:var(--rust);padding:16px 14px;background:linear-gradient(180deg,#34302d,#262322)}
+.row.app{border-left-color:#c9ced1}
+.who{font:700 24px "Barlow Condensed";text-transform:uppercase;letter-spacing:.05em}
+.big .who{font-size:32px}
+.when{font:500 12px "JetBrains Mono",monospace;color:#8a8f93;text-transform:uppercase}
+.gauge{height:16px;background:repeating-linear-gradient(90deg,#0d0e0f 0 6px,#17191a 6px 8px);border:2px solid #0c0d0e;position:relative}
+.big .gauge{height:22px}
+.gauge i{position:absolute;inset:0 auto 0 0;background:repeating-linear-gradient(90deg,var(--rust) 0 6px,transparent 6px 8px)}
+.app .gauge i{background:repeating-linear-gradient(90deg,#aeb4b8 0 6px,transparent 6px 8px)}
+.area .gauge i{background:repeating-linear-gradient(90deg,var(--cu) 0 6px,transparent 6px 8px)}
+.cnt{text-align:right;font:700 34px/1 "JetBrains Mono",monospace;background:#101213;border:2px solid #000;padding:6px 10px;box-shadow:inset 0 0 0 1px var(--edge);letter-spacing:.02em}
+.big .cnt{color:var(--rust);font-size:42px}
+.cnt small{display:block;font:500 10px "JetBrains Mono";color:var(--cu);letter-spacing:.14em;margin-top:4px;text-transform:uppercase}
+.sect{margin-top:12px;font:700 12px "JetBrains Mono",monospace;color:var(--cu);text-transform:uppercase;letter-spacing:.14em;padding:0 14px 6px;border-bottom:2px dashed var(--edge)}
+.hosts{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.host{padding:10px 14px;background:linear-gradient(180deg,var(--plate),var(--steel2));border:2px solid var(--edge);box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 2px 0 #0c0d0e;display:flex;justify-content:space-between;align-items:baseline}
+.host b{font:700 22px "Barlow Condensed";text-transform:uppercase;letter-spacing:.05em}
+.host span{font:700 26px "JetBrains Mono",monospace}
+footer{padding:20px 40px 0;font:500 12px "JetBrains Mono",monospace;color:#8a8f93;text-transform:uppercase;letter-spacing:.06em;line-height:1.7}
+footer a{color:var(--cu)}
+@media(max-width:640px){header{padding:22px 22px 18px;gap:16px;flex-direction:column;align-items:flex-start}header img{width:88px;height:88px}
+.board{padding:18px 16px 0}.colh{display:none}.row{grid-template-columns:1fr 104px;gap:10px;padding:8px}.row .meter{grid-column:1/-1;order:3}
+.cnt{font-size:24px;padding:4px 6px}.big .cnt{font-size:28px}.hosts{grid-template-columns:1fr}footer{padding:18px 16px 0}}
+</style>
+</head>
+<body>
+<main>
+<i class="rv a"></i><i class="rv b"></i><i class="rv c"></i><i class="rv d"></i>
+<div class="haz"></div>
+<header>
+<img src="logo.png" alt="obs-rust logo">
+<div>
+<h1>obs<em>-rust</em><br>Conversion</h1>
+<p class="sub">Share of OBS <b>the hybrid build no longer compiles from C</b></p>
+<span class="tag" id="tot">Loading...</span>
+</div>
+</header>
+<section class="board">
+<div class="colh"><span>Component</span><span>Progress</span><span>Converted</span></div>
+<div id="list" style="display:grid;gap:10px"></div>
+<div class="sect">libobs per host</div>
+<div class="hosts" id="hosts"></div>
+<div class="sect">libobs by area</div>
+<div id="areas" style="display:grid;gap:10px"></div>
+</section>
+<footer id="foot"></footer>
+<div class="haz bot"></div>
+</main>
+<script>
+(async()=>{
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+let d;try{d=await (await fetch("conversion.json",{cache:"no-store"})).json()}catch(e){document.getElementById("foot").textContent="Could not load conversion.json";return}
+const n=x=>Number(x).toLocaleString("en");
+const pct=p=>Number(p).toFixed(1)+"%";
+const lib=d.libobs.all,app=d.app;
+const row=(cls,name,sub,p)=>`<div class="row ${cls}"><div><div class="who">${esc(name)}</div><div class="when">${esc(sub)}</div></div><div class="meter"><div class="gauge"><i style="width:${Math.min(100,Math.max(0,p))}%"></i></div></div><div class="cnt">${pct(p)}<small>converted</small></div></div>`;
+document.getElementById("tot").textContent=n(d.rust.lines)+" lines of Rust";
+document.getElementById("list").innerHTML=
+ row("big","libobs",`${n(lib.ported_lines)} / ${n(lib.total_lines)} lines`,lib.percent)+
+ row("app","Whole app",`${n(app.ported_lines)} / ${n(app.total_lines)} lines`,app.percent);
+const H={linux:"Linux",macos:"macOS",windows:"Windows"};
+document.getElementById("hosts").innerHTML=Object.keys(H).filter(h=>d.libobs.hosts[h]).map(h=>`<div class="host"><b>${H[h]}</b><span>${pct(d.libobs.hosts[h].percent)}</span></div>`).join("");
+document.getElementById("areas").innerHTML=Object.entries(lib.areas).sort((a,b)=>b[1].percent-a[1].percent).map(([k,v])=>row("area",k,`${n(v.ported_lines)} / ${n(v.total_lines)} lines`,v.percent)).join("");
+const ws=(d.kept_by_design||{})["plugins/obs-websocket"];
+document.getElementById("foot").innerHTML=`Updated ${esc(d.date)} &middot; commit ${esc(d.commit)}${ws?` &middot; obs-websocket kept in C++ by design (${n(ws)} lines)`:""}<br><a href="https://github.com/obs-rust/obs-studio/blob/master/tools/conversion/measure.py">How it is measured</a> &middot; <a href="conversion.json">JSON</a>`;
+document.body.dataset.ready="1";
+})();
+</script>
+</body>
+</html>
