@@ -77,8 +77,37 @@ def sanitizer_reports(path):
     reports = []
     for chunk in re.split(r"^(?==+\d+==ERROR|.*runtime error:)", text, flags=re.M):
         if "ERROR: AddressSanitizer" in chunk or "ERROR: LeakSanitizer" in chunk or "runtime error:" in chunk:
-            reports.append(chunk.splitlines())
+            reports += leaks(chunk.splitlines())
     return reports
+
+
+def leaks(lines):
+    """A LeakSanitizer report split into one report per leak (header kept)."""
+    if not any("ERROR: LeakSanitizer" in line for line in lines):
+        return [lines]
+    starts = [i for i, line in enumerate(lines) if re.match(r"(Direct|Indirect) leak of", line)]
+    if not starts:
+        return [lines]
+    head = lines[:starts[0]]
+    return [head + lines[a:b] for a, b in zip(starts, starts[1:] + [len(lines)])]
+
+
+def unloaded_init_leak(lines):
+    """A leak allocated in a library's one-time init that was unloaded before
+    LeakSanitizer ran (the OpenGL driver under gs_create): every frame between
+    the allocator and OBS's first is `<unknown module>` or pthread_once."""
+    if not any("ERROR: LeakSanitizer" in line for line in lines):
+        return False
+    above = []
+    for line in frames(lines)[1:]:
+        if obs_frame(line):
+            break
+        above.append(line)
+    else:
+        return False
+    return any("<unknown module>" in line for line in above) and all(
+        "<unknown module>" in line or "pthread_once" in line for line in above
+    )
 
 
 def asan_finding(lines):
@@ -195,13 +224,13 @@ def main():
         md += section("Unit tests with a non-zero exit", [(1, r.split()[0], r.split("=")[-1]) for r in failed])
         if known:
             md += ["#### Known tool limitations (not counted)", ""] + [f"- **{n}**: {KNOWN[(tool, n)]}" for n in known] + [""]
-        test_reports = []
+        test_reports, test_ext = [], []
         test_logs = sorted((out / "tests").glob("*.*san.*"))
         test_logs += [f for f in sorted((out / "tests").glob("*.log")) if not f.name.endswith(".vg.log")]
         for f in test_logs:
             for rep in sanitizer_reports(f):
                 kind, loc = asan_finding(rep) if tool == "asan" else tsan_finding(rep)[:2]
-                test_reports.append((f"{f.name.split('.')[0]}: {kind}", str(loc)))
+                (test_ext if unloaded_init_leak(rep) else test_reports).append((f"{f.name.split('.')[0]}: {kind}", str(loc)))
         for f in sorted((out / "tests").glob("*.vg.log")):
             if (tool, f.name.split(".")[0]) in KNOWN:
                 continue
@@ -209,6 +238,8 @@ def main():
             test_reports += [(f"{f.name.split('.')[0]}: {k}", loc) for k, loc, _ in errs]
         findings += len(test_reports)
         md += section("Sanitizer reports in unit tests", group(test_reports))
+        if test_ext:
+            md += section("External: leaks in unloaded library init (not counted)", group(test_ext), limit=8)
     else:
         md += ["**Unit tests:** not run", ""]
 
@@ -252,7 +283,7 @@ def main():
                     detail = " ↔ ".join(s or "external" for s in sig)
                 else:
                     kind, loc = asan_finding(rep)
-                    detail, is_obs = loc or "", loc is not None
+                    detail, is_obs = loc or "", loc is not None and not unloaded_init_leak(rep)
                 if f.name == "app.log" and (kind, detail) in seen:
                     continue
                 seen.add((kind, detail))
