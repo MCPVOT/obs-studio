@@ -2247,7 +2247,9 @@ static uint32_t get_base_width(const obs_source_t *source)
 	case OBS_SOURCE_SIZE_CALLBACK:
 		return source->info.get_width(source->context.data);
 	case OBS_SOURCE_SIZE_ASK_TARGET:
-		return get_base_width(source->filter_target);
+		/* A filter being attached or removed can have a parent and no
+		 * target yet (#2172). */
+		return source->filter_target ? get_base_width(source->filter_target) : 0;
 	case OBS_SOURCE_SIZE_ASYNC:
 		return source->async_width;
 	case OBS_SOURCE_SIZE_ASYNC_SWAPPED:
@@ -2267,7 +2269,9 @@ static uint32_t get_base_height(const obs_source_t *source)
 	case OBS_SOURCE_SIZE_CALLBACK:
 		return source->info.get_height(source->context.data);
 	case OBS_SOURCE_SIZE_ASK_TARGET:
-		return get_base_height(source->filter_target);
+		/* A filter being attached or removed can have a parent and no
+		 * target yet (#2172). */
+		return source->filter_target ? get_base_height(source->filter_target) : 0;
 	case OBS_SOURCE_SIZE_ASYNC:
 		return source->async_height;
 	case OBS_SOURCE_SIZE_ASYNC_SWAPPED:
@@ -5605,11 +5609,10 @@ void obs_source_restore_filters(obs_source_t *source, obs_data_array_t *array)
 		if (!filter)
 			filter = obs_load_source(data);
 
-		/* add filter */
+		/* add filter; parents are set once every target is (#2172) */
 		if (prev)
 			prev->filter_target = filter;
 		prev = filter;
-		filter->filter_parent = source;
 		da_push_back(new_filters, &filter);
 
 		obs_data_release(data);
@@ -5617,6 +5620,8 @@ void obs_source_restore_filters(obs_source_t *source, obs_data_array_t *array)
 
 	if (prev)
 		prev->filter_target = source;
+	for (size_t i = 0; i < new_filters.num; i++)
+		new_filters.array[i]->filter_parent = source;
 
 	pthread_mutex_lock(&source->filter_mutex);
 	da_move(source->filters, new_filters);

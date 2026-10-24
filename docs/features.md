@@ -1691,6 +1691,10 @@ area.
 
 ### Stability
 
+- Restoring a source's filters (undo, paste, scene collection load) no longer
+  crashes when the source's size is read while a filter is being attached; a
+  filter with no target yet reports a size of 0. *All*, 2026-10-24. Issue
+  [#2172](https://github.com/obs-rust/obs-studio/issues/2172).
 - DeckLink output no longer crashes when a saved output mode is one the
   device doesn't offer (settings from another card or firmware); the start
   fails with an error in the log. An HDR start with no video conversion
