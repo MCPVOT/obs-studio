@@ -113,6 +113,27 @@ class FrontendCMakeFacadeTest(unittest.TestCase):
                 self.assertIn("void SetPlatformTextFileSettings(obs_data_t *", source)
                 self.assertIn("bool ResolvePlatformDroppedFile(QString &", source)
 
+    def test_small_main_window_quirks_go_through_the_facade(self):
+        # #873: the color dialog, the meta key name, projector screen names
+        # and the desktop audio device are host choices.
+        header = (FRONTEND / "utility/platform.hpp").read_text()
+        self.assertIn("const char *GetPlatformMetaKeyText();", header)
+        self.assertIn("QString GetPlatformScreenName(QScreen *screen);", header)
+        self.assertIn("bool PlatformUsesDesktopAudioDevice();", header)
+        for name in ("OBSBasic_Preview", "OBSBasic_Hotkeys", "OBSBasic_Projectors", "OBSBasic_SceneItems"):
+            with self.subTest(file=name):
+                source = (FRONTEND / f"widgets/{name}.cpp.hpp").read_text()
+                for macro in ("_WIN32", "__APPLE__", "__linux__"):
+                    self.assertNotIn(macro, source)
+        preview = (FRONTEND / "widgets/OBSBasic_Preview.cpp.hpp").read_text()
+        self.assertIn("PlatformNeedsNonNativeColorDialog()", preview)
+        for host in ("windows.cpp.hpp", "osx.mm.hpp", "x11.cpp.hpp"):
+            with self.subTest(host=host):
+                source = (FRONTEND / f"utility/platform-{host}").read_text()
+                self.assertIn("const char *GetPlatformMetaKeyText()", source)
+                self.assertIn("QString GetPlatformScreenName(QScreen *", source)
+                self.assertIn("bool PlatformUsesDesktopAudioDevice()", source)
+
     def test_hdr_screenshots_go_through_the_facade(self):
         # #883: the HDR color space choice and the JXR writer are host
         # operations; ScreenshotObj and its precompiled header name no host.

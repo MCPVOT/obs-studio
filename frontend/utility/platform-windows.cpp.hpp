@@ -1116,3 +1116,18 @@ bool ResolvePlatformDroppedFile(QString &file, QFileInfo &info, QString &urlTarg
 	}
 	return true;
 }
+
+const char *GetPlatformMetaKeyText()
+{
+	return "Hotkeys.Windows";
+}
+
+QString GetPlatformScreenName(QScreen *screen)
+{
+	return screen->name();
+}
+
+bool PlatformUsesDesktopAudioDevice()
+{
+	return true;
+}

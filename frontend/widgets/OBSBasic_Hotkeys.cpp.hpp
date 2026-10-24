@@ -41,11 +41,7 @@ void OBSBasic::InitHotkeys()
 	t.right = Str("Hotkeys.Right");
 	t.up = Str("Hotkeys.Up");
 	t.down = Str("Hotkeys.Down");
-#ifdef _WIN32
-	t.meta = Str("Hotkeys.Windows");
-#else
-	t.meta = Str("Hotkeys.Super");
-#endif
+	t.meta = Str(GetPlatformMetaKeyText());
 	t.menu = Str("Hotkeys.Menu");
 	t.space = Str("Hotkeys.Space");
 	t.numpad_num = Str("Hotkeys.NumpadNum");

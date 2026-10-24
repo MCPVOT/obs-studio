@@ -924,3 +924,23 @@ bool ResolvePlatformDroppedFile(QString &, QFileInfo &, QString &)
 {
 	return true;
 }
+
+const char *GetPlatformMetaKeyText()
+{
+	return "Hotkeys.Super";
+}
+
+QString GetPlatformScreenName(QScreen *screen)
+{
+	return screen->name();
+}
+
+bool PlatformUsesDesktopAudioDevice()
+{
+	/* On macOS 13 and above, the SCK based audio capture provides a
+	 * better alternative to the device-based audio capture. */
+	if (__builtin_available(macOS 13.0, *)) {
+		return false;
+	}
+	return true;
+}

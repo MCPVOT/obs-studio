@@ -19,6 +19,7 @@
 #include <QDBusConnection>
 #include <QDBusReply>
 #include <QIcon>
+#include <QScreen>
 
 #include <dlfcn.h>
 

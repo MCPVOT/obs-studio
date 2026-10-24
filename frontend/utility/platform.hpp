@@ -136,6 +136,15 @@ void SetPlatformTextFileSettings(obs_data_t *settings, const char *file, QString
  * a URL to offer instead. May replace a shortcut with its target. */
 bool ResolvePlatformDroppedFile(QString &file, QFileInfo &info, QString &urlTarget);
 
+/* Main window host choices (#873). */
+class QScreen;
+/* The locale key of the meta (Windows/Super/Command) key's name. */
+const char *GetPlatformMetaKeyText();
+/* A screen's name for the projector menu, before simplification. */
+QString GetPlatformScreenName(QScreen *screen);
+/* False where a better desktop audio source replaces the device one. */
+bool PlatformUsesDesktopAudioDevice();
+
 /* Settings and hotkey editor platform policy (#869). */
 bool PlatformNeedsNonNativeColorDialog();
 bool PlatformSupportsSimpleQsvEncoders();

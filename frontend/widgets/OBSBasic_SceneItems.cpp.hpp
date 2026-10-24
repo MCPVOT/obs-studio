@@ -76,16 +76,8 @@ static inline bool HasAudioDevices(const char *source_id)
 
 void OBSBasic::CreateFirstRunSources()
 {
-	bool hasDesktopAudio = HasAudioDevices(App()->OutputAudioSource());
+	bool hasDesktopAudio = PlatformUsesDesktopAudioDevice() && HasAudioDevices(App()->OutputAudioSource());
 	bool hasInputAudio = HasAudioDevices(App()->InputAudioSource());
-
-#ifdef __APPLE__
-	/* On macOS 13 and above, the SCK based audio capture provides a
-	 * better alternative to the device-based audio capture. */
-	if (__builtin_available(macOS 13.0, *)) {
-		hasDesktopAudio = false;
-	}
-#endif
 
 	if (hasDesktopAudio) {
 		ResetAudioDevice(App()->OutputAudioSource(), "default", Str("Basic.DesktopDevice1"), 1);

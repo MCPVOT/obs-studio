@@ -842,3 +842,23 @@ bool ResolvePlatformDroppedFile(QString &, QFileInfo &, QString &)
 {
 	return true;
 }
+
+const char *GetPlatformMetaKeyText()
+{
+	return "Hotkeys.Super";
+}
+
+QString GetPlatformScreenName(QScreen *screen)
+{
+	QString name = screen->model().simplified();
+
+	if (name.length() > 1 && name.endsWith("-")) {
+		name.chop(1);
+	}
+	return name;
+}
+
+bool PlatformUsesDesktopAudioDevice()
+{
+	return true;
+}

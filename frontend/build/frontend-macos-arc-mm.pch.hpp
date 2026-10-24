@@ -31,6 +31,7 @@
 #endif
 
 #include <QMessageBox>
+#include <QScreen>
 #include <util/platform.h>
 
 #include "json11.hpp"

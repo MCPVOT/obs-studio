@@ -13,6 +13,7 @@
 #include <QApplication>
 #include <QFileInfo>
 #include <QIcon>
+#include <QScreen>
 #include <QSettings>
 #include <QUrl>
 
