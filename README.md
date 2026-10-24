@@ -6,11 +6,11 @@
 > Each completed port becomes part of the application, with compatibility and parity
 > checks supporting the transition.
 
+[![OBS Rust Discord Server](https://img.shields.io/badge/Discord-OBS%20Rust-5865F2?logo=discord&logoColor=white)](https://discord.gg/6MWWX4x9pf)
+[![Reddit: r/ObsRust](https://img.shields.io/badge/Reddit-r%2FObsRust-FF4500?logo=reddit&logoColor=white)](https://www.reddit.com/r/ObsRust/)
+[![Discussions: got an idea?](docs/images/discussions.svg)](https://github.com/obs-rust/obs-studio/discussions)
 [![Contributor leaderboard workflow status](https://github.com/obs-rust/obs-studio/actions/workflows/leaderboard.yml/badge.svg?branch=master)](https://github.com/obs-rust/obs-studio/actions/workflows/leaderboard.yml)
 [![Merge queue for master](docs/images/merge-queue.svg)](https://github.com/obs-rust/obs-studio/queue/master)
-[![Discussions: got an idea?](docs/images/discussions.svg)](https://github.com/obs-rust/obs-studio/discussions)
-[![Reddit: r/ObsRust](https://img.shields.io/badge/Reddit-r%2FObsRust-FF4500?logo=reddit&logoColor=white)](https://www.reddit.com/r/ObsRust/)
-[![OBS Rust Discord Server](https://img.shields.io/badge/Discord-OBS%20Rust-5865F2?logo=discord&logoColor=white)](https://discord.gg/6MWWX4x9pf)
 
 <p align="center"><img src="docs/images/obs-rust-logo.png" alt="obs-rust logo" width="128"></p>
 
@@ -20,6 +20,13 @@ Same obs studio, but without the bugs. AI generated issues and PRs welcome.
 
 Got an idea? [Start a conversation](https://github.com/obs-rust/obs-studio/discussions).
 
+> [!TIP]
+> **Come talk to us on [Discord](https://discord.gg/6MWWX4x9pf).** We're a
+> new project, and the people building it are there. Ask a question, tell us
+> what works or breaks on your setup (AppImage, Flatpak, your plug-ins and
+> capture devices), suggest an idea, or follow the port as it lands. No
+> question is too small.
+
 # Features
 
 What OBS-Studio-Rust does differently from upstream OBS Studio, for a user:
@@ -28,6 +35,9 @@ to the issues and pull requests. See the
 [features ledger](docs/features.md).
 
 # Fixing bugs with AI + Rust
+
+Want to fix one yourself? Contributors, human or AI-assisted, chat about
+ports and pull requests on [Discord](https://discord.gg/6MWWX4x9pf).
 
 https://github.com/user-attachments/assets/4d9af616-bd76-468e-93ac-ef8ef44a0efb
 
@@ -76,6 +86,13 @@ read it before you push: it explains how to avoid overloading the
 shared machines and CI.
 
 # Q&A
+
+**Where can I get help, or report something that isn't quite a bug?**
+
+Join us on [Discord](https://discord.gg/6MWWX4x9pf): it's the quickest way to
+reach the people working on OBS Rust. For a reproducible bug, please also
+[file an issue](https://github.com/obs-rust/obs-studio/issues/new/choose); for
+longer ideas, [start a discussion](https://github.com/obs-rust/obs-studio/discussions).
 
 **Does OBS Rust support all of the plug-ins?**
 
