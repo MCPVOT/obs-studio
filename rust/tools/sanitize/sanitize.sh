@@ -104,16 +104,22 @@ sleep 2
 if [ -z "${SKIP_TESTS:-}" ]; then
   echo "== [$tool] unit tests"
   mkdir -p "$out/tests"
+  # Each test's WORKING_DIRECTORY from ctest (the test graph's
+  # working_directory): libobs finds its data relative to it (#2043).
+  ctest --test-dir "$b" --show-only=json-v1 2>/dev/null \
+    | jq -r '.tests[] | [.name, ((.properties // [])[] | select(.name == "WORKING_DIRECTORY") | .value)] | select(length == 2) | @tsv' \
+      >"$out/tests/workdirs.tsv" || : >"$out/tests/workdirs.tsv"
   for t in $(find "$b/test/cmocka" -maxdepth 1 -type f -executable -name 'test_*' | sort); do
     n=$(basename "$t")
     if [[ $n =~ $skip ]]; then
       echo "$n skipped (built with ASan)"
       continue
     fi
+    wd=$(awk -F'\t' -v n="$n" '$1 == n { print $2; exit }' "$out/tests/workdirs.tsv")
     if [ $tool = valgrind ]; then
-      (cd "$b/test/cmocka" && timeout 600 "${vg[@]}" --log-file="$out/tests/$n.vg.log" "$t" >"$out/tests/$n.log" 2>&1)
+      (cd "${wd:-$b/test/cmocka}" && timeout 600 "${vg[@]}" --log-file="$out/tests/$n.vg.log" "$t" >"$out/tests/$n.log" 2>&1)
     else
-      (cd "$b/test/cmocka" \
+      (cd "${wd:-$b/test/cmocka}" \
         && ASAN_OPTIONS="$ASAN_OPTIONS:log_path=$out/tests/$n.asan" \
           TSAN_OPTIONS="$TSAN_OPTIONS:log_path=$out/tests/$n.tsan" \
           UBSAN_OPTIONS="$UBSAN_OPTIONS:log_path=$out/tests/$n.ubsan" \
