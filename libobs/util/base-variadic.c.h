@@ -27,19 +27,12 @@
 
 /* printf-style checking at the callers of the va_list forwarders below
  * (obs-rust/obs-studio#516). */
-#if defined(__MINGW32__)
-#define VPRINTFATTR(f) __attribute__((__format__(__gnu_printf__, f, 0)))
-#elif !defined(_MSC_VER)
+#ifndef BASE_HOST_VPRINTFATTR
 #define VPRINTFATTR(f) __attribute__((__format__(__printf__, f, 0)))
-#else
-#define VPRINTFATTR(f)
 #endif
 
-#if !defined(_MSC_VER) && !defined(_WIN32)
-/* Windows (MinGW included) has no ELF visibility. */
+#ifndef BASE_HIDDEN
 #define BASE_HIDDEN __attribute__((visibility("hidden")))
-#else
-#define BASE_HIDDEN
 #endif
 
 typedef void (*crash_handler_t)(const char *, va_list, void *);

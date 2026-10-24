@@ -107,5 +107,7 @@
 #include "util/c99defs.h"
 #include "util/dstr.h"
 #include "util/bmem.h"
+#include "util/base-windows.h"
 #include "util/bmem-windows.h"
 #include "util/config-file-windows.h"
+#include "util/utf8-windows.h"

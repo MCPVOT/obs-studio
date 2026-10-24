@@ -5,3 +5,7 @@
 #define wchar_to_utf8 oracle_wchar_to_utf8
 
 #include "util/utf8.c.h"
+/* Windows keeps its converter in its own unity group member (#876). */
+#ifdef UTF8_HOST_WINDOWS
+#include "util/utf8-host-windows.c.h"
+#endif

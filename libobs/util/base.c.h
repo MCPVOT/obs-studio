@@ -18,12 +18,8 @@
 
 /* printf-style checking at the callers of the va_list forwarders below
  * (obs-rust/obs-studio#516). */
-#if defined(__MINGW32__)
-#define VPRINTFATTR(f) __attribute__((__format__(__gnu_printf__, f, 0)))
-#elif !defined(_MSC_VER)
+#ifndef BASE_HOST_VPRINTFATTR
 #define VPRINTFATTR(f) __attribute__((__format__(__printf__, f, 0)))
-#else
-#define VPRINTFATTR(f)
 #endif
 
 static int crashing = 0;
