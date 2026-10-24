@@ -49,6 +49,9 @@
 
 #include <OBSApp.hpp>
 #include <utility/platform.hpp>
+#include "frontend/settings/settings-linux.hpp"
+#include "frontend/settings/settings-macos.hpp"
+#include "frontend/settings/settings-windows.hpp"
 
 /* settings/OBSBasicSettings_Stream.cpp */
 

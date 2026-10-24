@@ -557,10 +557,10 @@ OBSBasicSettings::OBSBasicSettings(QWidget *parent)
 	HookWidget(ui->resetOSXVSync,        CHECK_CHANGED,  ADV_CHANGED);
 	if (obs_audio_monitoring_available())
 		HookWidget(ui->monitoringDevice,     COMBO_CHANGED,  ADV_CHANGED);
-#ifdef _WIN32
+#ifdef OBS_SETTINGS_WINDOWS
 	HookWidget(ui->disableAudioDucking,  CHECK_CHANGED,  ADV_CHANGED);
 #endif
-#if defined(_WIN32) || defined(__APPLE__) || defined(__linux__)
+#ifdef OBS_SETTINGS_BROWSER_HWACCEL
 	HookWidget(ui->browserHWAccel,       CHECK_CHANGED,  ADV_RESTART);
 #endif
 	HookWidget(ui->filenameFormatting,   EDIT_CHANGED,   ADV_CHANGED);
@@ -598,7 +598,7 @@ OBSBasicSettings::OBSBasicSettings(QWidget *parent)
 	ui->advOutFFVBitrate->setSuffix(" Kbps");
 	ui->advOutFFABitrate->setSuffix(" Kbps");
 
-#if !defined(_WIN32) && !defined(ENABLE_SPARKLE_UPDATER)
+#ifndef OBS_PLATFORM_HAS_UPDATE_BRANCHES
 	delete ui->updateSettingsGroupBox;
 	ui->updateSettingsGroupBox = nullptr;
 	ui->updateChannelLabel = nullptr;
@@ -619,7 +619,7 @@ OBSBasicSettings::OBSBasicSettings(QWidget *parent)
 		ui->monitoringDevice = nullptr;
 	}
 
-#ifdef _WIN32
+#ifdef OBS_SETTINGS_WINDOWS
 	if (!SetDisplayAffinitySupported()) {
 		delete ui->hideOBSFromCapture;
 		ui->hideOBSFromCapture = nullptr;
@@ -641,7 +641,7 @@ OBSBasicSettings::OBSBasicSettings(QWidget *parent)
 	}
 
 #else
-#if defined(__APPLE__) && defined(__aarch64__)
+#ifdef OBS_SETTINGS_RENDERER
 	delete ui->adapterLabel;
 	delete ui->adapter;
 
@@ -663,7 +663,7 @@ OBSBasicSettings::OBSBasicSettings(QWidget *parent)
 	delete ui->enableNewSocketLoop;
 	delete ui->enableLowLatencyMode;
 	delete ui->hideOBSFromCapture;
-#if !defined(__APPLE__) && !defined(__linux__)
+#ifndef OBS_SETTINGS_BROWSER_HWACCEL
 	delete ui->browserHWAccel;
 	delete ui->sourcesGroup;
 #endif
@@ -674,14 +674,14 @@ OBSBasicSettings::OBSBasicSettings(QWidget *parent)
 	ui->enableNewSocketLoop = nullptr;
 	ui->enableLowLatencyMode = nullptr;
 	ui->hideOBSFromCapture = nullptr;
-#if !defined(__APPLE__) && !defined(__linux__)
+#ifndef OBS_SETTINGS_BROWSER_HWACCEL
 	ui->browserHWAccel = nullptr;
 	ui->sourcesGroup = nullptr;
 #endif
 	ui->disableAudioDucking = nullptr;
 #endif
 
-#ifndef __APPLE__
+#ifndef OBS_SETTINGS_MACOS_VSYNC
 	delete ui->disableOSXVSync;
 	delete ui->resetOSXVSync;
 	ui->disableOSXVSync = nullptr;
@@ -1218,7 +1218,7 @@ void OBSBasicSettings::LoadLanguageList()
 	ui->language->model()->sort(0);
 }
 
-#if defined(_WIN32) || defined(ENABLE_SPARKLE_UPDATER)
+#ifdef OBS_PLATFORM_HAS_UPDATE_BRANCHES
 void TranslateBranchInfo(const QString &name, QString &displayName, QString &description)
 {
 	QString translatedName = QTStr(QT_TO_UTF8(("Basic.Settings.General.ChannelName." + name)));
@@ -1235,7 +1235,7 @@ void TranslateBranchInfo(const QString &name, QString &displayName, QString &des
 
 void OBSBasicSettings::LoadBranchesList()
 {
-#if defined(_WIN32) || defined(ENABLE_SPARKLE_UPDATER)
+#ifdef OBS_PLATFORM_HAS_UPDATE_BRANCHES
 	bool configBranchRemoved = true;
 	QString configBranch = config_get_string(App()->GetAppConfig(), "General", "UpdateBranch");
 
@@ -1287,7 +1287,7 @@ void OBSBasicSettings::LoadGeneralSettings()
 
 	LoadLanguageList();
 
-#if defined(_WIN32) || defined(ENABLE_SPARKLE_UPDATER)
+#ifdef OBS_PLATFORM_HAS_UPDATE_BRANCHES
 	bool enableAutoUpdates = config_get_bool(App()->GetAppConfig(), "General", "EnableAutoUpdates");
 	ui->enableAutoUpdates->setChecked(enableAutoUpdates);
 
@@ -1296,7 +1296,7 @@ void OBSBasicSettings::LoadGeneralSettings()
 	bool openStatsOnStartup = config_get_bool(main->Config(), "General", "OpenStatsOnStartup");
 	ui->openStatsOnStartup->setChecked(openStatsOnStartup);
 
-#if defined(_WIN32)
+#ifdef OBS_SETTINGS_WINDOWS
 	if (ui->hideOBSFromCapture) {
 		bool hideWindowFromCapture =
 			config_get_bool(App()->GetUserConfig(), "BasicWindow", "HideOBSWindowsFromCapture");
@@ -1438,9 +1438,9 @@ void OBSBasicSettings::LoadGeneralSettings()
 
 void OBSBasicSettings::LoadRendererList()
 {
-#if defined(_WIN32) || (defined(__APPLE__) && defined(__aarch64__))
+#ifdef OBS_SETTINGS_RENDERER
 	const char *renderer = config_get_string(App()->GetAppConfig(), "Video", "Renderer");
-#ifdef _WIN32
+#ifdef OBS_SETTINGS_WINDOWS
 	ui->renderer->addItem(QString("Direct3D 11"), QString("Direct3D 11"));
 	if (opt_allow_opengl || strcmp(renderer, "OpenGL") == 0) {
 		ui->renderer->addItem(QString("OpenGL"), QString("OpenGL"));
@@ -2713,13 +2713,14 @@ void OBSBasicSettings::LoadAdvancedSettings()
 		ui->advancedVideoContainer->setEnabled(false);
 	}
 
-#ifdef __APPLE__
+#ifdef OBS_SETTINGS_MACOS_VSYNC
 	bool disableOSXVSync = config_get_bool(App()->GetAppConfig(), "Video", "DisableOSXVSync");
 	bool resetOSXVSync = config_get_bool(App()->GetAppConfig(), "Video", "ResetOSXVSyncOnExit");
 	ui->disableOSXVSync->setChecked(disableOSXVSync);
 	ui->resetOSXVSync->setChecked(resetOSXVSync);
 	ui->resetOSXVSync->setEnabled(disableOSXVSync);
-#elif _WIN32
+#endif
+#ifdef OBS_SETTINGS_WINDOWS
 	bool disableAudioDucking = config_get_bool(App()->GetAppConfig(), "Audio", "DisableAudioDucking");
 	ui->disableAudioDucking->setChecked(disableAudioDucking);
 
@@ -2737,7 +2738,7 @@ void OBSBasicSettings::LoadAdvancedSettings()
 	ui->enableLowLatencyMode->setChecked(enableLowLatencyMode);
 	ui->enableLowLatencyMode->setToolTip(QTStr("Basic.Settings.Advanced.Network.TCPPacing.Tooltip"));
 #endif
-#if defined(_WIN32) || defined(__APPLE__) || defined(__linux__)
+#ifdef OBS_SETTINGS_BROWSER_HWACCEL
 	bool browserHWAccel = config_get_bool(App()->GetAppConfig(), "General", "BrowserHWAccel");
 	ui->browserHWAccel->setChecked(browserHWAccel);
 	prevBrowserAccel = ui->browserHWAccel->isChecked();
@@ -3176,7 +3177,7 @@ void OBSBasicSettings::SaveGeneralSettings()
 		config_set_string(App()->GetUserConfig(), "General", "Language", language.c_str());
 	}
 
-#if defined(_WIN32) || defined(ENABLE_SPARKLE_UPDATER)
+#ifdef OBS_PLATFORM_HAS_UPDATE_BRANCHES
 	if (WidgetChanged(ui->enableAutoUpdates)) {
 		config_set_bool(App()->GetAppConfig(), "General", "EnableAutoUpdates",
 				ui->enableAutoUpdates->isChecked());
@@ -3189,7 +3190,7 @@ void OBSBasicSettings::SaveGeneralSettings()
 		forceUpdateCheck = true;
 	}
 #endif
-#ifdef _WIN32
+#ifdef OBS_SETTINGS_WINDOWS
 	if (ui->hideOBSFromCapture && WidgetChanged(ui->hideOBSFromCapture)) {
 		bool hide_window = ui->hideOBSFromCapture->isChecked();
 		config_set_bool(App()->GetUserConfig(), "BasicWindow", "HideOBSWindowsFromCapture", hide_window);
@@ -3272,7 +3273,7 @@ void OBSBasicSettings::SaveGeneralSettings()
 	if (WidgetChanged(ui->projectorAlwaysOnTop)) {
 		config_set_bool(App()->GetUserConfig(), "BasicWindow", "ProjectorAlwaysOnTop",
 				ui->projectorAlwaysOnTop->isChecked());
-#if defined(_WIN32) || defined(__APPLE__)
+#ifdef OBS_SETTINGS_PROJECTOR_ON_TOP
 		main->UpdateProjectorAlwaysOnTop(ui->projectorAlwaysOnTop->isChecked());
 #else
 		main->ResetProjectors();
@@ -3402,14 +3403,14 @@ void OBSBasicSettings::SaveAdvancedSettings()
 {
 	QString lastMonitoringDevice = config_get_string(main->Config(), "Audio", "MonitoringDeviceId");
 
-#if defined(_WIN32) || (defined(__APPLE__) && defined(__aarch64__))
+#ifdef OBS_SETTINGS_RENDERER
 	if (WidgetChanged(ui->renderer)) {
 		config_set_string(App()->GetAppConfig(), "Video", "Renderer",
 				  QT_TO_UTF8(ui->renderer->currentData().toString()));
 	}
 #endif
 
-#ifdef _WIN32
+#ifdef OBS_SETTINGS_WINDOWS
 	std::string priority = ui->processPriority->currentData().toString().toStdString();
 	config_set_string(App()->GetAppConfig(), "General", "ProcessPriority", priority.c_str());
 	if (main->Active()) {
@@ -3419,7 +3420,7 @@ void OBSBasicSettings::SaveAdvancedSettings()
 	SaveCheckBox(ui->enableNewSocketLoop, "Output", "NewSocketLoopEnable");
 	SaveCheckBox(ui->enableLowLatencyMode, "Output", "LowLatencyEnable");
 #endif
-#if defined(_WIN32) || defined(__APPLE__) || defined(__linux__)
+#ifdef OBS_SETTINGS_BROWSER_HWACCEL
 	bool browserHWAccel = ui->browserHWAccel->isChecked();
 	config_set_bool(App()->GetAppConfig(), "General", "BrowserHWAccel", browserHWAccel);
 #endif
@@ -3429,7 +3430,7 @@ void OBSBasicSettings::SaveAdvancedSettings()
 		config_set_string(App()->GetUserConfig(), "General", "HotkeyFocusType", QT_TO_UTF8(str));
 	}
 
-#ifdef __APPLE__
+#ifdef OBS_SETTINGS_MACOS_VSYNC
 	if (WidgetChanged(ui->disableOSXVSync)) {
 		bool disable = ui->disableOSXVSync->isChecked();
 		config_set_bool(App()->GetAppConfig(), "Video", "DisableOSXVSync", disable);
@@ -3450,7 +3451,7 @@ void OBSBasicSettings::SaveAdvancedSettings()
 		SaveComboData(ui->monitoringDevice, "Audio", "MonitoringDeviceId");
 	}
 
-#ifdef _WIN32
+#ifdef OBS_SETTINGS_WINDOWS
 	if (WidgetChanged(ui->disableAudioDucking)) {
 		bool disable = ui->disableAudioDucking->isChecked();
 		config_set_bool(App()->GetAppConfig(), "Audio", "DisableAudioDucking", disable);
@@ -4367,10 +4368,8 @@ void OBSBasicSettings::on_filenameFormatting_textEdited(const QString &text)
 {
 	QString safeStr = text;
 
-#ifdef __APPLE__
-	safeStr.replace(QRegularExpression("[:]"), "");
-#elif defined(_WIN32)
-	safeStr.replace(QRegularExpression("[<>:\"\\|\\?\\*]"), "");
+#ifdef OBS_SETTINGS_FILENAME_UNSAFE
+	safeStr.replace(QRegularExpression(OBS_SETTINGS_FILENAME_UNSAFE), "");
 #else
 	// TODO: Add filtering for other platforms
 #endif
@@ -5748,7 +5747,7 @@ void OBSBasicSettings::SimpleRecordingQualityLosslessWarning(int idx)
 
 void OBSBasicSettings::on_disableOSXVSync_clicked()
 {
-#ifdef __APPLE__
+#ifdef OBS_SETTINGS_MACOS_VSYNC
 	if (!loading) {
 		bool disable = ui->disableOSXVSync->isChecked();
 		ui->resetOSXVSync->setEnabled(disable);
@@ -5936,7 +5935,7 @@ void OBSBasicSettings::UpdateAdvNetworkGroup()
 	ui->dynBitrate->setVisible(enabled);
 	ui->ipFamilyLabel->setVisible(enabled);
 	ui->ipFamily->setVisible(enabled);
-#ifdef _WIN32
+#ifdef OBS_SETTINGS_WINDOWS
 	ui->enableNewSocketLoop->setVisible(enabled);
 	ui->enableLowLatencyMode->setVisible(enabled);
 #endif
