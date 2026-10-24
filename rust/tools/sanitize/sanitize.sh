@@ -85,7 +85,9 @@ if [ ! -x "$inst/bin/obs" ] || [ -z "$libobs" ]; then
 fi
 libdir=$(dirname "$libobs")
 
-export ASAN_OPTIONS="detect_leaks=1:abort_on_error=0:halt_on_error=0:log_path=$out/asan"
+# Full allocation stacks: distro FFmpeg has no frame pointers, and the fast
+# unwinder stops at av_malloc (#2035).
+export ASAN_OPTIONS="detect_leaks=1:fast_unwind_on_malloc=0:abort_on_error=0:halt_on_error=0:log_path=$out/asan"
 export UBSAN_OPTIONS="print_stacktrace=1:halt_on_error=0:log_path=$out/ubsan"
 export TSAN_OPTIONS="halt_on_error=0:second_deadlock_stack=1:log_path=$out/tsan"
 vg=(valgrind --error-exitcode=99 --child-silent-after-fork=yes --errors-for-leak-kinds=definite
