@@ -1680,6 +1680,11 @@ area.
 
 ### Stability
 
+- DeckLink output no longer crashes when a saved output mode is one the
+  device doesn't offer (settings from another card or firmware); the start
+  fails with an error in the log. An HDR start with no video conversion
+  starts as SDR instead of crashing. *All*, 2026-10-24. Issue
+  [#2144](https://github.com/obs-rust/obs-studio/issues/2144).
 - Upload Previous Log File no longer aborts OBS when no previous log exists;
   it reports that there is no log file. *Linux*, 2026-10-22. Issue
   [#1768](https://github.com/obs-rust/obs-studio/issues/1768), PR

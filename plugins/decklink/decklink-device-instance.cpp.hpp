@@ -577,9 +577,9 @@ bool DeckLinkDeviceInstance::StartOutput(DeckLinkDeviceMode *mode_)
 	struct obs_video_info ovi;
 	const enum video_colorspace colorspace = obs_get_video_info(&ovi) ? ovi.colorspace : VIDEO_CS_DEFAULT;
 	const bool source_hdr = (colorspace == VIDEO_CS_2100_PQ) || (colorspace == VIDEO_CS_2100_HLG);
-	const bool enable_hdr =
-		source_hdr &&
-		(obs_output_get_video_conversion(decklinkOutput->GetOutput())->colorspace == VIDEO_CS_2100_PQ);
+	/* No conversion when create didn't find the device or mode: not HDR (#2144). */
+	const struct video_scale_info *conversion = obs_output_get_video_conversion(decklinkOutput->GetOutput());
+	const bool enable_hdr = source_hdr && conversion && conversion->colorspace == VIDEO_CS_2100_PQ;
 	BMDPixelFormat pixelFormat = enable_hdr ? bmdFormat10BitRGBXLE : bmdFormat8BitBGRA;
 	const int64_t minimumPrerollFrames = std::max(device->GetMinimumPrerollFrames(), INT64_C(3));
 	for (int64_t i = 0; i < minimumPrerollFrames; ++i) {
