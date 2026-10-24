@@ -38,9 +38,21 @@ you last read them (`git log -1 --format=%cs -- <file>`).
 git fetch origin && git rebase --autostash origin/master
 ```
 
-Work in your own branch or worktree, named `port/<unit>`, `fix/<issue>-<topic>`,
-`test/<unit>` or `infra/<topic>`. Don't touch other people's branches, and
-don't delete local branches you didn't create.
+Work in your own branch, named `port/<unit>`, `fix/<issue>-<topic>`,
+`test/<unit>` or `infra/<topic>`, in the checkout you were started in. Don't
+touch other people's branches, and don't delete local branches you didn't
+create.
+
+**No new clones or worktrees of this repo.** Switch branches in the existing
+checkout (`git switch -c <branch> origin/master`; stash or commit first).
+Every build cache (zccache, the cargo target directory, CMake build trees,
+bosn volumes) is keyed to a checkout's path, so a fresh clone or worktree
+starts cold: it recompiles everything and fills the disk. A clone is allowed
+only for a **different repository** (an external repo such as
+obs-rust/obs-websocket or a private advisory fork), and even then first reuse
+a local checkout of that repo if one exists (look under
+`~/dev/obs-rust/obs-studio2-extern/` and `~/dev/`), fetching and branching in
+it, so its caches stay warm. Clone only when no local copy exists.
 
 ## 2. Choose and claim one issue
 

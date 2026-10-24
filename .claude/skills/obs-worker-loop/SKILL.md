@@ -39,7 +39,7 @@ started a background agent can end there.
    - Draft waiting on evidence: when the evidence is in, comment it, mark the
      PR ready and queue it.
 2. **After any merge:** `git fetch origin && git rebase --autostash
-   origin/master` in each clone you keep working in.
+   origin/master` in the checkout you work in.
 3. **Master health.** PRs do not run the scheduled workflows (Sanitizers, the
    nightly full run, release), so a red one can stay red for days unseen:
    ```sh
@@ -90,11 +90,15 @@ A claim past its window (48 h, 8 h on `critical`, 7 days with
 
 ## 4. Doing the work
 
-- **One clone per concurrent branch**, under
-  `/home/<you>/dev/obs-rust/obs-studio2-extern/<name>`. Don't move a
-  clone's branch while an agent is working in it.
-- **Delegate** multi-file work to one background agent with a tight brief:
-  the issue, the clone and branch, RED then GREEN, "check every consumer
+- **One checkout, no new clones or worktrees** of this repo (obs-worker §1):
+  a new clone or worktree starts every build cache cold. Switch branches in
+  the checkout you were started in, one branch at a time. A clone is only for
+  an external repository, and reuses a local checkout of it when one exists.
+  Because there is one checkout, don't run two code tasks at once: finish or
+  park (commit, push) one branch before switching to the next.
+- **Delegate** multi-file work to one background agent with a tight brief,
+  only while you leave the checkout to it (no other branch work meanwhile):
+  the issue, the branch in the existing checkout, "no clones or worktrees", RED then GREEN, "check every consumer
   first and stop if X still depends on it", `git add` by name, lint, PR, and
   queue only if green. Don't touch its files while it runs. Read its result
   before you report it, and correct it if it got the facts wrong.
@@ -103,8 +107,8 @@ A claim past its window (48 h, 8 h on `critical`, 7 days with
   library got committed and the push was rejected), and
   `git submodule update` can move the `plugins/obs-websocket` pointer. Check
   `git status --short` before each commit.
-- **Native builds** need `git submodule update --init` in a fresh clone
-  (obs-browser). The AppImage builds with `bosn run --task appimage`.
+- **Native builds** need `git submodule update --init` when a submodule
+  is missing (obs-browser). The AppImage builds with `bosn run --task appimage`.
 - **A broken shared cache** (for example a zccache daemon in its recovery
   cool-down: "refusing to run c++ uncached") is not yours to fix in the
   middle of a task. Don't fight it: note it on the PR and let PR CI, or one

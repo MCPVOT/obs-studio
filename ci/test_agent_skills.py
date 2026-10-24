@@ -32,6 +32,16 @@ class AgentSkillsTest(unittest.TestCase):
                 self.assertIsNotNone(m, "missing frontmatter name")
                 self.assertEqual(m.group(1), path.parent.name)
 
+    def test_worker_skills_forbid_new_clones_and_worktrees(self):
+        # A new clone or worktree starts every build cache cold (zccache,
+        # cargo target, CMake trees, bosn volumes).
+        for skill in ("obs-worker", "obs-worker-loop"):
+            with self.subTest(skill=skill):
+                text = (SKILLS / skill / "SKILL.md").read_text(encoding="utf-8")
+                self.assertIn("no new clones or worktrees", text.lower())
+                self.assertNotIn("branch or worktree", text)
+                self.assertNotIn("One clone per concurrent branch", text)
+
     def test_worker_loop_links_security_md(self):
         text = (SKILLS / "obs-worker-loop/SKILL.md").read_text(encoding="utf-8")
         self.assertRegex(text, r"\]\([./]*SECURITY\.md[#)]")
