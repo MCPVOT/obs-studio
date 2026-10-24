@@ -57,6 +57,8 @@ struct State {
     caches: Vec<Option<FrameCache>>,
     gifs: Vec<FakeGif>,
     live: i64,
+    /// Decoders from gif_create not yet passed to gif_destroy.
+    open_gifs: i64,
     textures: Vec<(u32, u32)>,
     log: Vec<String>,
     messages: Vec<String>,
@@ -169,6 +171,7 @@ impl Host for Fake {
     fn gif_create() -> Option<u32> {
         // The real object is created by scanning; this one is a slot.
         with(|s| {
+            s.open_gifs += 1;
             s.gifs.push(FakeGif {
                 info: GifInfo::default(),
                 frames: Vec::new(),
@@ -226,6 +229,7 @@ impl Host for Fake {
     }
     fn gif_destroy(gif: Option<u32>) {
         with(|s| {
+            s.open_gifs -= 1;
             if let Some(b) = s.gifs[gif.unwrap() as usize].bitmap.take() {
                 s.blocks[b as usize] = None;
                 s.live -= 1;
@@ -428,6 +432,7 @@ fn missing_gif_test() {
         "init_animated_gif: Failed to open file 'image-file-missing.gif'"
     ));
     assert!(!log_has("Failed to load file"));
+    assert_eq!(with(|s| s.open_gifs), 0);
     image.free();
     assert_eq!(call_log(), "");
 }
@@ -459,6 +464,7 @@ fn wide_gif_test() {
         "init_animated_gif: Bad texture dimensions (4097x1) in 'image-file-wide.gif'"
     ));
     assert!(!log_has("Failed to load file"));
+    assert_eq!(with(|s| s.open_gifs), 0);
 }
 
 #[test]

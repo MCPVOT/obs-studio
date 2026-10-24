@@ -642,6 +642,11 @@ impl<H: Host> ImageFileEx<H> {
     /// as a GIF so FFmpeg is not tried.
     fn fail_gif(&mut self) -> bool {
         if !self.loaded {
+            // free() destroys the decoder only once loaded (#2032).
+            if let Some(handle) = self.internal.as_mut() {
+                let internal = H::internal(handle);
+                H::gif_destroy(internal.gif.take());
+            }
             self.free();
         }
         true
