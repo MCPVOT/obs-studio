@@ -153,6 +153,22 @@ class FrontendCMakeFacadeTest(unittest.TestCase):
                 self.assertIn("bool PlatformTrayActivationTogglesWindow()", source)
                 self.assertIn("void SetPlatformDockIconVisible(bool", source)
 
+    def test_nvenc_check_goes_through_the_facade(self):
+        # #873: whether a host has NVENC and its test program's name are
+        # host facts; the missing-encoder check names no host.
+        header = (FRONTEND / "utility/platform.hpp").read_text()
+        self.assertIn("const char *GetPlatformNvencTestProgram();", header)
+        source = (FRONTEND / "widgets/OBSBasic_Profiles.cpp.hpp").read_text()
+        for macro in ("_WIN32", "__APPLE__"):
+            self.assertNotIn(macro, source)
+        self.assertIn("GetPlatformNvencTestProgram()", source)
+        for host, program in (("windows.cpp.hpp", '"obs-nvenc-test.exe"'), ("osx.mm.hpp", "nullptr"),
+                              ("x11.cpp.hpp", '"obs-nvenc-test"')):
+            with self.subTest(host=host):
+                source = (FRONTEND / f"utility/platform-{host}").read_text()
+                body = source.split("const char *GetPlatformNvencTestProgram()", 1)[1].split("}", 1)[0]
+                self.assertIn(program, body)
+
     def test_hdr_screenshots_go_through_the_facade(self):
         # #883: the HDR color space choice and the JXR writer are host
         # operations; ScreenshotObj and its precompiled header name no host.

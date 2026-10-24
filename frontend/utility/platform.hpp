@@ -154,6 +154,10 @@ QIcon GetPlatformTrayIcon(TrayIconState state);
 bool PlatformTrayActivationTogglesWindow();
 void SetPlatformDockIconVisible(bool visible);
 
+/* The NVENC capability test program's file name, or nullptr where the host
+ * has no NVENC (#873). */
+const char *GetPlatformNvencTestProgram();
+
 /* Settings and hotkey editor platform policy (#869). */
 bool PlatformNeedsNonNativeColorDialog();
 bool PlatformSupportsSimpleQsvEncoders();

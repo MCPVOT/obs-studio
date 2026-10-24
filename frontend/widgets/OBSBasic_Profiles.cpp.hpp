@@ -972,7 +972,6 @@ struct ErrorDetails {
 };
 using CheckResult = std::optional<ErrorDetails>;
 
-#ifndef __APPLE__
 CheckResult CheckNVENCInternal(const std::unordered_set<std::string_view> &missing_encoders)
 {
 	const std::vector<std::pair<std::string_view, std::string_view>> nvencFailureReasons = {
@@ -996,11 +995,7 @@ CheckResult CheckNVENCInternal(const std::unordered_set<std::string_view> &missi
 		return ErrorDetails{"plugin_not_loaded", QTStr("EncoderMissing.MissingModule").arg("obs-nvenc")};
 	}
 
-#ifdef _WIN32
-	BPtr testBinary = os_get_executable_path_ptr("obs-nvenc-test.exe");
-#else
-	BPtr testBinary = os_get_executable_path_ptr("obs-nvenc-test");
-#endif
+	BPtr testBinary = os_get_executable_path_ptr(GetPlatformNvencTestProgram());
 
 	OsProcessArgs args{os_process_args_create(testBinary), os_process_args_destroy};
 
@@ -1085,7 +1080,6 @@ CheckResult CheckNVENC(const std::unordered_set<std::string_view> &missing_encod
 	static auto result = CheckNVENCInternal(missing_encoders);
 	return result;
 }
-#endif
 
 CheckResult CheckX264()
 {
@@ -1204,10 +1198,8 @@ void OBSBasic::CheckForMissingEncoders()
 
 		if (encoder.find("x264") != std::string_view::npos) {
 			res = CheckX264();
-#ifndef __APPLE__
-		} else if (encoder.find("nvenc") != std::string_view::npos) {
+		} else if (encoder.find("nvenc") != std::string_view::npos && GetPlatformNvencTestProgram()) {
 			res = CheckNVENC(missing_encoders);
-#endif
 		} else {
 			res = CheckHardwareEncoder(encoder);
 		}

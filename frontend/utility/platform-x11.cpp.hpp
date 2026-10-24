@@ -882,3 +882,8 @@ bool PlatformTrayActivationTogglesWindow()
 }
 
 void SetPlatformDockIconVisible(bool) {}
+
+const char *GetPlatformNvencTestProgram()
+{
+	return "obs-nvenc-test";
+}

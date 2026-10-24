@@ -972,3 +972,8 @@ void SetPlatformDockIconVisible(bool visible)
 {
 	EnableOSXDockIcon(visible);
 }
+
+const char *GetPlatformNvencTestProgram()
+{
+	return nullptr;
+}

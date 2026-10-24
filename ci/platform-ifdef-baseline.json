@@ -9,7 +9,6 @@
   "frontend/widgets/OBSBasic.cpp.hpp": 18,
   "frontend/widgets/OBSBasic.hpp": 5,
   "frontend/widgets/OBSBasic_MainControls.cpp.hpp": 5,
-  "frontend/widgets/OBSBasic_Profiles.cpp.hpp": 3,
   "frontend/widgets/OBSBasic_Updater.cpp.hpp": 5,
   "libobs/build/libobs-media.pch.h": 1,
   "libobs/build/libobs-obfuscate.pch.h": 2,
