@@ -1907,6 +1907,12 @@ area.
 - Rust graphics preserves separate C trigonometric calls on macOS and signaling
   NaN rounding on macOS/Windows. *macOS, Windows*, 2026-10-18.
   PR [#1398](https://github.com/obs-rust/obs-studio/pull/1398).
+- Downloads and remote text requests no longer ask servers for brotli: what
+  comes back can no longer reach a Brotli decoder with a public
+  out-of-bounds write while the packaged libraries still carry it. *All*,
+  2026-10-24. Issue
+  [#2211](https://github.com/obs-rust/obs-studio/issues/2211), PR
+  [#2213](https://github.com/obs-rust/obs-studio/pull/2213).
 
 ## Development builds
 

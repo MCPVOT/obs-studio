@@ -26,6 +26,36 @@
 #define TIMEOUT_MS 4000UL
 #define BODY "{\"ingests\":[{\"name\":\"local\",\"url_template\":\"rtmp://127.0.0.1/app\"}]}"
 
+/* The Accept-Encoding header of the request the server actually received,
+ * kept so the assertions can read what curl advertised on the wire. */
+static char accept_encoding[256];
+
+/* Whether value lists token as a comma-separated coding, per RFC 9110:
+ * "br" must not match inside "brotli-thing" or at the end of another word. */
+static bool lists_coding(const char *value, const char *token)
+{
+	size_t n = strlen(token);
+	const char *p = value;
+
+	while (*p) {
+		const char *end = strchr(p, ',');
+		size_t len = end ? (size_t)(end - p) : strlen(p);
+
+		while (len && (*p == ' ' || *p == '\t')) {
+			p++;
+			len--;
+		}
+		while (len && (p[len - 1] == ' ' || p[len - 1] == '\t'))
+			len--;
+		if (len == n && strncmp(p, token, n) == 0)
+			return true;
+		if (!end)
+			break;
+		p = end + 1;
+	}
+	return false;
+}
+
 struct user {
 	struct ingest_refresh_wait wait;
 	int confirm_calls;
@@ -126,6 +156,23 @@ static void *serve_once(void *data)
 		if (strstr(req, "\r\n\r\n"))
 			break;
 	}
+	req[got] = 0;
+
+	/* Keep what the client asked to accept, for the encoding assertions. */
+	accept_encoding[0] = 0;
+	{
+		const char *hdr = strstr(req, "\r\nAccept-Encoding:");
+
+		if (hdr) {
+			hdr += strlen("\r\nAccept-Encoding:");
+			while (*hdr == ' ' || *hdr == '	')
+				hdr++;
+			size_t i = 0;
+			while (*hdr && *hdr != '\r' && i < sizeof(accept_encoding) - 1)
+				accept_encoding[i++] = *hdr++;
+			accept_encoding[i] = 0;
+		}
+	}
 
 	struct dstr resp = {0};
 	dstr_printf(&resp,
@@ -163,6 +210,12 @@ static void successful_download_reaches_confirm(void **state)
 	assert_int_equal(u.confirm_calls, 1);
 	assert_non_null(u.data);
 	assert_string_equal(u.data, BODY);
+	/* What curl advertised on the wire: our outgoing calls must not ask for
+	 * brotli while the linked Brotli decoder carries CVE-2026-111497
+	 * (GHSA-c2vc-wwm8-6gx9). An empty CURLOPT_ACCEPT_ENCODING lets curl
+	 * send everything it was built with, br included. */
+	assert_non_null(strstr(accept_encoding, "gzip"));
+	assert_false(lists_coding(accept_encoding, "br"));
 	/* update_info_destroy joined the thread: the done callback has run. */
 	assert_int_equal(u.done_calls, 1);
 	assert_true(u.done_success);
