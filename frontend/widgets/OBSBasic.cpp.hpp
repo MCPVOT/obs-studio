@@ -314,7 +314,7 @@ OBSBasic::OBSBasic(QWidget *parent) : OBSMainWindow(parent), undo_s(ui), ui(new 
 	connect(renameSource, &QAction::triggered, this, &OBSBasic::EditSceneItemName);
 	ui->sourcesDock->addAction(renameSource);
 
-#ifdef __APPLE__
+#ifdef OBS_BASIC_MACOS
 	renameScene->setShortcut({Qt::Key_Return});
 	renameSource->setShortcut({Qt::Key_Return});
 
@@ -330,7 +330,7 @@ OBSBasic::OBSBasic(QWidget *parent) : OBSMainWindow(parent), undo_s(ui), ui(new 
 	renameSource->setShortcut({Qt::Key_F2});
 #endif
 
-#ifdef __linux__
+#ifdef OBS_BASIC_QUIT_SHORTCUT
 	ui->actionE_xit->setShortcut(Qt::CTRL | Qt::Key_Q);
 #endif
 
@@ -417,7 +417,7 @@ OBSBasic::OBSBasic(QWidget *parent) : OBSMainWindow(parent), undo_s(ui), ui(new 
 		[]() { OBSProjector::UpdateMultiviewProjectors(); });
 
 	connect(App(), &OBSApp::StyleChanged, this, [this]() { OnEvent(OBS_FRONTEND_EVENT_THEME_CHANGED); });
-#ifndef __APPLE__
+#ifndef OBS_BASIC_MACOS
 	connect(App(), &OBSApp::aboutToQuit, this, &OBSBasic::closeWindow);
 #endif
 
@@ -432,9 +432,8 @@ OBSBasic::OBSBasic(QWidget *parent) : OBSMainWindow(parent), undo_s(ui), ui(new 
 
 static const double scaled_vals[] = {1.0, 1.25, (1.0 / 0.75), 1.5, (1.0 / 0.6), 1.75, 2.0, 2.25, 2.5, 2.75, 3.0, 0.0};
 
-#ifdef __APPLE__ // macOS
-#define DEFAULT_CONTAINER "hybrid_mov"
-#else // Windows/Linux
+/* macOS records hybrid MOV by default (obsbasic-macos.hpp, #871). */
+#ifndef DEFAULT_CONTAINER
 #define DEFAULT_CONTAINER "hybrid_mp4"
 #endif
 
@@ -877,7 +876,7 @@ void OBSBasic::OBSInit()
 
 	/* hack to prevent elgato from loading its own QtNetwork that it tries
 	 * to ship with */
-#if defined(_WIN32) && !defined(_DEBUG)
+#if defined(OBS_BASIC_WINDOWS) && !defined(_DEBUG)
 	LoadLibraryW(L"Qt6Network");
 #endif
 	// Modules can access frontend information (i.e., profile and scene collection data) during their initialization,
@@ -1007,7 +1006,7 @@ void OBSBasic::OBSInit()
 	bool hideWindowOnStart = QSystemTrayIcon::isSystemTrayAvailable() && sysTrayEnabled &&
 				 (opt_minimize_tray || sysTrayWhenStarted);
 
-#ifdef _WIN32
+#ifdef OBS_BASIC_WINDOWS
 	SetWin32DropStyle(this);
 
 	if (!hideWindowOnStart) {
@@ -1034,7 +1033,7 @@ void OBSBasic::OBSInit()
 		ui->actionAlwaysOnTop->setVisible(false);
 	}
 
-#ifndef _WIN32
+#ifndef OBS_BASIC_WINDOWS
 	if (!hideWindowOnStart) {
 		show();
 	}
@@ -1112,7 +1111,7 @@ void OBSBasic::OBSInit()
 
 	TaskbarOverlayInit();
 
-#ifdef __APPLE__
+#ifdef OBS_BASIC_MACOS
 	disableColorSpaceConversion(this);
 #endif
 
@@ -1128,7 +1127,7 @@ void OBSBasic::OBSInit()
 		QMetaObject::invokeMethod(this, &OBSBasic::on_autoConfigure_triggered, Qt::QueuedConnection);
 	}
 
-#if (defined(_WIN32) || defined(__APPLE__)) && (OBS_RELEASE_CANDIDATE > 0 || OBS_BETA > 0)
+#if defined(OBS_BASIC_UPDATER) && (OBS_RELEASE_CANDIDATE > 0 || OBS_BETA > 0)
 	/* Automatically set branch to "beta" the first time a pre-release build is run. */
 	if (!config_get_bool(App()->GetAppConfig(), "General", "AutoBetaOptIn")) {
 		config_set_string(App()->GetAppConfig(), "General", "UpdateBranch", "beta");
@@ -1156,10 +1155,11 @@ void OBSBasic::OBSInit()
 
 	ui->sources->UpdateIcons();
 
-#if !defined(_WIN32)
+#ifndef OBS_BASIC_WINDOWS
 	delete ui->actionRepair;
 	ui->actionRepair = nullptr;
-#if !defined(__APPLE__)
+#endif
+#ifndef OBS_BASIC_CRASH_LOGS
 	delete ui->actionShowCrashLogs;
 	delete ui->actionUploadLastCrashLog;
 	delete ui->menuCrashLogs;
@@ -1169,9 +1169,8 @@ void OBSBasic::OBSInit()
 	ui->menuCrashLogs = nullptr;
 	ui->actionCheckForUpdates = nullptr;
 #endif
-#endif
 
-#ifdef __APPLE__
+#ifdef OBS_BASIC_MACOS
 	/* Remove OBS' Fullscreen Interface menu in favor of the one macOS adds by default */
 	delete ui->actionFullscreenInterface;
 	ui->actionFullscreenInterface = nullptr;
@@ -1181,10 +1180,10 @@ void OBSBasic::OBSInit()
 	ui->actionShowMacPermissions = nullptr;
 #endif
 
-#if defined(_WIN32) || defined(__APPLE__)
+#ifdef OBS_BASIC_UPDATER
 	if (App()->IsUpdaterDisabled()) {
 		ui->actionCheckForUpdates->setEnabled(false);
-#if defined(_WIN32)
+#ifdef OBS_BASIC_WINDOWS
 		ui->actionRepair->setEnabled(false);
 #endif
 	}
@@ -1248,7 +1247,7 @@ void OBSBasic::applicationShutdown() noexcept
 {
 	/* clear out UI event queue */
 	QApplication::sendPostedEvents(nullptr);
-#ifndef __APPLE__
+#ifndef OBS_BASIC_MACOS
 	QApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
 #endif
 
@@ -1587,7 +1586,7 @@ void OBSBasic::closeEvent(QCloseEvent *event)
 
 bool OBSBasic::nativeEvent(const QByteArray &, void *message, qintptr *)
 {
-#ifdef _WIN32
+#ifdef OBS_BASIC_WINDOWS
 	const MSG &msg = *static_cast<MSG *>(message);
 	switch (msg.message) {
 	case WM_MOVE:
@@ -1891,7 +1890,7 @@ void OBSBasic::closeWindow()
 
 	applicationShutdown();
 
-#ifndef __APPLE__
+#ifndef OBS_BASIC_MACOS
 	deleteLater();
 
 	emit mainWindowClosed();
@@ -2037,7 +2036,7 @@ void OBSBasic::SetDisplayAffinity(QWindow *window)
 		return;
 	}
 
-#ifdef _WIN32
+#ifdef OBS_BASIC_WINDOWS
 	HWND hwnd = (HWND)window->winId();
 
 	DWORD curAffinity;

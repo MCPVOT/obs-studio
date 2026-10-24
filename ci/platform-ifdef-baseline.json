@@ -3,8 +3,6 @@
   "frontend/build/frontend-widgets.pch.hpp": 4,
   "frontend/utility/output-filename-reserve.c.h": 1,
   "frontend/utility/platform.hpp": 5,
-  "frontend/widgets/OBSBasic.cpp.hpp": 18,
-  "frontend/widgets/OBSBasic.hpp": 5,
   "libobs/build/libobs-obfuscate.pch.h": 2,
   "libobs/build/libobs-ported-media.pch.h": 2,
   "libobs/build/libobs-util.pch.h": 2,

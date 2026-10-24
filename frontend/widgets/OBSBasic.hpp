@@ -37,6 +37,18 @@
 #include <obs-frontend-internal.hpp>
 #include <obs.hpp>
 #include <qt-wrappers.hpp>
+#include "obsbasic-linux.hpp"
+#include "obsbasic-macos.hpp"
+#include "obsbasic-windows.hpp"
+
+/* Tray icons elsewhere: plain PNGs (#871). */
+#ifndef OBS_BASIC_TRAY_ACTIVE
+#define OBS_BASIC_TRAY_ACTIVE ":/res/images/tray_active.png"
+#define OBS_BASIC_TRAY_ACTIVE_THEME "obs-tray-active"
+#define OBS_BASIC_TRAY_IDLE ":/res/images/obs.png"
+#define OBS_BASIC_TRAY_PAUSED ":/res/images/obs_paused.png"
+#define OBS_BASIC_TRAY_MASK false
+#endif
 
 #include <graphics/matrix4.h>
 #include <util/platform.h>
@@ -166,23 +178,7 @@ template<typename T> static void SetOBSRef(QListWidgetItem *item, T &&val)
 	item->setData(static_cast<int>(QtDataRole::OBSRef), QVariant::fromValue(val));
 }
 
-#ifdef _WIN32
-static inline void UpdateProcessPriority()
-{
-	const char *priority = config_get_string(App()->GetAppConfig(), "General", "ProcessPriority");
-	if (priority && strcmp(priority, "Normal") != 0) {
-		SetProcessPriority(priority);
-	}
-}
-
-static inline void ClearProcessPriority()
-{
-	const char *priority = config_get_string(App()->GetAppConfig(), "General", "ProcessPriority");
-	if (priority && strcmp(priority, "Normal") != 0) {
-		SetProcessPriority("Normal");
-	}
-}
-#else
+#ifndef OBS_BASIC_PROCESS_PRIORITY
 #define UpdateProcessPriority() \
 	do {                    \
 	} while (false)
@@ -730,14 +726,9 @@ private:
 
 			TaskbarOverlaySetStatus(TaskbarOverlayStatusActive);
 			if (trayIcon && trayIcon->isVisible()) {
-#ifdef __APPLE__
-				QIcon trayMask = QIcon(":/res/images/tray_active_macos.svg");
-				trayMask.setIsMask(true);
-				trayIcon->setIcon(QIcon::fromTheme("obs-tray", trayMask));
-#else
-				trayIcon->setIcon(
-					QIcon::fromTheme("obs-tray-active", QIcon(":/res/images/tray_active.png")));
-#endif
+				QIcon trayMask = QIcon(OBS_BASIC_TRAY_ACTIVE);
+				trayMask.setIsMask(OBS_BASIC_TRAY_MASK);
+				trayIcon->setIcon(QIcon::fromTheme(OBS_BASIC_TRAY_ACTIVE_THEME, trayMask));
 			}
 		}
 	}
@@ -752,31 +743,19 @@ private:
 
 			TaskbarOverlaySetStatus(TaskbarOverlayStatusInactive);
 			if (trayIcon && trayIcon->isVisible()) {
-#ifdef __APPLE__
-				QIcon trayIconFile = QIcon(":/res/images/obs_macos.svg");
-				trayIconFile.setIsMask(true);
-#else
-				QIcon trayIconFile = QIcon(":/res/images/obs.png");
-#endif
+				QIcon trayIconFile = QIcon(OBS_BASIC_TRAY_IDLE);
+				trayIconFile.setIsMask(OBS_BASIC_TRAY_MASK);
 				trayIcon->setIcon(QIcon::fromTheme("obs-tray", trayIconFile));
 			}
 		} else if (outputHandler->Active() && trayIcon && trayIcon->isVisible()) {
 			if (os_atomic_load_bool(&recording_paused)) {
-#ifdef __APPLE__
-				QIcon trayIconFile = QIcon(":/res/images/obs_paused_macos.svg");
-				trayIconFile.setIsMask(true);
-#else
-				QIcon trayIconFile = QIcon(":/res/images/obs_paused.png");
-#endif
+				QIcon trayIconFile = QIcon(OBS_BASIC_TRAY_PAUSED);
+				trayIconFile.setIsMask(OBS_BASIC_TRAY_MASK);
 				trayIcon->setIcon(QIcon::fromTheme("obs-tray-paused", trayIconFile));
 				TaskbarOverlaySetStatus(TaskbarOverlayStatusPaused);
 			} else {
-#ifdef __APPLE__
-				QIcon trayIconFile = QIcon(":/res/images/tray_active_macos.svg");
-				trayIconFile.setIsMask(true);
-#else
-				QIcon trayIconFile = QIcon(":/res/images/tray_active.png");
-#endif
+				QIcon trayIconFile = QIcon(OBS_BASIC_TRAY_ACTIVE);
+				trayIconFile.setIsMask(OBS_BASIC_TRAY_MASK);
 				trayIcon->setIcon(QIcon::fromTheme("obs-tray-active", trayIconFile));
 				TaskbarOverlaySetStatus(TaskbarOverlayStatusActive);
 			}
