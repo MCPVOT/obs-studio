@@ -20,8 +20,8 @@
 
 use obs_graphics::sprite::{
     BUILD_MIPMAPS, FLIP_U, FLIP_V, MipPlan, MipWarning, QuadRefusal, RENDER_TARGET, SpriteUv,
-    UploadMode, UploadPlan, is_pow2, quad_flipped_buffer, quad_refusal, quad_texture_size, rect_uv,
-    sprite, sprite_uv, subregion_is_whole, subsprite_uv, texture_flags, upload_plan,
+    UploadMode, UploadPlan, is_pow2, quad_buffer, quad_refusal, quad_texture_size, rect_uv, sprite,
+    sprite_uv, subregion_is_whole, subsprite_uv, texture_flags, upload_plan,
 };
 use obs_graphics::vec2::Vec2;
 use obs_graphics::vec3::Vec3;
@@ -173,6 +173,14 @@ fn steps_static_sprite_buffers() {
     let (points, uvs) = sprite(1.0, 1.0, sprite_uv(FLIP_V));
     check_points(points, plain_points);
     check_uvs(uvs, [[0.0, 1.0], [1.0, 1.0], [0.0, 0.0], [1.0, 0.0]]);
+    // The u and uv buffers (#2124, maintainer sign-off): upstream built only
+    // the plain and the v-flipped one.
+    let (points, uvs) = sprite(1.0, 1.0, sprite_uv(FLIP_U));
+    check_points(points, plain_points);
+    check_uvs(uvs, [[1.0, 0.0], [0.0, 0.0], [1.0, 1.0], [0.0, 1.0]]);
+    let (points, uvs) = sprite(1.0, 1.0, sprite_uv(FLIP_U | FLIP_V));
+    check_points(points, plain_points);
+    check_uvs(uvs, [[1.0, 1.0], [0.0, 1.0], [1.0, 0.0], [0.0, 0.0]]);
 }
 
 #[test]
@@ -379,14 +387,28 @@ fn steps_quad_texture_size() {
     assert!(!quad_texture_size(f32::from_bits(0xffc0_0000)));
 }
 
-#[test]
-fn steps_quad_flipped_buffer() {
-    assert!(!quad_flipped_buffer(0));
-    for flip in &FLIPS[1..] {
-        assert!(quad_flipped_buffer(*flip));
+/// The static buffer: none for 0, the v-flipped one for any other flip,
+/// except that a flip with `GS_FLIP_U` set picks the buffer flipped on each
+/// axis whose bit is set (#2124, changed for maintainer sign-off, the U and
+/// U|V rows only: upstream picked the v-flipped buffer for them, so
+/// `GS_FLIP_U` drew a texture upside down).
+fn want_quad_buffer(flip: u32) -> u32 {
+    match flip {
+        0 => 0,
+        f if f & FLIP_U != 0 => f & (FLIP_U | FLIP_V),
+        _ => FLIP_V,
     }
-    assert!(quad_flipped_buffer(FLIP_U));
-    assert!(quad_flipped_buffer(1 << 2));
+}
+
+#[test]
+fn steps_quad_buffer() {
+    assert_eq!(quad_buffer(0), 0);
+    for flip in &FLIPS[1..] {
+        assert_eq!(quad_buffer(*flip), want_quad_buffer(*flip), "{flip:#x}");
+    }
+    // #2124: was the v-flipped buffer
+    assert_eq!(quad_buffer(FLIP_U), FLIP_U);
+    assert_eq!(quad_buffer(1 << 2), FLIP_V);
 }
 
 #[track_caller]
@@ -828,7 +850,7 @@ proptest! {
         };
         prop_assert_eq!(refusal, want);
         prop_assert_eq!(quad_texture_size(w), w.to_bits() & 0x7fff_ffff == 0);
-        prop_assert_eq!(quad_flipped_buffer(flip), flip != 0);
+        prop_assert_eq!(quad_buffer(flip), want_quad_buffer(flip));
     }
 
     #[test]

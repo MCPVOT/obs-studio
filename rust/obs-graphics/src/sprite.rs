@@ -13,10 +13,10 @@
 //!   `f32` sum and each coordinate one `f32` division.
 //! - [`subregion_is_whole`] (`gs_draw_sprite_subregion`): the shortcut to
 //!   a plain sprite for `(0, 0)` and the texture's size.
-//! - [`quad_refusal`], [`quad_texture_size`] and [`quad_flipped_buffer`]
+//! - [`quad_refusal`], [`quad_texture_size`] and [`quad_buffer`]
 //!   (`gs_draw_quadf`): a texture must be 2D; without one neither size may
-//!   be 0; an axis of size 0 (or -0.0) takes the texture's; any flip bit
-//!   draws the static buffer flipped on v.
+//!   be 0; an axis of size 0 (or -0.0) takes the texture's; the static
+//!   buffer flipped on each axis whose flip bit is set.
 //! - [`upload_plan`] (`gs_texture_set_image`): the bytes per row (the
 //!   shorter line), and a flipped copy from the last row, one copy of the
 //!   whole image for equal line sizes, or row by row. `usize` arithmetic
@@ -30,10 +30,14 @@
 //!
 //! Characterized, not endorsed (`test_sprite_geometry_steps`), and kept: a
 //! subregion of a 0-size texture divides by 0 (`+inf`, and NaN for `0 /
-//! 0`); nothing clamps a subregion to the texture; any flip bit, `GS_FLIP_U`
-//! alone included, draws a plain texture with the buffer flipped on v; a
+//! 0`); nothing clamps a subregion to the texture; a
 //! NaN or negative size draws; a 1x1 texture warns that it is not a power
 //! of two.
+//!
+//! Fixed after the move, in the C and here alike (#2124): [`quad_buffer`]
+//! picks the static buffer by both flip bits, so `GS_FLIP_U` mirrors a
+//! texture; upstream (since 7b8b51b29) drew the buffer flipped on v for any
+//! bit.
 //!
 //! One change from the C before the move, made in the move: a flip with a
 //! height of 0 is [`UploadMode::None`] before the start row is computed
@@ -231,11 +235,16 @@ pub fn quad_texture_size(size: f32) -> bool {
     size == 0.0
 }
 
-/// `gs_draw_quadf` draws a texture that is not a rectangle texture with the
-/// static buffer flipped on v: any bit set.
+/// The static buffer `gs_draw_quadf` draws a texture that is not a
+/// rectangle texture with: the flip bits of its coordinates, each axis by
+/// its own bit, and the v-flipped one for a flip of only other bits (#2124:
+/// upstream drew the buffer flipped on v for any bit, so `GS_FLIP_U` turned
+/// the texture upside down; only the U and U|V choices changed).
 #[must_use]
-pub const fn quad_flipped_buffer(flip: u32) -> bool {
-    flip != 0
+pub const fn quad_buffer(flip: u32) -> u32 {
+    let axes = flip & (FLIP_U | FLIP_V);
+    // Only unknown bits: the v-flipped buffer, as upstream drew any flip.
+    if axes == 0 && flip != 0 { FLIP_V } else { axes }
 }
 
 /// How `gs_texture_set_image` copies (`enum gs_texture_upload_mode`).

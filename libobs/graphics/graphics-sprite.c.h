@@ -134,9 +134,14 @@ bool gs_sprite_quad_texture_size(float size)
 	return size == 0.0f;
 }
 
-bool gs_sprite_quad_flipped_buffer(uint32_t flip)
+uint32_t gs_sprite_quad_buffer(uint32_t flip)
 {
-	return flip != 0;
+	const uint32_t axes = flip & (GS_SPRITE_FLIP_U | GS_SPRITE_FLIP_V);
+
+	/* Only unknown bits: the v-flipped buffer, as upstream drew any flip. */
+	if (axes == 0 && flip != 0)
+		return GS_SPRITE_FLIP_V;
+	return axes;
 }
 
 struct gs_texture_upload_plan gs_texture_upload_plan(uint32_t linesize, uint32_t linesize_out, size_t height, bool flip)

@@ -172,10 +172,10 @@ pub extern "C" fn gs_sprite_quad_texture_size(size: f32) -> bool {
     core_sprite::quad_texture_size(size)
 }
 
-/// `bool gs_sprite_quad_flipped_buffer(uint32_t flip)`.
+/// `uint32_t gs_sprite_quad_buffer(uint32_t flip)`.
 #[unsafe(no_mangle)]
-pub extern "C" fn gs_sprite_quad_flipped_buffer(flip: u32) -> bool {
-    core_sprite::quad_flipped_buffer(flip)
+pub extern "C" fn gs_sprite_quad_buffer(flip: u32) -> u32 {
+    core_sprite::quad_buffer(flip)
 }
 
 /// `struct gs_texture_upload_plan gs_texture_upload_plan(uint32_t linesize,

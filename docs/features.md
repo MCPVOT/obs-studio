@@ -740,6 +740,13 @@ area.
   rotation it applied, instead of leaving the camera turned until OBS
   restarts or the source is recreated. *Windows*, pending merge. Issue
   [#2137](https://github.com/obs-rust/obs-studio/issues/2137).
+- A PipeWire screen or window capture of a stream with the Flipped or
+  Flipped180 transform is mirrored left to right again instead of drawn
+  upside down: `GS_FLIP_U` on a 2D texture (`gs_draw_sprite()`, and a
+  full-size `gs_draw_sprite_subregion()`) flips it on u, not on v, as it did
+  before upstream 7b8b51b29. *All*, 2026-10-24. Issue
+  [#2124](https://github.com/obs-rust/obs-studio/issues/2124), PR
+  [#2135](https://github.com/obs-rust/obs-studio/pull/2135).
 
 ### Audio
 

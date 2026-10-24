@@ -123,19 +123,26 @@ static bool graphics_init_sprite_vbs(struct graphics_subsystem *graphics)
 	struct vec2 *uvs = vbd->tvarray[0].array;
 	gs_sprite_build(vbd->points, uvs, 1.0f, 1.0f, gs_sprite_uv_norm(0));
 
-	graphics->sprite_buffer = gs_vertexbuffer_create(vbd, GS_DUP_BUFFER);
-	if (!graphics->sprite_buffer)
+	graphics->sprite_buffers[0] = gs_vertexbuffer_create(vbd, GS_DUP_BUFFER);
+	if (!graphics->sprite_buffers[0])
 		return false;
 
 	graphics->subregion_buffer = gs_vertexbuffer_create(vbd, GS_DUP_BUFFER | GS_DYNAMIC);
 	if (!graphics->subregion_buffer)
 		return false;
 
-	gs_sprite_build(vbd->points, uvs, 1.0f, 1.0f, gs_sprite_uv_norm(GS_FLIP_V));
-
-	graphics->flipped_sprite_buffer = gs_vertexbuffer_create(vbd, 0);
-	if (!graphics->flipped_sprite_buffer)
-		return false;
+	/* One static buffer per flip, indexed by its GS_FLIP_U and GS_FLIP_V
+	 * bits (gs_sprite_quad_buffer()); the last one takes vbd. */
+	for (uint32_t flip = 1; flip < GS_SPRITE_BUFFER_COUNT; flip++) {
+		const bool last = flip == GS_SPRITE_BUFFER_COUNT - 1;
+		gs_sprite_build(vbd->points, uvs, 1.0f, 1.0f, gs_sprite_uv_norm(flip));
+		graphics->sprite_buffers[flip] = gs_vertexbuffer_create(vbd, last ? 0 : GS_DUP_BUFFER);
+		if (!graphics->sprite_buffers[flip]) {
+			if (!last)
+				gs_vbdata_destroy(vbd);
+			return false;
+		}
+	}
 
 	return true;
 }
@@ -260,8 +267,8 @@ void gs_destroy(graphics_t *graphics)
 		}
 
 		graphics->exports.gs_vertexbuffer_destroy(graphics->subregion_buffer);
-		graphics->exports.gs_vertexbuffer_destroy(graphics->flipped_sprite_buffer);
-		graphics->exports.gs_vertexbuffer_destroy(graphics->sprite_buffer);
+		for (size_t i = GS_SPRITE_BUFFER_COUNT; i > 0; i--)
+			graphics->exports.gs_vertexbuffer_destroy(graphics->sprite_buffers[i - 1]);
 		graphics->exports.gs_vertexbuffer_destroy(graphics->immediate_vertbuffer);
 		graphics->exports.device_destroy(graphics->device);
 		os_atomic_set_long(&max_texture_size, 0);
@@ -966,6 +973,9 @@ gs_texture_t *gs_texture_create_from_file(const char *file)
  * graphics.h's, and its enums cross the Rust port as int. */
 _Static_assert(GS_SPRITE_FLIP_U == GS_FLIP_U, "GS_FLIP_U");
 _Static_assert(GS_SPRITE_FLIP_V == GS_FLIP_V, "GS_FLIP_V");
+_Static_assert(sizeof(((struct graphics_subsystem *)0)->sprite_buffers) / sizeof(gs_vertbuffer_t *) ==
+		       GS_SPRITE_BUFFER_COUNT,
+	       "sprite_buffers");
 _Static_assert(GS_SPRITE_BUILD_MIPMAPS == GS_BUILD_MIPMAPS, "GS_BUILD_MIPMAPS");
 _Static_assert(GS_SPRITE_RENDER_TARGET == GS_RENDER_TARGET, "GS_RENDER_TARGET");
 _Static_assert(sizeof(enum gs_sprite_quad_refusal) == sizeof(int), "gs_sprite_quad_refusal");
@@ -1008,8 +1018,7 @@ void gs_draw_quadf(gs_texture_t *tex, uint32_t flip, float width, float height)
 		gs_load_vertexbuffer(graphics->subregion_buffer);
 		gs_draw(GS_TRISTRIP, 0, 0);
 	} else {
-		gs_load_vertexbuffer(gs_sprite_quad_flipped_buffer(flip) ? graphics->flipped_sprite_buffer
-									 : graphics->sprite_buffer);
+		gs_load_vertexbuffer(graphics->sprite_buffers[gs_sprite_quad_buffer(flip)]);
 		gs_draw(GS_TRISTRIP, 0, 0);
 	}
 

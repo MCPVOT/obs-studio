@@ -65,7 +65,7 @@
     /* graphics/graphics-sprite.c. graphics.c calls them inside libobs. Not
      * EXPORT. */
     gs_sprite_build;
-    gs_sprite_quad_flipped_buffer;
+    gs_sprite_quad_buffer;
     gs_sprite_quad_refusal;
     gs_sprite_quad_texture_size;
     gs_sprite_subregion_is_whole;

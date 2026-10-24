@@ -104,10 +104,17 @@ enum gs_sprite_quad_refusal gs_sprite_quad_refusal(bool has_texture, bool textur
  * -0.0. graphics.c asks the texture only then. */
 bool gs_sprite_quad_texture_size(float size);
 
-/* Whether gs_draw_quadf() draws a texture that is not a rectangle texture
- * with the flipped static sprite buffer (normalized coordinates flipped on v)
- * rather than the plain one: any flip bit set. */
-bool gs_sprite_quad_flipped_buffer(uint32_t flip);
+/* Which static sprite buffer gs_draw_quadf() draws a texture that is not a
+ * rectangle texture with: the flip bits of the buffer's normalized
+ * coordinates, GS_SPRITE_FLIP_U and GS_SPRITE_FLIP_V, each axis by its own
+ * bit of flip. A flip of only other bits picks GS_SPRITE_FLIP_V, the buffer
+ * upstream drew for any flip (obs-rust/obs-studio#2124 changed only the
+ * GS_FLIP_U and GS_FLIP_U | GS_FLIP_V choices). 0 to 3, an index into
+ * graphics_subsystem.sprite_buffers. */
+uint32_t gs_sprite_quad_buffer(uint32_t flip);
+
+/* The number of static sprite buffers gs_sprite_quad_buffer() picks from. */
+#define GS_SPRITE_BUFFER_COUNT 4
 
 /* How gs_texture_set_image() copies height rows of linesize bytes into the
  * mapped texture's rows of linesize_out bytes. */

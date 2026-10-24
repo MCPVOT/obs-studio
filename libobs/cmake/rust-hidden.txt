@@ -56,7 +56,7 @@ video_output_free_frame_rate_divisor
 # graphics_init_sprite_vbs() in graphics.c call them inside libobs. Declared
 # in graphics-sprite.h without EXPORT, so the shims stay hidden the same way.
 gs_sprite_build
-gs_sprite_quad_flipped_buffer
+gs_sprite_quad_buffer
 gs_sprite_quad_refusal
 gs_sprite_quad_texture_size
 gs_sprite_subregion_is_whole

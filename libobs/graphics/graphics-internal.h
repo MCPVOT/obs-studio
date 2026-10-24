@@ -251,8 +251,10 @@ struct graphics_subsystem {
 	struct matrix4 projection;
 	struct gs_effect *cur_effect;
 
-	gs_vertbuffer_t *sprite_buffer;
-	gs_vertbuffer_t *flipped_sprite_buffer;
+	/* The static 1 by 1 sprites gs_draw_quadf() draws a 2D texture with,
+	 * indexed by flip & (GS_FLIP_U | GS_FLIP_V): plain, flipped on u, on
+	 * v, and on both (gs_sprite_quad_buffer()). */
+	gs_vertbuffer_t *sprite_buffers[4];
 	gs_vertbuffer_t *subregion_buffer;
 
 	bool using_immediate;

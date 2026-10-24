@@ -204,7 +204,9 @@ static void uv_norm_each_flip(void **state)
 }
 
 /* The static buffers graphics_init_sprite_vbs() builds: the plain sprite
- * and the one flipped on v, both 1 by 1 (gs_draw_quadf() scales them). */
+ * and the ones flipped on u, on v and on both, all 1 by 1 (gs_draw_quadf()
+ * scales them). Changed for obs-rust/obs-studio#2124 (maintainer sign-off):
+ * upstream built only the plain and the v-flipped buffer. */
 static void static_sprite_buffers(void **state)
 {
 	(void)state;
@@ -227,6 +229,24 @@ static void static_sprite_buffers(void **state)
 		assert_float_bits(points[i].y, plain[i][1]);
 		assert_float_bits(uvs[i].x, flipped[i][0]);
 		assert_float_bits(uvs[i].y, flipped[i][1]);
+	}
+
+	gs_sprite_build(points, uvs, 1.0f, 1.0f, gs_sprite_uv_norm(FLIP_U));
+	const float mirrored[4][2] = {{1, 0}, {0, 0}, {1, 1}, {0, 1}};
+	for (size_t i = 0; i < 4; i++) {
+		assert_float_bits(points[i].x, plain[i][0]);
+		assert_float_bits(points[i].y, plain[i][1]);
+		assert_float_bits(uvs[i].x, mirrored[i][0]);
+		assert_float_bits(uvs[i].y, mirrored[i][1]);
+	}
+
+	gs_sprite_build(points, uvs, 1.0f, 1.0f, gs_sprite_uv_norm(FLIP_U | FLIP_V));
+	const float turned[4][2] = {{1, 1}, {0, 1}, {1, 0}, {0, 0}};
+	for (size_t i = 0; i < 4; i++) {
+		assert_float_bits(points[i].x, plain[i][0]);
+		assert_float_bits(points[i].y, plain[i][1]);
+		assert_float_bits(uvs[i].x, turned[i][0]);
+		assert_float_bits(uvs[i].y, turned[i][1]);
 	}
 }
 
@@ -389,20 +409,24 @@ static void quad_texture_size(void **state)
 }
 
 /* The static buffer gs_draw_quadf() draws for a texture that is not a
- * rectangle texture: the flipped one for any bit set. Characterized, not
- * endorsed: that buffer is flipped on v only (static_sprite_buffers), so
- * GS_FLIP_U alone draws the texture upside down instead of mirrored, and
- * GS_FLIP_U | GS_FLIP_V is not turned on u. Since upstream 7b8b51b29
- * ("Improve sprite drawing perf"); a subregion or a rectangle texture still
- * honours each bit. */
-static void quad_flipped_buffer(void **state)
+ * rectangle texture: none for 0, and the one flipped on v for any other
+ * flip, except that a flip with GS_FLIP_U set picks the buffer flipped on
+ * each axis whose bit is set. Changed for obs-rust/obs-studio#2124
+ * (maintainer sign-off), the GS_FLIP_U and GS_FLIP_U | GS_FLIP_V rows only:
+ * since upstream 7b8b51b29 ("Improve sprite drawing perf") those picked the
+ * buffer flipped on v, so GS_FLIP_U drew the texture upside down instead of
+ * mirrored. */
+static void quad_buffer(void **state)
 {
 	(void)state;
-	assert_false(gs_sprite_quad_flipped_buffer(0));
-	for (size_t i = 1; i < FLIP_COUNT; i++)
-		assert_true(gs_sprite_quad_flipped_buffer(flips[i]));
-	assert_true(gs_sprite_quad_flipped_buffer(FLIP_U));
-	assert_true(gs_sprite_quad_flipped_buffer(1u << 2));
+	assert_int_equal(gs_sprite_quad_buffer(0), 0);
+	for (size_t i = 1; i < FLIP_COUNT; i++) {
+		const uint32_t want = (flips[i] & FLIP_U) ? flips[i] & (FLIP_U | FLIP_V) : FLIP_V;
+		assert_int_equal(gs_sprite_quad_buffer(flips[i]), want);
+	}
+	/* #2124: was the v-flipped buffer */
+	assert_int_equal(gs_sprite_quad_buffer(FLIP_U), FLIP_U);
+	assert_int_equal(gs_sprite_quad_buffer(1u << 2), FLIP_V);
 }
 
 static void check_plan(struct gs_texture_upload_plan plan, enum gs_texture_upload_mode mode, size_t row_copy,
@@ -637,7 +661,7 @@ int main(void)
 		cmocka_unit_test(subregion_whole_shortcut),
 		cmocka_unit_test(quad_refusals),
 		cmocka_unit_test(quad_texture_size),
-		cmocka_unit_test(quad_flipped_buffer),
+		cmocka_unit_test(quad_buffer),
 		cmocka_unit_test(upload_equal_linesizes),
 		cmocka_unit_test(upload_unequal_linesizes),
 		cmocka_unit_test(upload_flipped),

@@ -113,6 +113,9 @@ unsafe extern "C" {
         height: f32,
     ) -> c_int;
     pub fn oracle_gs_sprite_quad_texture_size(size: f32) -> bool;
+    /// Upstream's static sprite buffer choice (`oracle/graphics_sprite.c`):
+    /// any flip bit draws the buffer flipped on v. The tree fixed
+    /// `GS_FLIP_U` (#2124).
     pub fn oracle_gs_sprite_quad_flipped_buffer(flip: u32) -> bool;
     pub fn oracle_gs_texture_upload_plan(
         linesize: u32,

@@ -48,7 +48,7 @@ _video_output_free_frame_rate_divisor
 _obs_data_json_decref
 # graphics/graphics-sprite.c: graphics.c calls them inside libobs. Not EXPORT.
 _gs_sprite_build
-_gs_sprite_quad_flipped_buffer
+_gs_sprite_quad_buffer
 _gs_sprite_quad_refusal
 _gs_sprite_quad_texture_size
 _gs_sprite_subregion_is_whole
