@@ -76,6 +76,10 @@ mkdir -p "$XCODE_CAS_PATH"
 
 cmocka_prefix="$(brew --prefix cmocka)"
 
+# OBS_CTEST_JOBS: ctest parallelism for each suite (default 1); CI sets it
+# (#2138). Tests that must not overlap carry RUN_SERIAL or RESOURCE_LOCK.
+ctest_jobs=(-j "${OBS_CTEST_JOBS:-1}")
+
 build="build_rust"
 echo "== configure + build (libobs and libobs-c-reference)"
 cmake --preset macos-ci -B "$build" \
@@ -129,7 +133,7 @@ for mode in OFF ON; do
   echo "== [$mode] tests load $framework_dir/libobs.framework"
 
   echo "== [$mode] ctest"
-  if ! "${dyld[@]}" ctest --test-dir "$build" -C RelWithDebInfo --output-on-failure; then
+  if ! "${dyld[@]}" ctest --test-dir "$build" -C RelWithDebInfo --output-on-failure "${ctest_jobs[@]}"; then
     DYLD_FRAMEWORK_PATH="$framework_dir" DYLD_LIBRARY_PATH="$(dirname "$avcodec")" \
       show_crash_stacks "$build"
     exit 1
@@ -270,7 +274,7 @@ for native_variant in obs-c-reference obs; do
   done <"$native_output/macos-capture-paths.txt"
   [ "$capture_count" -eq 3 ] || { echo 'FAIL: all three capture modules must be checked' >&2; exit 1; }
   echo "== Cargo [$native_variant] unchanged ctest suite"
-  if ! "${native_dyld[@]}" ctest --test-dir "$build" -C RelWithDebInfo --output-on-failure; then
+  if ! "${native_dyld[@]}" ctest --test-dir "$build" -C RelWithDebInfo --output-on-failure "${ctest_jobs[@]}"; then
     DYLD_FRAMEWORK_PATH="$native_output/$native_variant" DYLD_LIBRARY_PATH="$(dirname "$avcodec")" \
       show_crash_stacks "$build"
     exit 1

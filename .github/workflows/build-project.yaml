@@ -2486,6 +2486,7 @@ jobs:
         shell: bash
         env:
           XCODE_CAS_PATH: ${{ github.workspace }}/.tier2-xcas
+          OBS_CTEST_JOBS: 3
         run: |
           "${GITHUB_WORKSPACE}/.github/scripts/retry" brew install cmocka
           bash rust/tools/tier2-validate/validate.sh
@@ -2548,6 +2549,7 @@ jobs:
         shell: pwsh
         env:
           VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}/.vcpkg-bin,readwrite
+          OBS_CTEST_JOBS: 4
         run: |
           New-Item -ItemType Directory -Force -Path "$env:GITHUB_WORKSPACE/.vcpkg-bin" | Out-Null
           vcpkg install cmocka:x64-windows

@@ -28,6 +28,10 @@ if ($Tests -and $Repeat -eq 0) {
 }
 $CMockaPrefix = $CMockaPrefix -replace '\\', '/'
 
+# OBS_CTEST_JOBS: ctest parallelism for each suite (default 1); CI sets it
+# (#2138). Tests that must not overlap carry RUN_SERIAL or RESOURCE_LOCK.
+$ctestJobs = @('-j', $(if ($env:OBS_CTEST_JOBS) { $env:OBS_CTEST_JOBS } else { '1' }))
+
 $RepoRoot = Resolve-Path (Join-Path $PSScriptRoot '../../..')
 Set-Location $RepoRoot
 
@@ -133,7 +137,7 @@ foreach ($mode in 'OFF', 'ON') {
   $env:PATH = "$($dll.DirectoryName);$($pthreads.DirectoryName);$($avcodec.DirectoryName);$env:PATH"
 
   Write-Host "== [$mode] ctest against $($dll.FullName)"
-  ctest --test-dir $build -C RelWithDebInfo --output-on-failure
+  ctest --test-dir $build -C RelWithDebInfo --output-on-failure @ctestJobs
   $ctestExit = $LASTEXITCODE
 
   if ($ctestExit -eq 0 -and $Repeat -gt 0) {
@@ -257,7 +261,7 @@ foreach ($selected in $nativeArtifacts.reference, $nativeArtifacts.core) {
       if ($LASTEXITCODE -ne 0) { throw "CMake $renderer probe failed ($LASTEXITCODE)" }
     }
     Write-Host "== Cargo [$($dll.Directory.Name)] unchanged ctest suite"
-    ctest --test-dir $build -C RelWithDebInfo --output-on-failure --no-tests=error
+    ctest --test-dir $build -C RelWithDebInfo --output-on-failure --no-tests=error @ctestJobs
     $ctestExit = $LASTEXITCODE
     if ($ctestExit -eq 0 -and $Repeat -gt 0) {
       $repeatArgs = @('--repeat', "until-fail:$Repeat")
