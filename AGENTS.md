@@ -31,6 +31,13 @@ push and open a PR), you are a worker: invoke the `obs-worker` skill
 Agents without skills read that file by hand. It walks the documents below
 in order, from rebase to merge queue.
 
+When the maintainer runs you as a worker on a timer (`/loop 10m take on the
+role of a worker that is looking for issues ...`), also invoke the
+`obs-worker-loop` skill
+([.claude/skills/obs-worker-loop/SKILL.md](.claude/skills/obs-worker-loop/SKILL.md)):
+each tick moves your own PRs, checks master's health, then picks the next
+most important issue. Unlike the coordinator, you claim and do the work.
+
 ## Coordinator role
 
 When the maintainer runs you on a timer (`/loop 30m act as coordinator`,
