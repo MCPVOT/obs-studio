@@ -134,6 +134,25 @@ class FrontendCMakeFacadeTest(unittest.TestCase):
                 self.assertIn("QString GetPlatformScreenName(QScreen *", source)
                 self.assertIn("bool PlatformUsesDesktopAudioDevice()", source)
 
+    def test_tray_icon_goes_through_the_facade(self):
+        # #873: the tray icon images, the tray click and the dock icon are
+        # host choices; the tray code names no host.
+        header = (FRONTEND / "utility/platform.hpp").read_text()
+        self.assertIn("QIcon GetPlatformTrayIcon(TrayIconState state);", header)
+        self.assertIn("bool PlatformTrayActivationTogglesWindow();", header)
+        self.assertIn("void SetPlatformDockIconVisible(bool visible);", header)
+        for name in ("OBSBasic_SysTray", "OBSBasic_Recording"):
+            with self.subTest(file=name):
+                source = (FRONTEND / f"widgets/{name}.cpp.hpp").read_text()
+                self.assertNotIn("__APPLE__", source)
+                self.assertNotIn("EnableOSXDockIcon", source)
+        for host in ("windows.cpp.hpp", "osx.mm.hpp", "x11.cpp.hpp"):
+            with self.subTest(host=host):
+                source = (FRONTEND / f"utility/platform-{host}").read_text()
+                self.assertIn("QIcon GetPlatformTrayIcon(TrayIconState", source)
+                self.assertIn("bool PlatformTrayActivationTogglesWindow()", source)
+                self.assertIn("void SetPlatformDockIconVisible(bool", source)
+
     def test_hdr_screenshots_go_through_the_facade(self):
         # #883: the HDR color space choice and the JXR writer are host
         # operations; ScreenshotObj and its precompiled header name no host.

@@ -944,3 +944,31 @@ bool PlatformUsesDesktopAudioDevice()
 	}
 	return true;
 }
+
+QIcon GetPlatformTrayIcon(TrayIconState state)
+{
+	const char *file = ":/res/images/obs_macos.svg";
+	switch (state) {
+	case TrayIconState::Active:
+		file = ":/res/images/tray_active_macos.svg";
+		break;
+	case TrayIconState::Paused:
+		file = ":/res/images/obs_paused_macos.svg";
+		break;
+	case TrayIconState::Idle:
+		break;
+	}
+	QIcon icon(file);
+	icon.setIsMask(true);
+	return icon;
+}
+
+bool PlatformTrayActivationTogglesWindow()
+{
+	return false;
+}
+
+void SetPlatformDockIconVisible(bool visible)
+{
+	EnableOSXDockIcon(visible);
+}

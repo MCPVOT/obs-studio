@@ -862,3 +862,23 @@ bool PlatformUsesDesktopAudioDevice()
 {
 	return true;
 }
+
+QIcon GetPlatformTrayIcon(TrayIconState state)
+{
+	switch (state) {
+	case TrayIconState::Active:
+		return QIcon(":/res/images/tray_active.png");
+	case TrayIconState::Paused:
+		return QIcon(":/res/images/obs_paused.png");
+	case TrayIconState::Idle:
+		break;
+	}
+	return QIcon(":/res/images/obs.png");
+}
+
+bool PlatformTrayActivationTogglesWindow()
+{
+	return true;
+}
+
+void SetPlatformDockIconVisible(bool) {}

@@ -30,6 +30,7 @@
 #include <qpa/qplatformintegration.h>
 #endif
 
+#include <QIcon>
 #include <QMessageBox>
 #include <QScreen>
 #include <util/platform.h>

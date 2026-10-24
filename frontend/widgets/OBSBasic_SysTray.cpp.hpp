@@ -23,13 +23,7 @@ extern bool opt_minimize_tray;
 
 void OBSBasic::SystemTrayInit()
 {
-#ifdef __APPLE__
-	QIcon trayIconFile = QIcon(":/res/images/obs_macos.svg");
-	trayIconFile.setIsMask(true);
-#else
-	QIcon trayIconFile = QIcon(":/res/images/obs.png");
-#endif
-	trayIcon = new QSystemTrayIcon(QIcon::fromTheme("obs-tray", trayIconFile), this);
+	trayIcon = new QSystemTrayIcon(QIcon::fromTheme("obs-tray", GetPlatformTrayIcon(TrayIconState::Idle)), this);
 	trayIcon->setToolTip("OBS Studio");
 
 	trayMenu = new QMenu(this);
@@ -88,14 +82,10 @@ void OBSBasic::IconActivated(QSystemTrayIcon::ActivationReason reason)
 {
 	OBSBasic::updateSysTrayProjectorMenu();
 
-#ifdef __APPLE__
-	UNUSED_PARAMETER(reason);
-#else
-	if (reason == QSystemTrayIcon::Trigger) {
+	if (PlatformTrayActivationTogglesWindow() && reason == QSystemTrayIcon::Trigger) {
 		EnablePreviewDisplay(previewEnabled && !isVisible());
 		ToggleShowHide();
 	}
-#endif
 }
 
 void OBSBasic::SysTrayNotify(const QString &text, QSystemTrayIcon::MessageIcon n)
@@ -128,9 +118,7 @@ void OBSBasic::SystemTray(bool firstStarted)
 		trayIcon->show();
 		if (firstStarted && (sysTrayWhenStarted || opt_minimize_tray)) {
 			EnablePreviewDisplay(false);
-#ifdef __APPLE__
-			EnableOSXDockIcon(false);
-#endif
+			SetPlatformDockIconVisible(false);
 			opt_minimize_tray = false;
 		}
 	}

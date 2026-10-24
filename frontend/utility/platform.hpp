@@ -145,6 +145,15 @@ QString GetPlatformScreenName(QScreen *screen);
 /* False where a better desktop audio source replaces the device one. */
 bool PlatformUsesDesktopAudioDevice();
 
+/* System tray (#873). */
+class QIcon;
+enum class TrayIconState { Idle, Active, Paused };
+/* The tray image when the icon theme has none. */
+QIcon GetPlatformTrayIcon(TrayIconState state);
+/* False where a tray click only opens the menu. */
+bool PlatformTrayActivationTogglesWindow();
+void SetPlatformDockIconVisible(bool visible);
+
 /* Settings and hotkey editor platform policy (#869). */
 bool PlatformNeedsNonNativeColorDialog();
 bool PlatformSupportsSimpleQsvEncoders();
