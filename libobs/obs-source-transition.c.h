@@ -989,6 +989,16 @@ static void transition_process_audio(obs_source_t *transition, obs_source_t *chi
 	}
 }
 
+/* The transition's children, leaving out any that was removed. */
+static inline void transition_live_sources(obs_source_t *transition, obs_source_t *sources[2])
+{
+	for (size_t i = 0; i < 2; i++) {
+		sources[i] = transition->transition_sources[i];
+		if (sources[i] && obs_source_removed(sources[i]))
+			sources[i] = NULL;
+	}
+}
+
 static inline uint64_t transition_calc_min_ts(obs_source_t *sources[2])
 {
 	uint64_t timestamps[2] = {0, 0};
@@ -1018,15 +1028,7 @@ bool obs_transition_audio_render(obs_source_t *transition, uint64_t *ts_out, str
 
 	lock_transition(transition);
 
-	sources[0] = transition->transition_sources[0];
-	sources[1] = transition->transition_sources[1];
-
-	if (sources[0] && obs_source_removed(sources[0]))
-		sources[0] = NULL;
-
-	if (sources[1] && obs_source_removed(sources[1]))
-		sources[1] = NULL;
-
+	transition_live_sources(transition, sources);
 	min_ts = transition_calc_min_ts(sources);
 
 	if (min_ts)
@@ -1043,11 +1045,15 @@ bool obs_transition_audio_render(obs_source_t *transition, uint64_t *ts_out, str
 	}
 
 	if (min_ts) {
-		sources[0] = transition->transition_sources[0];
-		sources[1] = transition->transition_sources[1];
+		/* The audio stop can make a removed child source A (#2185). */
+		transition_live_sources(transition, sources);
 		min_ts = transition_calc_min_ts(sources);
-		if (min_ts)
-			copy_transition_state(transition, &state);
+		if (min_ts) {
+			state.s[0] = obs_source_get_ref(sources[0]);
+			state.s[1] = obs_source_get_ref(sources[1]);
+			state.transitioning_video = transition->transitioning_video;
+			state.transitioning_audio = transition->transitioning_audio;
+		}
 	}
 
 	unlock_transition(transition);
