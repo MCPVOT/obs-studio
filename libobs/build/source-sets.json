@@ -103,6 +103,7 @@
     "graphics/device-exports.h",
     "graphics/effect-parser.h",
     "graphics/effect.h",
+    "graphics/graphics-ffmpeg-host.h",
     "graphics/graphics-internal.h",
     "graphics/graphics-sprite.h",
     "graphics/graphics.h",
@@ -195,7 +196,8 @@
     "util/windows/win-version.h",
     "util/windows/window-helpers.h",
     "build/libobs.windows+.h.c",
-    "build/libobs.windows-crash-handler+.h.c"
+    "build/libobs.windows-crash-handler+.h.c",
+    "build/libobs.graphics-ffmpeg-host-windows+.h.c"
   ],
   "LIBOBS_WINDOWS_OBFUSCATE_SOURCES": [
     "build/libobs.obfuscate-windows+.h.c"
@@ -211,7 +213,8 @@
     "util/threading-posix.h",
     "build/libobs.macos+.h.c",
     "build/libobs.macos-cocoa+.h.m",
-    "build/libobs.macos-loader+.h.m"
+    "build/libobs.macos-loader+.h.m",
+    "build/libobs.graphics-ffmpeg-host-posix+.h.c"
   ],
   "LIBOBS_MACOS_PORTED_SOURCES": [
     "build/libobs.ported-macos-cocoa+.h.m",
@@ -223,7 +226,8 @@
     "obs-nix-x11-keymap.h",
     "util/threading-posix.h",
     "build/libobs.nix+.h.c",
-    "build/libobs.nix-main+.h.c"
+    "build/libobs.nix-main+.h.c",
+    "build/libobs.graphics-ffmpeg-host-posix+.h.c"
   ],
   "LIBOBS_LINUX_PORTED_SOURCES": [
     "build/libobs.ported-nix-inhibit+.h.c",

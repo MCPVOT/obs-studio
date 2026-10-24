@@ -19,10 +19,7 @@
 #include <libavutil/imgutils.h>
 #include <libswscale/swscale.h>
 
-#ifdef _WIN32
-#include <wincodec.h>
-#pragma comment(lib, "windowscodecs.lib")
-#endif
+#include "graphics/graphics-ffmpeg-host.h"
 
 /* media-io/audio-resampler-ffmpeg.c */
 #include "util/bmem.h"
