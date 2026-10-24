@@ -1406,7 +1406,7 @@ void obs_source_video_tick(obs_source_t *source, float seconds)
 		gs_texrender_reset(source->filter_texrender);
 
 	/* call show/hide if the reference changed */
-	now_showing = !!source->show_refs;
+	now_showing = os_atomic_load_long(&source->show_refs) != 0;
 	if (now_showing != source->showing) {
 		if (now_showing) {
 			show_source(source);
@@ -1429,7 +1429,7 @@ void obs_source_video_tick(obs_source_t *source, float seconds)
 	}
 
 	/* call activate/deactivate if the reference changed */
-	now_active = !!source->activate_refs;
+	now_active = os_atomic_load_long(&source->activate_refs) != 0;
 	if (now_active != source->active) {
 		if (now_active) {
 			activate_source(source);
@@ -4726,9 +4726,12 @@ bool obs_source_add_active_child(obs_source_t *parent, obs_source_t *child)
 	if (info.exists)
 		return false;
 
-	for (int i = 0; i < parent->show_refs; i++) {
+	/* Other threads change the counts atomically (#2081). */
+	long show_refs = os_atomic_load_long(&parent->show_refs);
+	long activate_refs = os_atomic_load_long(&parent->activate_refs);
+	for (long i = 0; i < show_refs; i++) {
 		enum view_type type;
-		type = (i < parent->activate_refs) ? MAIN_VIEW : AUX_VIEW;
+		type = (i < activate_refs) ? MAIN_VIEW : AUX_VIEW;
 		obs_source_activate(child, type);
 	}
 
@@ -4742,9 +4745,12 @@ void obs_source_remove_active_child(obs_source_t *parent, obs_source_t *child)
 	if (!obs_ptr_valid(child, "obs_source_remove_active_child"))
 		return;
 
-	for (int i = 0; i < parent->show_refs; i++) {
+	/* Other threads change the counts atomically (#2081). */
+	long show_refs = os_atomic_load_long(&parent->show_refs);
+	long activate_refs = os_atomic_load_long(&parent->activate_refs);
+	for (long i = 0; i < show_refs; i++) {
 		enum view_type type;
-		type = (i < parent->activate_refs) ? MAIN_VIEW : AUX_VIEW;
+		type = (i < activate_refs) ? MAIN_VIEW : AUX_VIEW;
 		obs_source_deactivate(child, type);
 	}
 }
@@ -4785,12 +4791,12 @@ void obs_source_load2(obs_source_t *source)
 
 bool obs_source_active(const obs_source_t *source)
 {
-	return obs_source_valid(source, "obs_source_active") ? source->activate_refs != 0 : false;
+	return obs_source_valid(source, "obs_source_active") ? os_atomic_load_long(&source->activate_refs) != 0 : false;
 }
 
 bool obs_source_showing(const obs_source_t *source)
 {
-	return obs_source_valid(source, "obs_source_showing") ? source->show_refs != 0 : false;
+	return obs_source_valid(source, "obs_source_showing") ? os_atomic_load_long(&source->show_refs) != 0 : false;
 }
 
 static inline void signal_flags_updated(obs_source_t *source)
