@@ -11,20 +11,4 @@
 
 #define NO_REDEFS
 #include "shared/obs-scripting/obs-scripting-python-import.h"
-
-#ifdef _MSC_VER
-#pragma warning(disable : 4152)
-#endif
-
-#ifdef _WIN32
-#include <windows.h>
-#include <io.h>
-#define F_OK 0
-#define access _access
-#define VERSION_PATTERN "%d%d"
-#define FILE_PATTERN "python%s.dll"
-#define PATH_MAX MAX_PATH
-#elif defined(__APPLE__)
-#define VERSION_PATTERN "%d.%d"
-#define FILE_PATTERN "Python.framework/Versions/%s/lib/libpython%s.dylib"
-#endif
+#include "shared/obs-scripting/obs-scripting-python-import-host.h"

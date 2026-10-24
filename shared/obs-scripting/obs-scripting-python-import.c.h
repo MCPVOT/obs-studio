@@ -40,35 +40,25 @@ bool import_python(const char *python_path, python_version_t *python_version)
 		dstr_cat(&lib_path, "/");
 	}
 
+	struct dstr lib_name;
 	struct dstr lib_candidate_path;
+	dstr_init(&lib_name);
 	dstr_init(&lib_candidate_path);
-
-	char cur_version[5];
-	char next_version[5];
-
-	snprintf(cur_version, sizeof(cur_version), VERSION_PATTERN, PY_MAJOR_VERSION_MAX, PY_MINOR_VERSION_MAX);
-
-	struct dstr temp;
-	dstr_init(&temp);
-	dstr_printf(&temp, FILE_PATTERN, cur_version, cur_version);
 
 	int minor_version = PY_MINOR_VERSION_MAX;
 	do {
-		dstr_printf(&lib_candidate_path, "%s%s", lib_path.array, temp.array);
-		if (access(lib_candidate_path.array, F_OK) == 0) {
+		obs_python_host_lib_name(&lib_name, PY_MAJOR_VERSION_MAX, minor_version);
+		dstr_printf(&lib_candidate_path, "%s%s", lib_path.array, lib_name.array);
+		if (os_file_exists(lib_candidate_path.array)) {
 			lib = os_dlopen(lib_candidate_path.array);
 		}
 
 		if (lib) {
 			break;
 		}
+	} while (--minor_version > 5);
 
-		snprintf(cur_version, sizeof(cur_version), VERSION_PATTERN, PY_MAJOR_VERSION_MAX, minor_version);
-		snprintf(next_version, sizeof(next_version), VERSION_PATTERN, PY_MAJOR_VERSION_MAX, --minor_version);
-		dstr_replace(&temp, cur_version, next_version);
-	} while (minor_version > 5);
-
-	dstr_free(&temp);
+	dstr_free(&lib_name);
 	dstr_free(&lib_candidate_path);
 
 	if (!lib) {

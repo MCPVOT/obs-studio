@@ -29,6 +29,12 @@ if(ENABLE_SCRIPTING_PYTHON)
     PRIVATE
       $<$<BOOL:${ENABLE_FRONTEND}>:build/obs-scripting.python-frontend+.h.c>
       $<$<PLATFORM_ID:Windows,Darwin>:build/obs-scripting.python-import+.h.c>
+      $<$<PLATFORM_ID:Darwin>:build/obs-scripting.python-import-host-macos+.h.c>
+      $<$<PLATFORM_ID:Windows>:build/obs-scripting.python-import-host-windows+.h.c>
+      obs-scripting-python-import-host.h
+      $<$<PLATFORM_ID:Darwin>:hosts/macos/obs-scripting-python-include.h>
+      $<$<PLATFORM_ID:Linux,FreeBSD,OpenBSD>:hosts/posix/obs-scripting-python-include.h>
+      $<$<PLATFORM_ID:Windows>:hosts/windows/obs-scripting-python-include.h>
       obs-scripting-python-import.h
       obs-scripting-python-startup.h
       build/obs-scripting.python+.h.c
@@ -41,13 +47,43 @@ if(ENABLE_SCRIPTING_PYTHON)
 
   target_compile_definitions(
     obs-scripting
-    PRIVATE ENABLE_SCRIPTING PYTHON_LIB="$<TARGET_LINKER_FILE_NAME:Python::Python>"
+    PRIVATE
+      ENABLE_SCRIPTING
+      PYTHON_LIB="$<TARGET_LINKER_FILE_NAME:Python::Python>"
+      # Windows and macOS load Python at run time (obs-scripting-python-import.c).
+      RUNTIME_LINK=$<IF:$<PLATFORM_ID:Windows,Darwin>,1,0>
+      $<$<PLATFORM_ID:Windows,Darwin>:Py_NO_ENABLE_SHARED>
     PUBLIC Python_FOUND
+  )
+
+  # Each host's obs-scripting-python-include.h (#882).
+  target_include_directories(
+    obs-scripting
+    PRIVATE
+      "$<$<PLATFORM_ID:Windows>:${CMAKE_CURRENT_SOURCE_DIR}/hosts/windows>"
+      "$<$<PLATFORM_ID:Darwin>:${CMAKE_CURRENT_SOURCE_DIR}/hosts/macos>"
+      "$<$<PLATFORM_ID:Linux,FreeBSD,OpenBSD>:${CMAKE_CURRENT_SOURCE_DIR}/hosts/posix>"
   )
 
   target_include_directories(
     obs-scripting
     PRIVATE "$<$<PLATFORM_ID:Windows,Darwin>:$<TARGET_PROPERTY:Python::Python,INTERFACE_INCLUDE_DIRECTORIES>>"
+  )
+
+  # Function pointers from os_dlsym assigned to data pointers (MSVC C4152).
+  set_property(
+    SOURCE build/obs-scripting.python-import+.h.c
+    APPEND
+    PROPERTY COMPILE_OPTIONS "$<$<C_COMPILER_ID:MSVC>:/wd4152>"
+  )
+  # Python.h's named type definitions in parentheses (MSVC C4115).
+  set_property(
+    SOURCE
+      build/obs-scripting.python+.h.c
+      build/obs-scripting.python-frontend+.h.c
+      build/obs-scripting.python-import+.h.c
+    APPEND
+    PROPERTY COMPILE_OPTIONS "$<$<C_COMPILER_ID:MSVC>:/wd4115>"
   )
 
   target_link_libraries(obs-scripting PRIVATE $<$<PLATFORM_ID:Linux,FreeBSD,OpenBSD>:Python::Python>)

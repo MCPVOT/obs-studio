@@ -19,29 +19,10 @@
 
 #include <util/c99defs.h>
 
-#if defined(_WIN32) || defined(__APPLE__)
-#define RUNTIME_LINK 1
-#define Py_NO_ENABLE_SHARED
-#else
-#define RUNTIME_LINK 0
-#endif
-
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable : 4115)
-#endif
-
-#if defined(_WIN32) && defined(_DEBUG)
-#undef _DEBUG
-#include <Python.h>
-#define _DEBUG
-#else
-#include <Python.h>
-#endif
-
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
+/* RUNTIME_LINK (1: Python is loaded at run time) and Py_NO_ENABLE_SHARED
+ * come from cmake/python.cmake, which also turns off MSVC C4115 here. The
+ * host's obs-scripting-python-include.h (hosts/<os>/) includes Python.h. */
+#include "obs-scripting-python-include.h"
 
 #if RUNTIME_LINK
 #ifdef NO_REDEFS

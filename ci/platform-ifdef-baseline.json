@@ -68,8 +68,6 @@
   "shared/ipc-util/ipc-util/platform-pipe.h": 1,
   "shared/media-playback/media-playback/platform-decode-ffmpeg.h": 2,
   "shared/media-playback/media-playback/platform-media-ffmpeg.h": 2,
-  "shared/obs-scripting/build/obs-scripting-python-import.pch.h": 4,
-  "shared/obs-scripting/obs-scripting-python-import.h": 4,
   "shared/obs-scripting/obs-scripting-python.c.h": 3,
   "shared/obs-scripting/obs-scripting-python.h": 4,
   "shared/obs-scripting/obs-scripting.c.h": 1
