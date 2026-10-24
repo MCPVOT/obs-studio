@@ -1130,6 +1130,9 @@ for i in $(seq 1 $((RECORD_SECONDS + 5))); do
         cat "/proc/$OBS_PID/maps" >"$OUT/obs-maps.txt"
         require_one_libsrt_mapped "$OBS_PID"
         MAPS_CHECKED=1
+        # The main window with live sources and no first-run wizard: the
+        # picture the AppStream metadata points at (#2132).
+        import -window root "$OUT/screenshot.png" || true
     fi
 done
 echo "PipeWire links and PulseAudio streams while OBS records:"

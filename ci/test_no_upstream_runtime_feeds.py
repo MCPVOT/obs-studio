@@ -41,7 +41,6 @@ ALLOWED = {
     "https://obsproject.com": "website link",
     "https://obsproject.com/": "website link",
     "https://obsproject.com/kb/encoder-missing#%1": "encoder help link",
-    "https://obsproject.com/assets/images/OBSDemoApp301Flathub.png": "metainfo screenshot",
     "https://auth.obsproject.com/": "OAuth base URL default",
     # Updater, update feeds and log/crash uploads: tracked in their own issues (#1727).
     "https://cdn-fastly.obsproject.com/": "updater (tracked separately)",

@@ -47,8 +47,8 @@
 
   <screenshots>
     <screenshot type="default">
-      <image>https://obsproject.com/assets/images/OBSDemoApp301Flathub.png</image>
-      <caption>The OBS Studio window showing a card game, the project website, a video, and a purple rectangle</caption>
+      <image>https://raw.githubusercontent.com/obs-rust/obs-studio/master/docs/images/appimage-main-window.png</image>
+      <caption>The OBS Studio Rust main window recording a scene with a screen capture, a camera and a microphone</caption>
     </screenshot>
   </screenshots>
 
