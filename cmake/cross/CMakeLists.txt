@@ -278,6 +278,12 @@ if(_host STREQUAL WINDOWS)
   _obs_cross_plugin(obs-ffmpeg-mux-host-cross DIR plugins/obs-ffmpeg SOURCES build/obs-ffmpeg.mux-host-windows+.h.c)
   _obs_cross_plugin(obs-ffmpeg-mux-helper-host-cross DIR plugins/obs-ffmpeg/ffmpeg-mux SOURCES build/ffmpeg-mux.windows+.h.c)
   _obs_cross_plugin(obs-ffmpeg-host-cross DIR plugins/obs-ffmpeg SOURCES build/obs-ffmpeg.host-windows+.h.c)
+  _obs_cross_plugin(
+    obs-outputs-net-if-host-cross
+    DIR plugins/obs-outputs
+    SOURCES build/obs-outputs.net-if-host-windows+.h.c
+    INCLUDES plugins/obs-outputs/hosts/windows
+  )
   _obs_cross_plugin(obs-scripting-lua-host-cross DIR shared/obs-scripting SOURCES build/obs-scripting.lua-host-windows+.h.c)
   _obs_cross_plugin(obs-scripting-python-import-host-cross DIR shared/obs-scripting SOURCES build/obs-scripting.python-import-host-windows+.h.c)
   _obs_cross_plugin(
@@ -443,6 +449,12 @@ elseif(_host STREQUAL MACOS)
   _obs_cross_plugin(obs-ffmpeg-mux-host-cross DIR plugins/obs-ffmpeg SOURCES build/obs-ffmpeg.mux-host-macos+.h.c)
   _obs_cross_plugin(obs-ffmpeg-mux-helper-host-cross DIR plugins/obs-ffmpeg/ffmpeg-mux SOURCES build/ffmpeg-mux.posix+.h.c)
   _obs_cross_plugin(obs-ffmpeg-host-cross DIR plugins/obs-ffmpeg SOURCES build/obs-ffmpeg.host-posix+.h.c)
+  _obs_cross_plugin(
+    obs-outputs-net-if-host-cross
+    DIR plugins/obs-outputs
+    SOURCES build/obs-outputs.net-if-host-posix+.h.c
+    INCLUDES plugins/obs-outputs/hosts/posix
+  )
   _obs_cross_plugin(obs-scripting-lua-host-cross DIR shared/obs-scripting SOURCES build/obs-scripting.lua-host-macos+.h.c)
   _obs_cross_plugin(obs-scripting-python-import-host-cross DIR shared/obs-scripting SOURCES build/obs-scripting.python-import-host-macos+.h.c)
   _obs_cross_plugin(

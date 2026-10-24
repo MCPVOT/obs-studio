@@ -286,6 +286,9 @@ include("${CMAKE_CURRENT_SOURCE_DIR}/qt-runtime.cmake")
 # obs-ffmpeg-url.h includes its host's obs-ffmpeg-net-host.h (#853); every
 # test that compiles obs-ffmpeg sources finds it here.
 include_directories("${CMAKE_SOURCE_DIR}/plugins/obs-ffmpeg/hosts/$<IF:$<PLATFORM_ID:Windows>,windows,posix>")
+# net-if.h (obs-outputs) includes its host's net-if-os.h (#851); every
+# test that compiles obs-outputs sources finds it here.
+include_directories("${CMAKE_SOURCE_DIR}/plugins/obs-outputs/hosts/$<IF:$<PLATFORM_ID:Windows>,windows,posix>")
 
 # One file per test from here on (obs-rust/obs-studio#137): add
 # tests.d/<test>.cmake instead of appending to this file, so concurrent PRs

@@ -37,8 +37,6 @@
   "plugins/obs-outputs/build/obs-outputs-rtmp.pch.h": 1,
   "plugins/obs-outputs/build/obs-outputs.pch.h": 2,
   "plugins/obs-outputs/mp4-mux-internal.h": 1,
-  "plugins/obs-outputs/net-if.c.h": 4,
-  "plugins/obs-outputs/net-if.h": 9,
   "plugins/obs-outputs/obs-outputs.c.h": 4,
   "plugins/obs-outputs/rtmp-stream.c.h": 16,
   "plugins/obs-outputs/rtmp-stream.h": 2,

@@ -9,5 +9,6 @@
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 
 #include "plugins/obs-outputs/net-if.h"
+#include "plugins/obs-outputs/net-if-host.h"
 #include <util/platform.h>
 #include <util/dstr.h>
