@@ -122,8 +122,15 @@ if(OBS_BRAND_RUST)
   # The main window title (#1983) shows the release version, or for any other
   # build the newest obs-studio-rust-v* tag as a dev version. git describe runs
   # at configure time; without git or a reachable tag the title says "dev".
+  # Only the build group that includes OBSBasic.cpp.hpp gets the title defines:
+  # git describe changes on every commit, and as a target-wide define it made
+  # every frontend compilation miss the compiler cache (#2182).
   if(OBS_RUST_RELEASE_VERSION)
-    target_compile_definitions(obs-studio PRIVATE OBS_RUST_TITLE_RELEASE="${OBS_RUST_RELEASE_VERSION}")
+    set_property(
+      SOURCE build/frontend.widgets+.hpp.cpp
+      APPEND
+      PROPERTY COMPILE_DEFINITIONS OBS_RUST_TITLE_RELEASE="${OBS_RUST_RELEASE_VERSION}"
+    )
   else()
     find_package(Git QUIET)
     set(_obs_rust_describe "")
@@ -141,7 +148,11 @@ if(OBS_BRAND_RUST)
       endif()
     endif()
     message(STATUS "OBS-Studio-Rust title version from: ${_obs_rust_describe}")
-    target_compile_definitions(obs-studio PRIVATE OBS_RUST_GIT_DESCRIBE="${_obs_rust_describe}")
+    set_property(
+      SOURCE build/frontend.widgets+.hpp.cpp
+      APPEND
+      PROPERTY COMPILE_DEFINITIONS OBS_RUST_GIT_DESCRIBE="${_obs_rust_describe}"
+    )
   endif()
 endif()
 
