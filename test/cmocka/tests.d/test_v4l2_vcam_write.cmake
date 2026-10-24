@@ -9,6 +9,10 @@ if(OS_LINUX AND TARGET OBS::v4l2)
   )
   target_link_libraries(test_v4l2_vcam_write PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
   target_link_options(test_v4l2_vcam_write PRIVATE "LINKER:--wrap=write")
+  # libasan.so also calls write; with --wrap its reference resolves to this
+  # executable's __wrap_write, which must not be hidden (the ASan link failed:
+  # "hidden symbol ... is referenced by DSO", #2005).
+  set_target_properties(test_v4l2_vcam_write PROPERTIES C_VISIBILITY_PRESET default)
   add_dependencies(cmocka-tests test_v4l2_vcam_write)
   add_test(test_v4l2_vcam_write ${CMAKE_CURRENT_BINARY_DIR}/test_v4l2_vcam_write)
   set_tests_properties(test_v4l2_vcam_write PROPERTIES TIMEOUT 60)

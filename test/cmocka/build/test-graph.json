@@ -1091,7 +1091,8 @@
         "NO_CRYPTO"
       ],
       "compile_options": [
-        "-Wno-unused-function"
+        "-Wno-unused-function",
+        "-fvisibility=default"
       ],
       "link_options": [
         "-Wl,--wrap=obs_output_can_begin_data_capture,--wrap=obs_output_initialize_encoders,--wrap=obs_output_begin_data_capture,--wrap=obs_output_end_data_capture,--wrap=pthread_create,--wrap=pthread_join"

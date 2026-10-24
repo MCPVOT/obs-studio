@@ -14,6 +14,10 @@ if(TARGET OBS::alsa)
     PRIVATE
       "LINKER:--wrap=obs_source_set_async_compensation,--wrap=obs_source_output_audio,--wrap=pthread_create,--wrap=pthread_join"
   )
+  # libasan.so also calls pthread_create; with --wrap its reference resolves to this
+  # executable's __wrap_pthread_create, which must not be hidden (the ASan link failed:
+  # "hidden symbol ... is referenced by DSO", #2005).
+  set_target_properties(test_alsa_early_stop PROPERTIES C_VISIBILITY_PRESET default)
   add_dependencies(cmocka-tests test_alsa_early_stop)
   add_test(test_alsa_early_stop ${CMAKE_CURRENT_BINARY_DIR}/test_alsa_early_stop)
   set_tests_properties(test_alsa_early_stop PROPERTIES TIMEOUT 60)
