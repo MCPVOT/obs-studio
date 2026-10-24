@@ -210,6 +210,7 @@ static long run_send_thread(struct conn c)
 	assert_int_equal(os_event_timedwait(thread_done, 10000), 0);
 	assert_true(disconnected(stream));
 
+	RTMP_TLS_Free(&stream->rtmp);
 	free_packets(stream);
 	deque_free(&stream->packets);
 	deque_free(&stream->dbr_frames);
