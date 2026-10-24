@@ -29,5 +29,10 @@ if(TARGET OBS::pipewire)
   )
   add_dependencies(cmocka-tests test_screencast_portal_teardown)
   add_test(test_screencast_portal_teardown ${CMAKE_CURRENT_BINARY_DIR}/test_screencast_portal_teardown)
-  set_tests_properties(test_screencast_portal_teardown PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 60)
+  # PORTAL_TEST_VERBOSE: print every libobs log line, so a run that hangs to
+  # its 20 s alarm shows how far it got (#2099; ctest prints it on failure).
+  set_tests_properties(
+    test_screencast_portal_teardown
+    PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 60 ENVIRONMENT "PORTAL_TEST_VERBOSE=1"
+  )
 endif()
