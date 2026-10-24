@@ -216,6 +216,10 @@ void obs_canvas_destroy(obs_canvas_t *canvas)
 		source = source->context.hh.next;
 	}
 
+	/* Sources still in it are destroyed later by obs_free_data(), which
+	 * cannot remove them from a freed canvas (#2038). */
+	HASH_CLEAR(hh, *(struct obs_context_data **)&canvas->sources);
+
 	obs_context_data_remove_uuid(&canvas->context, &obs->data.canvases_mutex, &obs->data.canvases);
 	if (!canvas->context.private) {
 		obs_context_data_remove_name(&canvas->context, &obs->data.canvases_mutex, &obs->data.named_canvases);
@@ -354,8 +358,10 @@ static bool remove_groups_enum_cb(void *param, obs_source_t *scene_source)
 void obs_canvas_remove_source(obs_source_t *source)
 {
 	obs_canvas_t *canvas = obs_weak_canvas_get_canvas(source->canvas);
+	/* Also when the canvas is gone: obs_free_data() releases the main
+	 * canvas before it destroys the sources left alive (#2038). */
+	obs_weak_canvas_release(source->canvas);
 	if (canvas) {
-		obs_weak_canvas_release(source->canvas);
 		obs_context_data_remove_name(&source->context, &canvas->sources_mutex, &canvas->sources);
 
 		canvas_dosignal_source("source_remove", canvas, source);
