@@ -207,18 +207,24 @@ void obs_canvas_destroy(obs_canvas_t *canvas)
 
 	obs_canvas_clear_mix(canvas);
 
+	/* Empty the list before releasing anything: HASH_CLEAR reads the
+	 * table through the list head, and a release can free the head on the
+	 * destruction task thread. Sources still alive are destroyed later by
+	 * obs_free_data(), which cannot remove them from a freed canvas
+	 * (#2038, #2049). */
 	obs_source_t *source = canvas->sources;
+	HASH_CLEAR(hh, *(struct obs_context_data **)&canvas->sources);
+
 	while (source) {
+		/* The release can free the source; take the next one first. */
+		obs_source_t *next = source->context.hh.next;
+
 		/* Canvases can hold strong refs to scene sources, release them here. */
 		if (canvas->flags & SCENE_REF && obs_source_is_scene(source))
 			obs_source_release(source);
 
-		source = source->context.hh.next;
+		source = next;
 	}
-
-	/* Sources still in it are destroyed later by obs_free_data(), which
-	 * cannot remove them from a freed canvas (#2038). */
-	HASH_CLEAR(hh, *(struct obs_context_data **)&canvas->sources);
 
 	obs_context_data_remove_uuid(&canvas->context, &obs->data.canvases_mutex, &obs->data.canvases);
 	if (!canvas->context.private) {
