@@ -68,7 +68,8 @@ export LD_LIBRARY_PATH="$qt/lib:$LD_LIBRARY_PATH"
 export QT_PLUGIN_PATH="$qt/plugins"
 # Exercise the shared Qt facade using the same real Qt prefix, offscreen.
 # Supplying the prefix makes missing Qt a failure rather than a local skip.
-OBS_QT_TEST_PREFIX="$qt" uv run python -m unittest \
+# The tests import their ci/ siblings by name (#2311).
+OBS_QT_TEST_PREFIX="$qt" PYTHONPATH=ci uv run python -m unittest \
   ci.test_shared_qt_platform.SharedQtPlatformTest.test_real_qt_offscreen \
   ci.test_obsapp_theme_platform.OBSAppThemePlatformTest.test_real_qt_signal_delivery \
   ci.test_dialog_platform_facade.DialogPlatformFacadeTest.test_real_qt_display_notifications \
