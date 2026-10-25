@@ -893,14 +893,6 @@ reason = "ubuntu-26.04, windows-2025-vs2026 and macos-26 are GitHub-hosted label
 issue = "https://github.com/obs-rust/obs-studio/issues/962"
 expires = "2027-04-15"
 
-# RUST-001: release-rust.yaml adds rustup targets for the release build.
-[[exceptions]]
-rule = "RUST-001"
-path = ".github/workflows/release-rust.yaml"
-reason = "release-rust.yaml adds rustup targets for the release build."
-issue = "https://github.com/obs-rust/obs-studio/issues/962"
-expires = "2027-04-15"
-
 # RUST-005: No [rust.tests] test-binary budget declared yet.
 [[exceptions]]
 rule = "RUST-005"
@@ -1174,14 +1166,6 @@ expires = "2027-04-15"
 rule = "TAG-003"
 path = ".github/workflows/ci.yml"
 reason = "PR runs do not read title tags, so a title edit need not re-trigger them."
-issue = "https://github.com/obs-rust/obs-studio/issues/962"
-expires = "2027-04-15"
-
-# TOOL-001: release-rust.yaml adds rustup targets for the release build.
-[[exceptions]]
-rule = "TOOL-001"
-path = ".github/workflows/release-rust.yaml"
-reason = "release-rust.yaml adds rustup targets for the release build."
 issue = "https://github.com/obs-rust/obs-studio/issues/962"
 expires = "2027-04-15"
 

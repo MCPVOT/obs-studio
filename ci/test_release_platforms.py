@@ -103,7 +103,7 @@ class ReleasePlatformsTest(unittest.TestCase):
     def test_windows_arm64_rust_target_is_installed_before_build(self):
         steps = self.text.split("      - name: ")
         provision = next(
-            (step for step in steps if "run: rustup target add aarch64-pc-windows-msvc" in step), None
+            (step for step in steps if "run: soldr rustup target add aarch64-pc-windows-msvc" in step), None
         )
         self.assertIsNotNone(provision, "the x64 runner needs Rust's Windows arm64 standard library")
         self.assertIn("matrix.os == 'windows'", provision)
