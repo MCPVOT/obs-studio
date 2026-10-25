@@ -41,12 +41,32 @@ class ConversionCard(unittest.TestCase):
         wf = WORKFLOW.read_text()
         self.assertLess(wf.index("tools/conversion/measure.py"), wf.index("render.py data conversion.html"))
 
+    def test_measure_runs_before_both_renders(self):
+        wf = WORKFLOW.read_text()
+        measure = wf.index("tools/conversion/measure.py")
+        full = wf.index("render.py data conversion.html conversion.jpg")
+        minimal = wf.index("render.py data conversion-minimal.html conversion-minimal.jpg")
+        self.assertLess(measure, full)
+        self.assertLess(full, minimal)
+
+    def test_minimal_card_has_the_headline_and_no_detail(self):
+        page = (SITE / "conversion-minimal.html").read_text()
+        for token in ("--rust:#e8631a", "Big+Shoulders+Stencil+Display", "JetBrains+Mono",
+                      "conversion.json", "dataset.ready", "d.app", "d.libobs.all"):
+            self.assertIn(token, page)
+        # The dense card lives on conversion.html; keep it out of this one.
+        for label in ("UTIL", "MEDIA-IO", "GRAPHICS", "LINUX", "MACOS", "WINDOWS", "areas", "hosts"):
+            self.assertNotIn(label.lower(), page.lower())
+
     def test_readme_shows_the_card_near_the_top(self):
         text = README.read_text()
         heads = headings(text)
         self.assertIn("Conversion progress", heads)
         self.assertLess(heads.index("Conversion progress"), heads.index("Features"))
-        self.assertIn("leaderboard/conversion.jpg", text)
+        self.assertIn("leaderboard/conversion-minimal.jpg", text)
+        # The image stays a link to the full breakdown.
+        self.assertIn("](https://obs-rust.github.io/obs-studio/conversion.html)", text)
+        self.assertIn("tools/conversion/measure.py", text)
         # Right after the "Got an idea?" line, before the Discord tip.
         idea = text.index("Got an idea? [Start a conversation]")
         self.assertLess(idea, text.index("# Conversion progress"))

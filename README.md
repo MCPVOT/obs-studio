@@ -44,12 +44,9 @@ Stuck? Ask in the Discord linked in the README, or in Discussions.
 
 # Conversion progress
 
-How much of OBS the Rust port has taken over: the share of libobs, and of
-the whole app, that the hybrid build no longer compiles from C
-([tools/conversion/measure.py](tools/conversion/measure.py)). Updated with
-the leaderboard.
+Measured by [tools/conversion/measure.py](tools/conversion/measure.py); click the card for the full breakdown.
 
-[![Share of OBS converted to Rust](https://raw.githubusercontent.com/obs-rust/obs-studio/leaderboard/conversion.jpg)](https://obs-rust.github.io/obs-studio/conversion.html)
+[![Rust port progress, click for the full breakdown](https://raw.githubusercontent.com/obs-rust/obs-studio/leaderboard/conversion-minimal.jpg)](https://obs-rust.github.io/obs-studio/conversion.html)
 
 > [!TIP]
 > **Come talk to us on [Discord](https://discord.gg/6MWWX4x9pf).** We're a
