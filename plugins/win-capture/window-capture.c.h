@@ -16,6 +16,7 @@
 #define TEXT_COMPATIBILITY  obs_module_text("Compatibility")
 #define TEXT_CLIENT_AREA    obs_module_text("ClientArea")
 #define TEXT_FORCE_SDR      obs_module_text("ForceSdr")
+#define TEXT_OBS_WINDOWS    obs_module_text("WindowCapture.ListObsWindows")
 
 /* clang-format on */
 
@@ -74,6 +75,7 @@ struct window_capture {
 	bool compatibility;
 	bool client_area;
 	bool force_sdr;
+	bool obs_windows;
 	bool hooked;
 	bool capture_audio;
 
@@ -212,6 +214,7 @@ static void window_update_settings(struct window_capture *wc, obs_data_t *s)
 	wc->force_sdr = obs_data_get_bool(s, "force_sdr");
 	wc->compatibility = obs_data_get_bool(s, "compatibility");
 	wc->client_area = obs_data_get_bool(s, "client_area");
+	wc->obs_windows = obs_data_get_bool(s, "obs_windows");
 
 	setup_audio_source(wc->source, &wc->audio_source, window, wc->capture_audio, wc->priority);
 
@@ -421,6 +424,7 @@ static void wc_defaults(obs_data_t *defaults)
 	obs_data_set_default_bool(defaults, "force_sdr", false);
 	obs_data_set_default_bool(defaults, "compatibility", false);
 	obs_data_set_default_bool(defaults, "client_area", true);
+	obs_data_set_default_bool(defaults, "obs_windows", false);
 }
 
 static void update_settings_visibility(obs_properties_t *props, struct window_capture *wc)
@@ -500,6 +504,23 @@ static bool wc_window_changed(obs_properties_t *props, obs_property_t *p, obs_da
 	return true;
 }
 
+/* Rebuild the window list with or without OBS's own windows (#2226). */
+static bool wc_obs_windows_changed(obs_properties_t *props, obs_property_t *p, obs_data_t *settings)
+{
+	UNUSED_PARAMETER(p);
+	struct window_capture *wc = obs_properties_get_param(props);
+	if (!wc)
+		return false;
+
+	wc->obs_windows = obs_data_get_bool(settings, "obs_windows");
+	obs_property_t *list = obs_properties_get(props, "window");
+	obs_property_list_clear(list);
+	ms_fill_window_list(list, EXCLUDE_MINIMIZED, NULL);
+	if (wc->obs_windows)
+		obs_windows_fill(list);
+	return true;
+}
+
 static obs_properties_t *wc_properties(void *data)
 {
 	struct window_capture *wc = data;
@@ -519,6 +540,8 @@ static obs_properties_t *wc_properties(void *data)
 	}
 
 	ms_fill_window_list(p, EXCLUDE_MINIMIZED, NULL);
+	if (wc && wc->obs_windows)
+		obs_windows_fill(p);
 	obs_property_set_modified_callback(p, wc_window_changed);
 
 	p = obs_properties_add_list(ppts, "method", TEXT_METHOD, OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
@@ -548,6 +571,9 @@ static obs_properties_t *wc_properties(void *data)
 	obs_properties_add_bool(ppts, "client_area", TEXT_CLIENT_AREA);
 
 	obs_properties_add_bool(ppts, "force_sdr", TEXT_FORCE_SDR);
+
+	p = obs_properties_add_bool(ppts, "obs_windows", TEXT_OBS_WINDOWS);
+	obs_property_set_modified_callback(p, wc_obs_windows_changed);
 
 	return ppts;
 }
@@ -619,6 +645,8 @@ static void wc_tick(void *data, float seconds)
 										   wc->class, wc->title, wc->executable)
 							: ms_find_window(INCLUDE_MINIMIZED, wc->priority, wc->class,
 									 wc->title, wc->executable);
+		if (!wc->window && wc->obs_windows)
+			wc->window = obs_windows_find(wc->priority, wc->class, wc->title, wc->executable);
 		if (!wc->window) {
 			if (wc->capture.valid)
 				dc_capture_free(&wc->capture);
@@ -848,6 +876,7 @@ struct obs_source_info window_capture_info = {
 #undef TEXT_COMPATIBILITY
 #undef TEXT_CLIENT_AREA
 #undef TEXT_FORCE_SDR
+#undef TEXT_OBS_WINDOWS
 #undef WC_CHECK_TIMER
 #undef RESIZE_CHECK_TIME
 #undef CURSOR_CHECK_TIME

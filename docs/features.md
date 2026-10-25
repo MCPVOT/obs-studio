@@ -738,6 +738,10 @@ area.
   once. *Linux*, 2026-10-17. Issue
   [#1068](https://github.com/obs-rust/obs-studio/issues/1068), PR
   [#1217](https://github.com/obs-rust/obs-studio/pull/1217).
+- Window Capture has a "List OBS windows" option (off by default) that adds
+  OBS's own windows, such as projectors, to the window list so OBS can capture
+  itself. *Windows*, 2026-10-24. Issue
+  [#2226](https://github.com/obs-rust/obs-studio/issues/2226).
 - Screen Capture (XSHM) follows a change of the screen's resolution: the
   capture is resized instead of freezing (screen made smaller) or staying
   cropped to the old size (screen made larger). *Linux*, 2026-10-20. Issue
