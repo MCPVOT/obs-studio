@@ -125,8 +125,18 @@ fn canonical_remux_queue_runs_unchanged() {
         ),
     ]
     .into();
+    let graph: serde_json::Value =
+        serde_json::from_slice(&fs::read(root.join("test/cmocka/build/test-graph.json")).unwrap())
+            .unwrap();
+    // Every Qt suite test in the graph builds and runs, not a pinned count.
+    let qt_tests = graph["tests"]
+        .as_object()
+        .unwrap()
+        .values()
+        .filter(|test| test["suite"] == "qt")
+        .count();
     let tests = validation::build_qt_tests(&build, &root, &interfaces).unwrap();
-    assert_eq!(tests.len(), 1);
+    assert_eq!(tests.len(), qt_tests);
     for test in tests {
         let result = test
             .command(&root, &build.output)
@@ -140,9 +150,6 @@ fn canonical_remux_queue_runs_unchanged() {
             String::from_utf8_lossy(&result.stderr)
         );
     }
-    let graph: serde_json::Value =
-        serde_json::from_slice(&fs::read(root.join("test/cmocka/build/test-graph.json")).unwrap())
-            .unwrap();
     let selected = serde_json::json!({"schema": 1,
         "targets": {"test_remux_queue_model": graph["targets"]["test_remux_queue_model"]},
         "tests": {"test_remux_queue_model": graph["tests"]["test_remux_queue_model"]}});
