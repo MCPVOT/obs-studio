@@ -27,6 +27,14 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
+#include <QGuiApplication>
+#include <QMessageBox>
+#include <QPushButton>
+
+#include <fstream>
+#include <mutex>
+#include <string>
+
 /* Portable mode exists on Windows; its marker files sit two levels up. */
 #define ALLOW_PORTABLE_MODE 1
 
