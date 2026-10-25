@@ -220,9 +220,9 @@ jobs:
 
       # Corrosion runs cargo inside the CMake build; same soldr as build-project.yaml.
       - name: Set up soldr 🦀
-        uses: zackees/setup-soldr@b782f606a2f3beadc35b9e3bf5b4565e005f52ed # v0.9.86
+        uses: zackees/setup-soldr@6ad4abd5b42cedef0b9710127fb450d3f2b2e301 # v0.9.87
         with:
-          version: 0.9.38
+          version: 0.9.42
           build-cache: false
           prebuild-deps-flags: --release
           cache-key-suffix: ${{ matrix.os == 'linux' && 'linux-host-v1' || '' }}

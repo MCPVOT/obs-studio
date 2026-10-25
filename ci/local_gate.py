@@ -101,19 +101,29 @@ def hints_for(text: str) -> list[str]:
     ]
 
 
-def run(cmd: list[str], **kw) -> None:
-    """Run `cmd`, streaming its output, and print hints for known environment failures."""
-    print("+", " ".join(cmd), flush=True)
+def run(cmd: list[str], buffer: list[str] | None = None, **kw) -> None:
+    """Run `cmd`, streaming its output, and print hints for known environment failures.
+
+    With `buffer`, the output (command line and hints included) is collected
+    there instead of printed, for a step that runs beside another one.
+    """
+    def emit(text: str) -> None:
+        if buffer is None:
+            print(text, end="", flush=True)
+        else:
+            buffer.append(text)
+
+    emit("+ " + " ".join(cmd) + "\n")
     seen = []
     with subprocess.Popen(
         cmd, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors="replace", **kw
     ) as proc:
         for line in proc.stdout:
-            print(line, end="", flush=True)
+            emit(line)
             if "soldr" in line or "FFmpeg" in line or "ocker" in line:
                 seen.append(line)
     for hint in hints_for("".join(seen)):
-        print(hint, flush=True)
+        emit(hint + "\n")
     if proc.returncode:
         raise subprocess.CalledProcessError(proc.returncode, cmd)
 
@@ -126,11 +136,33 @@ def soldr_cargo(args: list[str], extra_env: dict[str, str] | None = None) -> Non
     and the gate's attestation lets CI skip jobs on the strength of these
     lanes. OBS_GATE_ZCCACHE=1 keeps the cached build for local iteration.
     """
+    run(["soldr", "cargo", *args], env=soldr_env(extra_env))
+
+
+def soldr_env(extra_env: dict[str, str] | None = None) -> dict[str, str]:
+    """The environment of every soldr step: the wrapper off (see soldr_cargo)."""
     env = dict(os.environ)
     if env.get("OBS_GATE_ZCCACHE") != "1":
         env["SOLDR_RUSTC_WRAPPER"] = "none"
     env.update(extra_env or {})
-    run(["soldr", "cargo", *args], env=env)
+    return env
+
+
+def soldr_dylint(args: list[str], buffer: list[str] | None = None) -> None:
+    """Run the repo Dylints through soldr's native `soldr dylint` (#2293).
+
+    `soldr cargo dylint` defers to whatever cargo-dylint is on PATH, which
+    skips soldr's managed driver and its verdict ledger (soldr#3894): a
+    Dylint pass whose exact inputs already passed is replayed.
+    """
+    run(["soldr", "dylint", *args], buffer=buffer, env=soldr_env({
+        # soldr's managed driver even where a cargo-dylint is on PATH (it
+        # defers to that one otherwise; CI runners have none).
+        "SOLDR_FORCE_MANAGED_CARGO_SUBCOMMANDS": "1",
+        # Its own target root: soldr's no-cache preflight refuses to touch a
+        # target dir while the Clippy that runs beside it holds a .cargo-lock.
+        "CARGO_TARGET_DIR": str(ROOT / "target-dylint"),
+    }))
 
 
 def toolchain_gcc_ld() -> str:
@@ -560,15 +592,25 @@ def lane_lint(fix: bool) -> None:
     platform_ifdef_ratchet()
     perf_guard_lint()
     soldr_cargo(["fmt", "--all"] + ([] if fix else ["--check"]))
-    soldr_cargo(["clippy", "--workspace", "--all-targets", "--locked", "--", "-D", "warnings"])
-    for args in FEATURE_SETS:
-        soldr_cargo(["clippy", *args, "--all-targets", "--locked", "--", "-D", "warnings"])
     # Pre-expansion Dylints (dylints/*), so host-cfg'd code is checked on
     # one Linux lane (obs-rust/obs-studio#323). They scan whole src/ files,
     # inline test modules included, so lib + bins covers their scope;
     # --all-targets would also type-check integration tests that need
-    # CARGO_BIN_EXE_* from a real build.
-    soldr_cargo(["dylint", "--all", "--", "--workspace", "--lib", "--bins"])
+    # CARGO_BIN_EXE_* from a real build. The pass builds with the Dylint
+    # nightly in its own target dir, so it runs beside the stable Clippy
+    # steps instead of after them (#2293); its output prints once it ends.
+    dylint_output: list[str] = []
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        dylint = pool.submit(soldr_dylint, ["--all", "--", "--workspace", "--lib", "--bins"], dylint_output)
+        try:
+            soldr_cargo(["clippy", "--workspace", "--all-targets", "--locked", "--", "-D", "warnings"])
+            for args in FEATURE_SETS:
+                soldr_cargo(["clippy", *args, "--all-targets", "--locked", "--", "-D", "warnings"])
+        finally:
+            dylint_error = dylint.exception()
+            print("".join(dylint_output), end="", flush=True)
+    if dylint_error is not None:
+        raise dylint_error
 
 
 # Cross targets linted from this host (#472, #955): soldr provides the
@@ -605,7 +647,7 @@ def cross_lint(targets: tuple[str, ...], link: bool) -> None:
     for target in targets:
         add_target(target)
         soldr_cargo(["clippy", *scope, "--locked", "--target", target, "--", "-D", "warnings"])
-        soldr_cargo(["dylint", "--all", "--", *scope, "--target", target])
+        soldr_dylint(["--all", "--", *scope, "--target", target])
         if link:
             # Every test binary, C oracle included, must also compile and link
             # for the target (#516, #695): cc compiles all the oracle's C, and

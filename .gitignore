@@ -15,6 +15,8 @@ compile_commands.json
 
 # Cargo build output
 /target/
+# The Dylint pass of the local gate (ci/local_gate.py soldr_dylint, #2293).
+/target-dylint/
 # zackees/setup-soldr's cook-cache side files, restored beside target/.
 /target.soldr-*
 /dylints/*/target/

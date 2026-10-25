@@ -66,8 +66,13 @@ class RustSourceProbeTest(unittest.TestCase):
         def run_in_scratch(cmd, **kw):
             if is_cross_step(cmd) or is_feature_set_step(cmd):
                 return
+            # The probe proves changed source is compiled, not replayed:
+            # soldr's verdict ledger (0.9.41+) keyed this ignored scratch
+            # crate on none of its files (forge-ci/soldr#3913, #2293).
+            env = dict(kw.get("env") or os.environ)
+            env["SOLDR_VERDICTS"] = "off"
             result = subprocess.run(
-                cmd, cwd=scratch, env=kw.get("env"), capture_output=True, text=True, timeout=90, check=False
+                cmd, cwd=scratch, env=env, capture_output=True, text=True, timeout=90, check=False
             )
             output.append(result.stdout + result.stderr)
             if result.returncode != 0:
