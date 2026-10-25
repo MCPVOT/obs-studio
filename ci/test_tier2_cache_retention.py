@@ -77,6 +77,15 @@ class Tier2RetentionTest(unittest.TestCase):
                 self.assertGreater(measured, 0)
                 self.assertGreaterEqual(size(self.families[name]["max"]), 2 * measured)
 
+    def test_queue_compiler_caches_hold_their_measured_entry(self):
+        # A max below the live entry makes the janitor evict the queue's warm
+        # cache (ci-lint cache audit CACHE-004). Keep 25% growth room.
+        snapshot = json.loads((ROOT / "docs/ci-evidence/2026-10-24-queue-compiler-caches.json").read_text())
+        for entry in snapshot["entries"]:
+            name = self.owner(entry["key"])
+            with self.subTest(family=name):
+                self.assertGreaterEqual(size(self.families[name]["max"]), 1.25 * entry["size_in_bytes"])
+
 
 if __name__ == "__main__":
     unittest.main()

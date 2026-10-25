@@ -67,9 +67,10 @@ soldr-mini = { via = "setup-soldr:soldr-mini", max = "15MB", per = "platform" }
 # astral-sh/setup-uv's own cache.
 uv = { via = "setup-uv", max = "50MB" }
 # First-match classification: keep this specific prefix before zccache-.
-# Queue OFF/ON objects share one measured ~475 MB archive. Independent LRU
+# Queue OFF/ON objects share one archive, measured ~1.17 GB on 2026-10-24
+# (docs/ci-evidence/2026-10-24-queue-compiler-caches.json). Independent LRU
 # protection prevents newer nightly writes from evicting that queue seed.
-zccache-tier2 = { prefix = "zccache-tier2-linux-", max = "550MB", evict = "lru" }
+zccache-tier2 = { prefix = "zccache-tier2-linux-", max = "1.5GB", evict = "lru" }
 # Ubuntu's production app matrix is ON-only; C-reference OFF/ON coverage
 # remains in Tier 2. Observed ON archive 905,383,834 B; >30% growth room.
 # Separate first-match LRU protection from AppImage/sanitizer writes (#1269).
@@ -102,8 +103,8 @@ targets-apt = { prefix = "targets-apt-", max = "200MB", evict = "lru" }
 # Added on master after #957 was written.
 tier2-ctest-cost = { prefix = "tier2-ctest-cost-", max = "1MB" }
 # October 21 snapshot: 41.4 MB Windows and 44.3 MB macOS; >3x growth room.
-windows-tier2-ccache = { prefix = "windows-tier2-ccache-", max = "128MB", evict = "lru" }
-macos-tier2-xcas = { prefix = "macos-tier2-xcas-", max = "128MB", evict = "lru" }
+windows-tier2-ccache = { prefix = "windows-tier2-ccache-", max = "400MB", evict = "lru" }
+macos-tier2-xcas = { prefix = "macos-tier2-xcas-", max = "200MB", evict = "lru" }
 # Pruned master archive 507,448,340 B; real warm consumer working store
 # 508,489,050 B. The 650M working cap preserves >25% growth room (#1269).
 qt-ccache = { prefix = "qt-ccache-linux-", max = "750MB", evict = "lru" }
