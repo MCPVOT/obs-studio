@@ -141,7 +141,7 @@ secrets = [
   "RESTREAM_HASH", "SPARKLE_PRIVATE_KEY", "STEAM_PASSWORD", "STEAM_SHARED_SECRET", "STEAM_USER", "TWITCH_CLIENT_ID",
   "TWITCH_HASH", "YOUTUBE_CLIENTID", "YOUTUBE_CLIENTID_HASH", "YOUTUBE_SECRET", "YOUTUBE_SECRET_HASH",
 ]
-permissions = { "actions: write" = ["cache-janitor", "ci-pre"] }
+permissions = { "actions: write" = ["cache-janitor", "ci-pre"], "security-events: write" = ["windows", "macos"] }
 # setup-soldr is called from the workflows directly; there is no wrapper.
 setup-soldr = { only-in = ".github/workflows", require = {} }
 # Host-specific Rust code lives in each crate's src/platform/ (one cfg_select!
@@ -1118,12 +1118,6 @@ expires = "2027-04-15"
 # SEC-002: Upstream workflows without a top-level permissions block; tracked in #962.
 [[exceptions]]
 rule = "SEC-002"
-path = ".github/workflows/analyze-project.yaml"
-reason = "Upstream workflows without a top-level permissions block; tracked in #962."
-issue = "https://github.com/obs-rust/obs-studio/issues/962"
-expires = "2027-04-15"
-[[exceptions]]
-rule = "SEC-002"
 path = ".github/workflows/appimage.yaml"
 reason = "Upstream workflows without a top-level permissions block; tracked in #962."
 issue = "https://github.com/obs-rust/obs-studio/issues/962"
@@ -1131,12 +1125,6 @@ expires = "2027-04-15"
 [[exceptions]]
 rule = "SEC-002"
 path = ".github/workflows/build-project.yaml"
-reason = "Upstream workflows without a top-level permissions block; tracked in #962."
-issue = "https://github.com/obs-rust/obs-studio/issues/962"
-expires = "2027-04-15"
-[[exceptions]]
-rule = "SEC-002"
-path = ".github/workflows/check-format.yaml"
 reason = "Upstream workflows without a top-level permissions block; tracked in #962."
 issue = "https://github.com/obs-rust/obs-studio/issues/962"
 expires = "2027-04-15"

@@ -80,6 +80,7 @@ jobs:
     if: github.event_name != 'schedule' || github.repository == 'obs-rust/obs-studio'
     secrets: inherit
     permissions:
+      contents: read
       security-events: write
 
   # Explicit security scans belong to nightly/manual runs, never PR/merge_group.

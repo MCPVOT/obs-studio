@@ -1,6 +1,8 @@
 name: Check Code Formatting 🛠️
 on:
   workflow_call:
+permissions:
+  contents: read
 jobs:
   # One runner for every cheap check (#992): each separate job queued for its
   # own runner on the Free plan, 5-10 minutes each. On a PR the clang-format

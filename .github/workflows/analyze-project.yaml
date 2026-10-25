@@ -1,9 +1,14 @@
 name: Analyze Project
 on:
   workflow_call:
+permissions:
+  contents: read
 jobs:
   windows:
     timeout-minutes: 90
+    permissions:
+      contents: read
+      security-events: write # upload-sarif
     name: Windows 🪟 (PVS-Studio)
     runs-on: windows-2025-vs2026
     if: false && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && github.repository_owner == 'obsproject'
@@ -42,6 +47,9 @@ jobs:
 
   macos:
     timeout-minutes: 90
+    permissions:
+      contents: read
+      security-events: write # upload-sarif
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     name: macOS 🍏 (clang-analyze)
     runs-on: macos-26
