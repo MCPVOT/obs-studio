@@ -117,7 +117,7 @@ enum Slot {
 
 #[derive(Clone)]
 enum Value {
-    String(String),
+    String(Text),
     Int(i64),
     Double(f64),
     Bool(bool),
@@ -137,7 +137,7 @@ impl Value {
     }
 
     fn string(val: Option<&str>) -> Self {
-        Value::String(val.unwrap_or("").to_string())
+        Value::String(Text::new(val.unwrap_or("")))
     }
 }
 
@@ -164,17 +164,45 @@ fn read_bool(value: &Value) -> bool {
     }
 }
 
-fn cache_string(slot: &mut Option<CString>, value: &Value) {
-    *slot = match value {
-        Value::String(text) if !text.is_empty() => CString::new(text.clone()).ok(),
-        _ => None,
-    };
+/// A string value, stored once with a trailing NUL so the C getters read it
+/// in place instead of from a second copy (#1453).
+#[derive(Clone)]
+struct Text {
+    nul_terminated: Box<str>,
+    /// False for an empty string or one with an interior NUL: C then reads
+    /// "", as it did from the old `CString` copy.
+    c_readable: bool,
 }
 
-fn c_ptr(slot: &Option<CString>) -> *const std::ffi::c_char {
-    slot.as_ref()
-        .map(|text| text.as_ptr())
-        .unwrap_or(c"".as_ptr())
+impl Text {
+    fn new(text: &str) -> Self {
+        let mut buf = String::with_capacity(text.len() + 1);
+        buf.push_str(text);
+        buf.push('\0');
+        Self {
+            nul_terminated: buf.into_boxed_str(),
+            c_readable: !text.is_empty() && !text.contains('\0'),
+        }
+    }
+
+    fn as_str(&self) -> &str {
+        &self.nul_terminated[..self.nul_terminated.len() - 1]
+    }
+
+    fn c_ptr(&self) -> *const std::ffi::c_char {
+        if self.c_readable {
+            self.nul_terminated.as_ptr().cast()
+        } else {
+            c"".as_ptr()
+        }
+    }
+}
+
+fn c_ptr(value: Option<&Value>) -> *const std::ffi::c_char {
+    match value {
+        Some(Value::String(text)) => text.c_ptr(),
+        _ => c"".as_ptr(),
+    }
 }
 
 /// Names up to this many bytes are stored in the item's own allocation,
@@ -278,9 +306,6 @@ pub(crate) struct ItemInner {
     user: Option<Value>,
     default: Option<Value>,
     autoselect: Option<Value>,
-    user_c: Option<CString>,
-    default_c: Option<CString>,
-    auto_c: Option<CString>,
     parent: Option<Weak<RwLock<DataInner>>>,
 }
 
@@ -291,9 +316,6 @@ impl ItemInner {
             user: None,
             default: None,
             autoselect: None,
-            user_c: None,
-            default_c: None,
-            auto_c: None,
             parent: Some(parent),
         };
         item.write(slot, value);
@@ -307,17 +329,14 @@ impl ItemInner {
                     return;
                 }
                 self.ty = value.ty();
-                cache_string(&mut self.default_c, &value);
                 self.default = Some(value);
             }
             Slot::Autoselect => {
                 self.ty = value.ty();
-                cache_string(&mut self.auto_c, &value);
                 self.autoselect = Some(value);
             }
             Slot::User => {
                 self.ty = value.ty();
-                cache_string(&mut self.user_c, &value);
                 self.user = Some(value);
             }
         }
@@ -331,15 +350,7 @@ impl ItemInner {
     }
 
     fn front_c(&self) -> *const std::ffi::c_char {
-        if self.user.is_some() {
-            c_ptr(&self.user_c)
-        } else if self.default.is_some() {
-            c_ptr(&self.default_c)
-        } else if self.autoselect.is_some() {
-            c_ptr(&self.auto_c)
-        } else {
-            c"".as_ptr()
-        }
+        c_ptr(self.front())
     }
 
     fn user_string(&self) -> String {
@@ -347,7 +358,7 @@ impl ItemInner {
             return String::new();
         }
         match self.front() {
-            Some(Value::String(text)) => text.clone(),
+            Some(Value::String(text)) => text.as_str().to_owned(),
             _ => String::new(),
         }
     }
@@ -414,7 +425,7 @@ impl ItemInner {
             Slot::Autoselect => &self.autoselect,
         };
         match value {
-            Some(Value::String(text)) => text.clone(),
+            Some(Value::String(text)) => text.as_str().to_owned(),
             _ => String::new(),
         }
     }
@@ -493,17 +504,11 @@ impl ItemInner {
         if matches!(slot, Slot::User) {
             return self.front_c();
         }
-        let cached = match slot {
-            Slot::User => &self.user_c,
-            Slot::Default => &self.default_c,
-            Slot::Autoselect => &self.auto_c,
-        };
-        let present = match slot {
-            Slot::User => self.user.is_some(),
-            Slot::Default => self.default.is_some(),
-            Slot::Autoselect => self.autoselect.is_some(),
-        };
-        if present { c_ptr(cached) } else { c"".as_ptr() }
+        c_ptr(match slot {
+            Slot::User => self.user.as_ref(),
+            Slot::Default => self.default.as_ref(),
+            Slot::Autoselect => self.autoselect.as_ref(),
+        })
     }
 }
 
@@ -689,19 +694,16 @@ impl Item {
     pub fn unset_user_value(&self) {
         let mut item = self.inner.borrow_mut();
         item.user = None;
-        item.user_c = None;
     }
 
     pub fn unset_default_value(&self) {
         let mut item = self.inner.borrow_mut();
         item.default = None;
-        item.default_c = None;
     }
 
     pub fn unset_autoselect_value(&self) {
         let mut item = self.inner.borrow_mut();
         item.autoselect = None;
-        item.auto_c = None;
     }
 
     fn write(&self, slot: Slot, value: Value) {
@@ -1224,7 +1226,6 @@ impl Data {
         for item in items {
             let mut item = item.borrow_mut();
             item.user = None;
-            item.user_c = None;
         }
     }
 

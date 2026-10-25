@@ -99,7 +99,13 @@ fn c_str<'a>(ptr: *const c_char) -> Option<Cow<'a, str>> {
     } else {
         // SAFETY: `ptr` is a C string that outlives the call, or null
         // (handled above).
-        Some(unsafe { CStr::from_ptr(ptr) }.to_string_lossy())
+        let text = unsafe { CStr::from_ptr(ptr) };
+        // `from_utf8` checks valid text faster than the lossy decoder's
+        // chunk walk, and names are almost always valid (#1453).
+        Some(match std::str::from_utf8(text.to_bytes()) {
+            Ok(valid) => Cow::Borrowed(valid),
+            Err(_) => text.to_string_lossy(),
+        })
     }
 }
 
