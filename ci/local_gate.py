@@ -147,21 +147,24 @@ def soldr_env(extra_env: dict[str, str] | None = None) -> dict[str, str]:
     return env
 
 
-def soldr_dylint(args: list[str], buffer: list[str] | None = None) -> None:
+def soldr_dylint(args: list[str], buffer: list[str] | None = None, beside_clippy: bool = False) -> None:
     """Run the repo Dylints through soldr's native `soldr dylint` (#2293).
 
     `soldr cargo dylint` defers to whatever cargo-dylint is on PATH, which
     skips soldr's managed driver and its verdict ledger (soldr#3894): a
     Dylint pass whose exact inputs already passed is replayed.
     """
-    run(["soldr", "dylint", *args], buffer=buffer, env=soldr_env({
+    env = {
         # soldr's managed driver even where a cargo-dylint is on PATH (it
         # defers to that one otherwise; CI runners have none).
         "SOLDR_FORCE_MANAGED_CARGO_SUBCOMMANDS": "1",
+    }
+    if beside_clippy:
         # Its own target root: soldr's no-cache preflight refuses to touch a
         # target dir while the Clippy that runs beside it holds a .cargo-lock.
-        "CARGO_TARGET_DIR": str(ROOT / "target-dylint"),
-    }))
+        # Run alone, Dylint shares target/ and its CI cache instead.
+        env["CARGO_TARGET_DIR"] = str(ROOT / "target-dylint")
+    run(["soldr", "dylint", *args], buffer=buffer, env=soldr_env(env))
 
 
 def toolchain_gcc_ld() -> str:
@@ -600,7 +603,7 @@ def lane_lint(fix: bool) -> None:
     # steps instead of after them (#2293); its output prints once it ends.
     dylint_output: list[str] = []
     with ThreadPoolExecutor(max_workers=1) as pool:
-        dylint = pool.submit(soldr_dylint, ["--all", "--", "--workspace", "--lib", "--bins"], dylint_output)
+        dylint = pool.submit(soldr_dylint, ["--all", "--", "--workspace", "--lib", "--bins"], dylint_output, beside_clippy=True)
         try:
             soldr_cargo(["clippy", "--workspace", "--all-targets", "--locked", "--", "-D", "warnings"])
             for args in FEATURE_SETS:

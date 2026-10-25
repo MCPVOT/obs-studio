@@ -35,9 +35,24 @@ class GateDylintTest(unittest.TestCase):
         self.assertEqual(env.get("SOLDR_RUSTC_WRAPPER"), "none")
         # soldr's managed driver even where a cargo-dylint is on PATH, as in CI.
         self.assertEqual(env.get("SOLDR_FORCE_MANAGED_CARGO_SUBCOMMANDS"), "1")
-        # Its own target root: soldr's no-cache preflight refuses a target
-        # dir while the Clippy beside it holds a .cargo-lock there.
+        # Run alone, it shares target/ (and its CI cache) with Clippy.
+        self.assertNotIn("CARGO_TARGET_DIR", env)
+
+    def test_beside_clippy_it_uses_its_own_target_root(self):
+        # soldr's no-cache preflight refuses a target dir while the Clippy
+        # beside it holds a .cargo-lock there.
+        with mock.patch.object(local_gate, "run") as run:
+            local_gate.soldr_dylint(["--all"], beside_clippy=True)
+        env = run.call_args.kwargs["env"]
         self.assertEqual(env.get("CARGO_TARGET_DIR"), str(local_gate.ROOT / "target-dylint"))
+
+    def test_only_the_lint_lane_runs_it_beside_clippy(self):
+        # The cross lane runs Dylint after Clippy; a cold target-dylint/ there
+        # rebuilt the driver and every check for each target.
+        text = GATE.read_text(encoding="utf-8")
+        calls = re.findall(r"soldr_dylint[,(][^\n]*", text)
+        self.assertEqual(sum("beside_clippy=True" in c for c in calls), 1, calls)
+        self.assertTrue(any("--target" in c and "beside_clippy" not in c for c in calls), calls)
 
 
 if __name__ == "__main__":
