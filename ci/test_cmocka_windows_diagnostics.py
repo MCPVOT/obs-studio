@@ -27,13 +27,11 @@ import json
 import re
 import shutil
 import subprocess
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-from test_settings_platform_facade import function  # noqa: E402
+from test_settings_platform_facade import function
 
 ROOT = Path(__file__).resolve().parent.parent
 CMOCKA = ROOT / "test/cmocka"

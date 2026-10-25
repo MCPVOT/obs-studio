@@ -242,9 +242,19 @@ def encoder_lines(log: str, expect: str, before: int = 40) -> list[str]:
 # --- Live run (needs a running OBS) ------------------------------------------
 
 
+
+def _load(name: str, path: Path):
+    """Import `path` as module `name` without editing sys.path."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+    return module
+
 def _evidence(log: Path, pid: int, libobs: str, prefix: Path | None) -> dict:
-    sys.path.insert(0, str(ROOT / "ci"))
-    import recording_evidence_check as check
+    check = _load("recording_evidence_check", ROOT / "ci" / "recording_evidence_check.py")
 
     if Path(f"/proc/{pid}/maps").exists():
         maps = Path(f"/proc/{pid}/maps").read_text()
@@ -286,8 +296,8 @@ def source_version(log: str) -> str | None:
 
 
 async def _record(args: argparse.Namespace) -> dict:
-    sys.path.insert(0, str(ROOT / "test/websocket-tier4"))
-    from obsws import SUB_NONE, ObsWsClient
+    obsws = _load("obsws", ROOT / "test/websocket-tier4" / "obsws.py")
+    SUB_NONE, ObsWsClient = obsws.SUB_NONE, obsws.ObsWsClient
 
     identity = _evidence(args.log, args.pid, args.libobs, args.prefix)
     client = ObsWsClient(args.url)

@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import sys
 import json
 from types import SimpleNamespace
 from unittest import mock
@@ -11,8 +10,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-import test_binary_cap as cap  # noqa: E402
+import test_binary_cap as cap
 
 
 def write(path: Path, text: str = "") -> None:

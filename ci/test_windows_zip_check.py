@@ -6,13 +6,11 @@ uv run python -m unittest ci/test_windows_zip_check.py
 
 import io
 import struct
-import sys
 import unittest
 import zipfile
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-import windows_zip_check as w  # noqa: E402
+import windows_zip_check as w
 
 
 def pe(dlls: list[str]) -> bytes:

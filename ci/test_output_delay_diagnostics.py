@@ -5,12 +5,10 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
-import sys
 import tempfile
 import unittest
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-from test_settings_platform_facade import function  # noqa: E402
+from test_settings_platform_facade import function
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / "test/cmocka/test_output_delay_e2e.c"

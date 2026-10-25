@@ -22,9 +22,8 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-from cancel_superseded import queue_pr  # noqa: E402
-from cache_metrics import creation_to_start_seconds  # noqa: E402
+from cancel_superseded import queue_pr
+from cache_metrics import creation_to_start_seconds
 
 
 def _t(stamp: str) -> datetime:

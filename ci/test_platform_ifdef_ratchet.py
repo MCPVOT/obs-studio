@@ -8,13 +8,11 @@ platform file names only its own OS (#1051).
 from __future__ import annotations
 
 import json
-import sys
 import unittest
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-import platform_ifdef_ratchet as r  # noqa: E402
+import platform_ifdef_ratchet as r
 
 
 class CountTest(unittest.TestCase):

@@ -6,14 +6,12 @@
 
 from __future__ import annotations
 
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-import perf_guard_lint as g  # noqa: E402
+import perf_guard_lint as g
 
 ROOT = Path(__file__).resolve().parent.parent
 

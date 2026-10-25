@@ -5,12 +5,10 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
-import sys
 import tempfile
 import unittest
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-import platform_ifdef_ratchet as ratchet  # noqa: E402
+import platform_ifdef_ratchet as ratchet
 
 ROOT = Path(__file__).resolve().parent.parent
 SHARED = (

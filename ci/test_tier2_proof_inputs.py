@@ -19,14 +19,12 @@ roots found from the CMake inputs, not listed by hand.
 from __future__ import annotations
 
 import re
-import sys
 import tomllib
 import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "ci"))
-import ci_scope  # noqa: E402
+import ci_scope
 
 # Where Tier 2 Linux's CMake can import a crate (validate.sh: frontend off).
 CMAKE_INPUTS = ("libobs", "plugins", "test/cmocka", "cmake", "deps")

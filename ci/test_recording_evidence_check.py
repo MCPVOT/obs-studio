@@ -9,15 +9,13 @@ from __future__ import annotations
 import hashlib
 import io
 import json
-import sys
 import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-import recording_evidence_check as rec  # noqa: E402
+import recording_evidence_check as rec
 
 NVIDIA_LOG = """\
 07:34:33.238: Initializing OpenGL...

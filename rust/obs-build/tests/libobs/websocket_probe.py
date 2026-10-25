@@ -14,8 +14,20 @@ from pathlib import Path
 import subprocess
 import sys
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[4] / "test/websocket-tier4"))
-from obsws import ObsWsClient, SUB_SCENES  # noqa: E402
+
+def _load(name: str, path: Path):
+    """Import `path` as module `name` without editing sys.path."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+_obsws = _load("obsws", Path(__file__).resolve().parents[4] / "test/websocket-tier4" / "obsws.py")
+ObsWsClient, SUB_SCENES = _obsws.ObsWsClient, _obsws.SUB_SCENES
 
 
 async def verify(runtime: Path, recording: bool) -> None:

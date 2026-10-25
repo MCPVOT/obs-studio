@@ -39,8 +39,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-from nextest_tool import ensure_nextest  # noqa: E402
+from nextest_tool import ensure_nextest
 
 ROOT = Path(__file__).resolve().parent.parent
 CLANG_FORMAT = "clang-format==22.1.3"

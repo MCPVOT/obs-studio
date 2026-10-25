@@ -1,11 +1,9 @@
 """Opt-in compiler observations must not expose commands or change defaults."""
 
 import copy
-import sys
 import unittest
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
 from flatpak_compiler_diagnostics import configure, summarize
 
 

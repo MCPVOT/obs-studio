@@ -6,7 +6,6 @@
 
 from __future__ import annotations
 
-import sys
 import contextlib
 import io
 import tempfile
@@ -14,8 +13,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "ci"))
-import release_decision as rd  # noqa: E402
+import release_decision as rd
 
 WF = (ROOT / ".github" / "workflows" / "release-rust.yaml").read_text(encoding="utf-8")
 APPIMAGE = (ROOT / ".github" / "workflows" / "appimage.yaml").read_text(encoding="utf-8")

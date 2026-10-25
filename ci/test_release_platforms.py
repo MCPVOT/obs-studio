@@ -14,15 +14,13 @@ from __future__ import annotations
 import os
 import re
 import subprocess
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 WORKFLOW = ROOT / ".github" / "workflows" / "release-rust.yaml"
-sys.path.insert(0, str(ROOT / "ci"))
-import release_decision  # noqa: E402
+import release_decision
 
 # (os, target) pairs every beta must be built for.
 REQUIRED = {

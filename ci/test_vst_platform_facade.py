@@ -5,11 +5,9 @@ import os
 import re
 import shutil
 import subprocess
-import sys
 import tempfile
 import unittest
 
-sys.path.insert(0,str(Path(__file__).resolve().parent))
 import platform_ifdef_ratchet as ratchet
 from test_settings_platform_facade import function
 ROOT=Path(__file__).resolve().parent.parent

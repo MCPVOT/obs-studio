@@ -443,11 +443,22 @@ def report_frontend_log(config: Path) -> None:
     print("::endgroup::")
 
 
+
+def _load(name: str, path: Path):
+    """Import `path` as module `name` without editing sys.path."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+    return module
+
 async def inspect_running_app(
     proc: subprocess.Popen, port: int, password: str, platform: str
 ) -> None:
-    sys.path.insert(0, str(Path(__file__).resolve().parent / "websocket-tier4"))
-    from obsws import ObsWsClient, SUB_NONE
+    obsws = _load("obsws", Path(__file__).resolve().parent / "websocket-tier4" / "obsws.py")
+    ObsWsClient, SUB_NONE = obsws.ObsWsClient, obsws.SUB_NONE
 
     deadline = time.monotonic() + 120
     client = None

@@ -13,14 +13,12 @@ Linux arm64 are linted only in the release gate (`cross-release`).
 
 from __future__ import annotations
 
-import sys
 import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "ci"))
 
-import local_gate  # noqa: E402
+import local_gate
 
 TARGETS = {"x86_64-pc-windows-msvc", "aarch64-apple-darwin"}
 

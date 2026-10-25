@@ -14,14 +14,12 @@ from __future__ import annotations
 import os
 import re
 import subprocess
-import sys
 import unittest
 from pathlib import Path
 from unittest import mock
 
 ROOT = Path(__file__).resolve().parent.parent
 WORKFLOW = ROOT / ".github" / "workflows" / "build-project.yaml"
-sys.path.insert(0, str(ROOT / "ci"))
 
 
 def job(name: str) -> str:

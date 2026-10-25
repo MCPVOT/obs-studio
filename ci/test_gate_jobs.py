@@ -7,13 +7,11 @@
 from __future__ import annotations
 
 import re
-import sys
 import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "ci"))
-from gate_jobs import blocking  # noqa: E402
+from gate_jobs import blocking
 
 PULL = (ROOT / ".github" / "workflows" / "ci.yml").read_text()
 
