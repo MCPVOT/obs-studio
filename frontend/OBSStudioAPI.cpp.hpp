@@ -739,6 +739,12 @@ bool OBSStudioAPI::obs_frontend_is_safe_mode_enabled()
 	return safe_mode;
 }
 
+void OBSStudioAPI::obs_frontend_warn_fallback(const char *id, const char *title, const char *message, bool can_cancel,
+					      obs_frontend_fallback_cb cb, void *param)
+{
+	FallbackWarning::Warn(id, title, message, can_cancel, cb, param);
+}
+
 void OBSStudioAPI::on_load(obs_data_t *settings)
 {
 	for (size_t i = saveCallbacks.size(); i > 0; i--) {
