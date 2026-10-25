@@ -253,6 +253,26 @@ static void xshm_capture_stop(struct xshm_data *data)
 }
 
 /**
+ * Subscribe to the root window's monitor changes
+ */
+static void xshm_select_events(struct xshm_data *data)
+{
+	/* Always subscribe to ConfigureNotify on the root window.
+	 * According to WebRTC's source code comments, adding/removing monitors
+	 * can generate ConfigureNotify without any RRScreenChangeNotify. */
+	const uint32_t mask = XCB_EVENT_MASK_STRUCTURE_NOTIFY;
+	xcb_change_window_attributes(data->xcb, data->xcb_screen->root, XCB_CW_EVENT_MASK, &mask);
+
+	if (data->use_randr) {
+		const xcb_query_extension_reply_t *ext = xcb_get_extension_data(data->xcb, &xcb_randr_id);
+		data->randr_first_event = ext->first_event;
+		xcb_randr_select_input(data->xcb, data->xcb_screen->root,
+				       XCB_RANDR_NOTIFY_MASK_SCREEN_CHANGE | XCB_RANDR_NOTIFY_MASK_CRTC_CHANGE);
+	}
+	xcb_flush(data->xcb);
+}
+
+/**
  * Start the capture
  */
 static void xshm_capture_start(struct xshm_data *data)
@@ -283,7 +303,17 @@ static void xshm_capture_start(struct xshm_data *data)
 
 	if (xshm_update_geometry(data) < 0) {
 		blog(LOG_ERROR, "failed to update geometry !");
-		goto fail;
+		if (!data->use_randr)
+			goto fail;
+		/* The monitor is missing at start (#2263): keep the connection
+		 * and attach on the RandR event that brings it. */
+		if (!data->xcb_screen)
+			data->xcb_screen = xcb_get_screen(data->xcb, 0);
+		if (!data->xcb_screen)
+			goto fail;
+		data->cursor = xcb_xcursor_init(data->xcb);
+		xshm_select_events(data);
+		return;
 	}
 
 	data->xshm = xshm_xcb_attach(data->xcb, data->adj_width, data->adj_height);
@@ -295,19 +325,7 @@ static void xshm_capture_start(struct xshm_data *data)
 	data->cursor = xcb_xcursor_init(data->xcb);
 	xcb_xcursor_offset(data->cursor, data->adj_x_org, data->adj_y_org);
 
-	/* Always subscribe to ConfigureNotify on the root window.
-	 * According to WebRTC's source code comments, adding/removing monitors
-	 * can generate ConfigureNotify without any RRScreenChangeNotify. */
-	const uint32_t mask = XCB_EVENT_MASK_STRUCTURE_NOTIFY;
-	xcb_change_window_attributes(data->xcb, data->xcb_screen->root, XCB_CW_EVENT_MASK, &mask);
-
-	if (data->use_randr) {
-		const xcb_query_extension_reply_t *ext = xcb_get_extension_data(data->xcb, &xcb_randr_id);
-		data->randr_first_event = ext->first_event;
-		xcb_randr_select_input(data->xcb, data->xcb_screen->root,
-				       XCB_RANDR_NOTIFY_MASK_SCREEN_CHANGE | XCB_RANDR_NOTIFY_MASK_CRTC_CHANGE);
-	}
-	xcb_flush(data->xcb);
+	xshm_select_events(data);
 
 	obs_enter_graphics();
 
