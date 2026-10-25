@@ -418,6 +418,11 @@ not get a line.
   [#927](https://github.com/obs-rust/obs-studio/pull/927),
   [#1227](https://github.com/obs-rust/obs-studio/pull/1227),
   [#1234](https://github.com/obs-rust/obs-studio/pull/1234).
+- **.deb version is the release version.** A release .deb's package
+  version is the OBS-Studio-Rust version (`1:0.1.0~beta.20261024`), not
+  upstream's `git describe` string, so `dpkg -l` matches the About box and
+  each daily installs as an upgrade. *Linux*, 2026-10-24. Issue
+  [#2299](https://github.com/obs-rust/obs-studio/issues/2299).
 - **WHIP streaming in the AppImage.** The AppImage ships obs-webrtc and its
   libdatachannel, so WHIP appears in Settings > Stream > Service. *Linux*,
   2026-10-23. Issue [#1744](https://github.com/obs-rust/obs-studio/issues/1744),
