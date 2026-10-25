@@ -153,6 +153,7 @@ class Scope:
     linux_targets: str = ""
     qt_sdk: bool = False
     docs_only: bool = False
+    cross_targets: str = ""
 
 
 # The path -> lane table (#992). Adding a module is adding a row. Globs use
@@ -344,6 +345,31 @@ def linux_target(path: str) -> str | None:
     return parts[1]
 
 
+# The cross-compile check (cmake/cross/, #1294) compiles libobs and the
+# components its CMakeLists.txt names by `DIR`, for these aliases.
+CROSS_LISTS = "cmake/cross/CMakeLists.txt"
+CROSS_SELF = ("cmake/cross/", "cmake/common/soldr.cmake")
+CROSS_ALIASES = {WINDOWS: "win-x64", MACOS: "mac-arm64"}
+
+
+def cross_dirs(read: Callable[[str], str]) -> frozenset[str]:
+    """libobs plus every literal `DIR` of the cross CMakeLists."""
+    return frozenset({"libobs", *re.findall(r"\bDIR ([\w./-]+)", read(CROSS_LISTS))})
+
+
+def cross_targets(files: list[str], read: Callable[[str], str]) -> str:
+    """The cross aliases a change needs: a Windows or macOS file in a component
+    the check compiles, or the check itself (both)."""
+    dirs = cross_dirs(read)
+    oses: set[str] = set()
+    for path in files:
+        if path.startswith(CROSS_SELF):
+            oses |= set(CROSS_ALIASES)
+        elif any(path.startswith(d + "/") for d in dirs):
+            oses |= set(host_platforms(path) or path_platforms(path) or ()) & set(CROSS_ALIASES)
+    return ",".join(sorted(CROSS_ALIASES[os] for os in oses))
+
+
 def scope(
     files: list[str],
     exists: Callable[[str], bool] = lambda path: False,
@@ -388,7 +414,7 @@ def scope(
         macos |= MACOS in found
         windows |= WINDOWS in found
     docs_only = bool(files) and all(is_docs(path) for path in files)
-    return Scope(core, macos, windows, qt, tier2, False, ",".join(sorted(targets)), qt_sdk, docs_only)
+    return Scope(core, macos, windows, qt, tier2, False, ",".join(sorted(targets)), qt_sdk, docs_only, cross_targets(files, read))
 
 
 def changed_files(base: str) -> list[str]:

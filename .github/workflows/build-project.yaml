@@ -91,6 +91,7 @@ jobs:
       linux_targets: ${{ steps.native.outputs.linux_targets }}
       qt_sdk: ${{ steps.native.outputs.qt_sdk }}
       docs_only: ${{ steps.native.outputs.docs_only }}
+      cross_targets: ${{ steps.native.outputs.cross_targets }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -192,6 +193,7 @@ jobs:
           fi
           if [[ "${event_full}" == true ]]; then
             full=true core=true macos=true windows=true qt=true tier2=true qt_sdk=true linux_targets=
+            cross_targets=mac-arm64,win-x64
           else
             if [[ "${GITHUB_EVENT_NAME}" == pull_request ]]; then
               base="origin/${GITHUB_BASE_REF}"
@@ -223,7 +225,7 @@ jobs:
           fi
           # Keep the complete Flatpak job and Fast Gate; omit unrelated matrices.
           if [[ "$FLATPAK_MEASUREMENT_ONLY" == true ]]; then
-            core=false macos=false windows=false qt=false tier2=false qt_sdk=false linux_targets=
+            core=false macos=false windows=false qt=false tier2=false qt_sdk=false linux_targets= cross_targets=
           fi
           os=()
           [[ "${macos}" == true ]] && os+=('"macos-26"')
@@ -239,6 +241,7 @@ jobs:
             echo "linux_targets=${linux_targets:-}"
             echo "qt_sdk=${qt_sdk:-false}"
             echo "docs_only=${docs_only:-false}"
+            echo "cross_targets=${cross_targets:-}"
             echo "platform_os=[$(IFS=,; echo "${os[*]}")]"
           } >> "${GITHUB_OUTPUT}"
           echo "full=${full} core=${core} macos=${macos} windows=${windows} qt=${qt} tier2=${tier2}"
@@ -1773,6 +1776,57 @@ jobs:
           path: ${{ runner.temp }}/lane-proof
           retention-days: 3
           if-no-files-found: error
+
+  # Compile-only cross check (cmake/cross/, #1294) of the Windows and macOS
+  # host groups a change touches, on Linux with soldr's LLVM and SDKs. PR CI
+  # builds no Windows or macOS app, so without it a broken host group first
+  # fails on the nightly. ci/ci_scope.py picks the aliases (cross_targets).
+  cross-compile:
+    timeout-minutes: 45
+    name: Cross Compile 🧰 (${{ needs.check-event.outputs.cross_targets }})
+    runs-on: ubuntu-26.04
+    needs: check-event
+    if: ${{ !inputs.flatpak-measurement-only && needs.check-event.outputs.cross_targets != '' }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # win-dshow's groups include libdshowcapture; no other submodule is compiled.
+      - name: Check Out libdshowcapture 📥
+        run: git submodule update --init --depth 1 deps/libdshowcapture/src
+
+      - name: Set Up soldr 🦀
+        uses: zackees/setup-soldr@71e6b565d05e546781eb9b0668bee02e574de7c9 # v0.9.88
+        with:
+          verdict-scope: build-project
+          version: 0.9.43
+          build-cache: false
+          prebuild-deps-flags: --profile dev
+          cache-key-suffix: cross-compile-v1
+          save-cache-remote: ${{ github.ref == 'refs/heads/master' }}
+          # The cross toolchain adds targets mid-job (cmake/common/soldr.cmake).
+          solo-toolchain-cache: false
+
+      - name: Install Build Dependencies 📦
+        run: |
+          sudo bash ci/host_apt_mirrors.sh
+          apt_options=(-o Acquire::Retries=1 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15)
+          sudo apt-get "${apt_options[@]}" update
+          sudo apt-get install "${apt_options[@]}" -y --no-install-recommends cmake ninja-build
+
+      - name: Cross Compile 🧰
+        env:
+          CROSS_TARGETS: ${{ needs.check-event.outputs.cross_targets }}
+        run: |
+          IFS=, read -ra aliases <<< "${CROSS_TARGETS}"
+          for alias in "${aliases[@]}"; do
+            echo "::group::cross ${alias}"
+            OBS_CROSS_TARGET="${alias}" cmake -S cmake/cross -B "build_cross_${alias}" -G Ninja -DOBS_CROSS_TARGET="${alias}"
+            OBS_CROSS_TARGET="${alias}" cmake --build "build_cross_${alias}" -- -k 0
+            echo "::endgroup::"
+          done
 
   # Clippy and Dylint for Windows and both macOS targets, cross-checked on
   # Linux through soldr (#472). Every PR push runs it unless the head is

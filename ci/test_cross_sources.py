@@ -2,10 +2,10 @@
 """Every source the cross-compile check names exists.
 
 cmake/cross/CMakeLists.txt lists each platform-only target's unity group
-files by name. No CI job runs the cross check (#1294), so a group renamed in
-its component (#1607 split coreaudio-encoder.core+ into .windows+/.macos+)
-left the check failing at configure with nobody noticing. This keeps the
-names in step with the tree.
+files by name. CI runs the check only for PRs that touch Windows or macOS
+host code (#1294), so a group renamed in its component (#1607 split
+coreaudio-encoder.core+ into .windows+/.macos+) once left it failing at
+configure with nobody noticing. This keeps the names in step with the tree.
 
     uv run python -m unittest ci/test_cross_sources.py
 """

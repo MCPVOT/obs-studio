@@ -212,6 +212,9 @@ cmake --build build --target cross-win-x64      # cross-mac-arm64, cross-mac-x64
 - **Warnings** are reported; `-DOBS_CROSS_WERROR=ON` makes them errors.
 - **Getting soldr:** `cmake/common/soldr.cmake` uses soldr from `PATH`, or downloads the version CI pins and checks its SHA256 (`ci/test_soldr_pin.py` keeps that pin equal to the workflows').
 - **Finding the toolchain:** it runs `soldr toolchain prepare`, then finds LLVM and the SDK under soldr's root. That changes to `soldr cc --target <triple>` once soldr exposes Apple and MSVC there.
+- **In PR CI:** the `Cross Compile 🧰` job in `build-project.yaml` runs it, compile-only, for the aliases `ci/ci_scope.py` selects (`cross_targets`).
+  It runs when a change touches a Windows or macOS file in libobs or a component the cross `CMakeLists.txt` names by `DIR`, or the check itself (`cmake/cross/`, `cmake/common/soldr.cmake`); full runs build both (#1294).
+  The frontend's Qt groups are not in it yet: the check has no Qt.
 - **No `win-arm64`:** `util/threading-windows.h` uses MSVC-only ARM64 intrinsics that clang lacks.
 
 ### setup-soldr: soldr in GitHub Actions

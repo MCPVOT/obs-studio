@@ -9,7 +9,9 @@
 #
 # or, from a configured OBS build: cmake --build <build> --target cross-win-x64
 # (cross-all for every alias). Aliases: win-x64, mac-arm64, mac-x64.
-# Warnings are reported; -DOBS_CROSS_WERROR=ON makes them errors.
+# Warnings are reported; -DOBS_CROSS_WERROR=ON makes them errors. PR CI runs
+# it (build-project.yaml, Cross Compile) when a change touches Windows or
+# macOS host code in a component listed here (ci/ci_scope.py, #1294).
 
 cmake_minimum_required(VERSION 3.28...3.30)
 
