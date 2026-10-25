@@ -136,7 +136,9 @@ and link it here so we can track it.
 
 Each [release](https://github.com/obs-rust/obs-studio/releases) has an
 AppImage, which runs on any distribution (`chmod +x` it and run it), and a
-.deb for Ubuntu 26.04 (`sudo apt install ./OBS-Studio-Rust-*.deb`). There is
+.deb for Ubuntu 26.04 (`sudo apt install ./OBS-Studio-Rust-*.deb`).
+The AppImage is tested on AlmaLinux 8 (the glibc 2.28 floor), Ubuntu 22.04,
+Ubuntu 24.04, Arch Linux and NixOS. There is
 no OBS-Studio-Rust Flatpak yet: `com.obsproject.Studio` on Flathub is
 upstream OBS Studio, so report its bugs there.
 
