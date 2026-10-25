@@ -208,7 +208,7 @@ def read_env_file(path: Path) -> dict[str, str]:
     return values
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: list[str] | None = None) -> int:  # noqa: C901
     args = parse_args(argv)
     steps = plan(args)
     if args.dry_run:

@@ -801,14 +801,6 @@ reason = "Upstream OBS build/packaging scripts (zsh, PowerShell, shell); porting
 issue = "https://github.com/obs-rust/obs-studio/issues/962"
 expires = "2027-04-15"
 
-# PY-004: No ruff configuration yet; Python CI scripts are tested by ci/test_*.py.
-[[exceptions]]
-rule = "PY-004"
-path = "pyproject.toml"
-reason = "No ruff configuration yet; Python CI scripts are tested by ci/test_*.py."
-issue = "https://github.com/obs-rust/obs-studio/issues/962"
-expires = "2027-04-15"
-
 # RUN-001: ubuntu-26.04, windows-2025-vs2026 and macos-26 are GitHub-hosted labels outside ci.yml's fleet list.
 [[exceptions]]
 rule = "RUN-001"

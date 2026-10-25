@@ -145,7 +145,7 @@ for (int code : {{-1, 0, 23}}) {{
                                    check=True, capture_output=True)
                     subprocess.run([str(binary)], check=True)
 
-    def test_legacy_paths_and_translation_matrix(self):
+    def test_legacy_paths_and_translation_matrix(self):  # noqa: C901
         compiler = shutil.which("c++")
         if not compiler:
             self.skipTest("C++ compiler unavailable; native builds still required")

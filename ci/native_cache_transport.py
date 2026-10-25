@@ -85,7 +85,7 @@ def publish_directory(staged: Path, destination: Path) -> None:
             shutil.rmtree(destination)
 
 
-def pack(source: Path, output: Path, identity: dict, source_sha: str) -> dict:
+def pack(source: Path, output: Path, identity: dict, source_sha: str) -> dict:  # noqa: C901
     validate_identity(identity)
     if not isinstance(source_sha, str) or not re.fullmatch('[0-9a-f]{40}', source_sha):
         raise ValueError('producer source_sha must be a complete commit identity')
@@ -166,7 +166,7 @@ def validate_metadata(metadata: dict, identity: dict) -> None:
         raise ValueError('invalid archive digest')
 
 
-def validate_archive(archive: Path, metadata: dict, identity: dict, staged: Path | None = None) -> None:
+def validate_archive(archive: Path, metadata: dict, identity: dict, staged: Path | None = None) -> None:  # noqa: C901
     validate_metadata(metadata, identity)
     with Path(archive).open('rb') as stream:
         if os.fstat(stream.fileno()).st_size != metadata['bytes']:
@@ -347,7 +347,7 @@ def publish(archive: Path, metadata: dict, store, context: dict) -> dict:
             'remote_bytes': sum(asset['size'] for asset in retained), 'remote_assets': len(retained)}
 
 
-def consume(identity: dict, destination: Path, store) -> dict:
+def consume(identity: dict, destination: Path, store) -> dict:  # noqa: C901
     fingerprint = profile(identity)
     destination = Path(destination)
     if destination.exists() or destination.is_symlink():
@@ -394,7 +394,7 @@ def consume(identity: dict, destination: Path, store) -> dict:
     return {'status': 'cold', 'elapsed_seconds': time.monotonic() - started, 'errors': errors}
 
 
-def main(argv=None, store_factory=None):
+def main(argv=None, store_factory=None):  # noqa: C901
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('mode', choices=('publish', 'consume', 'verify-local'))
     parser.add_argument('--identity', type=Path, required=True)

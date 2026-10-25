@@ -43,7 +43,7 @@ def validate_member(member):
         raise ValueError('unsafe dependency archive link or file type')
 
 
-def pack(source, artifact, profile):
+def pack(source, artifact, profile):  # noqa: C901
     start = time.monotonic()
     source, artifact = Path(source), Path(artifact)
     if not source.is_dir() or source.is_symlink():
@@ -119,7 +119,7 @@ def read_archive(archive, visit):
                 process.wait()
 
 
-def restore(artifact, destination, profile):
+def restore(artifact, destination, profile):  # noqa: C901
     start = time.monotonic()
     artifact, destination = Path(artifact), Path(destination)
     report = json.loads((artifact / 'dependency-manifest.json').read_text())

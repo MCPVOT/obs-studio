@@ -24,7 +24,7 @@ def _order(c: str) -> int:
     return ord(c) + 256
 
 
-def _cmp_part(a: str, b: str) -> int:
+def _cmp_part(a: str, b: str) -> int:  # noqa: C901
     """dpkg's verrevcmp for an upstream version or a revision."""
     i = j = 0
     while i < len(a) or j < len(b):

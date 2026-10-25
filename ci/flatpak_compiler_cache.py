@@ -85,7 +85,7 @@ def pack(source, artifact, profile):
     return report
 
 
-def restore(artifact, destination, profile):
+def restore(artifact, destination, profile):  # noqa: C901
     start = time.monotonic()
     artifact, destination = Path(artifact), Path(destination)
     report = json.loads((artifact / 'manifest.json').read_text())

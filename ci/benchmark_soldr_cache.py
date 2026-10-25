@@ -22,7 +22,7 @@ ROOT = Path(__file__).resolve().parent.parent
 POLICIES = {"release": ["--release"], "dev": ["--profile", "dev"], "none": None}
 
 
-def benchmark(
+def benchmark(  # noqa: C901
     directory: Path,
     soldr: str,
     trials: int,

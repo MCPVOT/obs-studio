@@ -34,7 +34,7 @@ class DecklinkPlatformHeadersTest(unittest.TestCase):
         for host in ('windows', 'macos', 'linux'):
             self.assertTrue((PLUGIN / f'hosts/{host}/decklink-platform.hpp').is_file())
 
-    def test_header_types_and_conversion_behavior(self):
+    def test_header_types_and_conversion_behavior(self):  # noqa: C901
         compiler = shutil.which('c++')
         if not compiler:
             self.skipTest('C++ compiler unavailable; native plugin builds remain required')

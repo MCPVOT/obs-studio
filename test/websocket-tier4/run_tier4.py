@@ -1539,7 +1539,7 @@ async def test_srt_listener_stop_while_reconnecting():
     await c.close_conn()
 
 
-async def test_srt_listener_reconnect_cycles(server, cycles=8):
+async def test_srt_listener_reconnect_cycles(server, cycles=8):  # noqa: C901
     """An SRT listener whose caller keeps leaving and calling again: OBS must
     survive every reconnect. The write thread of the dropped connection left
     its queued packets behind, and the next connection's write thread could
@@ -2078,7 +2078,7 @@ async def run_gpu_only(obs_bin):
     return 1 if failed else 0
 
 
-async def run_all(obs_bin, skip_obs, skip_auth_phase, test_plugin_dir=None):
+async def run_all(obs_bin, skip_obs, skip_auth_phase, test_plugin_dir=None):  # noqa: C901
     server_a = server_b = None
     if not skip_obs:
         server_a = ObsServer(obs_bin, PORT, password=None)

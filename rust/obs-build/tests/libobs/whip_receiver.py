@@ -19,7 +19,7 @@ from aiortc.mediastreams import MediaStreamError
 import numpy as np
 
 
-async def exercise(args):
+async def exercise(args):  # noqa: C901
     sessions = {}
     peers = {}
     consumers = []

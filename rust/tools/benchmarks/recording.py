@@ -295,7 +295,7 @@ def source_version(log: str) -> str | None:
     return None
 
 
-async def _record(args: argparse.Namespace) -> dict:
+async def _record(args: argparse.Namespace) -> dict:  # noqa: C901
     obsws = _load("obsws", ROOT / "test/websocket-tier4" / "obsws.py")
     SUB_NONE, ObsWsClient = obsws.SUB_NONE, obsws.ObsWsClient
 

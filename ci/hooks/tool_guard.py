@@ -163,7 +163,7 @@ def gh_api_endpoint(tokens):
     return ""
 
 
-def check_command(command, depth=0, rust=True):
+def check_command(command, depth=0, rust=True):  # noqa: C901
     """Return (tool, reason) for the first forbidden invocation, else None.
 
     `rust=False` checks only the GraphQL rule (clud sessions)."""

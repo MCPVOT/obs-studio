@@ -261,7 +261,7 @@ def start_recording(session: Session, ws) -> None:
                      'packaged recording to become active', seconds=20)
 
 
-def qualification(args) -> dict:
+def qualification(args) -> dict:  # noqa: C901
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=False)
     session = Session(output)

@@ -163,6 +163,7 @@ class FeatureSetLanesTest(unittest.TestCase):
             mock.patch.object(local_gate, "ensure_nextest", return_value=None),
             mock.patch.object(local_gate, "clang_format"),
             mock.patch.object(local_gate, "gersemi"),
+            mock.patch.object(local_gate, "ruff_ratchet"),
             mock.patch.object(local_gate, "self_test"),
             mock.patch.object(local_gate, "check_test_binary_inventory"),
             mock.patch.object(local_gate, "check_feature_sets") as check,

@@ -1,0 +1,8 @@
+# Python complexity ratchet (ci-lint PY-004, #962): ./lint runs ruff with only
+# these rules. A function over the ceiling carries a line-level
+# `# noqa: C901`; RUF100 flags one that no longer suppresses anything.
+[lint]
+select = ["C901", "RUF100"]
+
+[lint.mccabe]
+max-complexity = 10

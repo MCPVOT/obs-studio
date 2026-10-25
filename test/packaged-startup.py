@@ -146,7 +146,7 @@ def _write_profile(config: Path, platform: str, port: int, password: str) -> Non
 
 
 class ConfigFixture:
-    def __init__(
+    def __init__(  # noqa: C901
         self, config: Path, platform: str, mode: str, port: int, password: str
     ):
         self.config = config
@@ -248,7 +248,7 @@ class ConfigFixture:
             for path in root.rglob("*")
         }
 
-    def verify(self) -> None:
+    def verify(self) -> None:  # noqa: C901
         for root, original in self.originals.items():
             if self.snapshot(root) != original:
                 raise RuntimeError(
@@ -454,7 +454,7 @@ def _load(name: str, path: Path):
     spec.loader.exec_module(module)
     return module
 
-async def inspect_running_app(
+async def inspect_running_app(  # noqa: C901
     proc: subprocess.Popen, port: int, password: str, platform: str
 ) -> None:
     obsws = _load("obsws", Path(__file__).resolve().parent / "websocket-tier4" / "obsws.py")
@@ -537,7 +537,7 @@ async def inspect_running_app(
         await client.close_conn()
 
 
-def close_frontend(proc: subprocess.Popen, platform: str) -> None:
+def close_frontend(proc: subprocess.Popen, platform: str) -> None:  # noqa: C901
     if platform == "macos":
         proc.send_signal(signal.SIGINT)
     else:
@@ -626,7 +626,7 @@ def close_frontend(proc: subprocess.Popen, platform: str) -> None:
         )
 
 
-def main() -> None:
+def main() -> None:  # noqa: C901
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--app", type=Path, required=True)
     parser.add_argument("--config-dir", type=Path, required=True)

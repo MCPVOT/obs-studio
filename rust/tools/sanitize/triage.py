@@ -146,7 +146,7 @@ def tsan_finding(lines):
     return kind, (loc,), loc is not None
 
 
-def valgrind_findings(path):
+def valgrind_findings(path):  # noqa: C901
     text = path.read_text(errors="replace")
     pids = re.findall(r"^==(\d+)==", text, flags=re.M)
     if not pids:
@@ -200,7 +200,7 @@ def group(entries):
     return [(n, label, detail) for (label, detail), n in counts.items()]
 
 
-def main():
+def main():  # noqa: C901
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     if len(args) != 1:
         sys.exit(__doc__)

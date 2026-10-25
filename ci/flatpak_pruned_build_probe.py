@@ -38,7 +38,7 @@ def cache_branch(manifest):
     return ''.join(char if ord(char) > 127 else quote(char, safe='') for char in identity).replace('%', '_')
 
 
-def measure(state, manifest, temp_root, execute=run, *, compiler_reuse=False):
+def measure(state, manifest, temp_root, execute=run, *, compiler_reuse=False):  # noqa: C901
     state = Path(state).resolve(strict=True)
     manifest = Path(manifest).resolve(strict=True)
     scratch = Path(temp_root).resolve(strict=True)

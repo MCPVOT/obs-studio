@@ -95,7 +95,7 @@ EXCLUDED_PREFIXES = ("plugins/obs-websocket/", "plugins/obs-browser/", "deps/", 
 EXCLUDED_PARTS = ("deps", "vendor", "third_party", "third-party", "librtmp", "rnnoise", "decklink-sdk")
 
 
-def strip_comments(text: str) -> str:
+def strip_comments(text: str) -> str:  # noqa: C901
     """`text` without comments or raw-string bodies, newlines kept so line
     numbers hold. String and char literals are kept but never open a comment."""
     text = text.replace("\r\n", "\n")

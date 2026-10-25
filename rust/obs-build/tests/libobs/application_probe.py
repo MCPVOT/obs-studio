@@ -83,7 +83,7 @@ def profile(runtime: Path) -> Path:
     return config
 
 
-def main() -> None:
+def main() -> None:  # noqa: C901
     parser = argparse.ArgumentParser()
     parser.add_argument("--runtime", type=Path, required=True)
     parser.add_argument("--inspector", type=Path, required=True)

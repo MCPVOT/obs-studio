@@ -326,7 +326,7 @@ class LaneTableTest(unittest.TestCase):
             ]
         )
         self.assertNotIn("frontend", refs)
-        sc = lambda f: scope([f], read=lambda p: CARGO.get(p, ""), cmocka_paths=refs)  # noqa: E731
+        sc = lambda f: scope([f], read=lambda p: CARGO.get(p, ""), cmocka_paths=refs)
         for f in (
             "plugins/obs-websocket",  # gitlink
             "plugins/obs-websocket/src/requesthandler/RequestBatchHandler.cpp",

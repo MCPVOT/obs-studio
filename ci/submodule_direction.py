@@ -68,7 +68,7 @@ def is_ancestor(sub: Path, old: str, new: str) -> bool:
     return git(sub, "merge-base", "--is-ancestor", old, new, check=False).returncode == 0
 
 
-def backwards(repo: Path, base: str, head: str = "HEAD", title: str = "") -> list[str]:
+def backwards(repo: Path, base: str, head: str = "HEAD", title: str = "") -> list[str]:  # noqa: C901
     """Problems, one per gitlink that moved to a non-descendant of its base pointer."""
     if OVERRIDE in title:
         return []

@@ -32,7 +32,7 @@ def configure(manifest):
     return result
 
 
-def summarize(log):
+def summarize(log):  # noqa: C901
     if len(log.encode()) > MAX_BYTES:
         raise ValueError("Compiler log exceeds 16 MiB observation limit")
     active, calls = {}, []

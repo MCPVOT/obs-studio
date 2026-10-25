@@ -21,7 +21,7 @@ FILES = sorted([*ROOT.glob(".github/workflows/*.y*ml"), *ROOT.glob(".github/acti
 KEY = re.compile(r"^(?P<indent> *)(?:- +)?(?P<key>[A-Za-z0-9_.-]+|'[^']*'|\"[^\"]*\"):(?:\s|$)")
 
 
-def duplicate_keys(text: str) -> list[str]:
+def duplicate_keys(text: str) -> list[str]:  # noqa: C901
     found = []
     # Each open mapping: (indent of its keys, keys seen). A "- " list item
     # starts a new mapping at the indent of its first key.

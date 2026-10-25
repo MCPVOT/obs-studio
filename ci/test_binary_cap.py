@@ -110,7 +110,7 @@ def workspace_manifests(root: Path) -> list[Path]:
     return sorted(manifests)
 
 
-def workspace_test_targets(root: Path = ROOT) -> list[tuple[str, str, str]]:
+def workspace_test_targets(root: Path = ROOT) -> list[tuple[str, str, str]]:  # noqa: C901
     """Read manifests without invoking a compiler or requiring soldr in Checks.
 
     Cargo metadata equivalence is tested separately on hosts with soldr.

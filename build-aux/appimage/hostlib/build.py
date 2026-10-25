@@ -207,7 +207,7 @@ def shim_soname(soname: str, name: str) -> str:
     return f"libobs-{name}.so{major}"
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: list[str] | None = None) -> int:  # noqa: C901
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("appdir", type=Path)
     p.add_argument("--cc", default=os.environ.get("CC", "cc"))

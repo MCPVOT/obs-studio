@@ -22,7 +22,7 @@ MARKER = "DEEP_CACHE_CHANGED"
 PACKAGE = "obs-deep-cache-probe"
 
 
-def probe(directory: Path, soldr: str, *, package: str = PACKAGE,
+def probe(directory: Path, soldr: str, *, package: str = PACKAGE,  # noqa: C901
           native_fingerprint_tool: str | None = None) -> dict:
     directory = directory.resolve()
     if not directory.is_relative_to(ROOT / "build_ci_audit"):

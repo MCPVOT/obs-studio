@@ -96,7 +96,7 @@ def lane_summaries(records: list[dict]) -> dict:
     return result
 
 
-def parse_cache_logs(text: str) -> dict:
+def parse_cache_logs(text: str) -> dict:  # noqa: C901
     """Keep independent observations; archive restores are not compiler hits.
 
     Reports from different tools/scopes are never summed. Missing counters
@@ -145,7 +145,7 @@ def parse_cache_logs(text: str) -> dict:
     return result
 
 
-def parse_rust_test_logs(text: str) -> dict:
+def parse_rust_test_logs(text: str) -> dict:  # noqa: C901
     """Observed Cargo/nextest phases; absent markers remain unknown.
 
     Build summaries include linking. First execution marker to last result is
@@ -240,7 +240,7 @@ def collect_logs(repo: str, run_id: int, attempt: int, output: Path) -> dict:
         return {"jobs": {}, "error": str(error)}
 
 
-def collect(repo: str, start: str, end: str, output: Path, per_group: int, include_logs: bool = False) -> dict:
+def collect(repo: str, start: str, end: str, output: Path, per_group: int, include_logs: bool = False) -> dict:  # noqa: C901
     output.mkdir(parents=True, exist_ok=True)
     raw = []
     coverage = {}
@@ -271,7 +271,7 @@ def collect(repo: str, start: str, end: str, output: Path, per_group: int, inclu
     pull_requests = gh("pr", "list", "-R", repo, "--state", "all", "--limit", "2000", "--json",
                        "number,headRefName,headRefOid,baseRefOid,createdAt,closedAt,headRepositoryOwner")
 
-    def inspect(run: dict) -> dict:
+    def inspect(run: dict) -> dict:  # noqa: C901
         run_id = run["databaseId"]
         cached_path = output / f"run-{run_id}.json"
         cached = json.loads(cached_path.read_text()) if cached_path.exists() else None

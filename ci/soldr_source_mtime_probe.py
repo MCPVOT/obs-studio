@@ -20,7 +20,7 @@ ROOT = Path(__file__).resolve().parent.parent
 SOURCE = "rust/obs-util/src/platform/windows/host.rs"
 
 
-def probe(directory: Path, soldr: str, jobs: int) -> dict:
+def probe(directory: Path, soldr: str, jobs: int) -> dict:  # noqa: C901
     directory = directory.resolve()
     if not directory.is_relative_to(ROOT / "build_ci_audit"):
         raise ValueError("Keep probe state under build_ci_audit")

@@ -44,6 +44,7 @@ from nextest_tool import ensure_nextest
 ROOT = Path(__file__).resolve().parent.parent
 CLANG_FORMAT = "clang-format==22.1.3"
 GERSEMI = "gersemi==0.25.0"
+RUFF = "ruff==0.14.0"
 
 # build-aux/run-clang-format
 CLANG_DIRS = ("libobs", "libobs-*", "frontend", "plugins", "deps", "shared", "test", "rust")
@@ -190,7 +191,7 @@ def self_test_workers() -> int:
     return max(1, min(SELF_TEST_MAX_WORKERS, usable))
 
 
-def self_test() -> None:
+def self_test() -> None:  # noqa: C901
     """The gate's and the repo layout's unit tests: every ci/test_*.py.
 
     CI runs them in the Checks job (check-format.yaml) and sets
@@ -326,6 +327,16 @@ def gersemi(files: list[str], fix: bool) -> None:
     subprocess.run([exe, "-i" if fix else "-c", "--no-cache", *sources], cwd=ROOT, check=True)
 
 
+def ruff_ratchet(files: list[str]) -> None:
+    """The Python complexity ratchet (ci-lint PY-004, #962): ruff.toml
+    selects only C901 and RUF100, so a new function over the ceiling fails
+    and a `# noqa: C901` that no longer suppresses anything fails too."""
+    sources = [f for f in files if f.endswith(".py")]
+    exe = uvx_tool(RUFF, "ruff")
+    print(f"+ ruff check (C901, RUF100) <{len(sources)} files>", flush=True)
+    subprocess.run([exe, "check", "--no-cache", "--quiet", *sources], cwd=ROOT, check=True)
+
+
 # A change to these can reformat files the change did not touch.
 FORMAT_CONFIG_NAMES = (".clang-format", ".gersemirc")
 FORMAT_CONFIG_PATHS = ("ci/local_gate.py",)  # pins CLANG_FORMAT and GERSEMI
@@ -452,7 +463,7 @@ def _workspace_deps(manifest: dict, names: set[str]) -> dict[str, list[dict]]:
     return deps
 
 
-def _resolve(manifests: dict[str, dict], name: str, features: tuple[str, ...], default: bool) -> tuple[set[str], set[tuple[str, str]]]:
+def _resolve(manifests: dict[str, dict], name: str, features: tuple[str, ...], default: bool) -> tuple[set[str], set[tuple[str, str]]]:  # noqa: C901
     """The crates one `-p name` run builds and the (crate, feature) pairs it
     enables, with Cargo's feature syntax (dep:x, x/y, x?/y)."""
     names = set(manifests)
@@ -532,7 +543,7 @@ def _parse_set(args: tuple[str, ...]) -> tuple[str, tuple[str, ...], bool]:
     return name, tuple(features), default
 
 
-def feature_coverage(manifests: dict[str, dict], sets: tuple[tuple[str, ...], ...], exempt: dict[tuple[str, str], str]) -> list[str]:
+def feature_coverage(manifests: dict[str, dict], sets: tuple[tuple[str, ...], ...], exempt: dict[tuple[str, str], str]) -> list[str]:  # noqa: C901
     """Every feature of a workspace crate is built on in one clippy run and
     off in another (the --workspace run, where Cargo unifies features, or a
     FEATURE_SETS entry), unless `exempt` says why not. A run turns a
@@ -588,6 +599,7 @@ def lane_lint(fix: bool) -> None:
         print(f"+ formatting {len(fmt_files)} files changed since origin/master (CI checks all)", flush=True)
     clang_format(fmt_files, fix)
     gersemi(fmt_files, fix)
+    ruff_ratchet(files)
     self_test()
     check_test_binary_inventory()
     check_feature_sets()

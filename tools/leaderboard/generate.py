@@ -124,7 +124,7 @@ def delta_badge(n):
             '<svg viewBox="0 0 10 9" width="14" height="12" aria-label="up"><polygon points="5,0 10,9 0,9"/></svg>'
             '+%d</span>' % (n, html.escape(SINCE_CAPTION), n))
 
-def main():
+def main():  # noqa: C901
     ap = argparse.ArgumentParser()
     ap.add_argument("--repo", default="obs-rust/obs-studio")
     ap.add_argument("--out", default="leaderboard.json")

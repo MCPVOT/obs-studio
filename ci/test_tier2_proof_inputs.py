@@ -78,7 +78,7 @@ def tier2_roots() -> set[str]:
 
 
 def tier2_closure() -> set[str]:
-    read = lambda p: (ROOT / p).read_text(encoding="utf-8")  # noqa: E731
+    read = lambda p: (ROOT / p).read_text(encoding="utf-8")
     built: set[str] = set()
     for root in tier2_roots():
         built |= ci_scope.linked_crates(read, root)

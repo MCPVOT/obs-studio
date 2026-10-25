@@ -17,7 +17,7 @@ UPDATE_FEED_PREFIX = "https://github.com/obs-rust/obs-studio/releases/latest/dow
 SPARKLE_PUBLIC_KEY = "x7PaevvHxyhTaZdEFDhjr6+SqKf631gWXuIHowm6D3I="
 
 
-def check_appdir(root: Path, *, deb: bool = False) -> None:
+def check_appdir(root: Path, *, deb: bool = False) -> None:  # noqa: C901
     desktop = root / f"usr/share/applications/{APP_ID}.desktop"
     fields = {}
     for line in desktop.read_text().splitlines():

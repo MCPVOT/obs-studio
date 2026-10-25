@@ -162,7 +162,7 @@ async def check_servers_task(
         return await resp.json()
 
 
-async def process_services(session: aiohttp.ClientSession, check_servers: List[str]):
+async def process_services(session: aiohttp.ClientSession, check_servers: List[str]):  # noqa: C901
     try:
         with open(SERVICES_FILE, encoding="utf-8") as services_file:
             raw_services = services_file.read()

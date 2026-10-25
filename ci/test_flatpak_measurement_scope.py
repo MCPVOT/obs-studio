@@ -19,7 +19,7 @@ def job(name):
     return match.group()
 
 
-def selected(expression, measurement, full, targets=''):
+def selected(expression, measurement, full, targets=''):  # noqa: C901
     expression = expression.strip().removeprefix('${{').removesuffix('}}').strip()
     for before, after in [
         ('fromJSON(needs.check-event.outputs.full)', 'full'),
