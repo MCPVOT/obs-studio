@@ -586,8 +586,15 @@ void OBSBasic::on_actionImportProfile_triggered()
 	const QString sourceDirectory = SelectDirectory(this, QTStr("Basic.MainMenu.Profile.Import"), home);
 
 	if (!sourceDirectory.isEmpty() && !sourceDirectory.isNull()) {
-		const std::filesystem::path sourcePath = std::filesystem::u8path(sourceDirectory.toStdString());
-		const std::string directoryName = sourcePath.filename().u8string();
+		const std::filesystem::path sourcePath =
+			std::filesystem::u8path(QDir::cleanPath(sourceDirectory).toStdString());
+		const std::string directoryName = ProfileImportDirectoryName(sourceDirectory);
+
+		if (directoryName.empty()) {
+			blog(LOG_WARNING, "Failed to import profile from '%s': the path has no folder name",
+			     QT_TO_UTF8(sourceDirectory));
+			return;
+		}
 
 		if (auto profile = GetProfileByDirectoryName(directoryName)) {
 			OBSMessageBox::warning(this, QTStr("Basic.MainMenu.Profile.Import"),
@@ -595,52 +602,30 @@ void OBSBasic::on_actionImportProfile_triggered()
 			return;
 		}
 
-		std::string destinationPathString;
-		destinationPathString.reserve(App()->userProfilesLocation.u8string().size() + OBSProfilePath.size() +
-					      directoryName.size());
-		destinationPathString.append(App()->userProfilesLocation.u8string())
-			.append(OBSProfilePath)
-			.append(directoryName);
+		std::string profilesDirectoryString;
+		profilesDirectoryString.reserve(App()->userProfilesLocation.u8string().size() + OBSProfilePath.size());
+		profilesDirectoryString.append(App()->userProfilesLocation.u8string()).append(OBSProfilePath);
 
-		const std::filesystem::path destinationPath = std::filesystem::u8path(destinationPathString);
+		const ProfileImportResult result =
+			ImportProfileFiles(sourcePath, std::filesystem::u8path(profilesDirectoryString), directoryName);
 
-		try {
-			std::filesystem::create_directory(destinationPath);
-		} catch (const std::filesystem::filesystem_error &error) {
-			blog(LOG_WARNING, "Failed to create profile directory '%s':\n%s", directoryName.c_str(),
-			     error.what());
+		switch (result.status) {
+		case ProfileImportResult::Status::Imported:
+			break;
+		case ProfileImportResult::Status::NoDirectoryName:
 			return;
-		}
-
-		const std::array<std::pair<std::string, bool>, 4> profileFiles{{
-			{"basic.ini", true},
-			{"service.json", false},
-			{"streamEncoder.json", false},
-			{"recordEncoder.json", false},
-		}};
-
-		for (auto &[file, isMandatory] : profileFiles) {
-			const std::filesystem::path sourceFile = sourcePath / std::filesystem::u8path(file);
-
-			if (!std::filesystem::exists(sourceFile)) {
-				if (isMandatory) {
-					blog(LOG_ERROR,
-					     "Failed to import profile from directory '%s' - necessary file '%s' not found",
-					     directoryName.c_str(), file.c_str());
-					return;
-				}
-				continue;
-			}
-
-			const std::filesystem::path destinationFile = destinationPath / std::filesystem::u8path(file);
-
-			try {
-				std::filesystem::copy(sourceFile, destinationFile);
-			} catch (const std::filesystem::filesystem_error &error) {
-				blog(LOG_WARNING, "Failed to copy import file '%s' for profile '%s':\n%s", file.c_str(),
-				     directoryName.c_str(), error.what());
-				return;
-			}
+		case ProfileImportResult::Status::CreateFailed:
+			blog(LOG_WARNING, "Failed to create profile directory '%s':\n%s", directoryName.c_str(),
+			     result.error.c_str());
+			return;
+		case ProfileImportResult::Status::MissingFile:
+			blog(LOG_ERROR, "Failed to import profile from directory '%s' - necessary file '%s' not found",
+			     directoryName.c_str(), result.file.c_str());
+			return;
+		case ProfileImportResult::Status::CopyFailed:
+			blog(LOG_WARNING, "Failed to copy import file '%s' for profile '%s':\n%s", result.file.c_str(),
+			     directoryName.c_str(), result.error.c_str());
+			return;
 		}
 
 		RefreshProfiles(true);
