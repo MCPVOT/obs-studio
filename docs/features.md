@@ -744,6 +744,10 @@ area.
   [#1494](https://github.com/obs-rust/obs-studio/issues/1494), PR
   [#1495](https://github.com/obs-rust/obs-studio/pull/1495), port of
   [obsproject/obs-studio#12937](https://github.com/obsproject/obs-studio/pull/12937).
+- Screen Capture (XSHM) draws the cursor in the right place after the captured
+  monitor moves without changing size (a monitor plugged in or rearranged).
+  *Linux*, 2026-10-24. Issue
+  [#2265](https://github.com/obs-rust/obs-studio/issues/2265).
 - The OBS Virtual Camera no longer burns about a millisecond of CPU per frame
   spinning inside the app that uses it (Zoom, Teams, a browser); it hands each
   frame to that app slightly earlier instead. *Windows*, 2026-10-21. Issue

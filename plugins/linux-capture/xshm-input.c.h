@@ -597,6 +597,9 @@ static void xshm_video_tick(void *vptr, float seconds)
 			obs_enter_graphics();
 			xshm_resize(data);
 			obs_leave_graphics();
+		} else if (data->cursor) {
+			/* The monitor can move without changing size (#2265). */
+			xcb_xcursor_offset(data->cursor, data->adj_x_org, data->adj_y_org);
 		}
 	}
 
