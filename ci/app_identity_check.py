@@ -66,6 +66,14 @@ def check_appdir(root: Path, *, deb: bool = False) -> None:
                 )
 
 
+def check_deb_recommends(field: str) -> None:
+    """The .deb recommends xdg-open and a portal with a backend (#2301)."""
+    names = {alt.strip().split(" ")[0] for item in field.split(",") for alt in item.split("|")}
+    for need in ("xdg-utils", "xdg-desktop-portal", "xdg-desktop-portal-backend"):
+        if need not in names:
+            raise RuntimeError(f"Debian package Recommends {field!r} lacks {need}")
+
+
 def check_bundle(root: Path) -> None:
     with (root / "Contents/Info.plist").open("rb") as stream:
         metadata = plistlib.load(stream)
@@ -105,6 +113,11 @@ def main() -> None:
             raise RuntimeError(
                 f"Debian package identity is {name!r}, expected obs-studio-rust"
             )
+        check_deb_recommends(
+            subprocess.check_output(
+                ["dpkg-deb", "--field", str(args.path), "Recommends"], text=True
+            ).strip()
+        )
         with tempfile.TemporaryDirectory(prefix="obs-deb-identity-") as scratch:
             subprocess.run(
                 ["dpkg-deb", "--extract", str(args.path), scratch], check=True

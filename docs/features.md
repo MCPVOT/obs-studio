@@ -488,6 +488,11 @@ not get a line.
   tag). Profile, scene collection, safe mode and portable mode still follow;
   `--version` and Help > About keep the upstream base version.
   *All platforms*, 2026-10-23. Issue [#1983](https://github.com/obs-rust/obs-studio/issues/1983).
+- **The .deb brings its desktop helpers.** It recommends xdg-utils and
+  xdg-desktop-portal with a backend, so on a minimal Ubuntu install Show
+  Recordings, log and dialog links, and Wayland capture work after
+  `apt install`; it suggests v4l2loopback-dkms for the virtual camera.
+  *Linux*, 2026-10-24. Issue [#2301](https://github.com/obs-rust/obs-studio/issues/2301).
 
 ## Fixed upstream bugs
 
