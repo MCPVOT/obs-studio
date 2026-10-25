@@ -62,7 +62,7 @@ void gs_shader_set_val(gs_sparam_t *param, const void *val, size_t size)
 	char hex[2 * 32 + 1] = {0};
 	for (size_t i = 0; i < size && i < 32; i++)
 		snprintf(hex + i * 2, 3, "%02x", ((const uint8_t *)val)[i]);
-	passes_record("set_val %u %zu %s", PASSES_TAG(param), size, hex);
+	passes_record("set_val %u %u %s", PASSES_TAG(param), (unsigned)size, hex);
 }
 
 void gs_shader_set_next_sampler(gs_sparam_t *param, gs_samplerstate_t *sampler)
