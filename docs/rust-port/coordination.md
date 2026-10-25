@@ -249,7 +249,7 @@ master under every queued group, which then rebuilds. So bypass only when
 the queue is empty (`gh pr list --search "is:queued"` shows nothing);
 otherwise queue the PR and, if it must go first, jump it to the front,
 keeping CI (#930 E2):
-`gh api graphql -f query='mutation{enqueuePullRequest(input:{pullRequestId:"<node id>",jump:true}){mergeQueueEntry{position}}}'`
+`uv run --no-project --script ci/gh_graphql.py -f query='mutation{enqueuePullRequest(input:{pullRequestId:"<node id>",jump:true}){mergeQueueEntry{position}}}'`
 (the PR's own `CI Gate ✅` must already be green; GitHub refuses a PR whose
 checks are pending or failing).
 

@@ -1,4 +1,5 @@
-"""Tests for ci/hooks/tool_guard.py and the bare-Rust-tool scan (obs-rust/obs-studio#691).
+"""Tests for ci/hooks/tool_guard.py, the bare-Rust-tool scan (obs-rust/obs-studio#691)
+and the `gh api graphql` scan.
 
 Run: uv run python -m unittest ci/test_tool_guard.py
 """
@@ -6,6 +7,7 @@ Run: uv run python -m unittest ci/test_tool_guard.py
 import importlib.util
 import json
 import os
+import re
 import subprocess
 import sys
 import unittest
@@ -90,6 +92,39 @@ class Denied(unittest.TestCase):
                 self.assertIsNotNone(denied(command))
 
 
+class GhGraphql(unittest.TestCase):
+    def test_denied_in_every_spelling(self):
+        for command in [
+            "gh api graphql -f query='{viewer{login}}'",
+            "gh api -H 'X: y' graphql -f query=x",
+            "gh api --hostname github.com /graphql -f query=x",
+            "FOO=1 gh api graphql -f query=x",
+            "bash -c 'gh api graphql -f query=x'",
+            "true && gh api graphql -f query=x | jq .",
+        ]:
+            with self.subTest(command=command):
+                self.assertEqual(denied(command)[0], "gh")
+
+    def test_hint_names_the_script(self):
+        self.assertIn("ci/gh_graphql.py", denied("gh api graphql -f query=x")[1])
+
+    def test_still_denied_under_clud(self):
+        self.assertIsNotNone(tool_guard.check_command("gh api graphql -f query=x", rust=False))
+        self.assertIsNone(tool_guard.check_command("cargo test", rust=False))
+
+    def test_other_gh_and_the_script_are_allowed(self):
+        for command in [
+            "gh api repos/obs-rust/obs-studio/pulls",
+            "gh api rate_limit --jq .resources.graphql",
+            "gh pr view 1 --json state",
+            "gh api repos/o/r/issues -f title=graphql",
+            "uv run --no-project --script ci/gh_graphql.py -f query=x",
+            "echo 'gh api graphql'",
+        ]:
+            with self.subTest(command=command):
+                self.assertIsNone(denied(command))
+
+
 class Allowed(unittest.TestCase):
     def test_allowed(self):
         for command in [
@@ -148,6 +183,11 @@ class HookProcess(unittest.TestCase):
         event = {"tool_name": "Bash", "tool_input": {"command": "cargo test"}}
         self.assertEqual(self.run_hook(event, clud=True), "")
 
+    def test_denies_gh_graphql_under_clud(self):
+        event = {"tool_name": "Bash", "tool_input": {"command": "gh api graphql -f query=x"}}
+        out = json.loads(self.run_hook(event, clud=True))
+        self.assertEqual(out["hookSpecificOutput"]["permissionDecision"], "deny")
+
 
 class ProjectSettings(unittest.TestCase):
     def test_hook_is_wired(self):
@@ -203,6 +243,48 @@ class ScriptsUseSoldr(unittest.TestCase):
 
     def test_scan_catches_bare_cargo(self):
         self.assertIsNotNone(denied("  cargo build --workspace"))
+
+
+# A `gh api ... graphql` command line, or `["gh", "api", "graphql"]` in Python.
+GH_GRAPHQL_TEXT = re.compile(
+    r"\bgh api\b[^\n`'\"]*?(?<![\w/.-])/?graphql\b"
+    r"|[\"']gh[\"'],\s*[\"']api[\"'],\s*[\"']/?graphql[\"']"
+)
+# These spell out the call they route or deny.
+GH_GRAPHQL_ALLOWLIST = {"ci/gh_graphql.py", "ci/hooks/tool_guard.py", "ci/test_tool_guard.py"}
+
+
+class GraphqlGoesThroughTheScript(unittest.TestCase):
+    def test_no_gh_api_graphql_in_scripts_skills_or_docs(self):
+        files = subprocess.run(
+            ["git", "ls-files", "ci", "rust/tools", ".claude", ".github", "docs", "*.md", "build-aux", "cmake"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.split()
+        found = []
+        for name in files:
+            path = ROOT / name
+            if name in GH_GRAPHQL_ALLOWLIST or not path.is_file():
+                continue
+            for number, line in enumerate(path.read_text(errors="replace").split("\n"), 1):
+                # A line naming the script documents the rule, not a call.
+                if GH_GRAPHQL_TEXT.search(line) and "ci/gh_graphql.py" not in line:
+                    found.append(f"{name}:{number}: {line.strip()}")
+        self.assertEqual(found, [], "use `uv run --no-project --script ci/gh_graphql.py` (ghd) for GraphQL")
+
+    def test_scan_patterns(self):
+        for line in [
+            "gh api graphql -f query='{x}'",
+            "run gh api -H a graphql",
+            'subprocess.run(["gh", "api", "graphql", "-f", q])',
+        ]:
+            with self.subTest(line=line):
+                self.assertIsNotNone(GH_GRAPHQL_TEXT.search(line))
+        for line in ["gh api repos/o/r/pulls", "uv run --no-project --script ci/gh_graphql.py -f query=x"]:
+            with self.subTest(line=line):
+                self.assertIsNone(GH_GRAPHQL_TEXT.search(line))
 
 
 if __name__ == "__main__":

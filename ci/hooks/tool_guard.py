@@ -1,5 +1,6 @@
 #!/usr/bin/env -S uv run --no-project --script
-"""PreToolUse hook: deny bare Rust tools and bare python/pip (obs-rust/obs-studio#691).
+"""PreToolUse hook: deny bare Rust tools, bare python/pip (obs-rust/obs-studio#691)
+and `gh api graphql`.
 
 Rust tools (cargo, rustup, rustc, ...) go through `soldr`, which pins the
 toolchain and routes compiles through its zccache; Python goes through uv
@@ -11,8 +12,15 @@ the tool: leading `FOO=bar` assignments, `env`/`exec`/`time`/`nice`/`sudo`/
 `command` prefixes, `bash -c`/`sh -c` strings, and every line, `;`, `&&`,
 `||` and `|` segment. `docker`/`ssh` arguments run elsewhere and are allowed.
 
-clud sessions (CLUD_SESSION_ID set) are skipped: clud enforces the same rule
-and also puts soldr's shims on PATH, so the hook would only repeat its denial.
+GraphQL calls go through `uv run --no-project --script ci/gh_graphql.py`, which
+sends them through ghd's caching daemon (forge-ci/ghd). Every agent on an
+account shares one 5,000-point hourly GraphQL budget, so a bare
+`gh api graphql` (or `gh api ... /graphql`) is denied.
+
+clud sessions (CLUD_SESSION_ID set) skip the Rust and Python rules: clud
+enforces the same rules and also puts soldr's shims on PATH, so the hook would
+only repeat its denial. The GraphQL rule still applies, because clud has no
+such rule.
 
 Reads the hook event JSON on stdin; prints a deny decision or nothing. Exit 0.
 Usage: uv run --no-project --script ci/hooks/tool_guard.py < event.json
@@ -57,6 +65,17 @@ SHELLS = {"bash", "sh", "zsh", "dash"}
 ENV_ASSIGN_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 HEREDOC_RE = re.compile(r"<<-?\s*(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\1")
 MAX_DEPTH = 4
+
+GH_GRAPHQL_REASON = (
+    "Use `uv run --no-project --script ci/gh_graphql.py -f query=... [-F k=v] [--jq ...]` "
+    "instead of `gh api graphql` (AGENTS.md). It takes the same arguments and goes through "
+    "ghd's caching daemon, so agents share one GraphQL budget instead of exhausting it."
+)
+# `gh api` options whose value is the next word.
+GH_API_VALUE_OPTIONS = {
+    "-f", "--raw-field", "-F", "--field", "-H", "--header", "-X", "--method", "-q", "--jq",
+    "-t", "--template", "-p", "--preview", "--input", "--hostname", "--cache",
+}  # fmt: skip
 
 
 def strip_heredocs(command):
@@ -128,8 +147,26 @@ def shell_c_script(tokens):
     return None
 
 
-def check_command(command, depth=0):
-    """Return (tool, reason) for the first forbidden invocation, else None."""
+def gh_api_endpoint(tokens):
+    """The endpoint of `gh api [options] <endpoint>`, or None for other commands."""
+    if os.path.basename(tokens[0]) != "gh" or tokens[1:2] != ["api"]:
+        return None
+    i = 2
+    while i < len(tokens):
+        token = tokens[i]
+        if token in GH_API_VALUE_OPTIONS:
+            i += 2
+        elif token.startswith("-"):
+            i += 1
+        else:
+            return token
+    return ""
+
+
+def check_command(command, depth=0, rust=True):
+    """Return (tool, reason) for the first forbidden invocation, else None.
+
+    `rust=False` checks only the GraphQL rule (clud sessions)."""
     for segment in tokenize_segments(command):
         tokens = command_words(segment)
         if not tokens:
@@ -137,9 +174,13 @@ def check_command(command, depth=0):
         script = shell_c_script(tokens)
         if script is not None:
             if depth < MAX_DEPTH:
-                found = check_command(script, depth + 1)
+                found = check_command(script, depth + 1, rust)
                 if found:
                     return found
+            continue
+        if gh_api_endpoint(tokens) in ("graphql", "/graphql"):
+            return "gh", GH_GRAPHQL_REASON
+        if not rust:
             continue
         head = os.path.basename(tokens[0])
         if head == "soldr" or tokens[:2] == ["uv", "pip"]:
@@ -203,15 +244,14 @@ def extract_command(data):
 
 
 def main():
-    if os.environ.get("CLUD_SESSION_ID"):
-        return
+    rust = not os.environ.get("CLUD_SESSION_ID")
     try:
         data = json.loads(sys.stdin.read().lstrip("﻿"))
     except json.JSONDecodeError:
         return
     if not isinstance(data, dict) or data.get("tool_name", "") not in SHELL_TOOL_NAMES:
         return
-    result = check_command(extract_command(data))
+    result = check_command(extract_command(data), rust=rust)
     if result:
         json.dump(
             {

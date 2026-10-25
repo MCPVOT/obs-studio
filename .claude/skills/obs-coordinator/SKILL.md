@@ -45,7 +45,7 @@ gh pr merge <N> -R obs-rust/obs-studio --auto   # the queue picks the strategy
 Then read the queue to confirm that the PR actually entered it:
 
 ```sh
-gh api graphql -f query='{repository(owner:"obs-rust",name:"obs-studio"){mergeQueue(branch:"master"){entries(first:30){nodes{position state pullRequest{number}}}}}}'
+uv run --no-project --script ci/gh_graphql.py -f query='{repository(owner:"obs-rust",name:"obs-studio"){mergeQueue(branch:"master"){entries(first:30){nodes{position state pullRequest{number}}}}}}'
 ```
 
 A green PR that is not in the queue is a backlog, and clearing it is the
