@@ -64,6 +64,6 @@
     </release>
   </releases>
   <custom>
-    <value key="flathub::manifest">https://github.com/obsproject/obs-studio/blob/@GIT_HASH@/build-aux/</value>
+    <value key="flathub::manifest">@OBS_PROJECT_REPOSITORY@/blob/@GIT_HASH@/build-aux/</value>
   </custom>
 </component>

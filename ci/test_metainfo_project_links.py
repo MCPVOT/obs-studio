@@ -47,6 +47,13 @@ class MetainfoProjectLinksTest(unittest.TestCase):
         self.assertEqual(developer.get("id"), "io.github.obs_rust")
         self.assertEqual(developer.findtext("name"), "obs-rust")
 
+    def test_flathub_manifest_link_names_this_repository(self):
+        # GIT_HASH is this repository's commit; upstream has no such blob.
+        for brand, repo in ((True, RUST), (False, "https://github.com/obsproject/obs-studio")):
+            with self.subTest(brand=brand):
+                value = configure(brand).find("custom/value[@key='flathub::manifest']").text
+                self.assertTrue(value.startswith(f"{repo}/blob/"), value)
+
     def test_upstream_brand_keeps_upstream_links(self):
         root = configure(False)
         got = urls(root)
