@@ -1,6 +1,8 @@
 //! obs-core integration tests, one module per extracted C file. A module of
 //! the core category binary (obs-tests-core), not a binary of its own.
 
+mod audio_discard;
+mod audio_discard_parity;
 mod audio_mix;
 mod audio_mix_parity;
 mod canvas_draw;
