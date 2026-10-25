@@ -108,9 +108,17 @@ jobs:
       # The glibc 2.28 build image (#926): AlmaLinux 8 packages plus the prebuilt
       # dependencies from obs-rust/obs-studio-libs (deps.lock.json); every build
       # step below runs in it through manylinux/run.sh.
+      # A stalled mirror or registry fails one attempt, not the run; the second
+      # attempt reuses every layer the first one finished (#2182).
       - name: Build the glibc 2.28 image 🐳
-        timeout-minutes: 20
-        run: docker build -f build-aux/appimage/manylinux/Dockerfile -t obs-appimage-228 .
+        timeout-minutes: 45
+        run: |
+          for attempt in 1 2; do
+            timeout 20m docker build -f build-aux/appimage/manylinux/Dockerfile -t obs-appimage-228 . && exit 0
+            echo "::warning::image build attempt $attempt failed"
+            [ "$attempt" = 2 ] || sleep 30
+          done
+          exit 1
 
       - name: Configure 🔧
         id: configure
@@ -308,6 +316,21 @@ jobs:
           [ "$REQUIRE_UPDATE" != true ] || options=(--require-update)
           uv run --no-project build-aux/appimage/asset_metadata.py verify \
             OBS-Studio-*-linux-x86_64.AppImage --repository "$GITHUB_REPOSITORY" "${options[@]}"
+
+      # Docker Hub can refuse a pull for a moment ("failed to resolve
+      # reference", run 40131480584); retry with backoff before the scenarios,
+      # which then use the local image (#2182).
+      - name: Pull the stock image 🐳
+        timeout-minutes: 10
+        env:
+          IMAGE: ${{ matrix.image }}
+        run: |
+          for attempt in 1 2 3 4 5; do
+            docker pull -q "$IMAGE" && exit 0
+            echo "::warning::pull of $IMAGE failed (attempt $attempt)"
+            [ "$attempt" = 5 ] || sleep $((attempt * 15))
+          done
+          exit 1
 
       - name: Run the AppImage in stock containers 🐳
         run: |

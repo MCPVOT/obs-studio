@@ -8,6 +8,11 @@
 # (GIO: libmount; GObject: libffi), so pkg-config can resolve them.
 FROM quay.io/pypa/manylinux_2_28_x86_64@sha256:4131ddd7acb9c6c966af02fe7e71edc51e078c2d41f475966697676430bfa2ae
 
+# A stalled mirror served packages at under 1 kB/s until the image step timed
+# out (run 40145813015): drop a mirror that stays below 50 kB/s for 30 s,
+# prefer the fastest ones and retry each package (#2182).
+RUN printf '%s\n' retries=10 timeout=30 minrate=50000 fastestmirror=True max_parallel_downloads=10 >> /etc/dnf/dnf.conf
+
 RUN dnf install -y --setopt=install_weak_deps=False \
         which patchelf file desktop-file-utils squashfs-tools zstd \
         libX11-devel libXext-devel libXfixes-devel libXrender-devel libXcomposite-devel \
@@ -63,7 +68,7 @@ RUN /opt/python/cp312-cp312/bin/pip install --no-cache-dir ninja==1.11.1.4 swig=
 # the others), pinned by version and checksum.
 ARG UV_VERSION=0.12.13
 ARG UV_SHA256=cd646b7421e5e14e749247b29657ae33a8fc4f31294c57b806555c1a7423dfe9
-RUN curl -fsSLo /tmp/uv.tar.zst "https://github.com/obs-rust/obs-studio-libs/releases/download/uv-${UV_VERSION}/uv-${UV_VERSION}-linux-x86_64.tar.zst" \
+RUN curl -fsSL --retry 5 --retry-connrefused --retry-delay 5 -o /tmp/uv.tar.zst "https://github.com/obs-rust/obs-studio-libs/releases/download/uv-${UV_VERSION}/uv-${UV_VERSION}-linux-x86_64.tar.zst" \
  && echo "${UV_SHA256}  /tmp/uv.tar.zst" | sha256sum -c - \
  && zstd -dc /tmp/uv.tar.zst | tar -xf - -C /usr/local/bin \
  && rm /tmp/uv.tar.zst
@@ -73,7 +78,7 @@ ENV RUSTUP_HOME=/usr/local/rustup CARGO_HOME=/usr/local/cargo
 ENV PATH=/usr/local/cargo/bin:$PATH
 COPY rust-toolchain.toml /tmp/rust-toolchain.toml
 RUN toolchain="$(sed -n 's/^channel = "\(.*\)"/\1/p' /tmp/rust-toolchain.toml)" \
- && curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain "$toolchain" \
+ && curl -sSf --retry 5 --retry-connrefused --retry-delay 5 https://sh.rustup.rs | RUSTUP_MAX_RETRIES=5 sh -s -- -y --profile minimal --default-toolchain "$toolchain" \
  && rm /tmp/rust-toolchain.toml
 RUN git config --system --add safe.directory '*'
 
