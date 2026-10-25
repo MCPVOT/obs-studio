@@ -62,12 +62,12 @@ rig (#1168, #1170, #1171, #1172).
 
 # Contributors leaderboard
 
-Ranked by merged PRs only, credited to the original author even when a
+The top five, ranked by merged PRs only, credited to the original author even when a
 maintainer re-landed the work (counted once). Updated every 4 hours.
 
 [![obs-rust contributors leaderboard](https://raw.githubusercontent.com/obs-rust/obs-studio/leaderboard/leaderboard.jpg)](https://obs-rust.github.io/obs-studio/)
 
-[Open the live leaderboard](https://obs-rust.github.io/obs-studio/)
+[See all contributors](https://obs-rust.github.io/obs-studio/#all)
 
 
 # How CI works here
