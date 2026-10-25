@@ -56,10 +56,14 @@ it, so its caches stay warm. Clone only when no local copy exists.
 
 ## 2. Choose and claim one issue
 
-1. List candidates: `gh issue list --repo obs-rust/obs-studio --state open`.
-   Skip anything with a fresh claim (labeled `claimed`, or a `Claiming:`
-   comment under 48 hours old, 8 on `critical` issues), and anything with
-   an open PR (`gh pr list --repo obs-rust/obs-studio --search "<topic>"`).
+1. List Ready, unclaimed candidates:
+   `gh issue list --repo obs-rust/obs-studio --state open --label ready --search no:assignee`
+   (or Status **Ready** on the [board](https://github.com/orgs/obs-rust/projects/1)),
+   highest priority (`P0`..`P3`) first. Skip anything with an open PR
+   (`gh pr list --repo obs-rust/obs-studio --search "<topic>"`). Nothing
+   Ready you can do? Take an investigation: `Claiming: investigation` on an
+   unclaimed issue in Triage or `needs-investigation`, then `/ready` it when
+   it meets the [definition of Ready](https://github.com/obs-rust/.github/blob/master/WORKFLOW.md#definition-of-ready).
    For port work, follow the port order in testing-policy.md and the
    trackers on #4.
    A claim, assignment or authored issue under the account you act as
@@ -68,9 +72,10 @@ it, so its caches stay warm. Clone only when no local copy exists.
 2. Prefer, in order: issues that unblock other contributors, bugs with a
    clear failing-test sketch, then the next unit in the port order.
 3. Claim it: comment `Claiming: <item>` with a short numbered plan (one PR
-   per unit) and when you expect the first PR. The claim bot adds the
-   `claimed` label and reacts 🚀 (it replies only to refuse). Claim only what
-   you are working on now.
+   per unit) and when you expect the first PR. The claim bot assigns you
+   and reacts 🚀 (it replies only to refuse, and says why). Claim only what
+   you are working on now. The claim lapses 24 hours after your last
+   progress (a comment, or a commit or review on your PR).
 4. **Feature issues** (new behavior, not a port or a bug): check that the
    design is agreed before you code. If the issue lists open questions,
    answer each one in the claim comment under a **Decisions:** heading
@@ -184,13 +189,13 @@ running, wait and retry.
   follow-up issue for the rest. Tick the tracking-issue checkbox.
 - Waiting on something you don't control (a maintainer decision, another
   PR, non-public work): comment `Blocked: <reason>`, with a general reason,
-  so the claim lasts 7 days instead of 48 hours (coordination.md section 3).
+  so the claim lasts 7 days instead of 24 hours (coordination.md section 3).
   Any progress comment ends it.
 - Stopping early: comment `Releasing <item>` and link the branch; the
-  claim bot removes `claimed`.
-- **Hand off instead of waiting (optional).** You don't have to wait on
-  the PR before the next issue. Hand it to the coordinator once all of
-  these are done:
+  claim bot unassigns you.
+- **Hand off at the merge queue (the default).** Don't wait on the queue.
+  Hand the PR to the coordinator and take the next issue once all of these
+  are done:
   1. you rebased onto `origin/master` and ran the full local gate
      (`./lint`, `./unittest`);
   2. you stamped HEAD with the local gate and pushed that commit

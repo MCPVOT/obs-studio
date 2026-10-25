@@ -1,12 +1,8 @@
 name: Claim bot
 
-# Labels and assigns issue claimants and expires stale claims
-# (docs/rust-port/coordination.md §2-3, #909). Logic and tests:
-# tools/claim-bot/claim_bot.py, ci/test_claim_bot.py.
-#
-# issue_comment and schedule always run master's copy of this file. Nothing
-# from a PR is checked out besides tools/claim-bot on master, and the comment
-# body is read from the event file, never interpolated into a shell.
+# Claims are assignments, run by the org's reusable claim bot
+# (obs-rust/.github: .github/workflows/claim-bot.yml, workflow/claims.py,
+# rules in WORKFLOW.md). This file only routes this repo's events to it.
 on:
   issue_comment:
     types: [created]
@@ -18,29 +14,12 @@ permissions:
   issues: write
   pull-requests: read
 
+concurrency:
+  group: claim-bot-${{ github.event.issue.number || 'sweep' }}
+  cancel-in-progress: false
+
 jobs:
   claim:
     # Not in forks: a fork's schedule fails there and mails its owner (#1258).
-    if: >-
-      (github.event_name != 'schedule' || github.repository == 'obs-rust/obs-studio') &&
-      (github.event_name != 'issue_comment' ||
-      (!github.event.issue.pull_request && github.event.comment.user.type != 'Bot'))
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    concurrency:
-      group: claim-bot-${{ github.event.issue.number || 'sweep' }}
-      cancel-in-progress: false
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-        with:
-          ref: ${{ github.event.repository.default_branch }}
-          sparse-checkout: tools/claim-bot
-          persist-credentials: false
-      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
-        with:
-          save-cache: ${{ github.ref == 'refs/heads/master' }}
-      - name: Run
-        env:
-          GH_TOKEN: ${{ github.token }}
-          MODE: ${{ github.event_name == 'issue_comment' && 'comment' || 'sweep' }}
-        run: uv run --python 3.12 tools/claim-bot/claim_bot.py "$MODE"
+    if: github.event_name != 'schedule' || github.repository == 'obs-rust/obs-studio'
+    uses: obs-rust/.github/.github/workflows/claim-bot.yml@master

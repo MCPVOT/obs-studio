@@ -54,12 +54,14 @@ started a background agent can end there.
 
 ## 2. Choosing the next issue
 
-List the candidates:
-`gh issue list -R obs-rust/obs-studio --state open -L 40 --json number,title,labels,createdAt`.
+List the candidates, Ready and unassigned:
+`gh issue list -R obs-rust/obs-studio --state open --label ready --search no:assignee -L 40 --json number,title,labels,createdAt`
+(Status **Ready** on the [board](https://github.com/orgs/obs-rust/projects/1)).
+Nothing Ready? An unclaimed issue in Triage or `needs-investigation` is an
+investigation you can take (`Claiming: investigation`, then `/ready`).
 
 Skip:
-- Claimed issues (a `claimed` label, or a `Claiming:` comment the bot hasn't
-  labeled yet) and issues that have an open PR.
+- Assigned issues and issues that have an open PR.
 - Issues filed in the last few minutes by an active session. They are
   usually claimed within one tick; look again next tick before you take one.
 - Proposals the maintainer has not approved. Ask with a `Decision needed:`

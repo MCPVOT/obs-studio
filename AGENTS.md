@@ -48,10 +48,12 @@ Each tick, put every green PR into the merge queue; rebase PRs that were
 ejected from the queue, stacked PRs and PRs about to go in; push fixups;
 review PRs; answer questions; and close stalled follow-ups. Never claim
 or port an issue yourself.
-The coordinator also sweeps every other obs-rust repo each tick, using the
-org-wide `obs-org-coordinator` skill in
+Each tick starts from the computed work list of the org-wide
+`obs-org-coordinator` skill in
 [obs-rust/.github](https://github.com/obs-rust/.github/tree/master/.claude/skills)
-(`obs-org-worker` is its worker counterpart).
+(`uv run -m workflow.coordinator`), which covers every obs-rust repo;
+`obs-org-worker` is its worker counterpart. Claims, Ready and the board:
+[WORKFLOW.md](https://github.com/obs-rust/.github/blob/master/WORKFLOW.md).
 
 ## Mandatory reading
 

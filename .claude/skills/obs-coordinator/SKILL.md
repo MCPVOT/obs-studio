@@ -17,6 +17,15 @@ the coordinator role (AGENTS.md says so).
 A tick is never "quiet" while any item in §1 to §4 has work left. Check all
 four every tick before reporting.
 
+**Start every tick with the computed work list** from the org skill
+`obs-org-coordinator` (obs-rust/.github): `uv run -m workflow.coordinator`
+in its checkout. It lists every task in every org repo (fix-master,
+requeue, fix-ci, enqueue, rebase, review, decide, triage, stalled,
+investigating, escalated) with what to do. Take each task's lease first
+(`uv run -m workflow.coordinator take <kind> <repo> <N> --owner "$COORDINATOR_ID"`;
+exit 1 means another coordinator has it), so parallel coordinators never
+do the same work. The sections below are how to do each task in this repo.
+
 The rest of the org (obs-deps, obs-browser, obs-websocket,
 obs-studio-libs, ...) is in the same tick: after §1 to §4 here, run the
 org sweep in the `obs-org-coordinator` skill, which lives in

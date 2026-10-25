@@ -20,15 +20,23 @@ this document covers *who does what, and when*.
 
 ## 2. Claiming
 
+The org-wide rules, commands and the definition of Ready are in
+[WORKFLOW.md](https://github.com/obs-rust/.github/blob/master/WORKFLOW.md); the claim bot is the org's reusable workflow
+(`.github/workflows/claim-bot.yaml` calls it). In short:
+
+- Only an issue labeled `ready` can be claimed for implementation (`P0`
+  issues never wait). An underdefined one is researched first: comment
+  `Claiming: investigation`, then `/ready` once it meets the definition of
+  Ready. Maintainers (and the coordinator) triage new issues with `/ready` or
+  `/investigate`.
 - Comment on the issue: `Claiming: <item>` followed by a short numbered plan
   (one PR per C file or unit) and when you expect to open the first PR.
-- The claim bot (`.github/workflows/claim-bot.yaml`) then adds the `claimed`
-  label and reacts 🚀 to your comment; you don't need label rights. It is
-  silent unless it refuses: a claim on an issue someone else holds, a
-  takeover of a claim that isn't stale, or a `/reassign` from a
-  non-maintainer gets a reply that mentions you. Automated runs skip issues
-  and checklist items that are claimed or have an open PR; a fresh
-  `Claiming:` comment counts even if the label is missing.
+- The claim bot then **assigns you** and reacts 🚀 to your comment; you don't
+  need any rights. It replies only to refuse: an issue that is not Ready, is
+  blocked by an open issue, waits on a decision or is claimed by someone
+  else, a takeover of a claim that isn't stale, or a `/reassign` from a
+  non-maintainer. Automated runs skip issues that are assigned or have an
+  open PR.
 - On a tracking issue, claim one checklist item, not the whole issue.
 - Claim only what you are working on now. There is no per-account limit
   (several agents may share one account); stale claims expire (section 3).
@@ -63,11 +71,11 @@ this document covers *who does what, and when*.
 
   | Issue | Stale after |
   |---|---|
-  | normal | **48 hours** |
-  | labeled `critical` (crash, data loss, broken release or CI-blocking; maintainers set it) | **8 hours** |
+  | normal | **24 hours** |
+  | labeled `P0` or `critical` (crash, data loss, broken release or CI-blocking; maintainers set it) | **8 hours** |
   | labeled `claim-blocked` (the claimant set it; see below) | **7 days** after the last `Blocked:` comment |
 
-  The hourly sweep then removes the label, without a comment. Anyone may take
+  The hourly sweep then unassigns the claimant, without a comment. Anyone may take
   a stale claim by commenting `Taking over stale claim from @x`; the bot
   accepts it (🚀) only if the claim is stale. Commits on the old draft PR stay
   available: carry them over with `Co-Authored-By` (section 6).
@@ -87,10 +95,10 @@ this document covers *who does what, and when*.
   `/reassign @user`. The bot leaves issues labeled `claim-locked` alone;
   `claim-locked` wins over `claim-blocked`.
 - To stop, comment `Releasing <item>` and link any partial branch; the bot
-  removes the label (🚀). To hand the claim to someone instead of dropping
+  unassigns you (🚀). To hand the claim to someone instead of dropping
   it, name them in the same comment — `Releasing <item> — handing it to
   @user`, `Handing <item> over to @user`, `It's yours, @user` or
-  `/handoff @user` — and the label stays, moved to `@user` (🚀), so nobody
+  `/handoff @user` — and the bot assigns `@user` instead (🚀), so nobody
   else can take the item in between.
 
 ## 4. Pull requests
