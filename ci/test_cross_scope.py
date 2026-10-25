@@ -31,9 +31,8 @@ class CrossScopeTest(unittest.TestCase):
 
     def test_dirs_come_from_the_cross_cmakelists(self):
         dirs = cross_dirs(read)
-        for d in ("libobs", "plugins/win-capture", "plugins/mac-capture", "plugins/frontend-tools", "frontend/updater", "shared"):
+        for d in ("libobs", "plugins/win-capture", "plugins/mac-capture", "plugins/frontend-tools", "frontend", "shared"):
             self.assertIn(d, dirs)
-        self.assertNotIn("frontend", dirs)
 
     def test_windows_host_files_select_win_x64(self):
         for path in (
@@ -42,6 +41,10 @@ class CrossScopeTest(unittest.TestCase):
             "plugins/frontend-tools/frontend-tools-host-windows.c.h",
             "plugins/frontend-tools/build/frontend-tools.host-windows+.h.c",
             "frontend/updater/updater.cpp.hpp",
+            # The frontend's Qt host groups (#2408): #2176 broke this PCH and
+            # only the nightly Windows app build caught it (#2359).
+            "frontend/build/frontend-windows-obs-main.pch.hpp",
+            "frontend/utility/platform-windows.cpp.hpp",
         ):
             self.assertEqual(self.targets(path), "win-x64", path)
 
@@ -51,6 +54,8 @@ class CrossScopeTest(unittest.TestCase):
             "libobs/obs-cocoa.m.h",
             "plugins/frontend-tools/frontend-tools-host-macos.c.h",
             "libobs/util/platform-cocoa.m.h",
+            "frontend/build/frontend-macos-arc-mm.pch.hpp",
+            "frontend/utility/platform-osx.mm.hpp",
         ):
             self.assertEqual(self.targets(path), "mac-arm64", path)
 
@@ -70,9 +75,8 @@ class CrossScopeTest(unittest.TestCase):
             "plugins/linux-pipewire/pipewire.c",
             "plugins/frontend-tools/frontend-tools-host-linux.c.h",
             "rust/obs-core/src/platform/windows.rs",
-            # Frontend Qt groups need Qt, which the cross check lacks.
-            "frontend/build/frontend-windows-obs-main.pch.hpp",
-            "frontend/utility/MacUpdateThread.cpp.hpp",
+            # Shared frontend code: no host lane.
+            "frontend/OBSApp.cpp.hpp",
         ):
             self.assertEqual(self.targets(path), "", path)
 

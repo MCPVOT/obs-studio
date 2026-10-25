@@ -56,12 +56,14 @@ if(OBS_CROSS_TARGET MATCHES "^mac-")
   set(_deps_platform macos-universal)
   set(_deps_arch universal)
   set(_deps_file "macos-deps-VERSION-ARCH-REVISION.tar.xz")
+  set(_qt_file "macos-deps-qt6-VERSION-ARCH-REVISION.tar.xz")
 else()
   project(obs-cross LANGUAGES C CXX)
   set(_host WINDOWS)
   string(REGEX REPLACE "^win-" "" _deps_arch "${OBS_CROSS_TARGET}")
   set(_deps_platform windows-${_deps_arch})
   set(_deps_file "windows-deps-VERSION-ARCH-REVISION.zip")
+  set(_qt_file "windows-deps-qt6-VERSION-ARCH-REVISION.zip")
 endif()
 
 # The prebuilt dependencies the real build uses (buildspec_common.cmake reads
@@ -74,16 +76,35 @@ function(_obs_cross_dependencies)
   set(platform ${_deps_platform})
   set(prebuilt_filename "${_deps_file}")
   set(prebuilt_destination "obs-deps-VERSION-ARCH")
-  _check_dependencies(prebuilt)
-  _get_dependency_data(data)
-  string(JSON data GET ${data} prebuilt)
+  set(qt6_filename "${_qt_file}")
+  set(qt6_destination "obs-deps-qt6-VERSION-ARCH")
+  _check_dependencies(prebuilt qt6)
+  _get_dependency_data(all)
+  string(JSON data GET ${all} prebuilt)
   string(JSON version GET ${data} version)
   set(OBS_CROSS_DEPS "${dependencies_dir}/obs-deps-${version}-${arch}" PARENT_SCOPE)
+  string(JSON data GET ${all} qt6)
+  string(JSON version GET ${data} version)
+  set(OBS_CROSS_QT "${dependencies_dir}/obs-deps-qt6-${version}-${arch}" PARENT_SCOPE)
 endfunction()
 _obs_cross_dependencies()
 if(NOT EXISTS "${OBS_CROSS_DEPS}/include")
   message(FATAL_ERROR "Prebuilt dependencies for ${OBS_CROSS_TARGET} missing: ${OBS_CROSS_DEPS}/include")
 endif()
+
+# The Qt version of the prebuilt, for its private header directories.
+file(GLOB_RECURSE _qt_version_files "${OBS_CROSS_QT}/lib/cmake/Qt6/Qt6ConfigVersionImpl.cmake")
+if(NOT _qt_version_files)
+  message(FATAL_ERROR "Prebuilt Qt6 for ${OBS_CROSS_TARGET} missing: ${OBS_CROSS_QT}")
+endif()
+file(STRINGS "${_qt_version_files}" _qt_version REGEX "^set\\(PACKAGE_VERSION \"")
+string(REGEX REPLACE ".*\"([0-9.]+)\".*" "\\1" OBS_CROSS_QT_VERSION "${_qt_version}")
+
+# ui-config.h from the frontend's template, without client credentials.
+foreach(_var TWITCH_HASH RESTREAM_HASH YOUTUBE_CLIENTID_HASH YOUTUBE_SECRET_HASH)
+  set(${_var} 0)
+endforeach()
+configure_file("${OBS_SOURCE_ROOT}/frontend/cmake/templates/ui-config.h.in" "${CMAKE_BINARY_DIR}/frontend/ui-config.h")
 
 # obsconfig.h from the real template, as libobs/CMakeLists.txt makes it.
 set(OBS_DATA_PATH "../../data")
@@ -214,6 +235,125 @@ function(_obs_cross_plugin name)
   )
 endfunction()
 
+# The frontend's Windows/macOS unity groups (#2408) need Qt: the target's own
+# prebuilt Qt6 (CMakePresets.json `qt6`, the headers the real build uses) and
+# the ui_*.h headers its forms generate. uic runs on this host, from the
+# pinned Linux Qt of the same version (build-project.yaml's QT_TAG/QT_ASSET,
+# kept equal by ci/test_cross_qt.py). Nothing is moc'd: moc output is compiled
+# on its own, never included, and this check links nothing.
+set(OBS_CROSS_HOST_QT_TAG qt6-6.11.1)
+set(OBS_CROSS_HOST_QT_ASSET qt6-6.11.1-linux-x86_64-glibc2.28-release.tar.zst)
+set(OBS_CROSS_HOST_QT_SHA256 f0edfc3432bd57058bbb9a2cf18aacceb55a2564b018346778c34eb0e3369dbf)
+function(_obs_cross_uic out)
+  set(dir "${OBS_SOURCE_ROOT}/.deps/host-${OBS_CROSS_HOST_QT_TAG}")
+  if(NOT EXISTS "${dir}/.sha256")
+    set(archive "${OBS_SOURCE_ROOT}/.deps/${OBS_CROSS_HOST_QT_ASSET}")
+    file(
+      DOWNLOAD
+        "https://github.com/obs-rust/obs-studio-libs/releases/download/${OBS_CROSS_HOST_QT_TAG}/${OBS_CROSS_HOST_QT_ASSET}"
+      "${archive}"
+      EXPECTED_HASH SHA256=${OBS_CROSS_HOST_QT_SHA256}
+      STATUS status
+    )
+    list(GET status 0 code)
+    if(NOT code EQUAL 0)
+      message(FATAL_ERROR "Downloading the host Qt for uic failed: ${status}")
+    endif()
+    file(REMOVE_RECURSE "${dir}")
+    file(ARCHIVE_EXTRACT INPUT "${archive}" DESTINATION "${dir}")
+    file(REMOVE "${archive}")
+    file(WRITE "${dir}/.sha256" "${OBS_CROSS_HOST_QT_SHA256}")
+  endif()
+  file(GLOB_RECURSE uic LIST_DIRECTORIES FALSE "${dir}/*/uic" "${dir}/uic")
+  list(FILTER uic INCLUDE REGEX "/(bin|libexec)/uic$")
+  if(NOT uic)
+    message(FATAL_ERROR "No uic under ${dir}")
+  endif()
+  list(GET uic 0 uic)
+  set(${out} "${uic}" PARENT_SCOPE)
+endfunction()
+
+# ui_<form>.h for every frontend form, into <build>/frontend-ui.
+function(_obs_cross_frontend_forms)
+  _obs_cross_uic(uic)
+  file(GLOB forms "${OBS_SOURCE_ROOT}/frontend/forms/*.ui" "${OBS_SOURCE_ROOT}/frontend/forms/source-toolbar/*.ui")
+  set(headers)
+  foreach(form IN LISTS forms)
+    get_filename_component(stem "${form}" NAME_WE)
+    set(header "${CMAKE_BINARY_DIR}/frontend-ui/ui_${stem}.h")
+    add_custom_command(OUTPUT "${header}" COMMAND "${uic}" -o "${header}" "${form}" DEPENDS "${form}" VERBATIM)
+    list(APPEND headers "${header}")
+  endforeach()
+  add_custom_target(frontend-ui-cross DEPENDS ${headers})
+endfunction()
+
+# Include directories of the target's Qt modules the frontend uses.
+function(_obs_cross_qt_includes out)
+  set(qt "${OBS_CROSS_QT}")
+  set(dirs)
+  foreach(
+    module
+    IN
+    ITEMS Core Gui Widgets Network Svg Xml
+  )
+    if(_host STREQUAL MACOS)
+      list(APPEND dirs "${qt}/lib/Qt${module}.framework/Headers")
+    else()
+      list(APPEND dirs "${qt}/include/Qt${module}")
+    endif()
+  endforeach()
+  # QtCore's and QtGui's private headers (the macOS frontend's qpa use).
+  foreach(module IN ITEMS Core Gui)
+    if(_host STREQUAL MACOS)
+      set(private "${qt}/lib/Qt${module}.framework/Headers/${OBS_CROSS_QT_VERSION}")
+    else()
+      set(private "${qt}/include/Qt${module}/${OBS_CROSS_QT_VERSION}")
+    endif()
+    list(APPEND dirs "${private}" "${private}/Qt${module}")
+  endforeach()
+  if(NOT _host STREQUAL MACOS)
+    list(APPEND dirs "${qt}/include")
+  endif()
+  set(${out} ${dirs} PARENT_SCOPE)
+endfunction()
+
+# One frontend group target: the Qt includes, the generated forms, and the
+# include roots the frontend's own CMake gives obs-studio.
+function(_obs_cross_frontend name)
+  cmake_parse_arguments(PARSE_ARGV 1 _F "" "" "SOURCES;DEFINES")
+  if(NOT TARGET frontend-ui-cross)
+    _obs_cross_frontend_forms()
+  endif()
+  _obs_cross_qt_includes(qt_includes)
+  _obs_cross_plugin(
+    ${name}
+    DIR frontend
+    SOURCES ${_F_SOURCES}
+    INCLUDES . frontend/api shared/qt/wrappers deps/json11
+    DEFINES
+      QT_ENABLE_STRICT_MODE_UP_TO=0xFF0000
+      QT_CORE_LIB
+      QT_GUI_LIB
+      QT_WIDGETS_LIB
+      QT_NETWORK_LIB
+      QT_SVG_LIB
+      QT_XML_LIB
+      # The graphics modules' file names, as frontend/CMakeLists.txt passes them.
+      DL_OPENGL="libobs-opengl"
+      DL_METAL="libobs-metal"
+      DL_D3D11="libobs-d3d11"
+      ${_F_DEFINES}
+  )
+  target_include_directories(
+    ${name}
+    PRIVATE "${CMAKE_BINARY_DIR}/frontend-ui" "${CMAKE_BINARY_DIR}/frontend" ${qt_includes}
+  )
+  if(_host STREQUAL MACOS)
+    target_compile_options(${name} PRIVATE "-F${OBS_CROSS_QT}/lib")
+  endif()
+  add_dependencies(${name} frontend-ui-cross)
+endfunction()
+
 if(_host STREQUAL WINDOWS)
   _obs_cross_plugin(
     win-capture-cross
@@ -331,6 +471,18 @@ if(_host STREQUAL WINDOWS)
   # frontend-tools' Windows host group (BUILD.md, #855); its Qt groups need
   # Qt, which the cross check does not have.
   _obs_cross_plugin(frontend-tools-host-cross DIR plugins/frontend-tools SOURCES build/frontend-tools.host-windows+.h.c)
+  # The frontend's Windows unity groups (BUILD.md, #2408).
+  _obs_cross_frontend(
+    frontend-windows-cross
+    SOURCES
+      build/frontend.windows-obs-main+.hpp.cpp
+      build/frontend.windows-platform+.hpp.cpp
+      build/frontend.windows-nativeeventfilter+.hpp.cpp
+      build/frontend.windows+.hpp.cpp
+      build/frontend.windows-autoupdatethread+.hpp.cpp
+      build/frontend.plugin-manager-pluginmoduleloader_windows+.hpp.cpp
+    DEFINES PSAPI_VERSION=2
+  )
   # obs-text's unity group (BUILD.md).
   _obs_cross_plugin(obs-text-cross DIR plugins/obs-text SOURCES build/obs-text.windows+.hpp.cpp)
   # The Windows helpers' unity groups (BUILD.md): the updater, the virtual
@@ -403,6 +555,29 @@ elseif(_host STREQUAL MACOS)
   # frontend-tools' macOS host group (BUILD.md, #855); its Qt groups need
   # Qt, which the cross check does not have.
   _obs_cross_plugin(frontend-tools-host-cross DIR plugins/frontend-tools SOURCES build/frontend-tools.host-macos+.h.c)
+  # The frontend's macOS unity groups (BUILD.md, #2408), with the flags
+  # frontend/cmake/os-macos.cmake gives them. Not the Sparkle .mm groups,
+  # which need Sparkle.framework.
+  _obs_cross_frontend(
+    frontend-macos-cross
+    SOURCES
+      build/frontend.macos+.hpp.cpp
+      build/frontend.macos-mm+.hpp.mm
+      build/frontend.macos-arc-mm+.hpp.mm
+      build/frontend.crypto-macos-mm+.hpp.mm
+      build/frontend.sparkle+.hpp.cpp
+  )
+  target_compile_options(
+    frontend-macos-cross
+    PRIVATE
+      $<$<CXX_COMPILER_ID:Clang,AppleClang>:-Wno-quoted-include-in-framework-header>
+      $<$<CXX_COMPILER_ID:Clang,AppleClang>:-Wno-comma>
+  )
+  set_source_files_properties(
+    "${OBS_SOURCE_ROOT}/frontend/build/frontend.macos-arc-mm+.hpp.mm"
+    TARGET_DIRECTORY frontend-macos-cross
+    PROPERTIES COMPILE_OPTIONS "-fobjc-arc;-fmodules;-fcxx-modules"
+  )
   _obs_cross_plugin(
     mac-capture-cross
     DIR plugins/mac-capture
