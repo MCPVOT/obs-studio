@@ -1,7 +1,7 @@
 #!/usr/bin/env -S uv run --script
 # /// script
 # requires-python = ">=3.11"
-# dependencies = ["cryptography>=43,<47"]
+# dependencies = ["cryptography>=50.0.2,<51"]
 # ///
 """Write the in-app update feed for an OBS-Studio-Rust release.
 

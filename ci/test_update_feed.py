@@ -36,7 +36,7 @@ VERSION = "0.1.0-beta.20261020"
 DOWNLOAD = f"https://github.com/obs-rust/obs-studio/releases/download/{TAG}/"
 SPARKLE = "http://www.andymatuschak.org/xml-namespaces/sparkle"
 UV = shutil.which("uv")
-CRYPTO = "cryptography>=43,<47"
+CRYPTO = "cryptography>=50.0.2,<51"
 KEYGEN = """
 import sys
 from cryptography.hazmat.primitives import serialization
@@ -135,6 +135,12 @@ class UpdateFeedScriptTests(unittest.TestCase):
     def verify(self, name: str) -> None:
         result = uv_python(VERIFY, str(self.pub), str(self.out / name), str(self.out / f"{name}.sig"))
         self.assertEqual(result.returncode, 0, f"{name}: {result.stderr}")
+
+    def test_script_pins_the_cryptography_these_tests_run(self) -> None:
+        # The release job runs the script's own inline pin; keep it on the
+        # line the tests exercise (#2371).
+        script = (Path(__file__).resolve().parent / "update_feed.py").read_text(encoding="utf-8")
+        self.assertIn(f'# dependencies = ["{CRYPTO}"]', script)
 
     def test_writes_signed_feed_for_the_certified_release(self) -> None:
         result = self.build()
