@@ -55,9 +55,12 @@ try {
 	/* ----------------------------------- *
 	 * Validate branch selection           */
 
-	if (!GetBranch(branch)) {
+	/* Stable or nightly (#1759). Anything else, such as the "beta" a
+	 * pre-release sets on its first start, falls back to stable silently,
+	 * as the Windows updater does (#2388). */
+	if (!GetBranch(branch) || !ObsRustUpdateBranchIsKnown(branch)) {
 		config_set_string(App()->GetAppConfig(), "General", "UpdateBranch", MAC_DEFAULT_BRANCH);
-		info(QTStr("Updater.BranchNotFound.Title"), QTStr("Updater.BranchNotFound.Text"));
+		branch = MAC_DEFAULT_BRANCH;
 	}
 
 	emit Result(QString::fromStdString(branch), manualUpdate);

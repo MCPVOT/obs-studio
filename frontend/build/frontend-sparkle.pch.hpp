@@ -12,6 +12,7 @@
 #include <utility/WhatsNewInfoThread.hpp>
 
 #include <qt-wrappers.hpp>
+#include "frontend/utility/obs-rust-update.hpp"
 
 /* The classes' own headers, which their moc output used to include. */
 #include "frontend/utility/MacUpdateThread.hpp"

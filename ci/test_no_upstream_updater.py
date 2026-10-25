@@ -92,6 +92,15 @@ class NoUpstreamUpdaterTests(unittest.TestCase):
         # The Sparkle delegate takes its URLs from obs-rust-update.hpp only.
         self.assertEqual(URL_RE.findall(text("frontend/utility/OBSUpdateDelegate.mm.hpp")), [])
 
+    def test_mac_unknown_branch_falls_back_silently(self) -> None:
+        # A pre-release first start sets UpdateBranch=beta (upstream's
+        # AutoBetaOptIn); obs-rust has no beta channel. Like the Windows
+        # updater, macOS falls back to stable without a dialog (#2388).
+        mac = text("frontend/utility/MacUpdateThread.cpp.hpp")
+        self.assertIn("ObsRustUpdateBranchIsKnown", mac)
+        self.assertNotIn("Updater.BranchNotFound", mac)
+        self.assertIn('#include "frontend/utility/obs-rust-update.hpp"', text("frontend/build/frontend-sparkle.pch.hpp"))
+
     def test_nightly_channel_is_opt_in(self) -> None:
         # The app lists a built-in Nightly branch next to stable; stable stays
         # the default and anything else falls back to it (#1759).
