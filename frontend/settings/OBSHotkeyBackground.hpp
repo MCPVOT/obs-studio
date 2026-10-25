@@ -185,6 +185,11 @@ View Compute(const Input &input);
 Marker MarkerFor(const Input &input, const obs_key_combination_t &combo);
 /* The key the desktop runs combo's shortcut on, if it reports one. */
 std::string DesktopTrigger(const Input &input, const obs_key_combination_t &combo);
+/* The desktop's key for combo's shortcut as an OBS key combination, when
+ * the row shows "other key" and the desktop's text reads fully (KDE's Qt
+ * names, GNOME's GTK accelerator). Localized modifier names ("Strg") and
+ * Hyprland's config give nullopt: OBS doesn't offer a key it can't read. */
+std::optional<obs_key_combination_t> DesktopCombo(const Input &input, const obs_key_combination_t &combo);
 
 /* Config lines for the desktop, one per combination. nonConsuming: the
  * focused app (a game) still receives the key, as on X11. */

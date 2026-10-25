@@ -290,6 +290,24 @@ Marker MarkerFor(const Input &input, const obs_key_combination_t &combo)
 	return Marker::Background;
 }
 
+std::optional<obs_key_combination_t> DesktopCombo(const Input &input, const obs_key_combination_t &combo)
+{
+	/* Hyprland's key is in the user's config; the marker there comes from
+	 * it, not from a trigger OBS could take. */
+	if (input.desktop || MarkerFor(input, combo) != Marker::OtherKey) {
+		return std::nullopt;
+	}
+	const Shortcut *shortcut = FindShortcut(input, combo);
+	if (!shortcut || !shortcut->bound) {
+		return std::nullopt;
+	}
+	auto desktopKey = ParseDesktopTrigger(shortcut->trigger);
+	if (!desktopKey || !desktopKey->modifiersKnown) {
+		return std::nullopt;
+	}
+	return desktopKey->combo;
+}
+
 std::string DesktopTrigger(const Input &input, const obs_key_combination_t &combo)
 {
 	const Combo *c = FindCombo(input, combo);

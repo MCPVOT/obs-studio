@@ -2173,3 +2173,9 @@ area.
   architecture, Qt version and CRT, and cross builds no longer fall back to
   host pkg-config. *Linux; Windows and macOS SDK resolution*, 2026-10-22.
   Issue [#1869](https://github.com/obs-rust/obs-studio/issues/1869).
+- When the desktop's shortcut for an OBS hotkey uses a different key, the
+  "other key" marker in Settings > Hotkeys is a link that puts the desktop's
+  key in that row. It is offered only when the desktop's key reads exactly,
+  so localized modifier names never produce a wrong key. *Linux (KDE, GNOME
+  portal)*, 2026-10-25. Issue
+  [#401](https://github.com/obs-rust/obs-studio/issues/401).

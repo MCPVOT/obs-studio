@@ -2889,7 +2889,14 @@ void OBSBasicSettings::UpdateHotkeyBackgroundMarkers()
 		HotkeyBackground::Marker marker = HotkeyBackground::MarkerFor(input, combo);
 		label->setVisible(shown && input.state != OBS_HOTKEYS_BACKGROUND_NATIVE);
 		label->setFixedWidth(width);
-		label->setText(OBSHotkeyBackgroundBanner::MarkerText(marker));
+		/* The desktop has a different key that reads exactly: the marker
+		 * becomes a link that puts that key in this row. */
+		auto desktopCombo = HotkeyBackground::DesktopCombo(input, combo);
+		QString text = OBSHotkeyBackgroundBanner::MarkerText(marker);
+		label->setProperty("desktopKey", desktopCombo ? int(desktopCombo->key) : -1);
+		label->setProperty("desktopModifiers", desktopCombo ? int(desktopCombo->modifiers) : 0);
+		label->setTextFormat(desktopCombo ? Qt::RichText : Qt::PlainText);
+		label->setText(desktopCombo ? QString("<a href=\"use\">%1</a>").arg(text.toHtmlEscaped()) : text);
 		/* ▲ markers need the user: the theme's warning color. */
 		const char *cls = OBSHotkeyBackgroundBanner::MarkerNeedsUser(marker) ? "text-warning" : "text-muted";
 		if (label->property("class").toString() != cls) {
@@ -2897,8 +2904,13 @@ void OBSBasicSettings::UpdateHotkeyBackgroundMarkers()
 			label->style()->unpolish(label);
 			label->style()->polish(label);
 		}
-		label->setToolTip(OBSHotkeyBackgroundBanner::MarkerToolTip(
-			marker, input, HotkeyBackground::DesktopTrigger(input, combo)));
+		std::string trigger = HotkeyBackground::DesktopTrigger(input, combo);
+		QString toolTip = OBSHotkeyBackgroundBanner::MarkerToolTip(marker, input, trigger);
+		if (desktopCombo) {
+			toolTip += "\n" + QTStr("Basic.Settings.Hotkeys.Background.Marker.UseKey")
+						  .arg(QString::fromStdString(trigger));
+		}
+		label->setToolTip(toolTip);
 	};
 	for (auto &hotkey : hotkeys) {
 		if (hotkey.second) {

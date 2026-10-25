@@ -102,6 +102,12 @@ void OBSHotkeyWidget::AddEdit(obs_key_combination combo, int idx)
 	if (updateMarker) {
 		updateMarker(combo, marker);
 	}
+	QObject::connect(marker, &QLabel::linkActivated, edit, [=]() {
+		int key = marker->property("desktopKey").toInt();
+		if (key >= 0) {
+			edit->HandleNewKey({marker->property("desktopModifiers").toUInt(), obs_key_t(key)});
+		}
+	});
 
 	QObject::connect(edit, &OBSHotkeyEdit::KeyChanged, this, [=](obs_key_combination_t new_combo) {
 		clear->setEnabled(!obs_key_combination_is_empty(new_combo));
