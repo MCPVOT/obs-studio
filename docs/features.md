@@ -1978,6 +1978,10 @@ area.
   longer can make OBS use freed items. *All*, 2026-10-14. Issue
   [#490](https://github.com/obs-rust/obs-studio/issues/490), PR
   [#708](https://github.com/obs-rust/obs-studio/pull/708).
+- On macOS 27.2, OBS no longer crashes on launch: the bundled Qt carries the
+  QTBUG-147602 backport (obs-deps 2026-10-25, as upstream OBS 33.0.0).
+  *macOS*, 2026-10-25. Issue
+  [#2290](https://github.com/obs-rust/obs-studio/issues/2290).
 - On macOS, OBS no longer hangs when a window gets focus while the system
   looks up a generic app icon. *macOS*, 2026-10-14. Issues
   [#635](https://github.com/obs-rust/obs-studio/issues/635),
