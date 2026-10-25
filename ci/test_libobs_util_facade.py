@@ -16,6 +16,28 @@ class LibobsUtilFacadeTest(unittest.TestCase):
         self.assertNotIn("gzclose_w", text)
         self.assertEqual(text.count("gzclose(gz);"), 1)
 
+    def test_shared_files_have_no_host_branch(self):
+        for name in ("platform-file.c.h", "profiler-io.c.h"):
+            text = (UTIL / name).read_text()
+            for macro in ("_WIN32", "_MSC_VER", "__APPLE__", "__linux__"):
+                self.assertNotIn(macro, text, f"{name} still branches on {macro}")
+
+    def test_file_bodies_live_in_the_host_files(self):
+        # One body per host for each function the shared file branched on.
+        for host in ("windows", "posix"):
+            text = (UTIL / f"platform-file-host-{host}.c.h").read_text()
+            for fn in ("os_wfopen(", "os_fopen(", "os_fseeki64(", "os_ftelli64("):
+                self.assertIn(fn, text, f"platform-file-host-{host}.c.h lacks {fn}")
+            self.assertIn("profiler_gzopen(", (UTIL / f"profiler-io-host-{host}.c.h").read_text())
+        self.assertIn("int os_stat(", (UTIL / "platform-file-host-windows.c.h").read_text())
+
+    def test_host_files_build_in_their_host_groups(self):
+        build = ROOT / "libobs" / "build"
+        for host, group in (("windows", "ported-windows-platform"), ("posix", "ported-posix")):
+            text = (build / f"libobs.{group}+.h.c").read_text()
+            for name in ("platform-file", "profiler-io"):
+                self.assertIn(f'#include "libobs/util/{name}-host-{host}.c.h"', text)
+
 
 if __name__ == "__main__":
     unittest.main()

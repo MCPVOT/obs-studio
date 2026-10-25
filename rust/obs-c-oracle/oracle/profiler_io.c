@@ -15,6 +15,7 @@
 #define profiler_print_time_between_calls oracle_profiler_print_time_between_calls
 #define profiler_snapshot_dump_csv oracle_profiler_snapshot_dump_csv
 #define profiler_snapshot_dump_csv_gz oracle_profiler_snapshot_dump_csv_gz
+#define profiler_gzopen oracle_profiler_gzopen
 #define profile_snapshot_create oracle_profile_snapshot_create
 #define profile_snapshot_free oracle_profile_snapshot_free
 #define dstr_printf oracle_dstr_printf
@@ -37,6 +38,12 @@
 #endif
 
 #include "util/profiler-io.c.h"
+/* Its csv.gz opener (#874), from the host file libobs compiles. */
+#ifdef _WIN32
+#include "util/profiler-io-host-windows.c.h"
+#else
+#include "util/profiler-io-host-posix.c.h"
+#endif
 
 /* Test-only: a base_set_log_handler handler that appends each line, then
  * '\n', to a caller-owned buffer, so Tier 3 can compare every line the Rust

@@ -23,3 +23,11 @@
 #include "util/windows/win-version.h"
 
 #include "deps/w32-pthreads/pthread.h"
+
+/* util/platform-file-host-windows.c, util/profiler-io-host-windows.c */
+#include <stdio.h>
+#include <sys/stat.h>
+#include <zlib.h>
+
+#include "util/bmem.h"
+#include "util/profiler-io-host.h"

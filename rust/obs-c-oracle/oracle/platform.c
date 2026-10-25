@@ -107,6 +107,14 @@
 #pragma clang diagnostic ignored "-Wunguarded-availability-new"
 #endif
 #include "util/platform-file.c.h"
+/* Its host bodies (#874), as libobs's host groups compile them. windows-gnu
+ * takes the Windows ones: MinGW's CRT has _wfopen, _fseeki64 and _ftelli64. */
+#ifdef _WIN32
+#include <sys/stat.h>
+#include "util/platform-file-host-windows.c.h"
+#else
+#include "util/platform-file-host-posix.c.h"
+#endif
 /* os_generate_formatted_filename's clock: time() becomes the settable one
  * below, only for this file, so a test can give the C and Rust the same
  * second. <time.h> was included above, under the plain name. */

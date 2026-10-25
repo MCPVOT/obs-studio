@@ -15,5 +15,6 @@
 #include "util/platform.h"
 #include "util/profiler.h"
 #include "util/profiler-snapshot.h"
+#include "util/profiler-io-host.h"
 
 #include <zlib.h>

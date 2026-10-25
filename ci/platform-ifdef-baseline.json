@@ -12,8 +12,6 @@
   "libobs/util/curl/curl-helper.h": 1,
   "libobs/util/dstr.h": 1,
   "libobs/util/pipe.h": 1,
-  "libobs/util/platform-file.c.h": 5,
-  "libobs/util/profiler-io.c.h": 1,
   "libobs/util/profiler.h": 1,
   "plugins/obs-qsv11/common_directx11.h": 3,
   "plugins/vlc-video/vlc-video-plugin.h": 1,

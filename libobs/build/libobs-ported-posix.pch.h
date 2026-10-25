@@ -57,3 +57,9 @@
 #include "util/dstr.h"
 #include "util/platform.h"
 #include "util/threading.h"
+
+/* util/platform-file-host-posix.c, util/profiler-io-host-posix.c */
+#include <zlib.h>
+
+#include "util/bmem.h"
+#include "util/profiler-io-host.h"
