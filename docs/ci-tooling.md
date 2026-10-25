@@ -109,7 +109,7 @@ Regenerated local `obs-util` full and base plus delta archives preserve the
 exact nanosecond timestamp and report Fresh with the wrapper disabled. The
 pinned setup action's cook keys include the Soldr version, so archives of an
 older Soldr cannot match the new base key or delta restore prefixes. The pinned
-setup-soldr v0.9.87 defaults to Soldr 0.9.42; the workflows still name the
+setup-soldr v0.9.88 defaults to Soldr 0.9.42; the workflows still name the
 version explicitly. See the [probe and limits](ci-evidence/2026-10-20-soldr-source-mtime.md).
 
 Soldr 0.9.41+ keeps a **verdict ledger** (soldr#3894): a `clippy`,
@@ -117,7 +117,11 @@ Soldr 0.9.41+ keeps a **verdict ledger** (soldr#3894): a `clippy`,
 content hashes for uncommitted files, plus toolchain, argv and environment)
 already passed is replayed instead of re-run, narrowed per workspace member.
 setup-soldr carries it between CI runs (`verdicts: auto`, the default): master
-publishes, PRs restore. It is content-keyed, so it does not depend on the
+publishes, PRs restore. Every setup-soldr step in `build-project.yaml` sets
+`verdict-scope: build-project`: the manifest scope otherwise hashes the
+calling workflow (`push.yaml` on master, `ci.yml` on PRs), so PRs never found
+master's verdicts (forge-ci/setup-soldr#604, `ci/test_verdict_scope.py`).
+It is content-keyed, so it does not depend on the
 wrapper bypass above. `SOLDR_VERDICTS=off` forces a run. The gate's source
 probe sets it, because before forge-ci/soldr#3913 a scratch crate in an ignored
 directory (`target/`) keyed on none of its files and replayed a stale pass.
