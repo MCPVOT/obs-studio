@@ -9,6 +9,8 @@ void *obs_graphics_bmalloc(size_t size);
 void obs_graphics_bfree(void *ptr);
 void obs_graphics_log(int level, const char *line);
 void obs_graphics_effect_param_error(int which);
+void obs_graphics_effect_loop_warning(int which, const char *name);
+void obs_graphics_set_cur_effect(graphics_t *graphics, gs_effect_t *effect);
 FILE *obs_graphics_fopen_rb(const char *path);
 int64_t obs_graphics_ftelli64(FILE *file);
 
@@ -49,6 +51,32 @@ void obs_graphics_effect_param_error(int which)
 		blog(LOG_ERROR, "gs_effect_set_next_sampler: invalid param");
 		break;
 	}
+}
+
+/* The LOG_WARNING lines of gs_effect_loop (effect-passes.c), with the C's
+ * literal formats. */
+void obs_graphics_effect_loop_warning(int which, const char *name)
+{
+	switch (which) {
+	case 0:
+		blog(LOG_WARNING, "gs_effect_loop: An effect is "
+				  "already active");
+		break;
+	case 1:
+		blog(LOG_WARNING,
+		     "gs_effect_loop: Technique '%s' "
+		     "not found.",
+		     name);
+		break;
+	}
+}
+
+/* graphics->cur_effect for the effect pass loop (effect-passes.c), which
+ * writes it through an effect's graphics subsystem; struct
+ * graphics_subsystem does not cross to Rust. */
+void obs_graphics_set_cur_effect(graphics_t *graphics, gs_effect_t *effect)
+{
+	graphics->cur_effect = effect;
 }
 
 FILE *obs_graphics_fopen_rb(const char *path)
