@@ -290,7 +290,14 @@ jobs:
           src=${found[0]}
           [ -f "$src" ] || { echo "::error::no $OS package found"; exit 1; }
           ext=${src##*.}
-          cp "$src" "pkg/OBS-Studio-Rust-$VERSION-$OS-${{ matrix.target }}.$ext"
+          if [ "$ext" = deb ]; then
+            # The .deb needs the libraries of the release it is built on (#2297).
+            # A subshell: os-release sets VERSION too.
+            distro=$(. /etc/os-release && echo "$ID-$VERSION_ID")
+            cp "$src" "pkg/OBS-Studio-Rust-$VERSION-$distro-${{ matrix.target }}.deb"
+          else
+            cp "$src" "pkg/OBS-Studio-Rust-$VERSION-$OS-${{ matrix.target }}.$ext"
+          fi
 
           # Package-Windows separates PDBs from the application ZIP. Publish
           # the matching archive too, rather than leaving it in build_*.
@@ -604,7 +611,7 @@ jobs:
 
           **Daily beta (pre-release).** The in-app updaters offer only certified releases, which a maintainer promotes from a daily beta. macOS packages are signed and notarized when the project's release credentials are configured. For an unnotarized download, copy OBS-Studio-Rust.app to Applications and try opening it, then choose **System Settings → Privacy & Security → Open Anyway**. For a download you trust, the Terminal alternative is \`xattr -dr com.apple.quarantine /Applications/OBS-Studio-Rust.app\`; it removes quarantine from that app only. See [Apple's guidance](https://support.apple.com/102445).
 
-          Windows: SmartScreen will warn. Linux: \`sudo apt install ./OBS-Studio-Rust-$VERSION-linux-x86_64.deb\` (Ubuntu 26.04), or the AppImage for any distribution: \`chmod +x OBS-Studio-Rust-$VERSION-linux-x86_64.AppImage\` and run it.
+          Windows: SmartScreen will warn. Linux: \`sudo apt install ./OBS-Studio-Rust-$VERSION-ubuntu-26.04-x86_64.deb\` (Ubuntu 26.04 only), or the AppImage for any distribution: \`chmod +x OBS-Studio-Rust-$VERSION-linux-x86_64.AppImage\` and run it.
 
           **Separate settings and app identity.** This beta uses \`obs-studio-rust\` inside your OS's usual config directory. On first launch it copies upstream OBS settings, profiles, scenes and plugin settings without changing the originals. Existing Rust settings are kept. Custom configuration, profile, scene and plugin storage locations stay selected, with a separate \`obs-studio-rust\` directory in each location. Later upstream changes are not imported automatically.
 

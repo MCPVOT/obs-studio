@@ -24,7 +24,7 @@ def required_assets(version: str) -> list[str]:
     """Every file a complete daily beta carries."""
     p = f"OBS-Studio-Rust-{version}"
     return [
-        f"{p}-linux-x86_64.deb",
+        f"{p}-ubuntu-26.04-x86_64.deb",
         f"{p}-linux-x86_64.AppImage",
         f"{p}-macos-arm64.dmg",
         f"{p}-macos-x86_64.dmg",
