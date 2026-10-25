@@ -20,6 +20,8 @@ Same obs studio, but without the bugs. AI generated issues and PRs welcome.
 
 Got an idea? [Start a conversation](https://github.com/obs-rust/obs-studio/discussions).
 
+<p align="center"><img src="docs/images/worker-skill.svg" alt="Worker skill: paste this prompt into your AI agent" width="600"></p>
+
 **Want to help port OBS to Rust?** Paste this into your AI agent:
 
 ```text

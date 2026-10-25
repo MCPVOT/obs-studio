@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="140" viewBox="0 0 720 140" role="img" aria-label="worker skill: paste this prompt into your AI agent">
+  <title>worker skill — paste this prompt into your AI agent</title>
+  <defs>
+    <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".10"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <clipPath id="plate">
+      <rect width="720" height="140" rx="6"/>
+    </clipPath>
+  </defs>
+
+  <!-- steel plate + sheen, the palette of tools/leaderboard/site -->
+  <g clip-path="url(#plate)">
+    <rect width="720" height="140" fill="#1b1d1f"/>
+    <rect width="720" height="140" fill="url(#sheen)"/>
+  </g>
+  <rect x="1.5" y="1.5" width="717" height="137" rx="6" fill="none" stroke="#e8631a" stroke-width="3"/>
+
+  <!-- WORKER SKILL, big and bold, in the rust accent -->
+  <g font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-weight="bold" font-size="58" letter-spacing="3" text-rendering="geometricPrecision">
+    <text x="34" y="99" fill="#010101" fill-opacity=".45" transform="translate(3,3)">WORKER SKILL</text>
+    <text x="34" y="99" fill="#e8631a">WORKER SKILL</text>
+  </g>
+
+  <!-- arrow: points down at the prompt block right below -->
+  <g stroke="#f2b705" stroke-width="18" fill="none" stroke-linecap="square" stroke-linejoin="miter">
+    <path d="M654 24 V 90"/>
+    <path d="M619 58 L654 96 L689 58"/>
+  </g>
+</svg>
