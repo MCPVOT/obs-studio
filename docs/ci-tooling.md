@@ -121,6 +121,8 @@ publishes, PRs restore. Every setup-soldr step in `build-project.yaml` sets
 `verdict-scope: build-project`: the manifest scope otherwise hashes the
 calling workflow (`push.yaml` on master, `ci.yml` on PRs), so PRs never found
 master's verdicts (forge-ci/setup-soldr#604, `ci/test_verdict_scope.py`).
+In CI the first master run with it (40159829966) published 8 verdicts under
+scope `b88ba65d043f3f19`, the scope PR and merge-queue Fast Gate runs read.
 It is content-keyed, so it does not depend on the
 wrapper bypass above. `SOLDR_VERDICTS=off` forces a run. The gate's source
 probe sets it, because before forge-ci/soldr#3913 a scratch crate in an ignored
