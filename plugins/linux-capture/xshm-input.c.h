@@ -33,6 +33,12 @@ struct xshm_data {
 
 	char *server;
 	int_fast32_t screen_id;
+	/* The RandR 1.5 monitor's name: a monitor's position in the list
+	 * changes when another one is unplugged (obs-rust/obs-studio#2261). */
+	char *screen_name;
+	int_fast32_t screen_setting;
+	bool screen_setting_known;
+	bool monitor_absent;
 	int_fast32_t x_org;
 	int_fast32_t y_org;
 	int_fast32_t width;
@@ -129,10 +135,27 @@ static int_fast32_t xshm_update_geometry(struct xshm_data *data)
 	int_fast32_t prev_height = data->adj_height;
 
 	if (data->use_randr) {
-		if (randr_screen_geo(data->xcb, data->screen_id, &data->x_org, &data->y_org, &data->width,
-				     &data->height, &data->xcb_screen, NULL) < 0) {
+		int found = randr_screen_find(data->xcb, data->screen_name);
+		if (found == -1) {
+			/* Not another monitor that took its place. */
+			if (!data->monitor_absent)
+				blog(LOG_INFO, "Monitor %s is not connected", data->screen_name);
+			data->monitor_absent = true;
 			return -1;
 		}
+		if (found >= 0)
+			data->screen_id = found;
+
+		char *name = NULL;
+		if (randr_screen_geo(data->xcb, data->screen_id, &data->x_org, &data->y_org, &data->width,
+				     &data->height, &data->xcb_screen, &name) < 0) {
+			free(name);
+			return -1;
+		}
+		if (!data->screen_name && name)
+			data->screen_name = bstrdup(name);
+		free(name);
+		data->monitor_absent = false;
 	} else if (data->use_xinerama) {
 		if (xinerama_screen_geo(data->xcb, data->screen_id, &data->x_org, &data->y_org, &data->width,
 					&data->height) < 0) {
@@ -306,7 +329,16 @@ static void xshm_update(void *vptr, obs_data_t *settings)
 
 	xshm_capture_stop(data);
 
-	data->screen_id = obs_data_get_int(settings, "screen");
+	/* The saved monitor name wins over its saved position, unless the
+	 * position was just changed (another monitor chosen). */
+	int_fast32_t screen = obs_data_get_int(settings, "screen");
+	const char *screen_name = obs_data_get_string(settings, "screen_name");
+	if (data->screen_setting_known && screen != data->screen_setting)
+		screen_name = "";
+	bfree(data->screen_name);
+	data->screen_name = *screen_name ? bstrdup(screen_name) : NULL;
+	data->screen_id = screen;
+	data->monitor_absent = false;
 	data->show_cursor = obs_data_get_bool(settings, "show_cursor");
 	data->advanced = obs_data_get_bool(settings, "advanced");
 	data->server = bstrdup(obs_data_get_string(settings, "server"));
@@ -317,6 +349,13 @@ static void xshm_update(void *vptr, obs_data_t *settings)
 	data->cut_bot = obs_data_get_int(settings, "cut_bot");
 
 	xshm_capture_start(data);
+
+	if (data->screen_name)
+		obs_data_set_string(settings, "screen_name", data->screen_name);
+	if (data->screen_id != screen)
+		obs_data_set_int(settings, "screen", data->screen_id);
+	data->screen_setting = data->screen_id;
+	data->screen_setting_known = true;
 }
 
 /**
@@ -495,6 +534,7 @@ static void xshm_destroy(void *vptr)
 
 	xshm_capture_stop(data);
 
+	bfree(data->screen_name);
 	bfree(data);
 }
 
@@ -560,7 +600,7 @@ static void xshm_video_tick(void *vptr, float seconds)
 		}
 	}
 
-	if (!data->texture || !data->xshm)
+	if (!data->texture || !data->xshm || data->monitor_absent)
 		return;
 
 	xcb_shm_get_image_cookie_t img_c;

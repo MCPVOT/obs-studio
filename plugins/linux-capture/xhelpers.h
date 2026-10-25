@@ -95,6 +95,17 @@ int randr_screen_geo(xcb_connection_t *xcb, int_fast32_t screen, int_fast32_t *x
 		     int_fast32_t *h, xcb_screen_t **rscreen, char **name);
 
 /**
+ * Find a RandR 1.5 monitor by name
+ *
+ * @param xcb xcb connection
+ * @param name monitor name, as randr_screen_geo() returns it
+ *
+ * @return the monitor's screen number, -1 when no monitor has that name, or
+ *         -2 when the server has no RandR 1.5 monitors (no names to look up)
+ */
+int randr_screen_find(xcb_connection_t *xcb, const char *name);
+
+/**
  * Get screen geometry for a X11 screen
  *
  * @note On error the passed sizes will be set to 0.

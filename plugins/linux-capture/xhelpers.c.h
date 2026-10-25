@@ -140,7 +140,37 @@ int randr_screen_count(xcb_connection_t *xcb)
 	if (!res_r)
 		return 0;
 
-	return xcb_randr_get_screen_resources_crtcs_length(res_r);
+	int count = xcb_randr_get_screen_resources_crtcs_length(res_r);
+	free(res_r);
+	return count;
+}
+
+int randr_screen_find(xcb_connection_t *xcb, const char *name)
+{
+	if (!xcb || !name || !*name || !randr_has_monitors(xcb))
+		return -2;
+
+	xcb_screen_t *xscreen = xcb_setup_roots_iterator(xcb_get_setup(xcb)).data;
+	xcb_randr_get_monitors_reply_t *mon_r =
+		xcb_randr_get_monitors_reply(xcb, xcb_randr_get_monitors(xcb, xscreen->root, true), 0);
+	if (!mon_r)
+		return -2;
+
+	int found = -1;
+	size_t name_len = strlen(name);
+	xcb_randr_monitor_info_iterator_t mon_i = xcb_randr_get_monitors_monitors_iterator(mon_r);
+	for (int s = 0; mon_i.rem && found < 0; s++, xcb_randr_monitor_info_next(&mon_i)) {
+		xcb_get_atom_name_reply_t *atom_r =
+			xcb_get_atom_name_reply(xcb, xcb_get_atom_name(xcb, mon_i.data->name), 0);
+		if (!atom_r)
+			continue;
+		if ((size_t)xcb_get_atom_name_name_length(atom_r) == name_len &&
+		    memcmp(xcb_get_atom_name_name(atom_r), name, name_len) == 0)
+			found = s;
+		free(atom_r);
+	}
+	free(mon_r);
+	return found;
 }
 
 int randr_screen_geo(xcb_connection_t *xcb, int_fast32_t screen, int_fast32_t *x, int_fast32_t *y, int_fast32_t *w,

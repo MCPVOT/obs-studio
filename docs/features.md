@@ -1419,6 +1419,13 @@ area.
   its Deinterlacing menu shows Disable. *All*, pending merge. Issue
   [#2090](https://github.com/obs-rust/obs-studio/issues/2090).
 
+- Screen Capture (XSHM) keeps capturing the monitor it was set to when
+  another monitor is unplugged or plugged in: it saves the RandR monitor's
+  name, not only its place in the list, and shows no other monitor when its
+  own goes away. *Linux*, 2026-10-25. Issue
+  [#2261](https://github.com/obs-rust/obs-studio/issues/2261), upstream
+  [obsproject/obs-studio#5502](https://github.com/obsproject/obs-studio/issues/5502).
+
 ### Scenes and UI
 
 - Edit > Undo is no longer clickable when there is nothing to undo; it was
