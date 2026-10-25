@@ -35,6 +35,25 @@ jobs:
 
   # Queue/master janitor owns cache retention through ci.toml. Nightly
   # builds reuse those caches rather than purging them before every build.
+  cef-support:
+    timeout-minutes: 10
+    name: CEF Chromium Support 🌐
+    # Chrome's release data changes without a commit here, so this runs on
+    # the schedule (#2380): a pinned CEF older than extended stable fails.
+    if: github.event_name != 'schedule' || github.repository == 'obs-rust/obs-studio'
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          save-cache: ${{ github.ref == 'refs/heads/master' }}
+      - name: Compare the CEF pins with Chrome's extended stable 🔍
+        run: uv run ci/cef_support.py
+
   build-project:
     name: Build 🧱
     uses: ./.github/workflows/build-project.yaml
