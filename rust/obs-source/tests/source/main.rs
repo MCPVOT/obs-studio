@@ -16,6 +16,8 @@ mod deinterlace_draw;
 mod deinterlace_draw_parity;
 mod deinterlace_pacing;
 mod deinterlace_pacing_parity;
+mod deinterlace_select;
+mod deinterlace_select_parity;
 mod draw_plan;
 mod draw_plan_parity;
 mod frame_copy;
