@@ -49,11 +49,17 @@ class ConversionCard(unittest.TestCase):
         self.assertLess(measure, full)
         self.assertLess(full, minimal)
 
-    def test_minimal_card_has_the_headline_and_no_detail(self):
+    def test_minimal_card_headline_is_libobs(self):
         page = (SITE / "conversion-minimal.html").read_text()
         for token in ("--rust:#e8631a", "Big+Shoulders+Stencil+Display", "JetBrains+Mono",
-                      "conversion.json", "dataset.ready", "d.app", "d.libobs.all"):
+                      "conversion.json", "dataset.ready", "d.libobs.all.percent"):
             self.assertIn(token, page)
+        # The headline is the libobs share: libobs is what has to be ported,
+        # while the rest of the app is allowed to stay C++ in the hybrid
+        # build. The whole-app percentage is not the number to lead with.
+        self.assertIn("of libobs is Rust", page)
+        self.assertNotIn("of the whole app is Rust", page)
+        self.assertNotIn("app.percent", page)
         # The dense card lives on conversion.html; keep it out of this one.
         for label in ("UTIL", "MEDIA-IO", "GRAPHICS", "LINUX", "MACOS", "WINDOWS", "areas", "hosts"):
             self.assertNotIn(label.lower(), page.lower())

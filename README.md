@@ -44,9 +44,12 @@ Stuck? Ask in the Discord linked in the README, or in Discussions.
 
 # Conversion progress
 
-Measured by [tools/conversion/measure.py](tools/conversion/measure.py); click the card for the full breakdown.
+How much of **libobs** is Rust — the part that has to be ported. The rest of
+the app can stay C++ in the hybrid build. Measured by
+[tools/conversion/measure.py](tools/conversion/measure.py); click the card
+for the full breakdown.
 
-[![Rust port progress, click for the full breakdown](https://raw.githubusercontent.com/obs-rust/obs-studio/leaderboard/conversion-minimal.jpg)](https://obs-rust.github.io/obs-studio/conversion.html)
+[![libobs port progress, click for the full breakdown](https://raw.githubusercontent.com/obs-rust/obs-studio/leaderboard/conversion-minimal.jpg)](https://obs-rust.github.io/obs-studio/conversion.html)
 
 > [!TIP]
 > **Come talk to us on [Discord](https://discord.gg/6MWWX4x9pf).** We're a

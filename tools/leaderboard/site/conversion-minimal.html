@@ -9,7 +9,9 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Stencil+Display:wght@800;900&family=Barlow+Condensed:wght@500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <style>
-/* The README card (#2321): one headline number, the libobs share under it.
+/* The README card (#2321): ONE headline number — the libobs share,
+   because libobs is what has to be ported. The rest of the app is allowed to
+   stay C++ in the hybrid build, so the whole-app percentage never leads.
    The full breakdown stays on conversion.html, which the image links to. */
 :root{--steel:#1b1d1f;--edge:#4a4f53;--fg:#e9e6df;--rust:#e8631a;--cu:#3fa58a;--haz:#f2b705}
 *{box-sizing:border-box;margin:0}
@@ -35,9 +37,9 @@ main{border:3px solid var(--edge);background:var(--steel);box-shadow:0 0 0 2px #
 <div class="card">
 <img src="logo.png" alt="">
 <div class="body">
-<div class="head"><span class="num" id="app">--</span><span class="what">of the whole app is Rust</span></div>
+<div class="head"><span class="num" id="lib">--</span><span class="what">of libobs is Rust</span></div>
 <div class="gauge"><i id="bar" style="width:0"></i></div>
-<div class="sub"><span><b id="lib">--</b> of libobs</span><span>Click for the full breakdown &rarr;</span></div>
+<div class="sub"><span>The rest of the app stays C++</span><span>Click for the full breakdown &rarr;</span></div>
 </div>
 </div>
 </main>
@@ -45,10 +47,9 @@ main{border:3px solid var(--edge);background:var(--steel);box-shadow:0 0 0 2px #
 (async()=>{
 let d;try{d=await (await fetch("conversion.json",{cache:"no-store"})).json()}catch(e){return}
 const pct=p=>Number(p).toFixed(1)+"%";
-const app=d.app.percent;
-document.getElementById("app").textContent=pct(app);
-document.getElementById("bar").style.width=Math.min(100,Math.max(0,app))+"%";
-document.getElementById("lib").textContent=pct(d.libobs.all.percent);
+const lib=d.libobs.all.percent;
+document.getElementById("lib").textContent=pct(lib);
+document.getElementById("bar").style.width=Math.min(100,Math.max(0,lib))+"%";
 document.body.dataset.ready="1";
 })();
 </script>
