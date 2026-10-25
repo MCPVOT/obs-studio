@@ -336,12 +336,17 @@ static bool run_nvenc_test(const char *test_exe, struct dstr *caps_str)
 	return true;
 }
 
+/* The Rust brand installs it as obs-studio-rust-nvenc-test (#2296). */
+#ifndef OBS_NVENC_TEST_NAME
+#define OBS_NVENC_TEST_NAME "obs-nvenc-test"
+#endif
+
 static bool nvenc_check(void)
 {
 #ifdef _WIN32
 	char *test_exe = os_get_executable_path_ptr("obs-nvenc-test.exe");
 #else
-	char *test_exe = os_get_executable_path_ptr("obs-nvenc-test");
+	char *test_exe = os_get_executable_path_ptr(OBS_NVENC_TEST_NAME);
 #endif
 	struct dstr caps_str = {0};
 	config_t *config = NULL;
@@ -430,3 +435,5 @@ void obs_nvenc_unload(void)
 /* File-local macros (BUILD.md): out of the next file in the unity group. */
 #undef nvh_error
 #undef NVH_FAILED
+
+#undef OBS_NVENC_TEST_NAME

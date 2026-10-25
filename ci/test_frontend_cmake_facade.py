@@ -161,7 +161,7 @@ class FrontendCMakeFacadeTest(unittest.TestCase):
             self.assertNotIn(macro, source)
         self.assertIn("GetPlatformNvencTestProgram()", source)
         for host, program in (("windows.cpp.hpp", '"obs-nvenc-test.exe"'), ("osx.mm.hpp", "nullptr"),
-                              ("x11.cpp.hpp", '"obs-nvenc-test"')):
+                              ("x11.cpp.hpp", "OBS_NVENC_TEST_NAME")):
             with self.subTest(host=host):
                 source = (FRONTEND / f"utility/platform-{host}").read_text()
                 body = source.split("const char *GetPlatformNvencTestProgram()", 1)[1].split("}", 1)[0]

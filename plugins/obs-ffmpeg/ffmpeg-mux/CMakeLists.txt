@@ -26,4 +26,8 @@ target_link_libraries(
 
 target_compile_definitions(obs-ffmpeg-mux PRIVATE $<$<BOOL:${ENABLE_FFMPEG_MUX_DEBUG}>:ENABLE_FFMPEG_MUX_DEBUG>)
 
+if(OBS_FFMPEG_MUX_NAME)
+  set_target_properties(obs-ffmpeg-mux PROPERTIES OUTPUT_NAME "${OBS_FFMPEG_MUX_NAME}")
+endif()
+
 set_target_properties_obs(obs-ffmpeg-mux PROPERTIES FOLDER plugins/obs-ffmpeg)

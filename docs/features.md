@@ -513,6 +513,11 @@ not get a line.
   at obs-rust/obs-studio, and the .deb's Homepage and Maintainer follow, so
   "Report an issue" in GNOME Software or KDE Discover reaches this project.
   *Linux*, 2026-10-24. Issue [#2302](https://github.com/obs-rust/obs-studio/issues/2302).
+- **The .deb installs next to the distribution's OBS.** On Linux the
+  helpers are `obs-studio-rust-ffmpeg-mux` and `obs-studio-rust-nvenc-test`,
+  so `apt install` no longer fails over `/usr/bin/obs-nvenc-test` when
+  Ubuntu's obs-studio is installed, in either order.
+  *Linux*, 2026-10-24. Issue [#2296](https://github.com/obs-rust/obs-studio/issues/2296).
 
 ## Fixed upstream bugs
 

@@ -9,4 +9,8 @@ add_executable(obs-nvenc-test)
 target_sources(obs-nvenc-test PRIVATE ${_obs_nvenc_helper})
 target_link_libraries(obs-nvenc-test FFnvcodec::FFnvcodec Threads::Threads ${CMAKE_DL_LIBS})
 
+if(OBS_NVENC_TEST_NAME)
+  set_target_properties(obs-nvenc-test PROPERTIES OUTPUT_NAME "${OBS_NVENC_TEST_NAME}")
+endif()
+
 set_target_properties_obs(obs-nvenc-test PROPERTIES FOLDER plugins/obs-nvenc)

@@ -883,9 +883,14 @@ bool PlatformTrayActivationTogglesWindow()
 
 void SetPlatformDockIconVisible(bool) {}
 
+/* The Rust brand installs it as obs-studio-rust-nvenc-test (#2296). */
+#ifndef OBS_NVENC_TEST_NAME
+#define OBS_NVENC_TEST_NAME "obs-nvenc-test"
+#endif
+
 const char *GetPlatformNvencTestProgram()
 {
-	return "obs-nvenc-test";
+	return OBS_NVENC_TEST_NAME;
 }
 
 void ShowPlatformPermissionsDialog(QWidget *) {}
@@ -909,3 +914,5 @@ bool IsWhatsNewItemForPlatform(bool, bool, bool onLinux)
 {
 	return onLinux;
 }
+
+#undef OBS_NVENC_TEST_NAME

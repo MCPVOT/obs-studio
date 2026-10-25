@@ -78,6 +78,14 @@ def check_deb_recommends(field: str) -> None:
             raise RuntimeError(f"Debian package Recommends {field!r} lacks {need}")
 
 
+def check_deb_commands(names: list[str]) -> None:
+    """Every command the .deb puts in /usr/bin is branded, so it installs
+    next to the distribution's obs-studio (#2296)."""
+    for name in names:
+        if not name.startswith("obs-studio-rust"):
+            raise RuntimeError(f"Debian package installs /usr/bin/{name}, which upstream OBS ships too")
+
+
 def check_bundle(root: Path) -> None:
     with (root / "Contents/Info.plist").open("rb") as stream:
         metadata = plistlib.load(stream)
@@ -127,6 +135,7 @@ def main() -> None:
                 ["dpkg-deb", "--extract", str(args.path), scratch], check=True
             )
             check_appdir(Path(scratch), deb=True)
+            check_deb_commands(sorted(p.name for p in (Path(scratch) / "usr/bin").iterdir()))
     elif args.kind == "bundle":
         check_bundle(args.path)
     else:

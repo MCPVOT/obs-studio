@@ -47,7 +47,10 @@ macro(obs_frontend_platform_sources)
   obs_frontend_add_sources(LINUX)
   target_compile_definitions(
     obs-studio
-    PRIVATE OBS_INSTALL_PREFIX="${OBS_INSTALL_PREFIX}" $<$<BOOL:${ENABLE_PORTABLE_CONFIG}>:ENABLE_PORTABLE_CONFIG>
+    PRIVATE
+      OBS_INSTALL_PREFIX="${OBS_INSTALL_PREFIX}"
+      $<$<BOOL:${ENABLE_PORTABLE_CONFIG}>:ENABLE_PORTABLE_CONFIG>
+      $<$<BOOL:${OBS_NVENC_TEST_NAME}>:OBS_NVENC_TEST_NAME="${OBS_NVENC_TEST_NAME}">
   )
   target_link_libraries(obs-studio PRIVATE Qt::DBus)
 

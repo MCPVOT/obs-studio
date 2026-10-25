@@ -41,6 +41,10 @@ if(OBS_BRAND_RUST)
   set(OBS_EXECUTABLE_RPATH "$ORIGIN/;$ORIGIN/../${OBS_LIBRARY_DESTINATION}")
   set(OBS_LIBRARY_RPATH "$ORIGIN/")
   set(OBS_MODULE_RPATH "$ORIGIN/;$ORIGIN/..;$ORIGIN/../..")
+  # The helpers land in /usr/bin next to the distribution's obs-studio, so
+  # they take branded names too (#2296). Their callers get the same names.
+  set(OBS_FFMPEG_MUX_NAME obs-studio-rust-ffmpeg-mux)
+  set(OBS_NVENC_TEST_NAME obs-studio-rust-nvenc-test)
 endif()
 
 # Set additional paths used by OBS for self-discovery

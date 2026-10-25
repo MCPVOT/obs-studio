@@ -78,7 +78,12 @@ foreach(target IN LISTS _obs_nvenc_targets)
     ${target}
     PRIVATE OBS::libobs OBS::opts-parser FFnvcodec::FFnvcodec $<$<PLATFORM_ID:Linux>:OBS::glad>
   )
-  target_compile_definitions(${target} PRIVATE $<$<BOOL:${ENABLE_NVENC_FFMPEG_IDS}>:REGISTER_FFMPEG_IDS>)
+  target_compile_definitions(
+    ${target}
+    PRIVATE
+      $<$<BOOL:${ENABLE_NVENC_FFMPEG_IDS}>:REGISTER_FFMPEG_IDS>
+      $<$<BOOL:${OBS_NVENC_TEST_NAME}>:OBS_NVENC_TEST_NAME="${OBS_NVENC_TEST_NAME}">
+  )
 endforeach()
 
 if(OS_WINDOWS)
