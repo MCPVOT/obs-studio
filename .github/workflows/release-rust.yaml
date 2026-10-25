@@ -608,7 +608,7 @@ jobs:
 
           **Separate settings and app identity.** This beta uses \`obs-studio-rust\` inside your OS's usual config directory. On first launch it copies upstream OBS settings, profiles, scenes and plugin settings without changing the originals. Existing Rust settings are kept. Custom configuration, profile, scene and plugin storage locations stay selected, with a separate \`obs-studio-rust\` directory in each location. Later upstream changes are not imported automatically.
 
-          Linux installs the GUI as \`obs-studio-rust-gui\`; \`obs-studio-rust\` remains the websocket command-line client. macOS installs \`OBS-Studio-Rust.app\`. Windows and macOS use a separate app identity; the OS may ask for capture permissions again. Imported websocket settings retain their port, so close upstream OBS before connecting to the beta on that port.
+          Linux installs the GUI as \`obs-studio-rust-gui\`. macOS installs \`OBS-Studio-Rust.app\`. Windows and macOS use a separate app identity; the OS may ask for capture permissions again. Imported websocket settings retain their port, so close upstream OBS before connecting to the beta on that port.
 
           Checksums: \`SHA256SUMS\`.
           EOF
