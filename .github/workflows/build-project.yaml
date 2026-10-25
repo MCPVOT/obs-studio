@@ -1628,8 +1628,8 @@ jobs:
           # One scope for every caller (push.yaml, ci.yml), so PRs replay
           # the verdicts master publishes (forge-ci/setup-soldr#604).
           verdict-scope: build-project
-          # soldr 0.9.42 embeds zccache 1.15.5+ (has zackees/zccache#1937).
-          version: 0.9.42
+          # soldr 0.9.43 embeds zccache 1.15.5+ (has zackees/zccache#1937).
+          version: 0.9.43
           build-cache: false
           prebuild-deps-flags: ${{ needs.check-event.outputs.core == 'true' && '--release' || '--profile dev' }}
           # Host/container archive paths have different Actions-cache versions.
@@ -1795,7 +1795,7 @@ jobs:
           # One scope for every caller (push.yaml, ci.yml), so PRs replay
           # the verdicts master publishes (forge-ci/setup-soldr#604).
           verdict-scope: build-project
-          version: 0.9.42
+          version: 0.9.43
           build-cache: false
           prebuild-deps-flags: --profile dev
           cache-key-suffix: linux-host-v1
@@ -1845,7 +1845,7 @@ jobs:
           # One scope for every caller (push.yaml, ci.yml), so PRs replay
           # the verdicts master publishes (forge-ci/setup-soldr#604).
           verdict-scope: build-project
-          version: 0.9.42
+          version: 0.9.43
           build-cache: false
           prebuild-deps-flags: --profile dev
           cache-key-suffix: linux-host-v1
@@ -1889,8 +1889,8 @@ jobs:
           # One scope for every caller (push.yaml, ci.yml), so PRs replay
           # the verdicts master publishes (forge-ci/setup-soldr#604).
           verdict-scope: build-project
-          # soldr 0.9.42 embeds zccache 1.15.5+ (has zackees/zccache#1937).
-          version: 0.9.42
+          # soldr 0.9.43 embeds zccache 1.15.5+ (has zackees/zccache#1937).
+          version: 0.9.43
           build-cache: false
           prebuild-deps-flags: --profile dev
           save-cache-remote: ${{ github.ref == 'refs/heads/master' }}
@@ -2076,7 +2076,7 @@ jobs:
           # One scope for every caller (push.yaml, ci.yml), so PRs replay
           # the verdicts master publishes (forge-ci/setup-soldr#604).
           verdict-scope: build-project
-          version: 0.9.42
+          version: 0.9.43
           build-cache: false
           prebuild-deps-flags: --release
           cache-key-suffix: linux-container-v1
@@ -2476,9 +2476,9 @@ jobs:
           # One scope for every caller (push.yaml, ci.yml), so PRs replay
           # the verdicts master publishes (forge-ci/setup-soldr#604).
           verdict-scope: build-project
-          # soldr 0.9.42 embeds zccache 1.15.5+, which names MSVC staticlib
+          # soldr 0.9.43 embeds zccache 1.15.5+, which names MSVC staticlib
           # outputs <crate>-<hash>.lib (zackees/zccache#1937).
-          version: 0.9.42
+          version: 0.9.43
           build-cache: false
           prebuild-deps-flags: --release
           save-cache-remote: ${{ github.ref == 'refs/heads/master' }}
