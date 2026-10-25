@@ -179,14 +179,18 @@ package() {
         }
 
         xcrun notarytool store-credentials 'OBS-Codesign-Password' --apple-id "${CODESIGN_IDENT_USER}" --team-id "${CODESIGN_TEAM}" --password "${CODESIGN_IDENT_PASS}"
-        xcrun notarytool submit "${output_name}".dmg --keychain-profile "OBS-Codesign-Password" --wait
+        local submission
+        submission=$(xcrun notarytool submit "${output_name}".dmg --keychain-profile "OBS-Codesign-Password" --wait \
+          --output-format json | tee /dev/stderr | /usr/bin/plutil -extract id raw -o - -)
 
         local -i _status=0
 
         xcrun stapler staple ${output_name}.dmg || _status=1
 
         if (( _status )) {
-          log_error "Notarization failed. Use 'xcrun notarytool log <submission ID>' to check errors."
+          # Apple's reasons for rejecting the submission (#2424).
+          [[ ${submission} ]] && xcrun notarytool log "${submission}" --keychain-profile "OBS-Codesign-Password"
+          log_error "Notarization failed (submission ${submission:-unknown})."
           return 2
         }
       }
