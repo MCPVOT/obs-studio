@@ -19,11 +19,7 @@ FLOOR = (0, 13, 4)
 
 # A pin that installs uv some other way and waits on another repository.
 # Each entry names the issue that removes it.
-PENDING = {
-    # The image installs uv from an obs-rust/obs-studio-libs release, and
-    # there is no uv-0.13.5 one yet.
-    "build-aux/appimage/manylinux/Dockerfile": "#2370",
-}
+PENDING: dict[str, str] = {}
 
 PATTERNS = (
     # setup-uv: `version: '0.13.1'` in a step that uses astral-sh/setup-uv.

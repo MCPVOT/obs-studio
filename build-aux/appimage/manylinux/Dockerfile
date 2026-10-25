@@ -66,8 +66,8 @@ RUN /opt/python/cp312-cp312/bin/pip install --no-cache-dir ninja==1.11.1.4 swig=
 
 # uv, from obs-rust/obs-studio-libs (the first tool, since it runs the fetch of
 # the others), pinned by version and checksum.
-ARG UV_VERSION=0.12.13
-ARG UV_SHA256=cd646b7421e5e14e749247b29657ae33a8fc4f31294c57b806555c1a7423dfe9
+ARG UV_VERSION=0.13.5
+ARG UV_SHA256=8033f23836f7ffe5f9cfb1620beb830d34c7c45226b96512bee9ffd3fdb3dce1
 RUN curl -fsSL --retry 5 --retry-connrefused --retry-delay 5 -o /tmp/uv.tar.zst "https://github.com/obs-rust/obs-studio-libs/releases/download/uv-${UV_VERSION}/uv-${UV_VERSION}-linux-x86_64.tar.zst" \
  && echo "${UV_SHA256}  /tmp/uv.tar.zst" | sha256sum -c - \
  && zstd -dc /tmp/uv.tar.zst | tar -xf - -C /usr/local/bin \
