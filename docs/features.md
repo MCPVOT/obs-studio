@@ -503,6 +503,12 @@ not get a line.
   tag). Profile, scene collection, safe mode and portable mode still follow;
   `--version` and Help > About keep the upstream base version.
   *All platforms*, 2026-10-23. Issue [#1983](https://github.com/obs-rust/obs-studio/issues/1983).
+- **A hung recording share can't stall obs-websocket.** Free disk space
+  answers within 200 ms: one query per path runs at a time, and while a
+  network share hangs, callers get its last value (0 before the first). So
+  clients polling `GetStats` no longer fill obs-websocket's worker pool and
+  stop every request and event. *All platforms*, 2026-10-25.
+  Issue [#1345](https://github.com/obs-rust/obs-studio/issues/1345).
 - **The .deb brings its desktop helpers.** It recommends xdg-utils and
   xdg-desktop-portal with a backend, so on a minimal Ubuntu install Show
   Recordings, log and dialog links, and Wayland capture work after

@@ -2,6 +2,7 @@
 
 use crate::common;
 
+mod bounded_free_space;
 #[path = "../../build/gio.rs"]
 mod build_gio;
 #[cfg(all(unix, not(target_os = "macos")))]

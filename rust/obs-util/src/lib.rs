@@ -21,6 +21,7 @@ pub mod array_serializer;
 pub mod base;
 pub mod bitstream;
 pub mod bmem;
+pub mod bounded_free_space;
 pub mod buffered_file_serializer;
 pub mod cf_parser;
 pub mod cf_tokenizer;

@@ -653,7 +653,8 @@ mod shims {
         #[unsafe(no_mangle)]
         pub unsafe extern "C" fn os_get_free_disk_space(dir: *const c_char) -> u64 {
             match cstr(dir) {
-                Some(dir) => nix::free_disk_space(dir),
+                // Bounded: a hung share must not stall the caller (#1345).
+                Some(dir) => crate::bounded_free_space::shared(nix::free_disk_space).get(dir),
                 None => 0,
             }
         }

@@ -249,7 +249,13 @@ mod shims {
     /// `dir` is a C string or null.
     #[unsafe(no_mangle)]
     pub unsafe extern "C" fn os_get_free_disk_space(dir: *const c_char) -> u64 {
-        cocoa::free_disk_space(cstr(dir))
+        match cstr(dir) {
+            // Bounded: a hung share must not stall the caller (#1345).
+            Some(dir) => {
+                crate::bounded_free_space::shared(|dir| cocoa::free_disk_space(Some(dir))).get(dir)
+            }
+            None => cocoa::free_disk_space(None),
+        }
     }
 
     /// # Safety
