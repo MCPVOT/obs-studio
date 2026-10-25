@@ -21,6 +21,13 @@ static struct {
 	QPointer<OBSFallbackWarning> open;
 } fw_state;
 
+/* Any thread. Set by SetMainWindow(nullptr): no event loop will run the
+ * queue, so Warn() answers at once (#2369). Warn() queues under the same lock,
+ * so a warning is either queued before shutdown (and answered by its flush)
+ * or answered inside the call. */
+static std::mutex fw_shutdown_mutex;
+static bool fw_shut_down = false;
+
 static const char *fw_text(const char *s)
 {
 	return s ? s : "";
@@ -135,6 +142,10 @@ static void fw_pump()
 
 void SetMainWindow(QWidget *window, const Texts &texts)
 {
+	{
+		std::lock_guard<std::mutex> lock(fw_shutdown_mutex);
+		fw_shut_down = !window;
+	}
 	fw_state.window = window;
 	fw_state.texts = texts;
 	fw_state.ready = true;
@@ -151,6 +162,12 @@ void Warn(const char *id, const char *title, const char *message, bool can_cance
 	fw_log(id, message);
 
 	FwRequest r{id, fw_text(title), message, can_cancel, cb, param};
+	std::unique_lock<std::mutex> lock(fw_shutdown_mutex);
+	if (fw_shut_down) {
+		lock.unlock();
+		fw_answer(r, true);
+		return;
+	}
 	QMetaObject::invokeMethod(
 		qApp,
 		[r]() {

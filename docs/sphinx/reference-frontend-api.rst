@@ -1023,9 +1023,9 @@ Functions
    once (after the log line). At exit, an open warning closes and queued
    warnings accept.
 
-   *cb* is never called inside this call when OBS runs. In a host without
-   the OBS frontend, this call logs, then calls *cb* with *true* inside the
-   call.
+   *cb* is never called inside this call while OBS runs. In a host without
+   the OBS frontend, and after OBS has begun to shut down, this call logs,
+   then calls *cb* with *true* inside the call.
 
    See ``docs/fallback-warning.md`` in OBS-Studio-Rust
    (obs-rust/obs-studio#2218).

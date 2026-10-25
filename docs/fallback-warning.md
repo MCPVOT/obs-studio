@@ -68,10 +68,11 @@ obs_frontend_warn_fallback("browser.sandbox", obs_module_text("SandboxFallback.T
 
 - `id` is a stable name. Use `<plugin>.<fallback>`.
 - The caller translates `title` and `message`.
-- `cb` is called once, on the UI thread, never inside the call. Keep `param`
-  valid until then. `cb` can be NULL.
-- Without the OBS frontend (another host of the plugin), the call logs and
-  calls `cb` with `true` inside the call.
+- `cb` is called once. While OBS runs, it is called on the UI thread and
+  never inside the call. Keep `param` valid until then. `cb` can be NULL.
+- Without the OBS frontend (another host of the plugin), and after OBS has
+  begun to shut down, the call logs and calls `cb` with `true` inside the
+  call.
 
 The API reference is in
 [reference-frontend-api.rst](sphinx/reference-frontend-api.rst).

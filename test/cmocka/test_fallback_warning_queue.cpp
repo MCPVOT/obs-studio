@@ -333,6 +333,38 @@ static void shutdown_answers_everyone(void **)
 	assert_true(queued.answers[0].accepted);
 }
 
+/* After shutdown (SetMainWindow(nullptr)) no event loop runs the queue: a
+ * later warning logs and is answered at once, inside the call, accepted
+ * (#2369). A new main window starts the queue again. */
+static void after_shutdown_answers_inside_warn(void **)
+{
+	FallbackWarning::SetMainWindow(main_window, texts());
+	FallbackWarning::SetMainWindow(nullptr, texts());
+	settle();
+	logged.clear();
+
+	Caller &caller = new_caller();
+	FallbackWarning::Warn("test.late", "Late", "After shutdown.", true, answer, &caller);
+	assert_int_equal(caller.answers.size(), 1);
+	assert_true(caller.answers[0].accepted);
+	assert_int_equal(logged.size(), 1);
+	assert_int_equal(logged[0].level, LOG_ERROR);
+	settle();
+	assert_int_equal(caller.answers.size(), 1);
+
+	FallbackWarning::SetMainWindow(main_window, texts());
+	Caller &again = new_caller();
+	FallbackWarning::Warn("test.again", "Again", "Running.", false, answer, &again);
+	assert_true(again.answers.empty());
+	settle();
+#ifdef OBS_FRONTEND_RUST
+	for (OBSFallbackWarning *d : dialogs()) {
+		click(d, "acceptButton");
+	}
+#endif
+	assert_int_equal(again.answers.size(), 1);
+}
+
 /* No callback and NULL strings are allowed. */
 static void null_callback_and_strings(void **)
 {
@@ -364,6 +396,7 @@ int main(int argc, char **argv)
 		cmocka_unit_test_setup_teardown(waits_while_another_dialog_is_modal, setup, teardown),
 		cmocka_unit_test_setup_teardown(shutdown_answers_everyone, setup, teardown),
 		cmocka_unit_test_setup_teardown(null_callback_and_strings, setup, teardown),
+		cmocka_unit_test_setup_teardown(after_shutdown_answers_inside_warn, setup, teardown),
 	};
 	if (argc > 1) {
 		cmocka_set_test_filter(argv[1]);

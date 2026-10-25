@@ -33,8 +33,9 @@ struct Texts {
 void SetMainWindow(QWidget *window, const Texts &texts);
 
 /* Any thread. Logs now. Then, on the UI thread and never inside this call,
- * shows the dialog or accepts, and calls `cb` (if not NULL) once. NULL
- * strings are empty. */
+ * shows the dialog or accepts, and calls `cb` (if not NULL) once. After
+ * SetMainWindow(nullptr) (shutdown) it accepts at once, inside this call.
+ * NULL strings are empty. */
 void Warn(const char *id, const char *title, const char *message, bool can_cancel, Callback cb, void *param);
 
 } // namespace FallbackWarning
