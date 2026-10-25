@@ -95,6 +95,7 @@ if(ENABLE_WAYLAND)
     # reference/rollback only (sources.cmake).
     obs_libobs_add_c_sources(${LIBOBS_WAYLAND_GIO_PORTED_SOURCES})
     target_compile_definitions(libobs-objects PUBLIC HAVE_GLOBAL_SHORTCUTS_PORTAL)
+    target_compile_definitions(libobs-objects PRIVATE OBS_PORTAL_APP_ID="${OBS_DESKTOP_ID}")
   endif()
   target_enable_feature(libobs "Wayland compositor support (FreeBSD)")
 else()

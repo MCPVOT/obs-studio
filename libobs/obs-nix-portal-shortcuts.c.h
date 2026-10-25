@@ -26,7 +26,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define REQUEST_IFACE "org.freedesktop.portal.Request"
 #define SESSION_IFACE "org.freedesktop.portal.Session"
 #define REGISTRY_IFACE "org.freedesktop.host.portal.Registry"
+/* The desktop id this build installs (OBS_DESKTOP_ID, #2346). */
+#ifdef OBS_PORTAL_APP_ID
+#define APP_ID OBS_PORTAL_APP_ID
+#else
 #define APP_ID "com.obsproject.Studio"
+#endif
 
 /* How often the bindings are compared with what the portal has bound. A
  * change is bound once it has been stable for one interval, so loading a
