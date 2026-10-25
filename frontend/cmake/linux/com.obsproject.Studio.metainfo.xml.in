@@ -5,8 +5,8 @@
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>GPL-2.0-or-later</project_license>
   <name>@OBS_APP_DISPLAY_NAME@</name>
-  <developer id="com.obsproject">
-    <name>OBS Project</name>
+  <developer id="@OBS_PROJECT_DEVELOPER_ID@">
+    <name>@OBS_PROJECT_DEVELOPER_NAME@</name>
   </developer>
   <summary>Live stream and record videos</summary>
   <description>
@@ -28,11 +28,11 @@
       <li>Get a high level view of your production using the Multiview. Monitor 8 different scenes and easily cue or transition to any of them with merely a single or double click.</li>
     </ul>
   </description>
-  <url type="homepage">https://obsproject.com</url>
-  <url type="bugtracker">https://github.com/obsproject/obs-studio/issues</url>
+  <url type="homepage">@OBS_PROJECT_HOMEPAGE@</url>
+  <url type="bugtracker">@OBS_PROJECT_REPOSITORY@/issues</url>
   <url type="donation">https://obsproject.com/contribute</url>
   <url type="translate">https://crowdin.com/project/obs-studio</url>
-  <url type="vcs-browser">https://github.com/obsproject/obs-studio</url>
+  <url type="vcs-browser">@OBS_PROJECT_REPOSITORY@</url>
 
   <recommends>
     <internet>always</internet>

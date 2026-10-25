@@ -41,6 +41,10 @@ def check_appdir(root: Path, *, deb: bool = False) -> None:
         or metadata.findtext("launchable") != f"{APP_ID}.desktop"
     ):
         raise RuntimeError("packaged metainfo does not identify the Rust app")
+    links = {url.get("type"): url.text or "" for url in metadata.findall("url")}
+    for kind in ("homepage", "bugtracker", "vcs-browser"):
+        if not links.get(kind, "").startswith("https://github.com/obs-rust/"):
+            raise RuntimeError(f"packaged metainfo {kind} is {links.get(kind)!r}, not obs-rust (#2302)")
     if not (root / f"usr/bin/{GUI}").is_file():
         raise RuntimeError("packaged Rust GUI executable is missing")
     if (root / "usr/bin/obs").exists():

@@ -45,6 +45,8 @@ if(OS_LINUX)
       "xdg-utils, xdg-desktop-portal, xdg-desktop-portal-gtk | xdg-desktop-portal-backend"
     )
     set(CPACK_DEBIAN_PACKAGE_SUGGESTS "v4l2loopback-dkms")
+    set(CPACK_DEBIAN_PACKAGE_MAINTAINER "${OBS_PROJECT_DEVELOPER_NAME}")
+    set(CPACK_DEBIAN_PACKAGE_HOMEPAGE "${OBS_PROJECT_HOMEPAGE}")
   endif()
   if(OBS_BRAND_RUST AND OBS_RUST_RELEASE_VERSION)
     include(deb-version)

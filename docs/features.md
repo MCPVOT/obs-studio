@@ -498,6 +498,11 @@ not get a line.
   Recordings, log and dialog links, and Wayland capture work after
   `apt install`; it suggests v4l2loopback-dkms for the virtual camera.
   *Linux*, 2026-10-24. Issue [#2301](https://github.com/obs-rust/obs-studio/issues/2301).
+- **Software centres link to obs-rust.** The Linux AppStream metainfo names
+  obs-rust as developer and points its homepage, bug tracker and source links
+  at obs-rust/obs-studio, and the .deb's Homepage and Maintainer follow, so
+  "Report an issue" in GNOME Software or KDE Discover reaches this project.
+  *Linux*, 2026-10-24. Issue [#2302](https://github.com/obs-rust/obs-studio/issues/2302).
 
 ## Fixed upstream bugs
 
