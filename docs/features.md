@@ -412,18 +412,22 @@ not get a line.
   version it is based on, in the window title, log, About dialog,
   `--version` and package metadata. On first run it copies the upstream OBS
   settings without changing them. Plugins still see a valid OBS version.
-  *All*, 2026-10-10. Issues
+  On macOS the browser source's helper apps take the app's name too, so
+  adding a browser source no longer crashes OBS. *All*, 2026-10-10. Issues
   [#111](https://github.com/obs-rust/obs-studio/issues/111),
   [#631](https://github.com/obs-rust/obs-studio/issues/631),
   [#632](https://github.com/obs-rust/obs-studio/issues/632),
-  [#1087](https://github.com/obs-rust/obs-studio/issues/1087), PRs
+  [#1087](https://github.com/obs-rust/obs-studio/issues/1087),
+  [#2386](https://github.com/obs-rust/obs-studio/issues/2386), PRs
   [#67](https://github.com/obs-rust/obs-studio/pull/67),
   [#112](https://github.com/obs-rust/obs-studio/pull/112),
   [#510](https://github.com/obs-rust/obs-studio/pull/510),
   [#515](https://github.com/obs-rust/obs-studio/pull/515),
   [#657](https://github.com/obs-rust/obs-studio/pull/657),
   [#706](https://github.com/obs-rust/obs-studio/pull/706),
-  [#1088](https://github.com/obs-rust/obs-studio/pull/1088).
+  [#1088](https://github.com/obs-rust/obs-studio/pull/1088),
+  [#2390](https://github.com/obs-rust/obs-studio/pull/2390),
+  [obs-rust/obs-browser#9](https://github.com/obs-rust/obs-browser/pull/9).
 - **Daily beta packages.** A beta is published every day as the latest
   release: an AppImage for Linux, zips for Windows x64 (with the Visual C++
   runtime) and ARM64, and DMGs for Apple silicon and Intel Macs. *All*,
@@ -1558,6 +1562,13 @@ area.
   own goes away. *Linux*, 2026-10-25. Issue
   [#2261](https://github.com/obs-rust/obs-studio/issues/2261), upstream
   [obsproject/obs-studio#5502](https://github.com/obsproject/obs-studio/issues/5502).
+- On macOS, a first browser source created by obs-websocket (`CreateInput`)
+  renders. Before, CEF started on obs-websocket's thread, and no browser
+  source rendered for the rest of the session, also ones added in the UI
+  later. *macOS*, pending merge. Issue
+  [#2387](https://github.com/obs-rust/obs-studio/issues/2387), PRs
+  [#2390](https://github.com/obs-rust/obs-studio/pull/2390),
+  [obs-rust/obs-browser#10](https://github.com/obs-rust/obs-browser/pull/10).
 
 ### Scenes and UI
 
