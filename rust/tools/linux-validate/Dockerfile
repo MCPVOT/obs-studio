@@ -1,7 +1,7 @@
 # Linux build environment for Tier 2 validation (docs/rust-port/testing-policy.md).
 FROM ubuntu:26.04
 # The source-manifest validator runs Python through uv in local containers too.
-COPY --from=ghcr.io/astral-sh/uv:0.13.1 /uv /uvx /usr/local/bin/
+COPY --from=ghcr.io/astral-sh/uv:0.13.5 /uv /uvx /usr/local/bin/
 ENV DEBIAN_FRONTEND=noninteractive
 COPY apt-packages.txt /tmp/apt-packages.txt
 RUN apt-get update && grep -v '^#' /tmp/apt-packages.txt | xargs apt-get install -y --no-install-recommends \

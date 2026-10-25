@@ -2010,7 +2010,7 @@ jobs:
         uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
         with:
           save-cache: ${{ github.ref == 'refs/heads/master' }}
-          version: '0.13.1'
+          version: '0.13.5'
           enable-cache: false
 
       # Reuse the 339 MB of .debs every Tier 2 job downloaded (#1055): keep
@@ -2175,7 +2175,7 @@ jobs:
         uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
         with:
           save-cache: ${{ github.ref == 'refs/heads/master' }}
-          version: '0.13.1'
+          version: '0.13.5'
           enable-cache: false
 
       # Restore the existing apt family for a stock fallback; tests never save it.
