@@ -32,7 +32,7 @@ the leaderboard.
 > [!TIP]
 > **Come talk to us on [Discord](https://discord.gg/6MWWX4x9pf).** We're a
 > new project, and the people building it are there. Ask a question, tell us
-> what works or breaks on your setup (AppImage, Flatpak, your plug-ins and
+> what works or breaks on your setup (AppImage, .deb, your plug-ins and
 > capture devices), suggest an idea, or follow the port as it lands. No
 > question is too small.
 
@@ -80,8 +80,8 @@ built to do as little repeated work as possible:
   platforms. It does not build every app package.
 - **The full build runs before each release.** Once a day, and before
   anything is published, CI builds and tests everything: every platform,
-  the full app, Flatpak and the release packages. A beta only ships if
-  all of it passes.
+  the full app, a Flatpak build check and the release packages. A beta
+  only ships if all of it passes.
 - **You can prove your change locally first.** One command (`ci-lint
   local-gate run`) runs the same Linux checks on your machine and signs
   your commit. CI sees the signature and skips the checks you already
@@ -109,6 +109,14 @@ Yes. OBS Rust is fully backwards compatible with OBS Studio — the
 plug-ins you already have should work as-is. If you find one that
 doesn't, that's a bug: please [file an issue](https://github.com/obs-rust/obs-studio/issues/new/choose)
 and link it here so we can track it.
+
+**How do I install it on Linux?**
+
+Each [release](https://github.com/obs-rust/obs-studio/releases) has an
+AppImage, which runs on any distribution (`chmod +x` it and run it), and a
+.deb for Ubuntu 26.04 (`sudo apt install ./OBS-Studio-Rust-*.deb`). There is
+no OBS-Studio-Rust Flatpak yet: `com.obsproject.Studio` on Flathub is
+upstream OBS Studio, so report its bugs there.
 
 **How do I install plug-ins for the AppImage?**
 
