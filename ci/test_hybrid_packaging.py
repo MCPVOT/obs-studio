@@ -142,7 +142,7 @@ set_target_properties(obs-nvenc PROPERTIES PREFIX "")
                     self.assertIn("obs-nvenc-c-reference/", imports[1])
 
     def test_flatpak_has_the_pinned_compiler_and_offline_cargo_inputs(self):
-        manifest = json.loads((ROOT / "build-aux/com.obsproject.Studio.json").read_text())
+        manifest = json.loads((ROOT / "build-aux/io.github.obs_rust.OBSStudioRust.json").read_text())
         version = tomllib.loads((ROOT / "rust-toolchain.toml").read_text())["toolchain"]["channel"]
         compiler = next(module for module in manifest["modules"] if module["name"] == "obs-rust-toolchain")
         self.assertIn(f"rust-{version}-x86_64-unknown-linux-gnu.tar.xz", compiler["sources"][0]["url"])
@@ -157,7 +157,7 @@ set_target_properties(obs-nvenc PROPERTIES PREFIX "")
         self.assertLess(workflow.index("run: build-aux/prepare-flatpak-rust.sh"), workflow.index("- name: Build Flatpak Manifest"))
 
     def test_flatpak_keeps_debug_symbols_without_recompressing_elf(self):
-        manifest = json.loads((ROOT / "build-aux/com.obsproject.Studio.json").read_text())
+        manifest = json.loads((ROOT / "build-aux/io.github.obs_rust.OBSStudioRust.json").read_text())
         obs = next(module for module in manifest["modules"] if module["name"] == "obs")
         self.assertTrue(obs["build-options"].get("no-debuginfo-compression", False),
                         "the OBS module must not repeat costly ELF debug compression before OSTree export (#1760)")
@@ -168,7 +168,7 @@ set_target_properties(obs-nvenc PROPERTIES PREFIX "")
         self.assertIn("-DENABLE_BROWSER=ON", obs["config-opts"])
 
     def test_flatpak_caches_fast_cef_debug_compression(self):
-        manifest = json.loads((ROOT / "build-aux/com.obsproject.Studio.json").read_text())
+        manifest = json.loads((ROOT / "build-aux/io.github.obs_rust.OBSStudioRust.json").read_text())
         cef = next(module for module in manifest["modules"] if module["name"] == "cef")
         self.assertIn("eu-elfcompress -t zstd /app/cef/Release/libcef.so", cef["build-commands"],
                       "compress immutable CEF debug sections once in its cached dependency module (#1760)")
@@ -176,7 +176,7 @@ set_target_properties(obs-nvenc PROPERTIES PREFIX "")
                         "the OBS install must still split CEF symbols at their installed runtime path")
 
     def test_flatpak_pch_cache_uses_launcher_and_preserves_input_freshness(self):
-        manifest = json.loads((ROOT / "build-aux/com.obsproject.Studio.json").read_text())
+        manifest = json.loads((ROOT / "build-aux/io.github.obs_rust.OBSStudioRust.json").read_text())
         obs = next(module for module in manifest["modules"] if module["name"] == "obs")
         self.assertIn("-DENABLE_CCACHE=ON", obs["config-opts"],
                       "activate the existing PCH-aware CMake compiler launcher")
@@ -192,7 +192,7 @@ set_target_properties(obs-nvenc PROPERTIES PREFIX "")
                          "keep the existing PCH helper's bounded settings; do not weaken header freshness")
 
     def test_flatpak_cpp20_browser_sources_remain_cacheable_without_named_modules(self):
-        manifest = json.loads((ROOT / 'build-aux/com.obsproject.Studio.json').read_text())
+        manifest = json.loads((ROOT / 'build-aux/io.github.obs_rust.OBSStudioRust.json').read_text())
         obs = next(module for module in manifest['modules'] if module['name'] == 'obs')
         self.assertIn('-DCMAKE_CXX_SCAN_FOR_MODULES=OFF', obs['config-opts'],
                       'Automatic C++20 module scanning adds -fmodules-ts and makes browser sources uncacheable')
@@ -218,8 +218,8 @@ set_target_properties(obs-nvenc PROPERTIES PREFIX "")
     def test_flatpak_custom_key_matches_pinned_action_architecture_fallback(self):
         workflow = (ROOT / ".github/workflows/build-project.yaml").read_text()
         job = workflow.split("  flatpak-build:\n", 1)[1].split("\n  windows-build:", 1)[0]
-        template = re.search(r"cache_key='([^']*(?:'build-aux/com.obsproject.Studio.json')[^']*)'", job)[1]
-        expression = "${{ hashFiles('build-aux/com.obsproject.Studio.json') }}"
+        template = re.search(r"cache_key='([^']*(?:'build-aux/io.github.obs_rust.OBSStudioRust.json')[^']*)'", job)[1]
+        expression = "${{ hashFiles('build-aux/io.github.obs_rust.OBSStudioRust.json') }}"
         self.assertIn(expression, template, "preserve the original manifest identity")
         # v6.8 appends the architecture to custom keys and falls back to this
         # architecture-first prefix. Different manifests must find the same seed.
@@ -353,7 +353,7 @@ class FlatpakPrunedBuildTest(unittest.TestCase):
             (state / name).mkdir(parents=True)
             (state / name / 'original').write_text(name)
         manifest = root / 'manifest.json'
-        manifest.write_text(json.dumps({'id': 'com.obsproject.Studio', 'command': 'obs', 'modules': [
+        manifest.write_text(json.dumps({'id': 'io.github.obs_rust.OBSStudioRust', 'command': 'obs', 'modules': [
             {'name': 'dependency'}, {'name': 'obs', 'post-install': ['existing-command']},
         ]}))
         # flatpak-builder --state-dir scopes refs to the absolute manifest path.
@@ -404,8 +404,8 @@ class FlatpakPrunedBuildTest(unittest.TestCase):
                     self.assertEqual(prepared['modules'][0], {'name': 'dependency'})
                     self.assertEqual(prepared['modules'][-1]['post-install'][0], 'existing-command')
                     build = Path(command[-2])
-                    for path in ('bin/obs', 'share/app-info/icons/flatpak/128x128/com.obsproject.Studio.png',
-                                 'share/app-info/xmls/com.obsproject.Studio.xml.gz'):
+                    for path in ('bin/obs', 'share/app-info/icons/flatpak/128x128/io.github.obs_rust.OBSStudioRust.png',
+                                 'share/app-info/xmls/io.github.obs_rust.OBSStudioRust.xml.gz'):
                         target = build / 'files' / path
                         target.parent.mkdir(parents=True, exist_ok=True)
                         target.write_text('fixture')
@@ -456,8 +456,8 @@ class FlatpakPrunedBuildTest(unittest.TestCase):
                             self.assertFalse((isolated / 'ccache/original').exists())
                             self.assertNotEqual(prepared, builds[0], 'warm build must invalidate application module')
                         build = Path(command[-2])
-                        for relative in ('bin/obs', 'share/app-info/icons/flatpak/128x128/com.obsproject.Studio.png',
-                                         'share/app-info/xmls/com.obsproject.Studio.xml.gz'):
+                        for relative in ('bin/obs', 'share/app-info/icons/flatpak/128x128/io.github.obs_rust.OBSStudioRust.png',
+                                         'share/app-info/xmls/io.github.obs_rust.OBSStudioRust.xml.gz'):
                             path = build / 'files' / relative
                             path.parent.mkdir(parents=True, exist_ok=True)
                             path.write_text('fixture')

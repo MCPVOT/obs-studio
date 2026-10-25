@@ -92,7 +92,7 @@ class FlatpakCacheWriterTest(unittest.TestCase):
         workflow = (WORKFLOWS / "build-project.yaml").read_text()
         job = workflow.split("  flatpak-build:\n", 1)[1].split("  flatpak-compiler-consumer:", 1)[0]
         state = job.split('id: flatpak-state-cache', 1)[1].split('\n      - ', 1)[0]
-        key = "flatpak-builder-state-v1-x86_64-${{ hashFiles('build-aux/com.obsproject.Studio.json') }}-${{ github.sha }}"
+        key = "flatpak-builder-state-v1-x86_64-${{ hashFiles('build-aux/io.github.obs_rust.OBSStudioRust.json') }}-${{ github.sha }}"
         self.assertIn('key: ' + key, state)
         self.assertIn('flatpak-builder-state-v1-x86_64-', state)
         for marker in ['id: flatpak-builder-cache-lookup', 'name: Restore legacy Flatpak builder seed', 'id: flatpak-compiler-cache']:

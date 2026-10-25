@@ -764,7 +764,7 @@ jobs:
 
           git config --global --add safe.directory "${GITHUB_WORKSPACE}"
 
-          cache_key='flatpak-builder-x86_64-${{ hashFiles('build-aux/com.obsproject.Studio.json') }}'
+          cache_key='flatpak-builder-x86_64-${{ hashFiles('build-aux/io.github.obs_rust.OBSStudioRust.json') }}'
 
           echo "cacheKey=${cache_key}" >> $GITHUB_OUTPUT
 
@@ -782,13 +782,13 @@ jobs:
       - name: Configure Flatpak Compiler Diagnostics
         id: flatpak-compiler-diagnostic-config
         if: inputs.flatpak-compiler-diagnostics
-        run: uv run ci/flatpak_compiler_diagnostics.py configure --manifest build-aux/com.obsproject.Studio.json
+        run: uv run ci/flatpak_compiler_diagnostics.py configure --manifest build-aux/io.github.obs_rust.OBSStudioRust.json
 
       - name: Validate Flatpak manifest
         uses: ./.github/actions/flatpak-builder-lint
         with:
           artifact: manifest
-          path: build-aux/com.obsproject.Studio.json
+          path: build-aux/io.github.obs_rust.OBSStudioRust.json
 
       # New snapshots keep OSTree and compiler state together, omitting
       # downloaded inputs and transient build directories. Refresh by source
@@ -800,9 +800,9 @@ jobs:
           path: |
             .flatpak-builder/cache
             .flatpak-builder/ccache
-          key: flatpak-builder-state-v1-x86_64-${{ hashFiles('build-aux/com.obsproject.Studio.json') }}-${{ github.sha }}
+          key: flatpak-builder-state-v1-x86_64-${{ hashFiles('build-aux/io.github.obs_rust.OBSStudioRust.json') }}-${{ github.sha }}
           restore-keys: |
-            flatpak-builder-state-v1-x86_64-${{ hashFiles('build-aux/com.obsproject.Studio.json') }}-
+            flatpak-builder-state-v1-x86_64-${{ hashFiles('build-aux/io.github.obs_rust.OBSStudioRust.json') }}-
             flatpak-builder-state-v1-x86_64-
 
       - name: Record Start Time ⏱️
@@ -815,7 +815,7 @@ jobs:
           # the projected archive is restored, so old stats cannot replace the reset.
           ccache_dir="${PWD}/.flatpak-builder/ccache"
           mkdir -p "${ccache_dir}"
-          sdk="org.freedesktop.Sdk//$(sed -n 's/^ *"runtime-version": *"\([^" ]*\)".*/\1/p' build-aux/com.obsproject.Studio.json)"
+          sdk="org.freedesktop.Sdk//$(sed -n 's/^ *"runtime-version": *"\([^" ]*\)".*/\1/p' build-aux/io.github.obs_rust.OBSStudioRust.json)"
           flatpak run --command=ccache --filesystem="${ccache_dir}" --env=CCACHE_DIR="${ccache_dir}" "${sdk}" --zero-stats
 
       - name: Build Flatpak Manifest 🧾
@@ -827,7 +827,7 @@ jobs:
           # still build and upload it.
           build-bundle: ${{ fromJSON(needs.check-event.outputs.package) && (github.event_name != 'push' || github.ref_type == 'tag' || startsWith(github.ref_name, 'release/')) }}
           bundle: obs-studio-flatpak-${{ needs.check-event.outputs.commitHash }}.flatpak
-          manifest-path: ${{ github.workspace }}/build-aux/com.obsproject.Studio.json
+          manifest-path: ${{ github.workspace }}/build-aux/io.github.obs_rust.OBSStudioRust.json
           # Always on: the action passes `--ccache` to flatpak-builder only
           # when `cache` is true. It used to be off for a PR whose manifest
           # hash had no master cache, so a full PR compiled all ~700 files
@@ -887,7 +887,7 @@ jobs:
         run: |
           : Ccache Stats 📊
           ccache_dir="${PWD}/.flatpak-builder/ccache"
-          sdk="org.freedesktop.Sdk//$(sed -n 's/^ *"runtime-version": *"\([^"]*\)".*/\1/p' build-aux/com.obsproject.Studio.json)"
+          sdk="org.freedesktop.Sdk//$(sed -n 's/^ *"runtime-version": *"\([^"]*\)".*/\1/p' build-aux/io.github.obs_rust.OBSStudioRust.json)"
           run_ccache() {
             flatpak run --command=ccache --filesystem="${ccache_dir}" --env=CCACHE_DIR="${ccache_dir}" "${sdk}" "$@"
           }
@@ -906,14 +906,14 @@ jobs:
         uses: ./.github/actions/flatpak-builder-lint
         with:
           artifact: appstream
-          path: ${{ env.FLATPAK_BUILD_SHARE_PATH }}/metainfo/com.obsproject.Studio.metainfo.xml
+          path: ${{ env.FLATPAK_BUILD_SHARE_PATH }}/metainfo/io.github.obs_rust.OBSStudioRust.metainfo.xml
 
       - name: Verify Icon and Metadata in app-info
         working-directory: ${{ env.FLATPAK_BUILD_SHARE_PATH }}
         run: |
           : Verify Icon and Metadata in app-info
-          test -f app-info/icons/flatpak/128x128/com.obsproject.Studio.png || { echo "::error::Missing 128x128 icon in app-info"; exit 1; }
-          test -f app-info/xmls/com.obsproject.Studio.xml.gz || { echo "::error::Missing com.obsproject.Studio.xml.gz in app-info"; exit 1; }
+          test -f app-info/icons/flatpak/128x128/io.github.obs_rust.OBSStudioRust.png || { echo "::error::Missing 128x128 icon in app-info"; exit 1; }
+          test -f app-info/xmls/io.github.obs_rust.OBSStudioRust.xml.gz || { echo "::error::Missing io.github.obs_rust.OBSStudioRust.xml.gz in app-info"; exit 1; }
 
       - name: Validate build directory
         uses: ./.github/actions/flatpak-builder-lint
@@ -936,14 +936,14 @@ jobs:
           path: |
             .flatpak-builder/cache
             .flatpak-builder/ccache
-          key: flatpak-builder-state-v1-x86_64-${{ hashFiles('build-aux/com.obsproject.Studio.json') }}-${{ github.sha }}
+          key: flatpak-builder-state-v1-x86_64-${{ hashFiles('build-aux/io.github.obs_rust.OBSStudioRust.json') }}-${{ github.sha }}
 
       - name: Measure Flatpak Cache Capacity
         if: inputs.flatpak-cache-probe
         timeout-minutes: 15
         run: |
           uv run ci/flatpak_cache_probe.py \
-            --manifest build-aux/flatpak-github-action-modified-com.obsproject.Studio.json \
+            --manifest build-aux/flatpak-github-action-modified-io.github.obs_rust.OBSStudioRust.json \
             --temp-root "${RUNNER_TEMP}" --output "${RUNNER_TEMP}/flatpak-cache-probe.json"
 
       - name: Upload Flatpak Cache Measurement
@@ -960,7 +960,7 @@ jobs:
         timeout-minutes: 40
         run: |
           uv run ci/flatpak_pruned_build_probe.py --compiler-reuse \
-            --manifest build-aux/flatpak-github-action-modified-com.obsproject.Studio.json \
+            --manifest build-aux/flatpak-github-action-modified-io.github.obs_rust.OBSStudioRust.json \
             --temp-root "${RUNNER_TEMP}" --output "${RUNNER_TEMP}/flatpak-pruned-build.json"
 
       - name: Upload Pruned Flatpak Evidence
@@ -976,7 +976,7 @@ jobs:
       - name: Pack Experimental Flatpak Dependency Artifact
         if: inputs.flatpak-dependency-transfer-probe
         run: |
-          timeout 600s uv run ci/flatpak_dependency_cache.py pack --manifest build-aux/com.obsproject.Studio.json \
+          timeout 600s uv run ci/flatpak_dependency_cache.py pack --manifest build-aux/io.github.obs_rust.OBSStudioRust.json \
             --cache .flatpak-builder/cache --artifact "$RUNNER_TEMP/flatpak-dependency-transfer"
       - name: Upload Experimental Flatpak Dependency Artifact
         if: inputs.flatpak-dependency-transfer-probe
@@ -990,7 +990,7 @@ jobs:
       - name: Pack Experimental Flatpak Compiler Artifact
         if: inputs.flatpak-compiler-transfer-probe
         run: |
-          uv run ci/flatpak_compiler_cache.py pack --manifest build-aux/com.obsproject.Studio.json \
+          uv run ci/flatpak_compiler_cache.py pack --manifest build-aux/io.github.obs_rust.OBSStudioRust.json \
             --cache .flatpak-builder/ccache --artifact "$RUNNER_TEMP/flatpak-compiler-transfer"
       - name: Upload Experimental Flatpak Compiler Artifact
         if: inputs.flatpak-compiler-transfer-probe
@@ -1105,7 +1105,7 @@ jobs:
         uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: .flatpak-builder
-          key: flatpak-builder-x86_64-${{ hashFiles('build-aux/com.obsproject.Studio.json') }}-x86_64
+          key: flatpak-builder-x86_64-${{ hashFiles('build-aux/io.github.obs_rust.OBSStudioRust.json') }}-x86_64
           restore-keys: flatpak-builder-x86_64
       - name: Download Experimental Compiler Artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -1118,7 +1118,7 @@ jobs:
           # Use the same dependency preparation before comparing identities;
           # any remaining SDK/compiler drift must still reject the archive.
           timeout 300s flatpak-builder --install-deps-only --install-deps-from=flathub \
-            --arch=x86_64 --state-dir "$RUNNER_TEMP/flatpak-sdk-prep" flatpak_app build-aux/com.obsproject.Studio.json
+            --arch=x86_64 --state-dir "$RUNNER_TEMP/flatpak-sdk-prep" flatpak_app build-aux/io.github.obs_rust.OBSStudioRust.json
       - name: Download Experimental Dependency Artifact
         if: inputs.flatpak-dependency-transfer-probe
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -1128,28 +1128,28 @@ jobs:
       - name: Restore Experimental Dependency Artifact
         if: inputs.flatpak-dependency-transfer-probe
         run: |
-          timeout 600s uv run ci/flatpak_dependency_cache.py restore --manifest build-aux/com.obsproject.Studio.json \
+          timeout 600s uv run ci/flatpak_dependency_cache.py restore --manifest build-aux/io.github.obs_rust.OBSStudioRust.json \
             --cache .flatpak-builder/cache --artifact "$RUNNER_TEMP/flatpak-dependency-transfer"
       - name: Verify and Restore Compiler Artifact Last
         run: |
-          uv run ci/flatpak_compiler_cache.py restore --manifest build-aux/com.obsproject.Studio.json \
+          uv run ci/flatpak_compiler_cache.py restore --manifest build-aux/io.github.obs_rust.OBSStudioRust.json \
             --cache .flatpak-builder/ccache --artifact "$RUNNER_TEMP/flatpak-compiler-transfer" \
             > "$RUNNER_TEMP/flatpak-compiler-transfer/consumer-restore.json"
-          uv run ci/flatpak_compiler_cache.py reset --manifest build-aux/com.obsproject.Studio.json \
+          uv run ci/flatpak_compiler_cache.py reset --manifest build-aux/io.github.obs_rust.OBSStudioRust.json \
             --cache .flatpak-builder/ccache --artifact "$RUNNER_TEMP/flatpak-compiler-transfer"
       - name: Force Application Work Without Changing Compiler Inputs
         run: |
-          uv run ci/flatpak_compiler_cache.py force --manifest build-aux/com.obsproject.Studio.json \
+          uv run ci/flatpak_compiler_cache.py force --manifest build-aux/io.github.obs_rust.OBSStudioRust.json \
             --cache .flatpak-builder/ccache --artifact "$RUNNER_TEMP/flatpak-compiler-transfer"
       - name: Record Experimental Dependency Reuse
         if: inputs.flatpak-dependency-transfer-probe
         run: |
-          uv run ci/flatpak_dependency_cache.py instrument --manifest build-aux/com.obsproject.Studio.json \
+          uv run ci/flatpak_dependency_cache.py instrument --manifest build-aux/io.github.obs_rust.OBSStudioRust.json \
             --cache .flatpak-builder/cache --artifact "$RUNNER_TEMP/flatpak-dependency-transfer" >> "$GITHUB_PATH"
       - name: Build Full Flatpak Compiler Consumer
         uses: flatpak/flatpak-github-actions/flatpak-builder@79327416609af08178ad73b352877e51450790b3 # v6.8
         with:
-          manifest-path: ${{ github.workspace }}/build-aux/com.obsproject.Studio.json
+          manifest-path: ${{ github.workspace }}/build-aux/io.github.obs_rust.OBSStudioRust.json
           build-bundle: false
           cache: true
           restore-cache: false
@@ -1158,17 +1158,17 @@ jobs:
       - name: Verify All Dependency Modules Were Reused
         if: inputs.flatpak-dependency-transfer-probe
         run: |
-          uv run ci/flatpak_dependency_cache.py verify --manifest build-aux/com.obsproject.Studio.json \
+          uv run ci/flatpak_dependency_cache.py verify --manifest build-aux/io.github.obs_rust.OBSStudioRust.json \
             --cache .flatpak-builder/cache --artifact "$RUNNER_TEMP/flatpak-dependency-transfer"
       - name: Verify Substantial Cross Runner Compiler Reuse
         run: |
-          uv run ci/flatpak_compiler_cache.py verify --manifest build-aux/com.obsproject.Studio.json \
+          uv run ci/flatpak_compiler_cache.py verify --manifest build-aux/io.github.obs_rust.OBSStudioRust.json \
             --cache .flatpak-builder/ccache --artifact "$RUNNER_TEMP/flatpak-compiler-transfer"
       - name: Validate Compiler Consumer AppStream
         uses: ./.github/actions/flatpak-builder-lint
         with:
           artifact: appstream
-          path: flatpak_app/files/share/metainfo/com.obsproject.Studio.metainfo.xml
+          path: flatpak_app/files/share/metainfo/io.github.obs_rust.OBSStudioRust.metainfo.xml
       - name: Validate Compiler Consumer Build Directory
         uses: ./.github/actions/flatpak-builder-lint
         with:

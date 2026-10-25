@@ -19,7 +19,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parent.parent
 HELPERS = ROOT / "cmake/linux/helpers.cmake"
-MANIFEST = ROOT / "build-aux/com.obsproject.Studio.json"
+MANIFEST = ROOT / "build-aux/io.github.obs_rust.OBSStudioRust.json"
 FILES = ROOT / "ci/data/cef-linux-x86_64-files.txt"
 
 

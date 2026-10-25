@@ -12,7 +12,7 @@ parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--output', required=True, type=Path, help='new directory for isolated cache and retained evidence')
 args = parser.parse_args()
 repo = Path(__file__).resolve().parent.parent
-manifest_path = repo / 'build-aux/com.obsproject.Studio.json'
+manifest_path = repo / 'build-aux/io.github.obs_rust.OBSStudioRust.json'
 manifest = json.loads(manifest_path.read_text())
 obs = next(module for module in manifest['modules'] if module['name'] == 'obs')
 root = args.output.resolve()

@@ -1,9 +1,9 @@
 {
-    "id": "com.obsproject.Studio",
+    "id": "io.github.obs_rust.OBSStudioRust",
     "runtime": "org.freedesktop.Platform",
     "runtime-version": "26.08",
     "sdk": "org.freedesktop.Sdk",
-    "command": "obs",
+    "command": "obs-studio-rust-gui",
     "finish-args": [
         "--socket=wayland",
         "--socket=fallback-x11",
@@ -20,7 +20,7 @@
         "--env=VST_PATH=/app/extensions/Plugins/vst"
     ],
     "add-extensions": {
-        "com.obsproject.Studio.Plugin": {
+        "io.github.obs_rust.OBSStudioRust.Plugin": {
             "directory": "plugins",
             "versions": "stable;test",
             "subdirectories": true,
@@ -172,7 +172,7 @@
                 "-DENABLE_LIBFDK=ON",
                 "-DENABLE_QSV11=ON",
                 "-DENABLE_DECKLINK=OFF",
-                "-DOBS_BRAND_RUST=OFF",
+                "-DOBS_BRAND_RUST=ON",
                 "-DOBS_LIBOBS_BACKEND=HYBRID",
                 "-DFETCHCONTENT_SOURCE_DIR_CORROSION=/run/build/obs/.flatpak-rust/corrosion"
             ],

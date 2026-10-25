@@ -140,7 +140,12 @@ AppImage, which runs on any distribution (`chmod +x` it and run it), and a
 The AppImage is tested on AlmaLinux 8 (the glibc 2.28 floor), Ubuntu 22.04,
 Ubuntu 24.04, Arch Linux and NixOS. There is
 no OBS-Studio-Rust Flatpak yet: `com.obsproject.Studio` on Flathub is
-upstream OBS Studio, so report its bugs there.
+upstream OBS Studio, so report its bugs there. Ours will install as
+`io.github.obs_rust.OBSStudioRust`, beside upstream's rather than over it.
+It keeps its settings in its own folder, so to bring over your scenes from
+upstream's Flatpak, copy `~/.var/app/com.obsproject.Studio/config/obs-studio`
+to `~/.var/app/io.github.obs_rust.OBSStudioRust/config/obs-studio`. Its
+plug-ins go in `~/.var/app/io.github.obs_rust.OBSStudioRust/data/obs-studio/plugins/`.
 
 **How do I install plug-ins for the AppImage?**
 

@@ -44,7 +44,7 @@ def ubuntu_url(spec: dict, target: str) -> str:
 
 
 def flatpak_cef() -> dict:
-    manifest = json.loads((ROOT / "build-aux/com.obsproject.Studio.json").read_text())
+    manifest = json.loads((ROOT / "build-aux/io.github.obs_rust.OBSStudioRust.json").read_text())
     for module in manifest["modules"]:
         if isinstance(module, dict) and module.get("name") == "cef":
             return module["sources"][0]

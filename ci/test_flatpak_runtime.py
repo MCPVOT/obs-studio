@@ -56,8 +56,8 @@ class FlatpakRuntimeTest(unittest.TestCase):
 
     def test_export_requires_matching_debug_architecture_and_branch(self):
         module = self.module()
-        app = 'com.obsproject.Studio/x86_64/master'
-        debug = 'com.obsproject.Studio.Debug/x86_64/master'
+        app = 'io.github.obs_rust.OBSStudioRust/x86_64/master'
+        debug = 'io.github.obs_rust.OBSStudioRust.Debug/x86_64/master'
         self.assertEqual(module.select_refs([app, debug]), (app, debug))
         for refs in ([app], [app, debug.replace('x86_64', 'aarch64')],
                      [app, debug.replace('master', 'stable')], [app, debug, app.replace('master', 'stable')]):
@@ -67,10 +67,10 @@ class FlatpakRuntimeTest(unittest.TestCase):
     def test_actual_exported_remote_refs_have_kind_prefixes(self):
         module = self.module()
         # Exact remote-ls output from hosted qualification 39754042722.
-        refs = ['app/com.obsproject.Studio/x86_64/master',
-                'runtime/com.obsproject.Studio.Debug/x86_64/master']
-        self.assertEqual(module.select_refs(refs), ('com.obsproject.Studio/x86_64/master',
-                                                   'com.obsproject.Studio.Debug/x86_64/master'))
+        refs = ['app/io.github.obs_rust.OBSStudioRust/x86_64/master',
+                'runtime/io.github.obs_rust.OBSStudioRust.Debug/x86_64/master']
+        self.assertEqual(module.select_refs(refs), ('io.github.obs_rust.OBSStudioRust/x86_64/master',
+                                                   'io.github.obs_rust.OBSStudioRust.Debug/x86_64/master'))
         with self.assertRaises(ValueError):
             module.select_refs([refs[0], refs[1].replace('runtime/', 'app/')])
 
@@ -81,8 +81,8 @@ class FlatpakRuntimeTest(unittest.TestCase):
         def flatpak(args, **kwargs):
             if 'remote-ls' in args:
                 # Real CLI semantics: locale/debug refs are hidden without --all.
-                return 'com.obsproject.Studio/x86_64/master\n' + (
-                    'com.obsproject.Studio.Debug/x86_64/master\n' if '--all' in args else '')
+                return 'io.github.obs_rust.OBSStudioRust/x86_64/master\n' + (
+                    'io.github.obs_rust.OBSStudioRust.Debug/x86_64/master\n' if '--all' in args else '')
             if 'install' in args:
                 raise ReachedInstall()
             return ''
@@ -115,11 +115,11 @@ class FlatpakRuntimeTest(unittest.TestCase):
     def test_profile_environment_is_set_inside_flatpak_sandbox(self):
         module = self.module()
         # Flatpak rewrites XDG_CONFIG_HOME after processing --env options.
-        command = module.app_command(Path('/tmp/qualification evidence'), 'com.obsproject.Studio/x86_64/master')
-        app_index = command.index('com.obsproject.Studio/x86_64/master')
+        command = module.app_command(Path('/tmp/qualification evidence'), 'io.github.obs_rust.OBSStudioRust/x86_64/master')
+        app_index = command.index('io.github.obs_rust.OBSStudioRust/x86_64/master')
         self.assertIn('--command=env', command[:app_index])
         self.assertIn('XDG_CONFIG_HOME=/tmp/qualification evidence/profile', command[app_index + 1:])
-        self.assertEqual(command[app_index + 2], '/app/bin/obs')
+        self.assertEqual(command[app_index + 2], '/app/bin/obs-studio-rust-gui')
         self.assertFalse(any(arg.startswith('--env=XDG_CONFIG_HOME=') for arg in command))
 
     def test_wait_for_version_retries_only_explicit_not_ready(self):

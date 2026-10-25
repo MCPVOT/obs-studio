@@ -21,7 +21,7 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-APP = 'com.obsproject.Studio'
+APP = 'io.github.obs_rust.OBSStudioRust'
 
 
 def check_browser_pixels(pixels: bytes) -> None:
@@ -140,7 +140,7 @@ def app_command(output: Path, app_ref: str) -> list[str]:
     return ['flatpak', '--user', 'run', f'--filesystem={output}',
             '--env=LIBGL_ALWAYS_SOFTWARE=1', '--env=QT_QPA_PLATFORM=xcb',
             '--command=env', app_ref, f'XDG_CONFIG_HOME={output / "profile"}',
-            '/app/bin/obs', '--disable-shutdown-check', '--verbose', '--profile', 'Test', '--collection', 'Test']
+            '/app/bin/obs-studio-rust-gui', '--disable-shutdown-check', '--verbose', '--profile', 'Test', '--collection', 'Test']
 
 
 class Session:
@@ -348,7 +348,7 @@ def qualification(args) -> dict:  # noqa: C901
         finally:
             ws.close()
         # Signal only the process executing this installation's binary.
-        executable = installed / 'files/bin/obs'
+        executable = installed / 'files/bin/obs-studio-rust-gui'
         processes = []
         for process in Path('/proc').glob('[0-9]*'):
             try:
