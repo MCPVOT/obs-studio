@@ -42,6 +42,8 @@ mod media_remux;
 mod module_source_rules;
 #[path = "port_comparison/module_type_rules.rs"]
 mod module_type_rules;
+#[path = "port_comparison/output_raw_audio.rs"]
+mod output_raw_audio;
 #[path = "port_comparison/output_stop_stats.rs"]
 mod output_stop_stats;
 #[path = "port_comparison/output_video_checks.rs"]
@@ -186,6 +188,7 @@ fn comparisons(criterion: &mut Criterion) {
         media_remux,
         module_source_rules,
         module_type_rules,
+        output_raw_audio,
         output_stop_stats,
         output_video_checks,
         scene,
