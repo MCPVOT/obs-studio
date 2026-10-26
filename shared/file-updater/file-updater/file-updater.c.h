@@ -110,12 +110,9 @@ static bool do_http_request(struct update_info *info, const char *url, long *res
 	curl_easy_setopt(info->curl, CURLOPT_WRITEDATA, info);
 	curl_easy_setopt(info->curl, CURLOPT_FAILONERROR, 1L);
 	curl_easy_setopt(info->curl, CURLOPT_NOSIGNAL, 1L);
-	/* Not "": the empty string advertises every encoding libcurl was built
-	 * with, br included, which hands our response bytes to the Brotli
-	 * decoder with a public out-of-bounds write (CVE-2026-111497,
-	 * GHSA-c2vc-wwm8-6gx9). Ask for gzip and deflate only until the
-	 * linked Brotli is past the vulnerable range; #2211 is the restore. */
-	curl_easy_setopt(info->curl, CURLOPT_ACCEPT_ENCODING, "gzip, deflate");
+	/* Never br, and only codings this libcurl decodes (#2213, #2453). */
+	curl_easy_setopt(info->curl, CURLOPT_ACCEPT_ENCODING,
+			 obs_curl_accept_encoding(curl_version_info(CURLVERSION_NOW)));
 	curl_obs_set_revoke_setting(info->curl);
 
 	if (!info->remote_url) {

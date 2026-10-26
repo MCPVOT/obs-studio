@@ -2207,3 +2207,8 @@ area.
   so localized modifier names never produce a wrong key. *Linux (KDE, GNOME
   portal)*, 2026-10-25. Issue
   [#401](https://github.com/obs-rust/obs-studio/issues/401).
+- On Windows, the service list and game capture list update from
+  obsproject.com again, and YouTube API calls work. OBS's HTTP calls now ask
+  only for compressions the bundled libcurl can decode (Windows' has no
+  zlib), and still never brotli. *Windows; all platforms use the same rule*,
+  2026-10-26. Issue [#2453](https://github.com/obs-rust/obs-studio/issues/2453).

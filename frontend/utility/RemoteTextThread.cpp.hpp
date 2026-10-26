@@ -65,13 +65,9 @@ void RemoteTextThread::run()
 		}
 
 		curl_easy_setopt(curl.get(), CURLOPT_URL, url.c_str());
-		/* Not "": the empty string advertises every encoding libcurl was
-		 * built with, br included, which hands our response bytes to the
-		 * Brotli decoder with a public out-of-bounds write
-		 * (CVE-2026-111497, GHSA-c2vc-wwm8-6gx9). Gzip and deflate only
-		 * until the linked Brotli is past the vulnerable range; #2211 is
-		 * the restore. */
-		curl_easy_setopt(curl.get(), CURLOPT_ACCEPT_ENCODING, "gzip, deflate");
+		/* Never br, and only codings this libcurl decodes (#2213, #2453). */
+		curl_easy_setopt(curl.get(), CURLOPT_ACCEPT_ENCODING,
+				 obs_curl_accept_encoding(curl_version_info(CURLVERSION_NOW)));
 		curl_easy_setopt(curl.get(), CURLOPT_HTTPHEADER, header);
 		curl_easy_setopt(curl.get(), CURLOPT_ERRORBUFFER, error);
 		curl_easy_setopt(curl.get(), CURLOPT_FAILONERROR, 1L);
@@ -154,13 +150,9 @@ bool GetRemoteFile(const char *url, std::string &str, std::string &error, long *
 		}
 
 		curl_easy_setopt(curl.get(), CURLOPT_URL, url);
-		/* Not "": the empty string advertises every encoding libcurl was
-		 * built with, br included, which hands our response bytes to the
-		 * Brotli decoder with a public out-of-bounds write
-		 * (CVE-2026-111497, GHSA-c2vc-wwm8-6gx9). Gzip and deflate only
-		 * until the linked Brotli is past the vulnerable range; #2211 is
-		 * the restore. */
-		curl_easy_setopt(curl.get(), CURLOPT_ACCEPT_ENCODING, "gzip, deflate");
+		/* Never br, and only codings this libcurl decodes (#2213, #2453). */
+		curl_easy_setopt(curl.get(), CURLOPT_ACCEPT_ENCODING,
+				 obs_curl_accept_encoding(curl_version_info(CURLVERSION_NOW)));
 		curl_easy_setopt(curl.get(), CURLOPT_HTTPHEADER, header);
 		curl_easy_setopt(curl.get(), CURLOPT_ERRORBUFFER, error_in);
 		if (fail_on_error) {

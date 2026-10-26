@@ -117,6 +117,7 @@
 
 /* utility/RemoteTextThread.cpp */
 #include "frontend/utility/RemoteTextThread.hpp"
+#include "shared/file-updater/file-updater/curl-accept-encoding.h"
 
 #include <util/curl/curl-helper.h>
 

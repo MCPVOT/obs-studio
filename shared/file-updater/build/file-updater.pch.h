@@ -13,3 +13,4 @@
 #include <util/dstr.h>
 #include <obs-data.h>
 #include "file-updater/file-updater.h"
+#include "file-updater/curl-accept-encoding.h"
