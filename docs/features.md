@@ -2195,3 +2195,8 @@ area.
   so localized modifier names never produce a wrong key. *Linux (KDE, GNOME
   portal)*, 2026-10-25. Issue
   [#401](https://github.com/obs-rust/obs-studio/issues/401).
+- The AppImage starts on NixOS Wayland sessions. It points the bundled
+  libxkbcommon at the host's keyboard data (`/etc/X11/xkb`) when
+  `/usr/share/X11/xkb` is missing; before, Qt's Wayland plugin crashed at
+  start. *Linux (AppImage)*, 2026-10-26. Issue
+  [#2437](https://github.com/obs-rust/obs-studio/issues/2437).

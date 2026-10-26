@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Host driver search paths that AppRun hands to OBS (obs-rust/obs-studio#722).
+# Host driver search paths that AppRun hands to OBS (obs-rust/obs-studio#722),
+# and the keyboard data root (XKB_CONFIG_ROOT, #2437).
 #
 # On NixOS the GPU driver closure lives under /run/opengl-driver, where no
 # library looks by default. Without these variables NVIDIA on NixOS Wayland
@@ -17,6 +18,11 @@
 #         none:  no /run/opengl-driver; every variable lists exactly the
 #                standard directories that exist, or is unset if none does.
 #         user:  every variable is preset by the user and reaches obs unchanged.
+#       In nixos and none, XKB_CONFIG_ROOT is unset when /usr/share/X11/xkb
+#       exists (the bundled libxkbcommon's default), else the first of
+#       XKB_FALLBACKS that exists on this host. NixOS has no
+#       /usr/share/X11/xkb, and without keyboard data Qt's Wayland plugin
+#       crashed at start.
 #   test-apprun-driver-env.sh --check <pid> <nixos|none>
 #       Only the check, against a running obs process (test-appimage.sh uses
 #       this for the real packaged OBS).
@@ -30,6 +36,28 @@ DRIVER_VARS=(
     "__EGL_EXTERNAL_PLATFORM_CONFIG_DIRS|/run/opengl-driver/share/egl/egl_external_platform.d|/etc/egl/egl_external_platform.d /usr/share/egl/egl_external_platform.d"
     "VK_DRIVER_FILES|/run/opengl-driver/share/vulkan/icd.d|/etc/vulkan/icd.d /usr/share/vulkan/icd.d"
 )
+
+# libxkbcommon's compiled default, then where hosts without it keep the data.
+XKB_DEFAULT=/usr/share/X11/xkb
+XKB_FALLBACKS="/etc/X11/xkb /run/current-system/sw/share/X11/xkb"
+
+# The XKB_CONFIG_ROOT obs should see for case $1, as env_of prints it.
+xkb_want() {
+    local d
+    if [ "$1" = user ]; then
+        printf 'set:/user/selected/XKB_CONFIG_ROOT'
+        return
+    fi
+    if [ ! -d "$XKB_DEFAULT" ]; then
+        for d in $XKB_FALLBACKS; do
+            if [ -d "$d" ]; then
+                printf 'set:%s' "$d"
+                return
+            fi
+        done
+    fi
+    printf 'unset'
+}
 
 # A NixOS driver tree with the NVIDIA EGL Wayland platform that went missing.
 make_nixos_tree() {
@@ -84,6 +112,14 @@ check() {
             rc=1
         fi
     done
+    want="$(xkb_want "$kind")"
+    got="$(env_of "$pid" XKB_CONFIG_ROOT)"
+    if [ "$got" = "$want" ]; then
+        echo "PASS [$kind] XKB_CONFIG_ROOT: $got"
+    else
+        echo "FAIL [$kind] XKB_CONFIG_ROOT: expected $want, obs has $got"
+        rc=1
+    fi
     return "$rc"
 }
 
@@ -142,12 +178,13 @@ if [ "${1:-}" = --in-namespace ]; then
             IFS='|' read -r name _ <<<"$entry"
             export "$name=/user/selected/$name"
         done
+        export XKB_CONFIG_ROOT=/user/selected/XKB_CONFIG_ROOT
         make_nixos_tree # a user's choice wins even on NixOS
         export NIX_LD_LIBRARY_PATH=/run/opengl-driver/lib:/user/selected
     else
         export NIX_LD_LIBRARY_PATH=/nix/ld/default
         unset GBM_BACKENDS_PATH LIBVA_DRIVERS_PATH __EGL_VENDOR_LIBRARY_DIRS __EGL_VENDOR_LIBRARY_FILENAMES \
-            __EGL_EXTERNAL_PLATFORM_CONFIG_DIRS __EGL_EXTERNAL_PLATFORM_CONFIG_FILENAMES VK_DRIVER_FILES VK_ICD_FILENAMES
+            __EGL_EXTERNAL_PLATFORM_CONFIG_DIRS __EGL_EXTERNAL_PLATFORM_CONFIG_FILENAMES VK_DRIVER_FILES VK_ICD_FILENAMES XKB_CONFIG_ROOT
     fi
     "$appdir/AppRun" >"$appdir/apprun-$kind.log" 2>&1 &
     apprun=$!
@@ -196,7 +233,7 @@ for kind in nixos none user; do
     unshare -rm bash "$SELF" --in-namespace "$APPDIR" "$kind" || FAILED=1
 done
 if [ "$FAILED" = 1 ]; then
-    echo "AppRun does not hand OBS the host driver search paths it should (see FAIL above)"
+    echo "AppRun does not hand OBS the host driver search paths and keyboard data it should (see FAIL above)"
     exit 1
 fi
-echo "AppRun hands OBS the host driver search paths"
+echo "AppRun hands OBS the host driver search paths and keyboard data"
