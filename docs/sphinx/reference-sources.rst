@@ -1238,6 +1238,23 @@ General Source Functions
                  | OBS_MONITORING_TYPE_MONITOR_ONLY - Send to monitor device, no outputs
                  | OBS_MONITORING_TYPE_MONITOR_AND_OUTPUT - Send to monitor device and outputs
 
+   Since 33.0, monitoring is on or off, and the monitor plays a source even
+   when it is muted. OBS_MONITORING_TYPE_MONITOR_ONLY turns monitoring on
+   and mutes the source; OBS_MONITORING_TYPE_MONITOR_AND_OUTPUT turns
+   monitoring on and unmutes it; OBS_MONITORING_TYPE_NONE turns monitoring
+   off and leaves the mute, except that it unmutes a source whose mute
+   OBS_MONITORING_TYPE_MONITOR_ONLY set, if nothing has set the mute since.
+   The getter reports a monitored source that is muted as
+   OBS_MONITORING_TYPE_MONITOR_ONLY, and one that is not muted as
+   OBS_MONITORING_TYPE_MONITOR_AND_OUTPUT.
+
+   Note that OBS_MONITORING_TYPE_MONITOR_AND_OUTPUT unmutes the source, even
+   if the user muted it. Before 33.0 the monitoring type and the mute were
+   independent, so a muted source set to Monitor and Output stayed silent.
+   Now, setting Monitor and Output on a muted source, such as a microphone,
+   makes it audible in the outputs. Check
+   :c:func:`obs_source_muted()` first if a plugin must not unmute a source.
+
 ---------------------
 
 .. function:: void obs_source_set_monitoring_enabled(obs_source_t *source, bool enable)
