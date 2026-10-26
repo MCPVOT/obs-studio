@@ -226,6 +226,13 @@ static char *sanitize_device_name(char *name)
 
 static char **coreaudio_get_channel_names(struct coreaudio_data *ca)
 {
+	/* A device with no capture stream reports zero channels, and bzalloc(0) is a
+	 * deliberate crash in libobs (#2482). Callers index this only up to
+	 * available_channels, which is zero here. */
+	if (!ca->available_channels) {
+		return NULL;
+	}
+
 	char **channel_names = bzalloc(sizeof(char *) * ca->available_channels);
 
 	for (uint32_t i = 0; i < ca->available_channels; i++) {
@@ -289,9 +296,15 @@ static bool coreaudio_init_format(struct coreaudio_data *ca)
 		return false;
 	}
 
-	ca->available_channels = inputDescription.mChannelsPerFrame;
-	if (ca->available_channels > MAX_DEVICE_INPUT_CHANNELS) {
-		ca->available_channels = MAX_DEVICE_INPUT_CHANNELS;
+	/* A pure output device (the built-in speakers while they are the system
+	 * default output) answers the query above with noErr and zero channels; it has
+	 * no capture stream at all. Taking that count into the channel-name
+	 * allocation crashed OBS while the scene collection was loading (#2482). */
+	if (!coreaudio_capture_format(inputDescription.mChannelsPerFrame, MAX_DEVICE_INPUT_CHANNELS,
+				      &ca->available_channels)) {
+		ca_warn(ca, "coreaudio_init_format", "no capture stream: %u channels at %g Hz",
+			(unsigned int)inputDescription.mChannelsPerFrame, inputDescription.mSampleRate);
+		return false;
 	}
 
 	ca->channel_names = coreaudio_get_channel_names(ca);

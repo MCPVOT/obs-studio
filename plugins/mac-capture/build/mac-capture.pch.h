@@ -24,3 +24,4 @@
 #include <util/c99defs.h>
 
 #include "plugins/mac-capture/coreaudio-retry.h"
+#include "plugins/mac-capture/coreaudio-format.h"

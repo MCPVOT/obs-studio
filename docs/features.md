@@ -1939,6 +1939,13 @@ area.
   crashes when the source's size is read while a filter is being attached; a
   filter with no target yet reports a size of 0. *All*, 2026-10-24. Issue
   [#2172](https://github.com/obs-rust/obs-studio/issues/2172).
+- Desktop Audio (`coreaudio_output_capture`) on a device with no capture
+  stream (the built-in speakers while they are the system default output) no
+  longer crashes OBS while the scene collection loads. The device reports zero
+  channels, which reached a zero-size allocation that libobs turns into an
+  abort; initialization now fails with a warning in the log and the reconnect
+  thread retries with backoff. *macOS*, pending merge. Issue
+  [#2482](https://github.com/obs-rust/obs-studio/issues/2482).
 - DeckLink output no longer crashes when a saved output mode is one the
   device doesn't offer (settings from another card or firmware); the start
   fails with an error in the log. An HDR start with no video conversion
