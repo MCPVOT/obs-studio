@@ -76,8 +76,32 @@ def select_refs(refs: list[str]) -> tuple[str, str]:
     return app_ref, debug_ref
 
 
+def install_commands(flatpak: list[str], app_ref: str, debug_ref: str, bundle: Path | None) -> list[list[str]]:
+    """Install the app from the release bundle when given (#2400), else from
+    the exported repo. A bundle holds only the app, so the Debug extension
+    always comes from the repo the bundle was built from."""
+    install = [*flatpak, 'install', '-y', '--noninteractive']
+    if bundle is None:
+        return [[*install, 'qualification', app_ref, debug_ref]]
+    return [[*install, '--bundle', str(bundle)], [*install, 'qualification', debug_ref]]
+
+
+def check_origin(origin: str, bundle: bool) -> None:
+    if bundle and origin == 'qualification':
+        raise RuntimeError('the app was installed from the repo, not from the bundle')
+
+
+# OBS_CONFIG_DIRECTORY of the Rust brand (frontend/utility/AppIdentity.hpp),
+# which the Flatpak builds with (#2358).
+CONFIG_DIRECTORY = 'obs-studio-rust'
+
+
+def logs_directory(output: Path) -> Path:
+    return output / 'profile' / CONFIG_DIRECTORY / 'logs'
+
+
 def write_profile(output: Path, port: int, password: str) -> None:
-    config = output / 'profile/obs-studio'
+    config = output / 'profile' / CONFIG_DIRECTORY
     profile = config / 'basic/profiles/Test'
     profile.mkdir(parents=True)
     scenes = config / 'basic/scenes'
@@ -277,7 +301,12 @@ def qualification(args) -> dict:  # noqa: C901
         session.run([*flatpak, 'remote-add', '--no-gpg-verify', 'qualification', str(args.repo.resolve())])
         refs = session.run([*flatpak, 'remote-ls', '--all', 'qualification', '--columns=ref']).splitlines()
         app_ref, debug_ref = select_refs(refs)
-        session.run([*flatpak, 'install', '-y', '--noninteractive', 'qualification', app_ref, debug_ref], timeout=900)
+        bundle = getattr(args, 'bundle', None)
+        for command in install_commands(flatpak, app_ref, debug_ref, bundle):
+            session.run(command, timeout=900)
+        origin = session.run([*flatpak, 'info', '--show-origin', app_ref]).strip()
+        check_origin(origin, bundle=bundle is not None)
+        result.update(app_origin=origin, bundle=str(bundle) if bundle else None)
         installed = Path(session.run([*flatpak, 'info', '--show-location', app_ref]).strip())
         debug = Path(session.run([*flatpak, 'info', '--show-location', debug_ref]).strip())
         result.update(app_ref=app_ref, debug_ref=debug_ref,
@@ -361,7 +390,7 @@ def qualification(args) -> dict:  # noqa: C901
         os.kill(processes[0], signal.SIGINT)
         if app.wait(timeout=30) != 0:
             raise RuntimeError('packaged OBS did not exit cleanly')
-        logs = list((output / 'profile/obs-studio/logs').glob('*.txt'))
+        logs = list(logs_directory(output).glob('*.txt'))
         if len(logs) != 1:
             raise RuntimeError('saved profile must produce exactly one OBS log')
         modules = []
@@ -393,5 +422,6 @@ def qualification(args) -> dict:  # noqa: C901
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--repo', type=Path, required=True, help='exported Flatpak OSTree repository')
+    parser.add_argument('--bundle', type=Path, help='install the app from this .flatpak bundle built from --repo')
     parser.add_argument('--output', type=Path, required=True, help='new directory for installation, session and evidence')
     print(json.dumps(qualification(parser.parse_args()), indent=2))

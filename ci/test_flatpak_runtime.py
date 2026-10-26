@@ -98,7 +98,7 @@ class FlatpakRuntimeTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             module.write_profile(root, 4456, 'temporary-test-password')
-            config = root / 'profile/obs-studio'
+            config = root / 'profile' / module.CONFIG_DIRECTORY
             global_config = configparser.ConfigParser()
             global_config.read(config / 'global.ini')
             self.assertFalse(global_config.getboolean('General', 'BrowserHWAccel'))
@@ -111,6 +111,23 @@ class FlatpakRuntimeTest(unittest.TestCase):
             self.assertTrue(server['server_enabled'])
             self.assertEqual(server['server_port'], 4456)
             self.assertTrue((root / 'browser.html').is_file())
+
+    def test_profile_is_in_the_rust_brand_config_directory(self):
+        # The Flatpak builds with OBS_BRAND_RUST (#2358), so OBS reads its
+        # profile from and writes its logs to obs-studio-rust; the test
+        # looked in obs-studio and found no log.
+        module = self.module()
+        identity = (ROOT / 'frontend/utility/AppIdentity.hpp').read_text()
+        directory = re.search(r'#define OBS_CONFIG_DIRECTORY "([^"]+)"', identity)[1]
+        self.assertEqual(directory, 'obs-studio-rust')
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            module.write_profile(root, 4456, 'temporary-test-password')
+            self.assertTrue((root / 'profile' / directory / 'global.ini').is_file())
+        self.assertEqual(module.logs_directory(Path('/out')), Path('/out/profile') / directory / 'logs')
+        for name in ('ci.yml', 'build-project.yaml'):
+            text = (ROOT / '.github/workflows' / name).read_text()
+            self.assertIn(f'flatpak-runtime-result/profile/{directory}/logs/*.txt', text)
 
     def test_profile_environment_is_set_inside_flatpak_sandbox(self):
         module = self.module()
@@ -189,6 +206,37 @@ class FlatpakRuntimeTest(unittest.TestCase):
         self.assertIn("!inputs.flatpak-dependency-transfer-probe || needs.flatpak-compiler-consumer.result == 'success'", job)
         self.assertNotIn('continue-on-error', job)
 
+
+    def test_bundle_installs_the_app_and_takes_debug_from_the_repo(self):
+        # #2400: the released .flatpak is what runs; a bundle holds only the
+        # app, so the Debug extension still comes from the exported repo.
+        module = self.module()
+        flatpak = ['flatpak', '--user']
+        app = 'io.github.obs_rust.OBSStudioRust/x86_64/master'
+        debug = 'io.github.obs_rust.OBSStudioRust.Debug/x86_64/master'
+        self.assertEqual(module.install_commands(flatpak, app, debug, None),
+                         [[*flatpak, 'install', '-y', '--noninteractive', 'qualification', app, debug]])
+        self.assertEqual(module.install_commands(flatpak, app, debug, Path('/b/obs.flatpak')),
+                         [[*flatpak, 'install', '-y', '--noninteractive', '--bundle', '/b/obs.flatpak'],
+                          [*flatpak, 'install', '-y', '--noninteractive', 'qualification', debug]])
+
+    def test_bundle_origin_must_not_be_the_repo(self):
+        module = self.module()
+        module.check_origin('io.github.obs_rust.OBSStudioRust-origin', bundle=True)
+        module.check_origin('qualification', bundle=False)
+        with self.assertRaises(RuntimeError):
+            module.check_origin('qualification', bundle=True)
+
+    def test_saved_profile_job_builds_runs_and_uploads_the_bundle(self):
+        build = (ROOT / '.github/workflows/build-project.yaml').read_text()
+        job = build.split('\n  flatpak-runtime-test:\n', 1)[1].split('\n  windows-build:', 1)[0]
+        self.assertIn('flatpak build-bundle --runtime-repo=https://flathub.org/repo/flathub.flatpakrepo', job)
+        self.assertIn('--bundle "$RUNNER_TEMP/obs-studio-rust-x86_64.flatpak"', job)
+        upload = job.split('name: flatpak-bundle', 1)
+        self.assertEqual(len(upload), 2, 'the tested bundle is uploaded for the release')
+        run = job.index('uv run ci/flatpak_runtime.py')
+        self.assertLess(job.index('flatpak build-bundle'), run)
+        self.assertLess(run, job.index('name: flatpak-bundle'))
 
     def test_dependency_transport_runtime_uses_consumer_export(self):
         build = (ROOT / '.github/workflows/build-project.yaml').read_text()
