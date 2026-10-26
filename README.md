@@ -147,6 +147,24 @@ upstream's Flatpak, copy `~/.var/app/com.obsproject.Studio/config/obs-studio`
 to `~/.var/app/io.github.obs_rust.OBSStudioRust/config/obs-studio`. Its
 plug-ins go in `~/.var/app/io.github.obs_rust.OBSStudioRust/data/obs-studio/plugins/`.
 
+**How do I run the AppImage on NixOS?**
+
+The simplest way is `appimage-run` (`programs.appimage.enable = true;`, then
+`appimage-run ./OBS-Studio-Rust-*.AppImage`). It gives the AppImage the
+paths a regular distribution has, and OBS renders on your GPU and finds NVENC.
+
+Running the AppImage directly works through nix-ld. Your configuration needs
+`hardware.graphics.enable = true;`, `programs.nix-ld.enable = true;` and
+Wayland among nix-ld's libraries:
+
+```nix
+programs.nix-ld.libraries = with pkgs; [ wayland ];
+```
+
+Without Wayland there, the AppImage stops at start and says so. You don't
+need to add `/run/opengl-driver/lib` or the keyboard layouts: the AppImage
+finds the driver libraries (for NVENC) and `/etc/X11/xkb` itself.
+
 **How do I install plug-ins for the AppImage?**
 
 The AppImage loads plug-ins from the same per-user folders as OBS Studio on
