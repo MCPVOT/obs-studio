@@ -15,7 +15,14 @@
  * A row whose docks change size but whose total stays the same was resized
  * from inside (a dragged separator): its shares are recorded. A row whose
  * total changed was resized with the window: its saved shares are put back
- * once they fit. */
+ * once they fit.
+ *
+ * The same goes for a whole dock area against the window: a column of docks
+ * on the left or right (Scenes above Sources by default) shrinks with a
+ * narrowing window, and Qt gives all of the width back to the preview when
+ * the window widens again. Each area's share of the window is recorded when
+ * the area changes size on its own (a dragged edge) and put back when the
+ * window changes size. */
 
 #include <QDockWidget>
 #include <QEvent>
@@ -46,9 +53,11 @@ protected:
 			if (auto *dock = qobject_cast<QDockWidget *>(child)) {
 				dock->installEventFilter(this);
 			}
-		} else if (obj != window && event->type() == QEvent::Resize && !updateQueued) {
+		} else if (event->type() == QEvent::Resize && !updateQueued) {
 			/* The layout resizes the docks of a row one at a time:
-			 * look at the row once it has placed all of them. */
+			 * look at the row once it has placed all of them. The
+			 * window's own resize counts too: a widening window can
+			 * leave every dock as it was. */
 			updateQueued = true;
 			QMetaObject::invokeMethod(this, [this] { Update(); }, Qt::QueuedConnection);
 		}
@@ -66,8 +75,23 @@ private:
 		QList<double> shares;
 	};
 
+	/* A dock area across its depth: the width of a left or right area,
+	 * the height of a top or bottom one. */
+	struct Area {
+		Qt::DockWidgetArea area;
+		Qt::Orientation orientation;
+		QList<QDockWidget *> docks;
+	};
+
+	struct SavedArea {
+		int window;
+		int size;
+		double share;
+	};
+
 	QMainWindow *window;
 	std::map<QList<QDockWidget *>, Saved> saved;
+	std::map<int, SavedArea> savedAreas;
 	bool updateQueued = false;
 
 	/* Docks side by side in the same area: along the top or bottom they
@@ -117,9 +141,91 @@ private:
 		return orientation == Qt::Horizontal ? min.width() : min.height();
 	}
 
+	/* Areas whose docks all start at the same edge, so the first dock's
+	 * depth is the area's. An area with docks side by side across its
+	 * depth is left to Qt. */
+	QList<Area> Areas() const
+	{
+		std::map<int, Area> areas;
+		for (QDockWidget *dock : window->findChildren<QDockWidget *>(Qt::FindDirectChildrenOnly)) {
+			if (dock->isFloating() || !dock->isVisible()) {
+				continue;
+			}
+			Qt::DockWidgetArea area = window->dockWidgetArea(dock);
+			bool vertical = area == Qt::TopDockWidgetArea || area == Qt::BottomDockWidgetArea;
+			if (!vertical && area != Qt::LeftDockWidgetArea && area != Qt::RightDockWidgetArea) {
+				continue;
+			}
+			Area &entry = areas[int(area)];
+			entry.area = area;
+			entry.orientation = vertical ? Qt::Vertical : Qt::Horizontal;
+			entry.docks.append(dock);
+		}
+
+		QList<Area> result;
+		for (auto &entry : areas) {
+			const Area &area = entry.second;
+			const bool horizontal = area.orientation == Qt::Horizontal;
+			const QDockWidget *first = area.docks.first();
+			bool aligned = std::all_of(area.docks.begin(), area.docks.end(), [&](const QDockWidget *dock) {
+				return horizontal ? dock->x() == first->x() && dock->width() == first->width()
+						  : dock->y() == first->y() && dock->height() == first->height();
+			});
+			if (aligned) {
+				result.append(area);
+			}
+		}
+		return result;
+	}
+
 	void Update()
 	{
 		updateQueued = false;
+		UpdateRows();
+		UpdateAreas();
+	}
+
+	void UpdateAreas()
+	{
+		for (const Area &area : Areas()) {
+			const int extent = area.orientation == Qt::Horizontal ? window->width() : window->height();
+			const int size = Size(area.docks.first(), area.orientation);
+			int minimum = 0;
+			for (QDockWidget *dock : area.docks) {
+				minimum = std::max(minimum, Minimum(dock, area.orientation));
+			}
+			if (extent <= 0 || size <= 0) {
+				continue;
+			}
+
+			auto it = savedAreas.find(int(area.area));
+			if (it == savedAreas.end()) {
+				savedAreas[int(area.area)] = {extent, size, double(size) / extent};
+				continue;
+			}
+			SavedArea &s = it->second;
+			if (s.window == extent) {
+				/* Same window, new size: a dragged edge. */
+				if (s.size != size) {
+					s = {extent, size, double(size) / extent};
+				}
+				continue;
+			}
+
+			/* Resized with the window: put the share back once it
+			 * fits, and otherwise wait for the window to grow. */
+			s.window = extent;
+			s.size = size;
+			const int target = int(std::lround(s.share * extent));
+			if (std::abs(target - size) > 1 && target > minimum + 1) {
+				s.size = target;
+				window->resizeDocks({area.docks.first()}, {target}, area.orientation);
+			}
+		}
+	}
+
+	void UpdateRows()
+	{
 		for (const Row &row : Rows()) {
 			int total = 0;
 			bool clamped = false;

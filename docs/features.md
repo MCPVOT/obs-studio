@@ -1845,7 +1845,9 @@ area.
 
 - Narrowing the main window and widening it again keeps the docks' relative
   sizes: docks side by side no longer come back all the same width after the
-  window squeezed them to their minimum. *All*, 2026-10-24. Issue
+  window squeezed them to their minimum, and the Scenes/Sources column gets
+  its width back instead of the preview taking all of it. *All*, 2026-10-24
+  (column: pending merge). Issue
   [#2225](https://github.com/obs-rust/obs-studio/issues/2225).
 
 - Importing a profile from a folder path that ends in a slash (as the

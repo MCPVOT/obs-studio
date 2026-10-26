@@ -175,6 +175,127 @@ static void unclamped_resize_is_untouched(void **state)
 	assert_same_shares(before, widths(f));
 }
 
+/* OBS's default layout also has a column on the left: Scenes above Sources,
+ * the full height of the window, beside the preview and the bottom row.
+ * Narrowing the window shrank the column, and widening it again gave all of
+ * the new width to the preview, so the column stayed narrow. */
+struct ColumnFixture {
+	QMainWindow *window = nullptr;
+	QList<QDockWidget *> column;
+};
+
+static const int column_width = 280;
+
+static int setup_column(void **state)
+{
+	auto *f = new ColumnFixture;
+	f->window = new QMainWindow;
+	f->window->setCentralWidget(new QLabel(QStringLiteral("preview")));
+	/* As OBSBasic does with its side docks set to full height. */
+	f->window->setCorner(Qt::TopLeftCorner, Qt::LeftDockWidgetArea);
+	f->window->setCorner(Qt::BottomLeftCorner, Qt::LeftDockWidgetArea);
+	new DockProportions(f->window);
+	for (int i = 0; i < 2; i++) {
+		auto *dock = new QDockWidget(QString::number(i));
+		dock->setObjectName(QStringLiteral("side%1").arg(i));
+		dock->setWidget(new QLabel(QStringLiteral("contents")));
+		dock->widget()->setMinimumWidth(dock_min_width);
+		f->window->addDockWidget(Qt::LeftDockWidgetArea, dock, Qt::Vertical);
+		f->column.append(dock);
+	}
+	/* The bottom row beside it: its minimum widths are what force the
+	 * column to shrink when the window narrows. */
+	QDockWidget *previous = nullptr;
+	for (int i = 0; i < 3; i++) {
+		auto *dock = new QDockWidget(QString::number(i));
+		dock->setObjectName(QStringLiteral("bottom%1").arg(i));
+		dock->setWidget(new QLabel(QStringLiteral("contents")));
+		dock->widget()->setMinimumWidth(dock_min_width);
+		f->window->addDockWidget(Qt::BottomDockWidgetArea, dock);
+		if (previous) {
+			f->window->splitDockWidget(previous, dock, Qt::Horizontal);
+		}
+		previous = dock;
+	}
+	f->window->resize(1600, 900);
+	f->window->show();
+	QTest::qWait(50);
+	f->window->resizeDocks({f->column.first()}, {column_width}, Qt::Horizontal);
+	QTest::qWait(50);
+	*state = f;
+	return 0;
+}
+
+static int teardown_column(void **state)
+{
+	auto *f = static_cast<ColumnFixture *>(*state);
+	delete f->window;
+	delete f;
+	return 0;
+}
+
+static void assert_column_width(const ColumnFixture *f, int expected)
+{
+	for (QDockWidget *dock : f->column) {
+		if (abs(dock->width() - expected) > 4) {
+			print_error("%s is %d px wide, expected %d\n", qPrintable(dock->objectName()), dock->width(),
+				    expected);
+			fail();
+		}
+	}
+}
+
+static void side_column_comes_back_after_narrow_then_wide(void **state)
+{
+	auto *f = static_cast<ColumnFixture *>(*state);
+	assert_column_width(f, column_width);
+
+	f->window->resize(700, 900);
+	QTest::qWait(50);
+	printf("narrow: window %d px, column %d px\n", f->window->width(), f->column.first()->width());
+	/* The narrow window really shrinks the column. */
+	assert_true(f->column.first()->width() < column_width - 30);
+
+	f->window->resize(1600, 900);
+	QTest::qWait(50);
+	printf("after: column %d px\n", f->column.first()->width());
+	assert_column_width(f, column_width);
+}
+
+static void side_column_comes_back_after_steps(void **state)
+{
+	auto *f = static_cast<ColumnFixture *>(*state);
+
+	/* Dragging the window edge: many small resizes. */
+	for (int w = 1600; w >= 700; w -= 50) {
+		f->window->resize(w, 900);
+		QTest::qWait(10);
+	}
+	for (int w = 700; w <= 1600; w += 50) {
+		f->window->resize(w, 900);
+		QTest::qWait(10);
+	}
+	QTest::qWait(50);
+	printf("after steps: column %d px\n", f->column.first()->width());
+	assert_column_width(f, column_width);
+}
+
+static void dragged_column_width_is_kept(void **state)
+{
+	auto *f = static_cast<ColumnFixture *>(*state);
+	/* The user drags the column's edge after the first layout. */
+	f->window->resizeDocks({f->column.first()}, {400}, Qt::Horizontal);
+	QTest::qWait(50);
+	const int dragged = f->column.first()->width();
+	assert_true(dragged > column_width + 50);
+
+	f->window->resize(700, 900);
+	QTest::qWait(50);
+	f->window->resize(1600, 900);
+	QTest::qWait(50);
+	assert_column_width(f, dragged);
+}
+
 int main(int argc, char **argv)
 {
 	qputenv("QT_QPA_PLATFORM", "offscreen");
@@ -185,6 +306,10 @@ int main(int argc, char **argv)
 		cmocka_unit_test_setup_teardown(narrow_in_steps_then_wide_keeps_shares, setup, teardown),
 		cmocka_unit_test_setup_teardown(dragged_separator_is_kept, setup, teardown),
 		cmocka_unit_test_setup_teardown(unclamped_resize_is_untouched, setup, teardown),
+		cmocka_unit_test_setup_teardown(side_column_comes_back_after_narrow_then_wide, setup_column,
+						teardown_column),
+		cmocka_unit_test_setup_teardown(side_column_comes_back_after_steps, setup_column, teardown_column),
+		cmocka_unit_test_setup_teardown(dragged_column_width_is_kept, setup_column, teardown_column),
 	};
 	return cmocka_run_group_tests(tests, NULL, NULL);
 }
