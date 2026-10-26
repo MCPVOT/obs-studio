@@ -87,6 +87,28 @@ check() {
     return "$rc"
 }
 
+# NVENC's libcuda and libnvidia-encode come from the host by soname. On NixOS
+# the loader is nix-ld, which searches NIX_LD_LIBRARY_PATH, and that lacks the
+# driver closure unless the user adds it (#891). AppRun appends
+# /run/opengl-driver/lib when it exists and nix-ld is in use (the variable is
+# set), and leaves a value that already lists it, or no value, alone.
+# check_nix_ld <pid> <nixos|none|user>
+check_nix_ld() {
+    local want got
+    case "$2" in
+    nixos) want="set:/nix/ld/default:/run/opengl-driver/lib" ;;
+    none) want="set:/nix/ld/default" ;;
+    user) want="set:/run/opengl-driver/lib:/user/selected" ;;
+    esac
+    got="$(env_of "$1" NIX_LD_LIBRARY_PATH)"
+    if [ "$got" = "$want" ]; then
+        echo "PASS [$2] NIX_LD_LIBRARY_PATH: $got"
+    else
+        echo "FAIL [$2] NIX_LD_LIBRARY_PATH: expected $want, obs has $got"
+        return 1
+    fi
+}
+
 if [ "${1:-}" = --check ]; then
     check "${2:?pid}" "${3:?nixos|none}"
     exit
@@ -121,7 +143,9 @@ if [ "${1:-}" = --in-namespace ]; then
             export "$name=/user/selected/$name"
         done
         make_nixos_tree # a user's choice wins even on NixOS
+        export NIX_LD_LIBRARY_PATH=/run/opengl-driver/lib:/user/selected
     else
+        export NIX_LD_LIBRARY_PATH=/nix/ld/default
         unset GBM_BACKENDS_PATH LIBVA_DRIVERS_PATH __EGL_VENDOR_LIBRARY_DIRS __EGL_VENDOR_LIBRARY_FILENAMES \
             __EGL_EXTERNAL_PLATFORM_CONFIG_DIRS __EGL_EXTERNAL_PLATFORM_CONFIG_FILENAMES VK_DRIVER_FILES VK_ICD_FILENAMES
     fi
@@ -141,6 +165,7 @@ if [ "${1:-}" = --in-namespace ]; then
     fi
     rc=0
     check "$obs" "$kind" || rc=1
+    check_nix_ld "$obs" "$kind" || rc=1
     kill "$obs" 2>/dev/null || true
     wait "$apprun" 2>/dev/null || true
     exit "$rc"

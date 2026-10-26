@@ -493,6 +493,12 @@ not get a line.
   instead of the dynamic loader's "error while loading shared libraries".
   *Linux (AppImage)*, pending merge. Issue
   [#2337](https://github.com/obs-rust/obs-studio/issues/2337).
+- **NVENC in the AppImage on NixOS without appimage-run.** Run directly
+  through nix-ld, the AppImage adds NixOS's driver libraries
+  (`/run/opengl-driver/lib`) to nix-ld's search path, so NVENC finds the
+  NVIDIA driver instead of reporting "NVENC not supported". *Linux
+  (AppImage, NixOS)*, pending merge. Issue
+  [#891](https://github.com/obs-rust/obs-studio/issues/891).
 - **Builds with Qt 6.8.** The frontend builds against distribution Qt 6.8,
   for example on Debian 13. *Linux*, 2026-10-16. Issue
   [#1015](https://github.com/obs-rust/obs-studio/issues/1015), PR

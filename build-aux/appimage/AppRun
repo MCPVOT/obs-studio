@@ -175,6 +175,17 @@ if [ -z "${__EGL_EXTERNAL_PLATFORM_CONFIG_DIRS:-}" ] && [ -z "${__EGL_EXTERNAL_P
         /etc/egl/egl_external_platform.d /usr/share/egl/egl_external_platform.d)"
     if [ -n "$__EGL_EXTERNAL_PLATFORM_CONFIG_DIRS" ]; then export __EGL_EXTERNAL_PLATFORM_CONFIG_DIRS; fi
 fi
+# NVENC loads libcuda and libnvidia-encode from the host by soname. Run
+# directly on NixOS, OBS's loader is nix-ld, which searches only
+# NIX_LD_LIBRARY_PATH, and that lacks the driver closure by default (#891).
+# Only nix-ld reads this variable, so unlike LD_LIBRARY_PATH it cannot leak
+# into host programs OBS starts. Appended: the user's entries still win.
+if [ -d /run/opengl-driver/lib ] && [ -n "${NIX_LD_LIBRARY_PATH:-}" ]; then
+    case ":$NIX_LD_LIBRARY_PATH:" in
+    *:/run/opengl-driver/lib:*) ;;
+    *) export NIX_LD_LIBRARY_PATH="$NIX_LD_LIBRARY_PATH:/run/opengl-driver/lib" ;;
+    esac
+fi
 # VK_DRIVER_FILES also accepts directories. Honour the older override too.
 if [ -z "${VK_DRIVER_FILES:-}" ] && [ -z "${VK_ICD_FILENAMES:-}" ]; then
     VK_DRIVER_FILES="$(host_driver_dirs /run/opengl-driver/share/vulkan/icd.d \
