@@ -212,13 +212,6 @@ if [ -z "$SSL_CERT_FILE" ]; then
         [ -r "$f" ] && { export SSL_CERT_FILE="$f"; break; }
     done
 fi
-# The bundled libxkbcommon only looks in /usr/share/X11/xkb. NixOS keeps the
-# keyboard data elsewhere, and without it Qt's Wayland plugin crashes (#2437).
-if [ -z "${XKB_CONFIG_ROOT:-}" ] && [ ! -d /usr/share/X11/xkb ]; then
-    for d in /etc/X11/xkb /run/current-system/sw/share/X11/xkb; do
-        [ -d "$d" ] && { export XKB_CONFIG_ROOT="$d"; break; }
-    done
-fi
 # Never let the host inject modules built against its own (different) Qt/GLib:
 # usr/bin/qt.conf pins Qt's plugin search to the bundle, and GIO/GSettings
 # modules (dconf, gvfs, ...) are loaded from an empty bundled directory only.
