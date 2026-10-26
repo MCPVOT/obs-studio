@@ -14,3 +14,4 @@
 #include "graphics/libnsgif/lzw.h"
 #include "graphics/libnsgif/nsgif.h"
 #include "graphics/libnsgif/gif-blocks.h"
+#include "graphics/libnsgif/gif-frame.h"
