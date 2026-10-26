@@ -499,6 +499,12 @@ not get a line.
   NVIDIA driver instead of reporting "NVENC not supported". *Linux
   (AppImage, NixOS)*, pending merge. Issue
   [#891](https://github.com/obs-rust/obs-studio/issues/891).
+- **AppImage starts on NixOS Wayland.** The AppImage points its keyboard
+  library at the host's keyboard data (`/etc/X11/xkb` on NixOS) when
+  `/usr/share/X11/xkb` is missing, so Qt's Wayland plugin no longer crashes
+  at start with "failed to create xkb context". *Linux (AppImage, NixOS)*,
+  pending merge. Issue
+  [#2437](https://github.com/obs-rust/obs-studio/issues/2437).
 - **Builds with Qt 6.8.** The frontend builds against distribution Qt 6.8,
   for example on Debian 13. *Linux*, 2026-10-16. Issue
   [#1015](https://github.com/obs-rust/obs-studio/issues/1015), PR

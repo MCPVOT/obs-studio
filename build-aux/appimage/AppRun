@@ -186,6 +186,17 @@ if [ -d /run/opengl-driver/lib ] && [ -n "${NIX_LD_LIBRARY_PATH:-}" ]; then
     *) export NIX_LD_LIBRARY_PATH="$NIX_LD_LIBRARY_PATH:/run/opengl-driver/lib" ;;
     esac
 fi
+# The bundled libxkbcommon looks for keyboard data only in /usr/share/X11/xkb.
+# NixOS keeps it in /etc/X11/xkb, and Qt's Wayland plugin crashed without it
+# (#2437).
+if [ -z "${XKB_CONFIG_ROOT:-}" ] && [ ! -d /usr/share/X11/xkb ]; then
+    for xkb_dir in /etc/X11/xkb /run/current-system/sw/share/X11/xkb; do
+        if [ -d "$xkb_dir" ]; then
+            export XKB_CONFIG_ROOT="$xkb_dir"
+            break
+        fi
+    done
+fi
 # VK_DRIVER_FILES also accepts directories. Honour the older override too.
 if [ -z "${VK_DRIVER_FILES:-}" ] && [ -z "${VK_ICD_FILENAMES:-}" ]; then
     VK_DRIVER_FILES="$(host_driver_dirs /run/opengl-driver/share/vulkan/icd.d \

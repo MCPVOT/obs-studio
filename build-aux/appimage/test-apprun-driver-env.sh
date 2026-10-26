@@ -145,6 +145,31 @@ check_nix_ld() {
     fi
 }
 
+# The bundled libxkbcommon looks for keyboard data only in /usr/share/X11/xkb.
+# NixOS has none there (it is /etc/X11/xkb), and Qt's Wayland plugin crashed
+# without an xkb context (#2437). AppRun sets XKB_CONFIG_ROOT to the host's
+# data when the default is missing, and leaves a user's value alone. What is
+# expected follows this host's directories, so the nixos and none cases agree:
+# only a host without /usr/share/X11/xkb gets the variable.
+# check_xkb <pid> <nixos|none|user>
+check_xkb() {
+    local want=unset got d
+    if [ "$2" = user ]; then
+        want="set:/user/selected/xkb"
+    elif [ ! -d /usr/share/X11/xkb ]; then
+        for d in /etc/X11/xkb /run/current-system/sw/share/X11/xkb; do
+            [ -d "$d" ] && { want="set:$d"; break; }
+        done
+    fi
+    got="$(env_of "$1" XKB_CONFIG_ROOT)"
+    if [ "$got" = "$want" ]; then
+        echo "PASS [$2] XKB_CONFIG_ROOT: $got"
+    else
+        echo "FAIL [$2] XKB_CONFIG_ROOT: expected $want, obs has $got"
+        return 1
+    fi
+}
+
 if [ "${1:-}" = --check ]; then
     check "${2:?pid}" "${3:?nixos|none}"
     exit
@@ -181,8 +206,10 @@ if [ "${1:-}" = --in-namespace ]; then
         export XKB_CONFIG_ROOT=/user/selected/XKB_CONFIG_ROOT
         make_nixos_tree # a user's choice wins even on NixOS
         export NIX_LD_LIBRARY_PATH=/run/opengl-driver/lib:/user/selected
+        export XKB_CONFIG_ROOT=/user/selected/xkb
     else
         export NIX_LD_LIBRARY_PATH=/nix/ld/default
+        unset XKB_CONFIG_ROOT
         unset GBM_BACKENDS_PATH LIBVA_DRIVERS_PATH __EGL_VENDOR_LIBRARY_DIRS __EGL_VENDOR_LIBRARY_FILENAMES \
             __EGL_EXTERNAL_PLATFORM_CONFIG_DIRS __EGL_EXTERNAL_PLATFORM_CONFIG_FILENAMES VK_DRIVER_FILES VK_ICD_FILENAMES XKB_CONFIG_ROOT
     fi
@@ -203,6 +230,7 @@ if [ "${1:-}" = --in-namespace ]; then
     rc=0
     check "$obs" "$kind" || rc=1
     check_nix_ld "$obs" "$kind" || rc=1
+    check_xkb "$obs" "$kind" || rc=1
     kill "$obs" 2>/dev/null || true
     wait "$apprun" 2>/dev/null || true
     exit "$rc"
