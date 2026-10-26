@@ -12,6 +12,7 @@
 #include "obs-internal.h"
 #include "util/util_uint64.h"
 #include "audio-monitoring/pulse/pulseaudio-monitor-format.h"
+#include "audio-monitoring/pulse/pulseaudio-monitor-steps.h"
 #include "audio-monitoring/pulse/pulseaudio-stream-flags.h"
 
 #include <pulse/timeval.h>

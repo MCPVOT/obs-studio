@@ -48,12 +48,14 @@ if(ENABLE_PULSEAUDIO)
     PRIVATE
       build/libobs.pulse+.h.c
       audio-monitoring/pulse/pulseaudio-monitor-format.h
+      audio-monitoring/pulse/pulseaudio-monitor-steps.h
       audio-monitoring/pulse/pulseaudio-stream-flags.h
       audio-monitoring/pulse/pulseaudio-wrapper.h
   )
 
-  # pulseaudio-stream-flags.c and pulseaudio-monitor-format.c have Rust ports: C
-  # reference/rollback only (sources.cmake).
+  # pulseaudio-stream-flags.c, pulseaudio-monitor-format.c and
+  # pulseaudio-monitor-steps.c have Rust ports: C reference/rollback only
+  # (sources.cmake).
   obs_libobs_add_c_sources(${LIBOBS_PULSE_PORTED_SOURCES})
   target_link_libraries(libobs-objects PUBLIC PulseAudio::PulseAudio)
   target_enable_feature(libobs "PulseAudio audio monitoring (FreeBSD)")

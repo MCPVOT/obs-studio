@@ -50,6 +50,8 @@ mod output_raw_audio;
 mod output_stop_stats;
 #[path = "port_comparison/output_video_checks.rs"]
 mod output_video_checks;
+#[path = "port_comparison/pulse_monitor.rs"]
+mod pulse_monitor;
 #[path = "port_comparison/scene.rs"]
 mod scene;
 #[path = "port_comparison/scene_audio_window.rs"]
@@ -196,6 +198,7 @@ fn comparisons(criterion: &mut Criterion) {
         output_raw_audio,
         output_stop_stats,
         output_video_checks,
+        pulse_monitor,
         scene,
         scene_audio_window,
         scene_crop,

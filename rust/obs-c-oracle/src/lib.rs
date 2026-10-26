@@ -121,6 +121,7 @@ pub mod profiler;
 pub mod profiler_io;
 pub mod profiler_snapshot;
 pub mod pulse_format;
+pub mod pulse_monitor_steps;
 pub mod pulse_stream_flags;
 pub mod scene_audio_actions;
 pub mod scene_audio_window;
