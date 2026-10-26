@@ -840,6 +840,10 @@ area.
   [#1494](https://github.com/obs-rust/obs-studio/issues/1494), PR
   [#1495](https://github.com/obs-rust/obs-studio/pull/1495), port of
   [obsproject/obs-studio#12937](https://github.com/obsproject/obs-studio/pull/12937).
+- OBS no longer trips a PipeWire assertion ('loop->recurse > 0') when it
+  quits with a screen capture or camera source from PipeWire. *Linux*,
+  2026-10-26. Issue
+  [#2431](https://github.com/obs-rust/obs-studio/issues/2431).
 - Screen Capture (XSHM) draws the cursor in the right place after the captured
   monitor moves without changing size (a monitor plugged in or rearranged).
   *Linux*, 2026-10-24. Issue

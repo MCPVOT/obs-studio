@@ -189,10 +189,10 @@ static void update_pw_versions(obs_pipewire *obs_pw, const char *version)
 
 static void teardown_pipewire(obs_pipewire *obs_pw)
 {
-	if (obs_pw->thread_loop) {
-		pw_thread_loop_wait(obs_pw->thread_loop);
+	/* No wait first: nothing signals the loop here, and a wait needs the
+	 * loop lock, which callers don't hold (#2431). */
+	if (obs_pw->thread_loop)
 		pw_thread_loop_stop(obs_pw->thread_loop);
-	}
 
 	if (obs_pw->registry) {
 		pw_proxy_destroy((struct pw_proxy *)obs_pw->registry);
