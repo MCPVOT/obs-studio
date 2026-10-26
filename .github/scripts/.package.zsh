@@ -156,6 +156,33 @@ package() {
       mkdir -p "obs-studio/${bundle_name}.app"
       ditto "${bundle_name}.app" "obs-studio/${bundle_name}.app"
 
+      if (( codesign )) && [[ ${CODESIGN_IDENT:--} != '-' ]] {
+        # Xcode's sign-on-copy signs each embedded framework's top level only.
+        # The prebuilt Sparkle and CEF frameworks carry nested code (Sparkle's
+        # helpers, CEF's Libraries/*.dylib) that notarization rejects without
+        # our Developer ID, a secure timestamp and the hardened runtime (#2424).
+        # Sign inside-out, then reseal the app so its seal matches.
+        local app="obs-studio/${bundle_name}.app"
+        local -i _status=0
+        local -a sign=(codesign --force --timestamp --options runtime --sign "${CODESIGN_IDENT}")
+        local fw="${app}/Contents/Frameworks"
+        local sparkle="${fw}/Sparkle.framework/Versions/B"
+        local cef="${fw}/Chromium Embedded Framework.framework"
+        local item
+        for item ("${sparkle}"/XPCServices/*.xpc(N) "${sparkle}/Autoupdate"(N) "${sparkle}/Updater.app"(N)) {
+          ${sign} --preserve-metadata=entitlements "${item}" || _status=1
+        }
+        [[ -d ${fw}/Sparkle.framework ]] && { ${sign} "${fw}/Sparkle.framework" || _status=1 }
+        for item ("${cef}"/Libraries/*.dylib(N)) { ${sign} "${item}" || _status=1 }
+        [[ -d ${cef} ]] && { ${sign} "${cef}" || _status=1 }
+        ${sign} --preserve-metadata=entitlements,requirements,flags "${app}" || _status=1
+        codesign --verify --strict --deep "${app}" || _status=1
+        if (( _status )) {
+          log_error "Signing the nested frameworks failed."
+          return 2
+        }
+      }
+
       local -i _status=0
 
       autoload -Uz create_diskimage
