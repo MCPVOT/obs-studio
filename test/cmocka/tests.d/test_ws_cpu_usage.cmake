@@ -30,6 +30,11 @@ if(OS_LINUX AND ENABLE_FRONTEND AND EXISTS "${_ws}/src/requesthandler/RequestHan
     )
     # The plugin still calls APIs libobs has deprecated.
     target_compile_options(test_ws_cpu_usage PRIVATE -Wno-error=deprecated-declarations)
+    # The request handlers name WebSocketServer, a QObject whose typeinfo is
+    # emitted only beside its moc output, which this test does not compile.
+    # UBSan's vptr check references that typeinfo, so the sanitizer build
+    # failed to link (Sanitizers run 40191023688). The other checks stay on.
+    target_compile_options(test_ws_cpu_usage PRIVATE -fno-sanitize=vptr)
     target_compile_features(test_ws_cpu_usage PRIVATE cxx_std_17)
     # GetStats reads the recording path from the frontend, which has no
     # callbacks here; the test answers that call itself.
