@@ -115,23 +115,15 @@ static bool process_audio_delay(struct audio_monitor *monitor, float **data, uin
 	return false;
 }
 
-static enum speaker_layout convert_speaker_layout(DWORD layout, WORD channels)
-{
-	switch (layout) {
-	case KSAUDIO_SPEAKER_2POINT1:
-		return SPEAKERS_2POINT1;
-	case KSAUDIO_SPEAKER_SURROUND:
-		return SPEAKERS_4POINT0;
-	case KSAUDIO_SPEAKER_4POINT1:
-		return SPEAKERS_4POINT1;
-	case KSAUDIO_SPEAKER_5POINT1:
-		return SPEAKERS_5POINT1;
-	case KSAUDIO_SPEAKER_7POINT1:
-		return SPEAKERS_7POINT1;
-	}
-
-	return (enum speaker_layout)channels;
-}
+/* monitor-speaker-layout.h spells the masks out to stay free of Windows
+ * headers. */
+#if AUDIO_MONITOR_SPEAKER_MASK_2POINT1 != KSAUDIO_SPEAKER_2POINT1 ||       \
+	AUDIO_MONITOR_SPEAKER_MASK_SURROUND != KSAUDIO_SPEAKER_SURROUND || \
+	AUDIO_MONITOR_SPEAKER_MASK_4POINT1 != KSAUDIO_SPEAKER_4POINT1 ||   \
+	AUDIO_MONITOR_SPEAKER_MASK_5POINT1 != KSAUDIO_SPEAKER_5POINT1 ||   \
+	AUDIO_MONITOR_SPEAKER_MASK_7POINT1 != KSAUDIO_SPEAKER_7POINT1
+#error "monitor-speaker-layout.h's channel masks differ from ksmedia.h"
+#endif
 
 static bool audio_monitor_init_wasapi(struct audio_monitor *monitor)
 {
@@ -201,11 +193,17 @@ static bool audio_monitor_init_wasapi(struct audio_monitor *monitor)
 	from.format = AUDIO_FORMAT_FLOAT_PLANAR;
 
 	to.samples_per_sec = (uint32_t)wfex->nSamplesPerSec;
-	to.speakers = convert_speaker_layout(ext->dwChannelMask, wfex->nChannels);
+	to.speakers = audio_monitor_speaker_layout(ext->dwChannelMask, wfex->nChannels);
 	to.format = AUDIO_FORMAT_FLOAT;
 
 	monitor->sample_rate = (uint32_t)wfex->nSamplesPerSec;
 	monitor->channels = wfex->nChannels;
+	if (to.speakers == SPEAKERS_UNKNOWN) {
+		warn("%s: No speaker layout for %u channels (channel mask 0x%08lX)", __FUNCTION__,
+		     (unsigned int)wfex->nChannels, ext->dwChannelMask);
+		goto fail;
+	}
+
 	monitor->resampler = audio_resampler_create(&to, &from);
 	if (!monitor->resampler) {
 		goto fail;
