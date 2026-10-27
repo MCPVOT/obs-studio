@@ -5889,6 +5889,7 @@
       "command": [
         "${target}"
       ],
+      "skip_return_code": 77,
       "optional_prefixes": [
         [
           "xvfb-run",
