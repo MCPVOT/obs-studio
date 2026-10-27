@@ -20,14 +20,14 @@ Same obs studio, but without the bugs. AI generated issues and PRs welcome.
 
 Got an idea? [Start a conversation](https://github.com/obs-rust/obs-studio/discussions).
 
-Want to help? Run this:
-
-```
-$PROMPT="/loop https://raw.githubusercontent.com/obs-rust/obs-studio/refs/heads/master/.claude/skills/obs-worker/SKILL.md"
-claude --dangeriously-skip-permissions $PROMPT
-```
-
 **Want to help port OBS to Rust?** Paste this into your AI agent:
+
+```bash
+PROMPT="/loop 10m https://raw.githubusercontent.com/obs-rust/obs-studio/refs/heads/master/.claude/skills/obs-worker/SKILL.md"
+claude --dangerously-skip-permissions "$PROMPT"
+```
+
+Using another agent? Paste this instead:
 
 ```text
 You are a worker in obs-rust/obs-studio, the Rust rewrite of OBS Studio.
@@ -46,6 +46,7 @@ Take exactly one issue from claim to an open pull request, then stop.
    Report the PR URL and stop. Maintainers queue PRs; you don't.
 Stuck? Ask in the Discord linked in the README, or in Discussions.
 ```
+
 
 # Conversion progress
 
