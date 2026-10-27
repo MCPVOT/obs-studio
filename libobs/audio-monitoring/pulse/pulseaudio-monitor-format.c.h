@@ -139,7 +139,7 @@ static void process_byte(void *p, size_t frames, size_t channels, float vol)
 	register uint8_t *end = cur + frames * channels;
 
 	for (; cur < end; cur++) {
-		float v = ((int)*cur - 128) * vol + 128;
+		float v = (float)((int)*cur - 128) * vol + 128;
 		*cur = v >= 255.0f ? 255 : v <= 0.0f ? 0 : (uint8_t)v;
 	}
 }
@@ -163,7 +163,7 @@ static void process_s32(void *p, size_t frames, size_t channels, float vol)
 	/* INT32_MAX is not a float: 2^31 is the first value past it, and
 	 * -2^31 (INT32_MIN) is exact. */
 	for (; cur < end; cur++) {
-		float v = *cur * vol;
+		float v = (float)*cur * vol;
 		*cur = v >= 2147483648.0f ? INT32_MAX : v <= -2147483648.0f ? INT32_MIN : (int32_t)v;
 	}
 }
