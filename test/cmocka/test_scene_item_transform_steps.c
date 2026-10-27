@@ -39,9 +39,11 @@
  * casts. The two (uint32_t)((float)cx * scale.x) of an item without bounds
  * are undefined in C for a flipped item (a negative product): x86-64
  * converts through a 64-bit register and wraps, arm64 saturates to 0.
- * compose() pins x86-64's result on every platform by doing that conversion
- * in defined C (x86_cast_u32()), so the pins do not depend on the
- * architecture the test runs on; obs-scene.c keeps the cast itself.
+ * compose() writes that conversion exactly as obs-scene.c does — through
+ * the signed size — so a flipped item's negative product is defined and
+ * every architecture gets x86-64's placement (#2637). Before that fix the
+ * cast was undefined: x86-64 wrapped, arm64 saturated the size to 0 and
+ * placed the item half or all of its size away (R7-3).
  *
  * Every pinned float is the same on every platform: the composition is
  * float multiplies, adds and conversions, and the only library calls are
@@ -155,14 +157,6 @@ struct item {
 	uint32_t cy;
 };
 
-/* x86-64's (uint32_t) of a float: through a 64-bit signed conversion, then
- * the low 32 bits. Defined here for the finite values below 2^63 the test
- * uses; for those it is the C cast on x86-64 (GCC, Clang, MSVC). */
-static uint32_t x86_cast_u32(float f)
-{
-	return (uint32_t)(uint64_t)(int64_t)f;
-}
-
 static void compose(struct item *it, uint32_t width, uint32_t height, bool update_tex, float canvas_x, float canvas_y)
 {
 	struct obs_scene_item_transform_size size;
@@ -204,8 +198,12 @@ static void compose(struct item *it, uint32_t width, uint32_t height, bool updat
 		obs_bounds_place((enum obs_bounds_type)it->bounds_type, &bounds, &origin, &scale, &cx, &cy,
 				 it->bounds_align, it->crop_to_bounds, &it->bounds_crop);
 	} else {
-		cx = x86_cast_u32((float)cx * scale.x);
-		cy = x86_cast_u32((float)cy * scale.y);
+		/* The conversion exactly as obs-scene.c writes it: through the
+		 * signed size (int32_t), so a flipped item's negative product is
+		 * defined and every architecture gets x86-64's placement
+		 * (#2637). */
+		cx = (uint32_t)(int32_t)((float)cx * scale.x);
+		cy = (uint32_t)(int32_t)((float)cy * scale.y);
 	}
 	it->cx = cx;
 	it->cy = cy;
@@ -729,10 +727,11 @@ static void steps_compose_flipped(void **state)
 {
 	(void)state;
 	/* Flipped items without bounds: (float)cx * scale.x is negative, and
-	 * the cast to uint32_t is x86-64's (the width wraps, and add_alignment()
-	 * gets the negative width back as an int). arm64 gives 0 there: such an
-	 * item sits half or all of its size away on arm64 (R7-3), which
-	 * obs-scene.c keeps; these pins are x86-64's on every platform. */
+	 * compose() casts it as obs-scene.c does, through the signed size, so
+	 * the negative width comes back as an int in add_alignment(). These
+	 * pins are x86-64's placement, which the defined cast now gives on
+	 * every architecture (#2637); before it, arm64 saturated the size to 0
+	 * and put such an item half or all of its size away (R7-3). */
 	static const uint32_t want[4][N_ALIGN][4] = {
 		{
 			{0xc2480000u, 0xc1c80000u, 0xc2480000u, 0xc1c80000u}, /* -50 -25 -50 -25 */
