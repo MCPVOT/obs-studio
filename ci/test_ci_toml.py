@@ -1,5 +1,5 @@
 #!/usr/bin/env -S uv run --script
-"""ci.toml declares every cache family and workflow trigger (#957).
+"""ci.toml declares every cache family, workflow trigger and test binary (#957).
 
     uv run python -m unittest ci/test_ci_toml.py
 
@@ -8,11 +8,13 @@ ci.toml is the zackees/ci.yml schema 3 contract. The cache janitor
 no [cache.family], so a cache key added to a workflow without a family would
 be deleted on the next PR run. [allow].workflows must list each workflow with
 its exact triggers (GEN-008). `ci-lint precheck` checks the rest; it needs the
-network, so this offline test covers the two things a workflow edit can break.
+network, so this offline test covers the three things a workflow, manifest or
+test-binary edit can break.
 """
 
 from __future__ import annotations
 
+import importlib.util
 import re
 import tomllib
 import unittest
@@ -37,6 +39,30 @@ VIA_PREFIXES = {
 
 def load() -> dict:
     return tomllib.loads(CI_TOML.read_text())
+
+
+def cargo_test_binaries() -> set[str]:
+    """Every test binary Cargo builds, named as `[rust.tests].binaries` names it.
+
+    Uses ci/test_binary_cap.py's manifest discovery, the same inventory the
+    testing policy's category map is checked against, so ci.toml's budget and
+    the category binaries cannot drift apart.
+    """
+    spec = importlib.util.spec_from_file_location(
+        "test_binary_cap", Path(__file__).with_name("test_binary_cap.py")
+    )
+    cap = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cap)
+    found = set()
+    for package, name, kinds in cap.workspace_test_targets():
+        kinds = kinds.split(",")
+        if "test" in kinds:
+            found.add(f"{package}:test:{name}")
+        elif "bin" in kinds:
+            found.add(f"{package}:bin:{name}")
+        else:
+            found.add(f"{package}:lib")
+    return found
 
 
 class UvCacheWriterTest(unittest.TestCase):
@@ -278,6 +304,17 @@ def triggers(path: Path) -> list[str]:
 
 
 class CiTomlTest(unittest.TestCase):
+    def test_declared_test_binaries_are_the_workspace_test_targets(self):
+        """[rust.tests].binaries is the test-binary budget (#962, RUST-005).
+
+        The testing policy allows one amalgamated test binary per category, so
+        a new integration-test target is a deliberate edit to ci.toml rather
+        than a binary that appears unnoticed. ci-lint needs the network, so
+        the list is checked here against the Cargo manifests instead.
+        """
+        declared = set(load().get("rust", {}).get("tests", {}).get("binaries", []))
+        self.assertEqual(declared, cargo_test_binaries())
+
     def test_disabled_store_has_no_retention_protection(self):
         prefixes = family_prefixes(load())
         for platform in ("linux-x64", "macos-arm64", "windows-x64"):
