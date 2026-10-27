@@ -24,6 +24,7 @@ WORKFLOWS = ROOT / ".github" / "workflows"
 # `concurrency` group the workflow must carry; add a row with the workflow and
 # delete its ci.toml WF-002 exception in the same PR.
 EXPECTED = {
+    "build-project.yaml": "build-project-${{ github.event_name }}-${{ github.ref }}",
     "check-format.yaml": "check-format-${{ github.event_name }}-${{ github.ref }}",
     "dispatch.yaml": "dispatch-${{ inputs.job }}-${{ github.event_name }}-${{ github.ref }}",
     "push.yaml": "push-${{ github.event_name }}-${{ github.ref }}",
@@ -67,6 +68,10 @@ class Wf002ConcurrencyTest(unittest.TestCase):
 
     def test_a_check_format_run_cancels_the_one_it_supersedes(self):
         text = (WORKFLOWS / "check-format.yaml").read_text(encoding="utf-8")
+        self.assertIn("cancel-in-progress: true", text)
+
+    def test_a_build_project_run_cancels_the_one_it_supersedes(self):
+        text = (WORKFLOWS / "build-project.yaml").read_text(encoding="utf-8")
         self.assertIn("cancel-in-progress: true", text)
 
     def test_a_dispatch_never_cancels_an_in_flight_run(self):
