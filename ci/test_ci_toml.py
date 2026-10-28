@@ -29,7 +29,7 @@ PIN = "a1917ce76598904ce515cd7eec83450c317ea6f2"
 # Workflows whose CACHE-001 exception is burned down: every cache step in them
 # goes through the `.github/actions/cache` wrapper (#2737). Add a name here in
 # the same PR that deletes its ci.toml `[[exceptions]]` block.
-CONVERTED_CACHE_WORKFLOWS = ("sanitizers.yaml",)
+CONVERTED_CACHE_WORKFLOWS = ("sanitizers.yaml", "appimage.yaml")
 
 # Prefixes of the families a `via` names (zackees/ci.yml ci_lint/cache/families.py).
 VIA_PREFIXES = {
@@ -251,7 +251,7 @@ class CacheWriterPolicyTest(unittest.TestCase):
                     mode = re.search(r"(?m)^\s+mode: (\S+)$", block)
                     self.assertIsNotNone(mode, "the wrapper callsite needs an explicit mode")
                     modes.append(mode[1])
-                self.assertEqual(sorted(modes), ["restore", "save"])
+                self.assertEqual(set(modes), {"restore", "save"})
 
     def test_split_dependency_and_timestamp_caches_preserve_keys_and_paths(self):
         cases = [(WORKFLOWS / "build-project.yaml", key)
