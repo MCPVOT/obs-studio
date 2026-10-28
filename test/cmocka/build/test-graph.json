@@ -1531,6 +1531,23 @@
         "OBS::native-test-cmocka"
       ]
     },
+    "test_image_orient_steps": {
+      "sources": [
+        "test/cmocka/test_image_orient_steps.c",
+        "libobs/graphics/graphics-ffmpeg-orient.c.h"
+      ],
+      "includes": [
+        "libobs"
+      ],
+      "watch_inputs": [
+        "libobs/graphics/graphics-ffmpeg-orient.h"
+      ],
+      "libraries": [
+        "OBS::libobs",
+        "OBS::native-test-cmocka"
+      ],
+      "sanitizers": "address,undefined"
+    },
     "test_lexer": {
       "sources": [
         "test/cmocka/test_lexer.c"
@@ -5603,6 +5620,12 @@
         "${target}"
       ],
       "timeout_seconds": 60
+    },
+    "test_image_orient_steps": {
+      "target": "test_image_orient_steps",
+      "command": [
+        "${target}"
+      ]
     },
     "test_lexer": {
       "target": "test_lexer"

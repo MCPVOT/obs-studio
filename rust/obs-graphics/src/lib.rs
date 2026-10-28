@@ -1,6 +1,8 @@
 //! Rust ports of `libobs/graphics`, and of the units extracted from
 //! `libobs/graphics/graphics.c.h`: so far `graphics-sprite.c.h`, the sprite
-//! and texture upload geometry ([`sprite`]).
+//! and texture upload geometry ([`sprite`]), and from `libobs/graphics/graphics-ffmpeg.c.h`:
+//! `graphics-ffmpeg-orient.c.h`, the image orientation and size check
+//! ([`image_orient`]).
 //!
 //! Safe cores live at the crate root; the C ABI shims that replace the
 //! original `EXPORT` symbols live in [`ffi`]. See
@@ -23,6 +25,7 @@ pub mod gif;
 pub mod gif_blocks;
 pub mod gif_frame;
 pub mod image_file;
+pub mod image_orient;
 pub mod lzw;
 pub mod math_extra;
 pub mod matrix3;
