@@ -279,6 +279,7 @@
   ],
   "LIBOBS_WINDOWS_SOURCES": [
     "audio-monitoring/win32/wasapi-output.h",
+    "obs-win-crash-report.h",
     "util/threading-windows.h",
     "util/windows/CoTaskMemPtr.hpp",
     "util/windows/device-enum.h",
