@@ -307,6 +307,7 @@
   ],
   "LIBOBS_LINUX_SOURCES": [
     "obs-nix-platform.h",
+    "obs-nix-system-info.h",
     "obs-nix-x11-keymap.h",
     "util/threading-posix.h",
     "build/libobs.nix+.h.c",
