@@ -17,6 +17,8 @@ mod item_transform;
 mod item_transform_parity;
 mod render_plan;
 mod render_plan_parity;
+mod transform_update;
+mod transform_update_parity;
 
 mod bounds_place;
 mod bounds_place_parity;
