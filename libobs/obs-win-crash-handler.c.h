@@ -99,16 +99,20 @@ static inline void exception_handler_data_free(struct exception_handler_data *da
 	FreeLibrary(data->dbghelp);
 }
 
-static inline void *get_proc(HMODULE module, const char *func)
-{
-	return (void *)GetProcAddress(module, func);
-}
-
-#define GET_DBGHELP_IMPORT(target, str)                      \
-	do {                                                 \
-		data->target = get_proc(data->dbghelp, str); \
-		if (!data->target)                           \
-			return false;                        \
+/* GetProcAddress returns a FARPROC and the typed members are function pointers:
+ * a cast between the two is C4152 at /W4. Copy the address through a union
+ * instead, the way LOAD_MODULE_SYMBOL (libobs/obs-module.c.h) does for
+ * os_dlsym. No code is generated for the copy. */
+#define GET_DBGHELP_IMPORT(target, str)                           \
+	do {                                                      \
+		union {                                           \
+			FARPROC proc;                             \
+			__typeof__(data->target) fn;              \
+		} _sym;                                           \
+		_sym.proc = GetProcAddress(data->dbghelp, str);   \
+		data->target = _sym.fn;                           \
+		if (!data->target)                                \
+			return false;                             \
 	} while (false)
 
 static inline bool get_dbghelp_imports(struct exception_handler_data *data)
@@ -295,7 +299,11 @@ static inline void get_module_name(struct exception_handler_data *data, struct m
 static inline bool walk_stack(struct exception_handler_data *data, HANDLE thread, struct stack_trace *trace)
 {
 	struct module_info module_info = {0};
-	DWORD64 func_offset;
+	/* sym_from_addr fills this through a pointer, so MSVC's flow analysis
+	 * cannot see that the read below is guarded by its return value: C4701
+	 * at /W4. Starting it at zero costs nothing and cannot be observed,
+	 * because it is only printed when that call succeeded. */
+	DWORD64 func_offset = 0;
 	char sym_name[256];
 	char *p;
 
@@ -513,12 +521,10 @@ static LONG CALLBACK exception_handler(PEXCEPTION_POINTERS exception)
 	inside_handler = true;
 
 	handle_exception(&data, exception);
+	/* bcrash is OBS_NORETURN (libobs/util/base.h), so the cleanup, the
+	 * inside_handler reset and the return that used to follow it were dead
+	 * statements - C4702 at /W4. Nothing is leaked: the process is gone. */
 	bcrash("%s", data.str.array);
-	exception_handler_data_free(&data);
-
-	inside_handler = false;
-
-	return EXCEPTION_CONTINUE_SEARCH;
 }
 
 void initialize_crash_handler(void)

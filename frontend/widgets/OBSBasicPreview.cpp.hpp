@@ -348,16 +348,20 @@ bool OBSBasicPreview::SelectedAtPos(const vec2 &pos)
 }
 
 struct HandleFindData {
-	const vec2 &pos;
-	const float radius;
+	/* parent_xform is 16-byte aligned (vec4 carries the SIMD type), so it
+	 * leads the struct: every other member then lands at its natural offset
+	 * and the size stays a multiple of the alignment, with no padding to
+	 * warn about (C4324). */
 	matrix4 parent_xform;
 
+	const vec2 &pos;
 	OBSSceneItem item;
-	ItemHandle handle = ItemHandle::None;
-	float angle = 0.0f;
 	vec2 rotatePoint;
 	vec2 offsetPoint;
 
+	const float radius;
+	ItemHandle handle = ItemHandle::None;
+	float angle = 0.0f;
 	float angleOffset = 0.0f;
 
 	HandleFindData(const HandleFindData &) = delete;
@@ -372,12 +376,12 @@ struct HandleFindData {
 
 	inline HandleFindData(const HandleFindData &hfd, obs_sceneitem_t *parent)
 		: pos(hfd.pos),
-		  radius(hfd.radius),
 		  item(hfd.item),
-		  handle(hfd.handle),
-		  angle(hfd.angle),
 		  rotatePoint(hfd.rotatePoint),
-		  offsetPoint(hfd.offsetPoint)
+		  offsetPoint(hfd.offsetPoint),
+		  radius(hfd.radius),
+		  handle(hfd.handle),
+		  angle(hfd.angle)
 	{
 		obs_sceneitem_get_draw_transform(parent, &parent_xform);
 	}
@@ -508,15 +512,15 @@ void OBSBasicPreview::GetStretchHandleData(const vec2 &pos, bool ignoreGroup)
 	float scale = main->previewScale / main->GetDevicePixelRatio();
 	vec2 scaled_pos = pos;
 	vec2_divf(&scaled_pos, &scaled_pos, scale);
-	HandleFindData data(scaled_pos, scale);
-	obs_scene_enum_items(scene, FindHandleAtPos, &data);
+	HandleFindData findData(scaled_pos, scale);
+	obs_scene_enum_items(scene, FindHandleAtPos, &findData);
 
-	stretchItem = std::move(data.item);
-	stretchHandle = data.handle;
+	stretchItem = std::move(findData.item);
+	stretchHandle = findData.handle;
 
-	rotateAngle = data.angle;
-	rotatePoint = data.rotatePoint;
-	offsetPoint = data.offsetPoint;
+	rotateAngle = findData.angle;
+	rotatePoint = findData.rotatePoint;
+	offsetPoint = findData.offsetPoint;
 
 	if (stretchHandle != ItemHandle::None) {
 		matrix4 boxTransform;
@@ -657,12 +661,12 @@ void OBSBasicPreview::mousePressEvent(QMouseEvent *event)
 
 	if (altDown || shiftDown || ctrlDown) {
 		vec2 s;
-		SceneFindBoxData data(s, s);
+		SceneFindBoxData findData(s, s);
 
-		obs_scene_enum_items(main->GetCurrentScene(), FindSelected, &data);
+		obs_scene_enum_items(main->GetCurrentScene(), FindSelected, &findData);
 
 		std::lock_guard<std::mutex> lock(selectMutex);
-		selectedItems = data.sceneItems;
+		selectedItems = findData.sceneItems;
 	}
 
 	vec2_set(&startPos, x, y);
@@ -859,12 +863,12 @@ void OBSBasicPreview::mouseReleaseEvent(QMouseEvent *event)
 
 	OBSDataAutoRelease rwrapper = obs_scene_save_transform_states(main->GetCurrentScene(), true);
 
-	auto undo_redo = [](const std::string &data) {
-		OBSDataAutoRelease dat = obs_data_create_from_json(data.c_str());
+	auto undo_redo = [](const std::string &jsonStr) {
+		OBSDataAutoRelease dat = obs_data_create_from_json(jsonStr.c_str());
 		OBSSourceAutoRelease source = obs_get_source_by_uuid(obs_data_get_string(dat, "scene_uuid"));
 		OBSBasic::Get()->SetCurrentScene(source.Get(), true);
 
-		obs_scene_load_transform_states(data.c_str());
+		obs_scene_load_transform_states(jsonStr.c_str());
 	};
 
 	if (wrapper && rwrapper) {
@@ -1308,7 +1312,7 @@ static bool FindItemsInBox(obs_scene_t * /* scene */, obs_sceneitem_t *item, voi
 	return true;
 }
 
-void OBSBasicPreview::BoxItems(const vec2 &startPos, const vec2 &pos)
+void OBSBasicPreview::BoxItems(const vec2 &boxStart, const vec2 &pos)
 {
 	OBSBasic *main = OBSBasic::Get();
 
@@ -1321,11 +1325,11 @@ void OBSBasicPreview::BoxItems(const vec2 &startPos, const vec2 &pos)
 		setCursor(Qt::CrossCursor);
 	}
 
-	SceneFindBoxData data(startPos, pos);
-	obs_scene_enum_items(scene, FindItemsInBox, &data);
+	SceneFindBoxData findData(boxStart, pos);
+	obs_scene_enum_items(scene, FindItemsInBox, &findData);
 
 	std::lock_guard<std::mutex> lock(selectMutex);
-	hoveredPreviewItems = data.sceneItems;
+	hoveredPreviewItems = findData.sceneItems;
 }
 
 vec3 OBSBasicPreview::CalculateStretchPos(const vec3 &tl, const vec3 &br)
@@ -1797,10 +1801,10 @@ void OBSBasicPreview::mouseMoveEvent(QMouseEvent *event)
 
 		if (!mouseMoved && hoveredPreviewItems.size() > 0) {
 			mousePos = pos;
-			OBSBasic *main = OBSBasic::Get();
-			float scale = main->GetDevicePixelRatio();
-			float x = qtPos.x() - main->previewX / scale;
-			float y = qtPos.y() - main->previewY / scale;
+			OBSBasic *obsBasic = OBSBasic::Get();
+			float scale = obsBasic->GetDevicePixelRatio();
+			float x = qtPos.x() - obsBasic->previewX / scale;
+			float y = qtPos.y() - obsBasic->previewY / scale;
 			vec2_set(&startPos, x, y);
 			updateCursor = true;
 		}
@@ -2640,16 +2644,16 @@ void OBSBasicPreview::DrawSpacingHelpers()
 	OBSBasic *main = OBSBasic::Get();
 
 	vec2 s;
-	SceneFindBoxData data(s, s);
+	SceneFindBoxData findData(s, s);
 
 	OBSScene scene = main->GetCurrentScene();
-	obs_scene_enum_items(scene, FindSelected, &data);
+	obs_scene_enum_items(scene, FindSelected, &findData);
 
-	if (data.sceneItems.size() != 1) {
+	if (findData.sceneItems.size() != 1) {
 		return;
 	}
 
-	OBSSceneItem item = data.sceneItems[0];
+	OBSSceneItem item = findData.sceneItems[0];
 	if (!item) {
 		return;
 	}

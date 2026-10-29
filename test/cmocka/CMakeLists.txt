@@ -67,6 +67,42 @@ add_compile_options($<$<COMPILE_LANG_AND_ID:C,AppleClang,Clang,GNU>:-Wno-strict-
 # tests (obs-rust/obs-studio#516, #2842). The macOS CI preset builds with
 # CMAKE_COMPILE_WARNING_AS_ERROR, so without this the lane does not compile.
 add_compile_options($<$<COMPILE_LANG_AND_ID:C,AppleClang,Clang,GNU>:-Wno-comma>)
+# The MSVC /W4 set (obs-rust/obs-studio#2626) needs the same split, and for the
+# same reason: these are existing C tests, never edited to satisfy a new
+# warning (obs-rust/obs-studio#516), and several of them compile libobs /
+# libobs-rust sources into their own executable, so the classes the /W4 level
+# adds are reported against them rather than against product code.
+#   C4132  a const struct the test fills in field by field
+#   C4201  the nameless unions in libobs/graphics/vec{2,3,4}.h and
+#          libobs/util/profiler.h (an API change, not a test bug)
+#   C4244/C4245  uint32 -> uint16 and int -> SOCKET in their fixtures, and the
+#          librtmp sources some of them compile
+#   C4310  constant truncation in their tables
+#   C4456/C4459  a test helper or local shadowing an outer local/global
+#   C4702  the non-returning uthash_fatal path at the end of every HASH_* block
+#          (the reason libobs-objects carries /wd4702 as well)
+#   C4206/C4706  the vendored librtmp classes (empty unity TU, assignment used as
+#          a condition); these tests compile librtmp into their own executable,
+#          the same reason C4244/C4245 are listed. The product target's own
+#          handling is a separate decision: the Visual Studio generator ignores
+#          its per-source COMPILE_OPTIONS.
+add_compile_options(
+  $<$<COMPILE_LANG_AND_ID:C,MSVC>:/wd4132>
+  $<$<COMPILE_LANG_AND_ID:C,MSVC>:/wd4201>
+  $<$<COMPILE_LANG_AND_ID:C,MSVC>:/wd4206>
+  $<$<COMPILE_LANG_AND_ID:C,MSVC>:/wd4244>
+  $<$<COMPILE_LANG_AND_ID:C,MSVC>:/wd4245>
+  $<$<COMPILE_LANG_AND_ID:C,MSVC>:/wd4310>
+  $<$<COMPILE_LANG_AND_ID:C,MSVC>:/wd4456>
+  $<$<COMPILE_LANG_AND_ID:C,MSVC>:/wd4459>
+  $<$<COMPILE_LANG_AND_ID:C,MSVC>:/wd4702>
+  $<$<COMPILE_LANG_AND_ID:C,MSVC>:/wd4706>
+)
+# C4201 reaches the tests through C++ TUs too: several test executables compile
+# frontend *.cpp sources against the libobs headers, and the nameless structs in
+# libobs/graphics/vec{2,3,4}.h and libobs/util/profiler.h are a nonstandard C++
+# extension (C11 6.7.2.1p13 is what makes them legal C).
+add_compile_options($<$<COMPILE_LANG_AND_ID:CXX,MSVC>:/wd4201>)
 
 # Per-test sanitizers (obs-rust/obs-studio#159). Some tests compile the code
 # they check with ASan/UBSan so a bug fails the test. Those flags are added

@@ -1115,14 +1115,29 @@ static void reset_win32_symbol_paths(void)
 
 	if (!funcs_initialized) {
 		HMODULE mod;
+		/* GetProcAddress yields a FARPROC and the members are function
+		 * pointers: casting between them is C4152 at /W4. Copy each
+		 * address through a union of that member's own type instead (as
+		 * LOAD_MODULE_SYMBOL does), one union per member because the two
+		 * prototypes differ and a shared union would be C4113. */
+		union {
+			FARPROC proc;
+			__typeof__(sym_initialize_w) fn;
+		} sym_initialize;
+		union {
+			FARPROC proc;
+			__typeof__(sym_set_search_path_w) fn;
+		} sym_search_path;
 		funcs_initialized = true;
 
 		mod = LoadLibraryW(L"DbgHelp");
 		if (!mod)
 			return;
 
-		sym_initialize_w = (void *)GetProcAddress(mod, "SymInitializeW");
-		sym_set_search_path_w = (void *)GetProcAddress(mod, "SymSetSearchPathW");
+		sym_initialize.proc = GetProcAddress(mod, "SymInitializeW");
+		sym_initialize_w = sym_initialize.fn;
+		sym_search_path.proc = GetProcAddress(mod, "SymSetSearchPathW");
+		sym_set_search_path_w = sym_search_path.fn;
 		if (!sym_initialize_w || !sym_set_search_path_w) {
 			FreeLibrary(mod);
 			return;
@@ -1308,9 +1323,17 @@ struct winrt_exports {
 	void (*winrt_capture_thread_stop)();
 };
 
+/* os_dlsym returns a void *, and assigning it straight to a function-pointer
+ * member is C4152 at /W4, so copy the address through a union, the way
+ * GRAPHICS_IMPORT (libobs/graphics/graphics-imports.c.h) does. */
 #define WINRT_IMPORT(func)                                        \
 	do {                                                      \
-		exports->func = os_dlsym(module, #func);          \
+		union {                                           \
+			void *obj;                                \
+			__typeof__(exports->func) fn;             \
+		} _sym;                                           \
+		_sym.obj = os_dlsym(module, #func);               \
+		exports->func = _sym.fn;                          \
 		if (!exports->func) {                             \
 			success = false;                          \
 			blog(LOG_ERROR,                           \

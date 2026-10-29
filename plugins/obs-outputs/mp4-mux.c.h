@@ -592,7 +592,7 @@ static inline void mp4_write_visual_sample_entry(struct mp4_mux *mux, obs_encode
 	s_write(s, compressor_name, sizeof(compressor_name)); // compressorname
 
 	s_wb16(s, 0x0018); // depth
-	s_wb16(s, -1);     // pre_defined
+	s_wb16(s, 0xFFFF); // pre_defined
 }
 
 /// 12.1.6 Content light level
@@ -894,7 +894,7 @@ static inline void mp4_write_audio_sample_entry(struct mp4_mux *mux, struct mp4_
 		s_wb32(s, is_pcm ? track->sample_size : 0);                // constBytesPerAudioPacket
 		s_wb32(s, is_pcm ? 1 : 0);                                 // constLPCMFramesPerAudioPacket
 	} else {
-		s_wb16(s, channels); // channelcount
+		s_wb16(s, (uint16_t)channels); // channelcount
 
 		/* OBS FLAC is currently always 16-bit, ALAC always 24, this may change in the future and should be
 		 * handled differently then.
@@ -1558,7 +1558,7 @@ static size_t mp4_write_sgpd_aac(struct mp4_mux *mux)
 	s_wb32(s, 1); // entry_count
 
 	// AudioRollRecoveryEntry
-	s_wb16(s, -1); // roll_distance
+	s_wb16(s, 0xFFFF); // roll_distance
 
 	return write_box_size(s, start);
 }
@@ -2908,7 +2908,10 @@ void mp4_mux_destroy(struct mp4_mux *mux)
 bool mp4_mux_submit_packet(struct mp4_mux *mux, struct encoder_packet *pkt)
 {
 	struct mp4_track *track = NULL;
-	struct encoder_packet parsed_packet;
+	/* Every branch below fills this except one: a video packet whose track
+	 * codec matches no parse arm. Zero-init keeps that path well defined
+	 * (MSVC reports C4701 at /W4 because it cannot prove a branch ran). */
+	struct encoder_packet parsed_packet = {0};
 	enum obs_encoder_type type = pkt->type;
 	bool fragment_ready = mux->next_frag_pts > 0;
 
