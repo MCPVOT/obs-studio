@@ -1741,7 +1741,7 @@ static void source_output_audio_data(obs_source_t *source, const struct audio_da
 	in.timestamp = under.timestamp;
 	push_back = under.push_back;
 
-	if (obs_source_audio_place_outputs(source->monitoring_type)) {
+	if (obs_source_audio_place_outputs((int)source->monitoring_type)) {
 		if (push_back && obs_source_audio_place_started(source->audio_ts))
 			source_output_audio_push_back(source, &in);
 		else
@@ -2156,14 +2156,15 @@ static inline void obs_source_render_async_video(obs_source_t *source)
 
 		gs_effect_t *const effect = obs_get_base_effect(OBS_EFFECT_DEFAULT);
 		const enum gs_color_space current_space = gs_get_color_space();
-		const bool linear_srgb =
-			obs_source_draw_plan_async_linear_srgb(source_space, current_space, gs_get_linear_srgb());
-		const bool nonlinear_alpha = obs_source_draw_plan_async_nonlinear_alpha(source_space, linear_srgb,
+		const bool linear_srgb = obs_source_draw_plan_async_linear_srgb((int)source_space, (int)current_space,
+										gs_get_linear_srgb());
+		const bool nonlinear_alpha = obs_source_draw_plan_async_nonlinear_alpha((int)source_space, linear_srgb,
 											source->async_linear_alpha);
 		const char *tech_name = obs_source_draw_technique_name(
-			obs_source_draw_plan_technique(source_space, current_space, nonlinear_alpha));
-		const float multiplier = obs_source_draw_plan_reads_white_level(source_space, current_space)
-						 ? obs_source_draw_plan_multiplier(source_space, current_space,
+			obs_source_draw_plan_technique((int)source_space, (int)current_space, nonlinear_alpha));
+		const float multiplier = obs_source_draw_plan_reads_white_level((int)source_space, (int)current_space)
+						 ? obs_source_draw_plan_multiplier((int)source_space,
+										   (int)current_space,
 										   obs_get_video_sdr_white_level())
 						 : 1.0f;
 
@@ -2293,13 +2294,13 @@ static void source_render(obs_source_t *source, gs_effect_t *effect)
 	const enum gs_color_space source_space = obs_source_get_color_space(source, 1, &current_space);
 
 	enum gs_color_format format = gs_get_format_from_space(source_space);
-	const bool convert = obs_source_draw_plan_convert(source_space, current_space);
-	const char *convert_tech =
-		obs_source_draw_technique_name(obs_source_draw_plan_technique(source_space, current_space, false));
-	const float multiplier =
-		obs_source_draw_plan_reads_white_level(source_space, current_space)
-			? obs_source_draw_plan_multiplier(source_space, current_space, obs_get_video_sdr_white_level())
-			: 1.0f;
+	const bool convert = obs_source_draw_plan_convert((int)source_space, (int)current_space);
+	const char *convert_tech = obs_source_draw_technique_name(
+		obs_source_draw_plan_technique((int)source_space, (int)current_space, false));
+	const float multiplier = obs_source_draw_plan_reads_white_level((int)source_space, (int)current_space)
+					 ? obs_source_draw_plan_multiplier((int)source_space, (int)current_space,
+									   obs_get_video_sdr_white_level())
+					 : 1.0f;
 
 	if (convert) {
 		if (source->color_space_texrender) {
@@ -2978,7 +2979,7 @@ static void copy_frame_data(struct obs_source_frame *dst, const struct obs_sourc
 	memcpy(dst->color_matrix, src->color_matrix, sizeof(float) * 16);
 
 	const struct obs_source_frame_copy_plan plan = obs_source_frame_copy_plan(
-		src->format, dst->full_range, dst->height, frame_copy_lines(src), frame_copy_lines(dst));
+		(int)src->format, dst->full_range, dst->height, frame_copy_lines(src), frame_copy_lines(dst));
 
 	if (plan.color_range) {
 		size_t const size = sizeof(float) * 3;
@@ -3163,7 +3164,7 @@ void obs_source_output_video(obs_source_t *source, const struct obs_source_frame
 	}
 
 	struct obs_source_frame new_frame = *frame;
-	new_frame.full_range = obs_source_frame_copy_full_range(frame->format, new_frame.full_range);
+	new_frame.full_range = obs_source_frame_copy_full_range((int)frame->format, new_frame.full_range);
 
 	obs_source_output_video_internal(source, &new_frame);
 }
@@ -3188,7 +3189,7 @@ void obs_source_output_video2(obs_source_t *source, const struct obs_source_fram
 	new_frame.height = frame->height;
 	new_frame.timestamp = frame->timestamp;
 	new_frame.format = frame->format;
-	new_frame.full_range = obs_source_frame_copy_full_range2(frame->format, frame->range);
+	new_frame.full_range = obs_source_frame_copy_full_range2((int)frame->format, (int)frame->range);
 	new_frame.max_luminance = 0;
 	new_frame.flip = frame->flip;
 	new_frame.flags = frame->flags;
@@ -3259,7 +3260,7 @@ void obs_source_remove_caption_callback(obs_source_t *source, obs_source_caption
 static inline struct obs_source_frame_copy_shape frame_copy_shape(const struct obs_source_frame *frame)
 {
 	const struct obs_source_frame_copy_shape shape = {
-		.format = frame->format,
+		.format = (int)frame->format,
 		.width = frame->width,
 		.height = frame->height,
 	};
@@ -3304,7 +3305,7 @@ void obs_source_preload_video(obs_source_t *source, const struct obs_source_fram
 	}
 
 	struct obs_source_frame new_frame = *frame;
-	new_frame.full_range = obs_source_frame_copy_full_range(frame->format, new_frame.full_range);
+	new_frame.full_range = obs_source_frame_copy_full_range((int)frame->format, new_frame.full_range);
 
 	obs_source_preload_video_internal(source, &new_frame);
 }
@@ -3329,7 +3330,7 @@ void obs_source_preload_video2(obs_source_t *source, const struct obs_source_fra
 	new_frame.height = frame->height;
 	new_frame.timestamp = frame->timestamp;
 	new_frame.format = frame->format;
-	new_frame.full_range = obs_source_frame_copy_full_range2(frame->format, frame->range);
+	new_frame.full_range = obs_source_frame_copy_full_range2((int)frame->format, (int)frame->range);
 	new_frame.max_luminance = 0;
 	new_frame.flip = frame->flip;
 	new_frame.flags = frame->flags;
@@ -3403,7 +3404,7 @@ void obs_source_set_video_frame(obs_source_t *source, const struct obs_source_fr
 	}
 
 	struct obs_source_frame new_frame = *frame;
-	new_frame.full_range = obs_source_frame_copy_full_range(frame->format, new_frame.full_range);
+	new_frame.full_range = obs_source_frame_copy_full_range((int)frame->format, new_frame.full_range);
 
 	obs_source_set_video_frame_internal(source, &new_frame);
 }
@@ -3428,7 +3429,7 @@ void obs_source_set_video_frame2(obs_source_t *source, const struct obs_source_f
 	new_frame.height = frame->height;
 	new_frame.timestamp = frame->timestamp;
 	new_frame.format = frame->format;
-	new_frame.full_range = obs_source_frame_copy_full_range2(frame->format, frame->range);
+	new_frame.full_range = obs_source_frame_copy_full_range2((int)frame->format, (int)frame->range);
 	new_frame.max_luminance = 0;
 	new_frame.flip = frame->flip;
 	new_frame.flags = frame->flags;
