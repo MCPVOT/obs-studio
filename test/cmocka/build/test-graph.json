@@ -3475,6 +3475,27 @@
         }
       ]
     },
+    "test_scene_dup_copy_lifetime": {
+      "sources": [
+        "test/cmocka/test_scene_dup_copy_lifetime.c"
+      ],
+      "libraries": [
+        "OBS::libobs",
+        "OBS::native-test-cmocka"
+      ],
+      "requires": {
+        "all": [
+          "OS_LINUX",
+          "HAVE_OBS_OPENGL"
+        ]
+      },
+      "artifact_definitions": {
+        "GRAPHICS_MODULE_PATH": "OBS::libobs-opengl"
+      },
+      "watch_inputs": [
+        "libobs/data"
+      ]
+    },
     "test_scene_dup_group_children": {
       "sources": [
         "test/cmocka/test_scene_dup_group_children.c"
@@ -3986,6 +4007,26 @@
             "not": "MSVC"
           }
         },
+        "OBS::native-test-cmocka"
+      ],
+      "sanitizers": "address,undefined"
+    },
+    "test_source_duplicate_steps": {
+      "sources": [
+        "test/cmocka/test_source_duplicate_steps.c",
+        "libobs/obs-source-duplicate.c.h"
+      ],
+      "includes": [
+        "libobs",
+        "deps/libcaption"
+      ],
+      "watch_inputs": [
+        "libobs/obs-source-duplicate.h"
+      ],
+      "libraries": [
+        "OBS::libobs",
+        "OBS::caption",
+        "Uthash::Uthash",
         "OBS::native-test-cmocka"
       ],
       "sanitizers": "address,undefined"
@@ -6604,6 +6645,15 @@
         "${target}"
       ]
     },
+    "test_scene_dup_copy_lifetime": {
+      "target": "test_scene_dup_copy_lifetime",
+      "command": [
+        "${target}"
+      ],
+      "suite": "graphics",
+      "working_directory": "${runtime}",
+      "timeout_seconds": 180
+    },
     "test_scene_dup_group_children": {
       "target": "test_scene_dup_group_children",
       "command": [
@@ -6843,6 +6893,12 @@
     },
     "test_source_draw_plan_steps": {
       "target": "test_source_draw_plan_steps",
+      "command": [
+        "${target}"
+      ]
+    },
+    "test_source_duplicate_steps": {
+      "target": "test_source_duplicate_steps",
       "command": [
         "${target}"
       ]
