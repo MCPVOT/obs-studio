@@ -2549,6 +2549,13 @@ static inline void signal_refresh(obs_scene_t *scene)
 	signal_parent(scene, command, &params);
 }
 
+/* rust/obs-scene's item_order mirrors these values and the pair layout. */
+_Static_assert(OBS_ORDER_MOVE_UP == 0, "OBS_ORDER_MOVE_UP");
+_Static_assert(OBS_ORDER_MOVE_DOWN == 1, "OBS_ORDER_MOVE_DOWN");
+_Static_assert(OBS_ORDER_MOVE_TOP == 2, "OBS_ORDER_MOVE_TOP");
+_Static_assert(OBS_ORDER_MOVE_BOTTOM == 3, "OBS_ORDER_MOVE_BOTTOM");
+_Static_assert(sizeof(struct obs_sceneitem_order_info) == 2 * sizeof(void *), "struct obs_sceneitem_order_info");
+
 void obs_sceneitem_set_order(obs_sceneitem_t *item, enum obs_order_movement movement)
 {
 	if (!item)
@@ -2565,15 +2572,26 @@ void obs_sceneitem_set_order(obs_sceneitem_t *item, enum obs_order_movement move
 	next = item->next;
 	prev = item->prev;
 
+	int anchor = obs_scene_item_order_anchor((int)movement, prev != NULL, next != NULL);
+
+	if (anchor == OBS_SCENE_ITEM_ORDER_ANCHOR_STAY) {
+		full_unlock(scene);
+		obs_scene_release(scene);
+		return;
+	}
+
 	detach_sceneitem(item);
 
-	if (movement == OBS_ORDER_MOVE_DOWN) {
-		attach_sceneitem(scene, item, prev ? prev->prev : NULL);
+	if (anchor == OBS_SCENE_ITEM_ORDER_ANCHOR_PREV_PREV) {
+		attach_sceneitem(scene, item, prev->prev);
 
-	} else if (movement == OBS_ORDER_MOVE_UP) {
-		attach_sceneitem(scene, item, next ? next : prev);
+	} else if (anchor == OBS_SCENE_ITEM_ORDER_ANCHOR_NEXT) {
+		attach_sceneitem(scene, item, next);
 
-	} else if (movement == OBS_ORDER_MOVE_TOP) {
+	} else if (anchor == OBS_SCENE_ITEM_ORDER_ANCHOR_PREV) {
+		attach_sceneitem(scene, item, prev);
+
+	} else if (anchor == OBS_SCENE_ITEM_ORDER_ANCHOR_LAST) {
 		struct obs_scene_item *last = next;
 		if (!last) {
 			last = prev;
@@ -2584,7 +2602,7 @@ void obs_sceneitem_set_order(obs_sceneitem_t *item, enum obs_order_movement move
 
 		attach_sceneitem(scene, item, last);
 
-	} else if (movement == OBS_ORDER_MOVE_BOTTOM) {
+	} else if (anchor == OBS_SCENE_ITEM_ORDER_ANCHOR_BOTTOM) {
 		attach_sceneitem(scene, item, NULL);
 	}
 
@@ -2596,6 +2614,9 @@ void obs_sceneitem_set_order(obs_sceneitem_t *item, enum obs_order_movement move
 
 int obs_sceneitem_get_order_position(obs_sceneitem_t *item)
 {
+	if (!obs_scene_item_order_item_attached(item != NULL, item && item->parent))
+		return 0;
+
 	struct obs_scene *scene = item->parent;
 	struct obs_scene_item *next = scene->first_item;
 
@@ -2626,12 +2647,13 @@ void obs_sceneitem_set_order_position(obs_sceneitem_t *item, int position)
 
 	detach_sceneitem(item);
 
-	if (!scene->first_item || position == 0) {
+	size_t steps = 0;
+	if (obs_scene_item_order_position(position, scene->first_item != NULL, &steps)) {
 		attach_sceneitem(scene, item, NULL);
 	} else {
 		struct obs_scene_item *next = scene->first_item;
 
-		for (int i = position; i > 1; --i) {
+		for (size_t i = steps; i > 0; --i) {
 			if (next->next == NULL)
 				break;
 			next = next->next;
@@ -2912,19 +2934,7 @@ static bool sceneitems_match(obs_scene_t *scene, obs_sceneitem_t *const *items, 
 
 	size_t count = 0;
 	while (item) {
-		bool found = false;
-		for (size_t i = 0; i < size; i++) {
-			if (items[i] != item)
-				continue;
-
-			if (count != i)
-				*order_matches = false;
-
-			found = true;
-			break;
-		}
-
-		if (!found)
+		if (!obs_scene_item_order_match_item(items, size, item, count, order_matches))
 			return false;
 
 		item = item->next;
@@ -3182,7 +3192,10 @@ static bool move_would_recurse(obs_scene_t *to, obs_sceneitem_t *item)
 
 static void move_active_child(obs_scene_t *from, obs_scene_t *to, obs_sceneitem_t *item)
 {
-	if (from == to || os_atomic_load_long(&item->active_refs) <= 0)
+	if (!obs_scene_item_order_moves_scene(from, to))
+		return;
+
+	if (!obs_scene_item_order_item_active(os_atomic_load_long(&item->active_refs)))
 		return;
 
 	if (to)
@@ -3496,6 +3509,9 @@ void obs_sceneitem_group_ungroup(obs_sceneitem_t *item)
 
 void obs_sceneitem_group_ungroup2(obs_sceneitem_t *item, bool signal)
 {
+	if (!obs_scene_item_order_item_attached(item != NULL, item && item->parent))
+		return;
+
 	obs_scene_t *scene = item->parent;
 	obs_sceneitem_group_ungroup(item);
 	if (signal)
@@ -3510,10 +3526,7 @@ void obs_sceneitem_group_add_item(obs_sceneitem_t *group, obs_sceneitem_t *item)
 	obs_scene_t *scene = group->parent;
 	obs_scene_t *groupscene = group->source->context.data;
 
-	if (item->parent != scene)
-		return;
-
-	if (item->parent == groupscene)
+	if (!obs_scene_item_order_add_item_allowed(item->parent, scene, groupscene))
 		return;
 
 	if (move_would_recurse(groupscene, item)) {
@@ -3552,6 +3565,9 @@ void obs_sceneitem_group_remove_item(obs_sceneitem_t *group, obs_sceneitem_t *it
 
 	obs_scene_t *groupscene = item->parent;
 	obs_scene_t *scene = group->parent;
+
+	if (!obs_scene_item_order_remove_item_allowed(item->parent == group->source->context.data))
+		return;
 
 	/* ------------------------- */
 
@@ -3610,29 +3626,16 @@ static void build_current_order_info(obs_scene_t *scene, struct obs_sceneitem_or
 	*size_out = items.num;
 }
 
-static bool sceneitems_match2(obs_scene_t *scene, struct obs_sceneitem_order_info *items, size_t size)
+/* An enum obs_scene_item_order_check value (obs_scene_item_order_reorder_check()). */
+static int sceneitems_check2(obs_scene_t *scene, struct obs_sceneitem_order_info *items, size_t size)
 {
 	struct obs_sceneitem_order_info *cur_items;
 	size_t cur_size;
 
 	build_current_order_info(scene, &cur_items, &cur_size);
-	if (cur_size != size) {
-		bfree(cur_items);
-		return false;
-	}
-
-	for (size_t i = 0; i < size; i++) {
-		struct obs_sceneitem_order_info *new = &items[i];
-		struct obs_sceneitem_order_info *old = &cur_items[i];
-
-		if (new->group != old->group || new->item != old->item) {
-			bfree(cur_items);
-			return false;
-		}
-	}
-
+	int check = obs_scene_item_order_reorder_check(cur_items, cur_size, items, size);
 	bfree(cur_items);
-	return true;
+	return check;
 }
 
 static obs_sceneitem_t *get_sceneitem_parent_group(obs_scene_t *scene, obs_sceneitem_t *group_subitem)
@@ -3689,7 +3692,7 @@ bool obs_scene_reorder_items2(obs_scene_t *scene, struct obs_sceneitem_order_inf
 
 	full_lock(scene);
 
-	if (sceneitems_match2(scene, item_order, item_order_size)) {
+	if (sceneitems_check2(scene, item_order, item_order_size) != OBS_SCENE_ITEM_ORDER_APPLY) {
 		full_unlock(scene);
 		obs_scene_release(scene);
 		return false;
@@ -3713,20 +3716,16 @@ bool obs_scene_reorder_items2(obs_scene_t *scene, struct obs_sceneitem_order_inf
 		if (info->item->is_group) {
 			obs_sceneitem_t *sub_prev = NULL;
 			obs_scene_t *sub_scene = info->item->source->context.data;
+			size_t head = i;
 
 			sub_scene->first_item = NULL;
 
 			obs_scene_addref(sub_scene);
 			full_lock(sub_scene);
 
-			for (i++; i < item_order_size; i++) {
+			for (i++; obs_scene_item_order_in_group_run(item_order, item_order_size, head, i); i++) {
 				struct obs_sceneitem_order_info *sub_info = &item_order[i];
 				obs_sceneitem_t *sub_item = sub_info->item;
-
-				if (sub_info->group != info->item) {
-					i--;
-					break;
-				}
 
 				if (!sub_scene->first_item)
 					sub_scene->first_item = sub_item;
@@ -3746,6 +3745,7 @@ bool obs_scene_reorder_items2(obs_scene_t *scene, struct obs_sceneitem_order_inf
 
 				sub_prev = sub_item;
 			}
+			i--;
 
 			resize_group(info->item, false);
 			full_unlock(sub_scene);
