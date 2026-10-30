@@ -17,12 +17,14 @@ const P3: [f32; 4] = [-0.155_915, 0.935_489, 0.233_872, -0.103_943];
 /// and of each whole group of four in `samples[..frames]`.
 pub fn sample_peak(prev: [f32; 4], samples: &[f32], frames: usize) -> f32 {
     let mut peak = prev.map(f32::abs);
-    let mut i = 0;
-    while i + 3 < frames {
+    // Whole groups only, as the C's `i + 3 < nr_samples`. One slice up front
+    // lets the compiler drop the per-sample bounds checks and load a group
+    // at once (#3005).
+    let (groups, _) = samples[..frames / 4 * 4].as_chunks::<4>();
+    for group in groups {
         for lane in 0..4 {
-            peak[lane] = peak[lane].max(samples[i + lane].abs());
+            peak[lane] = max_ps(peak[lane], group[lane].abs());
         }
-        i += 4;
     }
     hmax(peak)
 }
@@ -32,20 +34,19 @@ pub fn sample_peak(prev: [f32; 4], samples: &[f32], frames: usize) -> f32 {
 pub fn true_peak(prev: [f32; 4], samples: &[f32], frames: usize) -> f32 {
     let mut work = prev;
     let mut peak = prev.map(f32::abs);
-    let mut i = 0;
-    while i + 3 < frames {
-        let mut new_work = [samples[i], samples[i + 1], samples[i + 2], samples[i + 3]];
+    let (groups, _) = samples[..frames / 4 * 4].as_chunks::<4>();
+    for group in groups {
+        let mut new_work = *group;
         for lane in 0..4 {
-            peak[lane] = peak[lane].max(new_work[lane].abs());
+            peak[lane] = max_ps(peak[lane], new_work[lane].abs());
         }
         for _ in 0..4 {
             shift_right_2ps(&mut new_work, &mut work);
             let intrp = cross(work, M3, M1, P1, P3);
             for lane in 0..4 {
-                peak[lane] = peak[lane].max(intrp[lane].abs());
+                peak[lane] = max_ps(peak[lane], intrp[lane].abs());
             }
         }
-        i += 4;
     }
     hmax(peak)
 }
@@ -82,6 +83,16 @@ pub(crate) fn store_last(prev: &mut [f32; 4], samples: &[f32], frames: usize) {
     }
 }
 
+/// One lane of `_mm_max_ps(a, b)`: `a > b ? a : b`, so `b` when either is
+/// NaN. `f32::max` returns the other operand instead, which keeps a lane's
+/// peak where the C replaces it with the NaN (#3005). The comparison form
+/// is also the one compilers turn into `maxps`.
+#[inline]
+fn max_ps(a: f32, b: f32) -> f32 {
+    if a > b { a } else { b }
+}
+
+/// `hmax_ps`: `fmaxf` over the lanes, which skips a NaN like `f32::max`.
 fn hmax(v: [f32; 4]) -> f32 {
     v[0].max(v[1]).max(v[2]).max(v[3])
 }
