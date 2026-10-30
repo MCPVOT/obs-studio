@@ -795,8 +795,6 @@ static inline bool find_binding(obs_hotkey_id id, size_t *idx)
 	return data.found;
 }
 
-static inline void release_pressed_binding(obs_hotkey_binding_t *binding);
-
 static inline bool remove_bindings(obs_hotkey_id id)
 {
 	bool removed = false;
@@ -805,7 +803,7 @@ static inline bool remove_bindings(obs_hotkey_id id)
 		obs_hotkey_binding_t *binding = &obs->hotkeys.bindings.array[idx];
 
 		if (binding->pressed)
-			release_pressed_binding(binding);
+			obs_hotkey_binding_release(binding);
 
 		da_erase(obs->hotkeys.bindings, idx);
 		removed = true;
@@ -1001,42 +999,28 @@ bool obs_hotkey_key_is_pressed(obs_key_t key)
 	return obs_hotkeys_platform_is_pressed(obs->hotkeys.platform_context, key);
 }
 
-static inline void press_released_binding(obs_hotkey_binding_t *binding)
+/* The hotkey binding press count (obs-hotkey-binding-press.c): the binding's
+ * pressed flag, its hotkey's pressed count and the hotkey, as pointers, so the
+ * unit needs no layout of struct obs_hotkey_binding or struct obs_hotkey and
+ * writes them in place. */
+struct obs_hotkey_binding_count_fields obs_hotkey_binding_count_fields(obs_hotkey_binding_t *binding)
 {
-	binding->pressed = true;
+	return (struct obs_hotkey_binding_count_fields){
+		.pressed = &binding->pressed,
+		.count = &binding->hotkey->pressed,
+		.hotkey = binding->hotkey,
+	};
+}
 
-	obs_hotkey_t *hotkey = binding->hotkey;
-	if (hotkey->pressed++)
-		return;
-
+/* The call of a hotkey event: the hotkey's own callback, or the router when
+ * callback rerouting is on (nothing when it is on and no router is set). The
+ * callback ABI and the router (the frontend's) stay here. */
+void obs_hotkey_dispatch(obs_hotkey_t *hotkey, bool pressed)
+{
 	if (!obs->hotkeys.reroute_hotkeys)
-		hotkey->func(hotkey->data, hotkey->id, hotkey, true);
+		hotkey->func(hotkey->data, hotkey->id, hotkey, pressed);
 	else if (obs->hotkeys.router_func)
-		obs->hotkeys.router_func(obs->hotkeys.router_func_data, hotkey->id, true);
-}
-
-static inline void release_pressed_binding(obs_hotkey_binding_t *binding)
-{
-	binding->pressed = false;
-
-	obs_hotkey_t *hotkey = binding->hotkey;
-	if (--hotkey->pressed)
-		return;
-
-	if (!obs->hotkeys.reroute_hotkeys)
-		hotkey->func(hotkey->data, hotkey->id, hotkey, false);
-	else if (obs->hotkeys.router_func)
-		obs->hotkeys.router_func(obs->hotkeys.router_func_data, hotkey->id, false);
-}
-
-void obs_hotkey_binding_press(obs_hotkey_binding_t *binding)
-{
-	press_released_binding(binding);
-}
-
-void obs_hotkey_binding_release(obs_hotkey_binding_t *binding)
-{
-	release_pressed_binding(binding);
+		obs->hotkeys.router_func(obs->hotkeys.router_func_data, hotkey->id, pressed);
 }
 
 struct obs_hotkey_internal_inject {
