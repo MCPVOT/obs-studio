@@ -530,21 +530,21 @@ fn test_decompress_422_literals() {
         put32(&mut input, 0, 0x4433_2211);
         put32(&mut input, 4, 0x8877_6655);
 
-        // in_linesize 4, out_linesize 8: min(4, 8) / 2 = 2 dwords in, 4 out.
+        // in_linesize 4, out_linesize 8: min(4, 8) / 4 = 1 dword in, 2 out;
+        // the second input dword is not read.
         decompress_422(&input[..], 4, 0, 1, &mut output[..], 8, leading);
 
         assert_eq!(get32(&output, 0), 0x4433_2211);
         let second = if leading { 0x4433_2233 } else { 0x4433_4411 };
         assert_eq!(get32(&output, 4), second);
-        assert_eq!(get32(&output, 8), 0x8877_6655);
-        let fourth = if leading { 0x8877_6677 } else { 0x8877_8855 };
-        assert_eq!(get32(&output, 12), fourth);
+        assert_eq!(get32(&output, 8), u32::from_ne_bytes([CANARY; 4]));
+        assert_eq!(get32(&output, 12), u32::from_ne_bytes([CANARY; 4]));
         assert_eq!(output[16], CANARY);
     }
 }
 
 #[test]
-fn test_decompress_422_rows_spill() {
+fn test_decompress_422_rows_in_bounds() {
     let dwords: [u32; 6] = [
         0x4433_2211,
         0x8877_6655,
@@ -559,12 +559,33 @@ fn test_decompress_422_rows_spill() {
         let mut output = canary_buf(48);
         let mut expected = output.clone();
 
-        for (i, &dw) in (0u32..).zip(&dwords) {
+        for (i, &dw) in (0u32..).zip(&dwords[..4]) {
             put32(&mut expected, i * 8, dw);
             put32(&mut expected, i * 8 + 4, dup_luma(dw, leading));
         }
 
         decompress_422(&input[..], 8, 0, 2, &mut output[..], 16, leading);
+
+        assert_eq!(output, expected);
+    }
+}
+
+#[test]
+fn test_decompress_422_one_row() {
+    for leading in [false, true] {
+        let mut input = canary_buf(16);
+        let mut output = canary_buf(16);
+        let mut expected = canary_buf(16);
+        put32(&mut input, 0, 0x4433_2211);
+        put32(&mut input, 4, 0x8877_6655);
+        put32(&mut input, 8, 0xCCBB_AA99);
+        put32(&mut input, 12, 0x00FF_EEDD);
+        put32(&mut expected, 0, 0x4433_2211);
+        put32(&mut expected, 4, dup_luma(0x4433_2211, leading));
+        put32(&mut expected, 8, 0x8877_6655);
+        put32(&mut expected, 12, dup_luma(0x8877_6655, leading));
+
+        decompress_422(&input[..], 8, 0, 1, &mut output[..], 16, leading);
 
         assert_eq!(output, expected);
     }
@@ -718,9 +739,10 @@ fn decompress_422_row_offset_wraps_like_c() {
 
     decompress_422(&input[..], 1 << 31, 2, 3, &mut output[..], 8, true);
 
-    // out_linesize 8: row 2 writes at 16, min(2^31, 8) / 2 = 4 dwords in.
+    // out_linesize 8: row 2 writes at 16, min(2^31, 8) / 4 = 2 dwords in.
     assert!(output[..16].iter().all(|&b| b == CANARY));
-    for i in 0..4 {
+    assert!(output[32..].iter().all(|&b| b == CANARY));
+    for i in 0..2 {
         let dw = get32(&input, i * 4);
         assert_eq!(get32(&output, 16 + i * 8), dw);
         assert_eq!(get32(&output, 16 + i * 8 + 4), dup_luma(dw, true));

@@ -588,16 +588,17 @@ static void test_decompress_422_literals(void **state)
 		put32(input, 0, 0x44332211);
 		put32(input, 4, 0x88776655);
 
-		/* in_linesize 4, out_linesize 8: min(4, 8) / 2 = 2 dwords in, 4
-		 * out (see test_decompress_422_rows_spill). */
+		/* in_linesize 4, out_linesize 8: min(4, 8) / 4 = 1 dword in, 2
+		 * out; the second input dword is not read (see
+		 * test_decompress_422_rows_in_bounds). */
 		decompress_422(input, 4, 0, 1, output, 8, leading);
 
 		uint32_t out[4];
 		memcpy(out, output, sizeof(out));
 		assert_int_equal(out[0], 0x44332211);
 		assert_int_equal(out[1], leading ? 0x44332233 : 0x44334411);
-		assert_int_equal(out[2], 0x88776655);
-		assert_int_equal(out[3], leading ? 0x88776677 : 0x88778855);
+		assert_int_equal(out[2], CANARY * 0x01010101u);
+		assert_int_equal(out[3], CANARY * 0x01010101u);
 		assert_int_equal(output[16], CANARY);
 
 		bfree(input);
@@ -605,12 +606,13 @@ static void test_decompress_422_literals(void **state)
 	}
 }
 
-/* Characterized, not endorsed: each row reads min(in_linesize,
- * out_linesize) / 2 dwords, which is twice the in_linesize bytes of the row,
- * and writes twice as many dwords, twice its out_linesize. Each row spills
- * into the next one, and the next row overwrites the spill. With in_linesize 8
- * and out_linesize 16, two rows read 6 dwords and write 12. */
-static void test_decompress_422_rows_spill(void **state)
+/* Each row reads min(in_linesize, out_linesize) / 4 dwords, the
+ * in_linesize bytes of the row, and writes twice as many dwords, its
+ * out_linesize bytes (#3031; until then each row read and wrote twice that
+ * and spilled into the next one). With in_linesize 8 and out_linesize 16, two
+ * rows read 4 of the 6 dwords and write 8; the rest of the output keeps the
+ * canary. */
+static void test_decompress_422_rows_in_bounds(void **state)
 {
 	UNUSED_PARAMETER(state);
 
@@ -622,7 +624,7 @@ static void test_decompress_422_rows_spill(void **state)
 		uint8_t *expected = canary_buf(48);
 		memcpy(input, dwords, sizeof(dwords));
 
-		for (size_t i = 0; i < 6; i++) {
+		for (size_t i = 0; i < 4; i++) {
 			put32(expected, i * 8, dwords[i]);
 			put32(expected, i * 8 + 4, dup_luma(dwords[i], leading));
 		}
@@ -630,6 +632,36 @@ static void test_decompress_422_rows_spill(void **state)
 		decompress_422(input, 8, 0, 2, output, 16, leading);
 
 		assert_buf_equal(output, expected, 48);
+
+		bfree(input);
+		bfree(output);
+		bfree(expected);
+	}
+}
+
+/* One packed 4:2:2 row of 4 pixels (in_linesize 8) converts to one row of 4
+ * 32-bit pixels (out_linesize 16): it reads the row's 2 dwords, not the next
+ * row's, writes 4, and leaves the canary after the output (#3031). */
+static void test_decompress_422_one_row(void **state)
+{
+	UNUSED_PARAMETER(state);
+
+	for (int leading = 0; leading <= 1; leading++) {
+		uint8_t *input = canary_buf(16);
+		uint8_t *output = canary_buf(16);
+		uint8_t *expected = canary_buf(16);
+		put32(input, 0, 0x44332211);
+		put32(input, 4, 0x88776655);
+		put32(input, 8, 0xCCBBAA99);
+		put32(input, 12, 0x00FFEEDD);
+		put32(expected, 0, 0x44332211);
+		put32(expected, 4, leading ? 0x44332233 : 0x44334411);
+		put32(expected, 8, 0x88776655);
+		put32(expected, 12, leading ? 0x88776677 : 0x88778855);
+
+		decompress_422(input, 8, 0, 1, output, 16, leading);
+
+		assert_buf_equal(output, expected, 16);
 
 		bfree(input);
 		bfree(output);
@@ -686,7 +718,8 @@ int main(void)
 		cmocka_unit_test(test_decompress_nv12),
 		cmocka_unit_test(test_decompress_nv12_rows),
 		cmocka_unit_test(test_decompress_422_literals),
-		cmocka_unit_test(test_decompress_422_rows_spill),
+		cmocka_unit_test(test_decompress_422_rows_in_bounds),
+		cmocka_unit_test(test_decompress_422_one_row),
 		cmocka_unit_test(test_empty_row_range),
 	};
 
