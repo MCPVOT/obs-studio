@@ -170,8 +170,10 @@ static void register_sources(void)
 
 struct meter {
 	pthread_mutex_t mutex;
+	bool armed;
 	uint64_t start_ts;
 	uint64_t end_ts;
+	uint64_t last_ts;
 	double sum;
 	uint64_t frames;
 };
@@ -182,33 +184,54 @@ static void raw_audio(void *param, size_t mix_idx, struct audio_data *data)
 	(void)mix_idx;
 
 	pthread_mutex_lock(&m->mutex);
-	if (m->start_ts && data->timestamp >= m->start_ts && data->timestamp < m->end_ts) {
-		const float *d = (const float *)data->data[0];
-		for (uint32_t i = 0; i < data->frames; i++)
-			m->sum += fabsf(d[i]);
-		m->frames += data->frames;
+	if (m->armed) {
+		/* The mix lags real time by the audio buffering, so remember how
+		 * far it has got: the measurement waits for the mix to reach the
+		 * end of its window instead of trusting a fixed sleep. */
+		if (data->timestamp > m->last_ts)
+			m->last_ts = data->timestamp;
+		if (data->timestamp >= m->start_ts && data->timestamp < m->end_ts) {
+			const float *d = (const float *)data->data[0];
+			for (uint32_t i = 0; i < data->frames; i++)
+				m->sum += fabsf(d[i]);
+			m->frames += data->frames;
+		}
 	}
 	pthread_mutex_unlock(&m->mutex);
 }
 
-/* Average program level over the next 400 ms, as a fraction of the tone. */
+/* Average program level over the next 400 ms of the mix, as a fraction of the
+ * tone. */
 static double program_level(struct meter *m)
 {
-	uint64_t now = os_gettime_ns();
+	const uint64_t now = os_gettime_ns();
 	pthread_mutex_lock(&m->mutex);
+	m->armed = true;
 	m->start_ts = now;
 	m->end_ts = now + 400000000ULL;
+	m->last_ts = 0;
 	m->sum = 0.0;
 	m->frames = 0;
 	pthread_mutex_unlock(&m->mutex);
 
-	/* the mix lags real time by the audio buffering */
-	os_sleep_ms(1000);
+	/* Wait for the mix to reach the end of the window on its own clock. A
+	 * starved machine delays the measurement instead of emptying it: the
+	 * 1000 ms sleep this replaces was already over when the audio thread
+	 * had not run, and every case failed with no audio mixed. */
+	const uint64_t deadline = now + 5000000000ULL;
+	for (;;) {
+		pthread_mutex_lock(&m->mutex);
+		bool reached = m->last_ts >= m->end_ts;
+		pthread_mutex_unlock(&m->mutex);
+		if (reached || os_gettime_ns() >= deadline)
+			break;
+		os_sleep_ms(5);
+	}
 
 	pthread_mutex_lock(&m->mutex);
+	m->armed = false;
 	double sum = m->sum;
 	uint64_t frames = m->frames;
-	m->start_ts = 0;
 	pthread_mutex_unlock(&m->mutex);
 
 	if (!frames) {
