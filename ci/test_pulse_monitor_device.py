@@ -268,6 +268,24 @@ class PulseMonitorDeviceTest(unittest.TestCase):
         self.assertIn("boom: no socket", result.stdout)
         self.assertFalse((self.harness.record / "test-binary.json").exists(), "the test binary must not run")
 
+    def test_a_daemon_that_dies_just_after_the_server_answers_is_caught(self) -> None:
+        """`pactl` answering is not the group being up.
+
+        A helper that exits a moment after readiness leaves the test binary a
+        half-started graph, and one liveness check at readiness samples too
+        early: its exit is only visible once the process has been reaped.
+        """
+        result = self.harness.run(
+            "test-pulse",
+            PRIVATE_PIPEWIRE_STARTED="1",
+            DAEMON_DIE="wireplumber",
+            DAEMON_BOOT_DELAY="wireplumber=0.2",
+            TEST_EXIT="3",
+        )
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("wireplumber exited on its own:", result.stdout)
+        self.assertFalse((self.harness.record / "test-binary.json").exists(), "the test binary must not run")
+
     def test_a_daemon_that_ignores_sigterm_is_killed(self) -> None:
         """A hung daemon is killed after the stop deadline; it cannot hang the lane."""
         result = self.harness.run("test-pulse", PRIVATE_PIPEWIRE_STARTED="1", DAEMON_HANG="wireplumber", TEST_EXIT="3")
@@ -316,6 +334,8 @@ class PulseMonitorDeviceTest(unittest.TestCase):
         self.assertEqual(module.SOCKET_SUFFIX, "/pipewire-0-manager")
         self.assertEqual(module.START_ATTEMPTS, 200)
         self.assertEqual(module.START_SLEEP, 0.1)
+        self.assertEqual(module.SETTLE_ATTEMPTS, 20)
+        self.assertEqual(module.SETTLE_SLEEP, 0.05)
         self.assertEqual(
             module.TOOLS,
             ("pipewire", "wireplumber", "pipewire-pulse", "pactl", "dbus-run-session"),
